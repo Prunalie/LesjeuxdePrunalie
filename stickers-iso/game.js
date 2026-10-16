@@ -1,6 +1,7 @@
-/* Ma petite pièce — placer des stickers importés dans une pièce isométrique.
- * Tout est sauvegardé dans le navigateur (IndexedDB) : les images importées
- * et la disposition de la pièce. */
+/* Ma petite pièce — placer des stickers importés dans des pièces isométriques.
+ * Trois écrans : choix du pseudo → liste de ses pièces → décoration d'une pièce.
+ * Les stickers (bibliothèque commune à toutes ses pièces) et les pièces sont
+ * rangés par pseudo dans Firebase, ou dans le navigateur si Firebase manque. */
 (() => {
   'use strict';
 
@@ -21,7 +22,11 @@
   };
 
   const state = {
-    images: new Map(),   // id -> { id, name, data, url, w, h }
+    player: null,        // { key, name } : key = pseudo normalisé, sert d'identifiant
+    rooms: [],           // pièces du joueur : { id, owner, name, stickers, colors, thumb, updated }
+    roomId: null,        // pièce ouverte
+    roomName: '',
+    images: new Map(),   // id -> { id, owner, name, data, url, w, h }
     stickers: [],        // ordre du tableau = ordre d'empilement (dernier = devant)
     colors: { ...DEFAULT_COLORS },
     selectedId: null,
@@ -50,22 +55,33 @@
   const exportLink = $('#exportLink');
   const toastEl = $('#toast');
 
-  function askConfirm(message, okLabel) {
+  // Renvoie true/false, ou le texte saisi (null si annulé) quand `value` est fourni.
+  function askDialog(message, okLabel, value) {
     return new Promise((resolve) => {
+      const withInput = value !== undefined;
+      const input = $('#confirmInput');
       $('#confirmText').textContent = message;
       const ok = $('#confirmOk'), cancel = $('#confirmCancel');
       ok.textContent = okLabel;
+      input.hidden = !withInput;
+      input.value = withInput ? value : '';
       confirmDialog.hidden = false;
-      ok.focus();
+      if (withInput) { input.focus(); input.select(); } else ok.focus();
       const done = (v) => {
         confirmDialog.hidden = true;
-        ok.onclick = cancel.onclick = null;
+        ok.onclick = cancel.onclick = input.onkeydown = null;
         resolve(v);
       };
-      ok.onclick = () => done(true);
-      cancel.onclick = () => done(false);
+      ok.onclick = () => done(withInput ? input.value.trim() || null : true);
+      cancel.onclick = () => done(withInput ? null : false);
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') ok.onclick();
+        if (e.key === 'Escape') cancel.onclick();
+      };
     });
   }
+  const askConfirm = (message, okLabel) => askDialog(message, okLabel);
+  const askText = (message, okLabel, value) => askDialog(message, okLabel, value);
 
   let toastTimer = null;
   function toast(msg) {
@@ -92,19 +108,20 @@
       const fs = firebase.firestore();
       fs.enablePersistence().catch(() => {});
       const images = fs.collection('ma-petite-piece-stickers');
-      const scene = fs.collection('ma-petite-piece').doc('scene');
+      const rooms = fs.collection('ma-petite-piece');
+      const byOwner = async (col, owner) => {
+        // Pas de orderBy ici : il demanderait un index composé dans Firestore.
+        const snap = await col.where('owner', '==', owner).get();
+        return snap.docs.map((d) => ({ ...d.data(), id: d.id }));
+      };
+      const clean = (v) => JSON.parse(JSON.stringify(v));
       return {
-        allImages: async () => {
-          const snap = await images.orderBy('created').get();
-          return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        },
-        putImage: ({ id, name, data, w, h }) => images.doc(id).set({ name, data, w, h, created: Date.now() }),
+        listImages: (owner) => byOwner(images, owner),
+        putImage: ({ id, url, ...rec }) => images.doc(id).set(clean(rec)),
         deleteImage: (id) => images.doc(id).delete(),
-        getState: async () => {
-          const d = await scene.get();
-          return d.exists ? d.data() : null;
-        },
-        putState: (v) => scene.set(JSON.parse(JSON.stringify(v))),
+        listRooms: (owner) => byOwner(rooms, owner),
+        putRoom: ({ id, ...room }) => rooms.doc(id).set(clean(room)),
+        deleteRoom: (id) => rooms.doc(id).delete(),
       };
     } catch (e) {
       console.warn('Firebase indisponible', e);
@@ -117,11 +134,11 @@
     const open = () => {
       if (!dbPromise) {
         dbPromise = new Promise((resolve, reject) => {
-          const req = indexedDB.open('ma-petite-piece', 1);
+          const req = indexedDB.open('ma-petite-piece', 2);
           req.onupgradeneeded = () => {
             const d = req.result;
-            d.createObjectStore('images', { keyPath: 'id' });
-            d.createObjectStore('state');
+            if (!d.objectStoreNames.contains('images')) d.createObjectStore('images', { keyPath: 'id' });
+            if (!d.objectStoreNames.contains('rooms')) d.createObjectStore('rooms', { keyPath: 'id' });
           };
           req.onsuccess = () => resolve(req.result);
           req.onerror = () => reject(req.error);
@@ -138,27 +155,66 @@
         tx.onerror = () => reject(tx.error);
       });
     };
+    // Les stickers importés avant l'arrivée des pseudos (sans owner) restent visibles.
+    const byOwner = async (store, owner) =>
+      ((await run(store, 'readonly', (s) => s.getAll())) || []).filter((r) => !r.owner || r.owner === owner);
     return {
-      allImages: () => run('images', 'readonly', (s) => s.getAll()),
-      putImage: (img) => run('images', 'readwrite', (s) => s.put(img)),
+      listImages: (owner) => byOwner('images', owner),
+      putImage: ({ url, ...rec }) => run('images', 'readwrite', (s) => s.put(rec)),
       deleteImage: (id) => run('images', 'readwrite', (s) => s.delete(id)),
-      getState: () => run('state', 'readonly', (s) => s.get('scene')),
-      putState: (v) => run('state', 'readwrite', (s) => s.put(v, 'scene')),
+      listRooms: (owner) => byOwner('rooms', owner),
+      putRoom: (room) => run('rooms', 'readwrite', (s) => s.put(room)),
+      deleteRoom: (id) => run('rooms', 'readwrite', (s) => s.delete(id)),
     };
   })();
 
   let db = cloudDb || localDb;
 
   let saveTimer = null;
+  let savePending = false;
   function scheduleSave() {
+    if (!state.roomId) return;
+    savePending = true;
+    setSaveStatus('…');
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      db.putState({ stickers: state.stickers, colors: state.colors })
-        .catch((e) => {
-          console.warn('Sauvegarde impossible', e);
-          toast('La pièce n\'a pas pu être sauvegardée. Vérifie ta connexion.');
-        });
-    }, 300);
+    saveTimer = setTimeout(saveRoom, 700);
+  }
+
+  async function saveRoom() {
+    clearTimeout(saveTimer);
+    if (!savePending || !state.roomId) return;
+    savePending = false;
+    let thumb = '';
+    try {
+      const cv = await renderScene(0.3, null);
+      thumb = cv.toDataURL('image/webp', 0.8);
+      if (!thumb.startsWith('data:image/webp')) thumb = cv.toDataURL('image/png');
+    } catch (e) {
+      console.warn('Miniature impossible', e);
+    }
+    const room = {
+      id: state.roomId,
+      owner: state.player.key,
+      name: state.roomName,
+      stickers: state.stickers,
+      colors: state.colors,
+      thumb,
+      updated: Date.now(),
+    };
+    const i = state.rooms.findIndex((r) => r.id === room.id);
+    if (i >= 0) state.rooms[i] = { ...room, stickers: [...room.stickers], colors: { ...room.colors } };
+    try {
+      await db.putRoom(room);
+      if (!savePending) setSaveStatus('Sauvegardé ✓');
+    } catch (e) {
+      console.warn('Sauvegarde impossible', e);
+      setSaveStatus('Non sauvegardé');
+      toast('La pièce n\'a pas pu être sauvegardée. Vérifie ta connexion.');
+    }
+  }
+
+  function setSaveStatus(text) {
+    $('#saveStatus').textContent = text;
   }
 
   // ---------------------------------------------------------------------------
@@ -186,7 +242,11 @@
   }
 
   function drawRoom() {
-    const { wallLeft, wallRight, floor } = state.colors;
+    room.innerHTML = roomSvg(state.colors);
+  }
+
+  function roomSvg(colors) {
+    const { wallLeft, wallRight, floor } = { ...DEFAULT_COLORS, ...colors };
     const B = floorPoint(1, 1);
     const parts = [];
 
@@ -226,7 +286,7 @@
     // Arête du coin
     parts.push(`<line x1="${C.x}" y1="${C.y}" x2="${C.x}" y2="${up(C).y}" stroke="${edge}" stroke-opacity=".35" stroke-width="2"/>`);
 
-    room.innerHTML = parts.join('');
+    return parts.join('');
   }
 
   // ---------------------------------------------------------------------------
@@ -267,7 +327,7 @@
         const img = await loadImageEl(srcUrl);
         URL.revokeObjectURL(srcUrl);
         const { data, w, h } = encodeImage(img);
-        const rec = { id: uid(), name: file.name, data, w, h };
+        const rec = { id: uid(), owner: state.player.key, name: file.name, data, w, h, created: Date.now() };
         await db.putImage(rec);
         addImageToLibrary(rec);
       } catch (e) {
@@ -564,7 +624,7 @@
   let dragDepth = 0;
   const hasFiles = (e) => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
   window.addEventListener('dragenter', (e) => {
-    if (!hasFiles(e)) return;
+    if (!hasFiles(e) || screens.room.hidden) return;
     e.preventDefault();
     dragDepth++;
     dropOverlay.hidden = false;
@@ -578,6 +638,7 @@
   window.addEventListener('drop', (e) => {
     if (!hasFiles(e)) return;
     e.preventDefault();
+    if (screens.room.hidden) return;
     dragDepth = 0;
     dropOverlay.hidden = true;
     importFiles(e.dataTransfer.files);
@@ -615,15 +676,17 @@
     scheduleSave();
   });
 
-  $('#btnExport').addEventListener('click', async () => {
-    const K = 2; // export en haute définition
+  // Dessine la pièce et ses stickers dans un canvas (export et miniatures).
+  async function renderScene(K, background) {
     const cv = document.createElement('canvas');
-    cv.width = STAGE_W * K;
-    cv.height = STAGE_H * K;
+    cv.width = Math.round(STAGE_W * K);
+    cv.height = Math.round(STAGE_H * K);
     const ctx = cv.getContext('2d');
     ctx.scale(K, K);
-    ctx.fillStyle = getComputedStyle(document.body).backgroundColor;
-    ctx.fillRect(0, 0, STAGE_W, STAGE_H);
+    if (background) {
+      ctx.fillStyle = background;
+      ctx.fillRect(0, 0, STAGE_W, STAGE_H);
+    }
 
     const svgText = new XMLSerializer().serializeToString(room);
     const svgUrl = URL.createObjectURL(new Blob([svgText], { type: 'image/svg+xml' }));
@@ -647,7 +710,12 @@
       ctx.drawImage(el, -s.w / 2, -s.h / 2, s.w, s.h);
       ctx.restore();
     }
+    return cv;
+  }
 
+  $('#btnExport').addEventListener('click', async () => {
+    // export en haute définition
+    const cv = await renderScene(2, getComputedStyle(document.body).backgroundColor);
     cv.toBlob((blob) => {
       // On affiche l'image (enregistrable par clic droit / appui long) avec un lien
       // de téléchargement, qui ne marche pas partout (pages intégrées).
@@ -661,44 +729,223 @@
   });
 
   // ---------------------------------------------------------------------------
-  // Démarrage
+  // Écrans : pseudo → mes pièces → décoration
   // ---------------------------------------------------------------------------
-  async function init() {
-    fitStage();
-    window.addEventListener('resize', fitStage);
-    new ResizeObserver(fitStage).observe(stageArea);
+  const screens = {
+    start: $('#screenStart'),
+    rooms: $('#screenRooms'),
+    room: $('#screenRoom'),
+  };
+  function showScreen(name) {
+    for (const [key, el] of Object.entries(screens)) el.hidden = key !== name;
+    if (name === 'room') fitStage();
+  }
 
-    let loaded = null;
+  const PSEUDO_KEY = 'ma-petite-piece:pseudo';
+  const remember = (v) => { try { localStorage.setItem(PSEUDO_KEY, v); } catch (e) { /* stockage indisponible */ } };
+  const recall = () => { try { return localStorage.getItem(PSEUDO_KEY) || ''; } catch (e) { return ''; } };
+  const normalizePseudo = (name) => name.trim().replace(/\s+/g, ' ').toLowerCase();
+
+  // Charge une liste en basculant sur le navigateur si Firebase ne répond pas.
+  async function withFallback(fn) {
     try {
-      loaded = await Promise.all([db.allImages(), db.getState()]);
+      return await fn(db);
     } catch (e) {
-      if (db !== cloudDb) e = null; // erreur locale : traitée juste en dessous
-      // Firebase ne répond pas (base pas encore créée, règles, réseau…) :
-      // on garde les stickers dans le navigateur pour que le jeu reste utilisable.
-      if (e) {
-        console.warn('Firebase indisponible, sauvegarde dans le navigateur', e);
-        toast('Sauvegarde en ligne indisponible : tes stickers restent dans ce navigateur.');
-        db = localDb;
-      }
+      if (db !== cloudDb) throw e;
+      console.warn('Firebase indisponible, sauvegarde dans le navigateur', e);
+      toast('Sauvegarde en ligne indisponible : tes pièces restent dans ce navigateur.');
+      db = localDb;
+      return fn(db);
     }
+  }
+
+  $('#startForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = $('#pseudoInput').value.trim().replace(/\s+/g, ' ');
+    if (name.length < 2) {
+      $('#pseudoError').hidden = false;
+      return;
+    }
+    $('#pseudoError').hidden = true;
+    const btn = $('#startBtn');
+    btn.disabled = true;
     try {
-      const [images, saved] = loaded || await Promise.all([db.allImages(), db.getState()]);
-      (images || []).forEach(addImageToLibrary);
-      if (saved) {
-        state.colors = { ...DEFAULT_COLORS, ...saved.colors };
-        state.stickers = (saved.stickers || []).filter((s) => state.images.has(s.imageId));
-      }
+      await login(name);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  async function login(name) {
+    state.player = { key: normalizePseudo(name), name };
+    remember(name);
+    $('#playerName').textContent = name;
+    state.images = new Map();
+    try {
+      const [images, rooms] = await withFallback((d) =>
+        Promise.all([d.listImages(state.player.key), d.listRooms(state.player.key)]));
+      images.sort((a, b) => (a.created || 0) - (b.created || 0)).forEach(addImageToLibrary);
+      state.rooms = rooms;
     } catch (e) {
       console.warn('Chargement impossible', e);
-      toast(cloudDb
-        ? 'Impossible de charger tes stickers. Vérifie ta connexion puis recharge la page.'
-        : 'Impossible de charger tes stickers (navigation privée ?).');
+      toast('Impossible de charger tes pièces. Vérifie ta connexion puis recharge la page.');
+      state.rooms = [];
     }
+    renderRoomList();
+    showScreen('rooms');
+  }
 
+  $('#btnChangePseudo').addEventListener('click', () => {
+    state.player = null;
+    state.rooms = [];
+    showScreen('start');
+    $('#pseudoInput').focus();
+  });
+
+  const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+
+  function renderRoomList() {
+    const grid = $('#roomGrid');
+    grid.innerHTML = '';
+    const rooms = [...state.rooms].sort((a, b) => (b.updated || 0) - (a.updated || 0));
+    $('#roomCount').textContent = rooms.length
+      ? `${rooms.length} pièce${rooms.length > 1 ? 's' : ''}`
+      : 'Aucune pièce pour l\'instant';
+
+    const add = document.createElement('button');
+    add.className = 'room-card room-new';
+    add.innerHTML = '<span class="room-new-plus">＋</span><span>Nouvelle pièce</span>';
+    add.addEventListener('click', createRoom);
+    grid.appendChild(add);
+
+    for (const r of rooms) {
+      const card = document.createElement('article');
+      card.className = 'room-card';
+      const preview = r.thumb
+        ? `<img class="room-thumb" alt="">`
+        : `<svg class="room-thumb" viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg">${roomSvg(r.colors)}</svg>`;
+      card.innerHTML = `
+        <button class="room-open" title="Ouvrir">${preview}</button>
+        <div class="room-meta">
+          <h3 class="room-name"></h3>
+          <p class="room-date"></p>
+        </div>
+        <div class="room-actions">
+          <button data-room-act="rename" title="Renommer">✏️</button>
+          <button data-room-act="duplicate" title="Dupliquer">⧉</button>
+          <button data-room-act="delete" title="Supprimer" class="danger">🗑️</button>
+        </div>`;
+      if (r.thumb) card.querySelector('img').src = r.thumb;
+      card.querySelector('.room-name').textContent = r.name || 'Sans nom';
+      const n = (r.stickers || []).length;
+      card.querySelector('.room-date').textContent =
+        `${n} sticker${n > 1 ? 's' : ''} · ${r.updated ? dateFmt.format(r.updated) : ''}`;
+      card.querySelector('.room-open').addEventListener('click', () => openRoom(r.id));
+      card.querySelector('.room-actions').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-room-act]');
+        if (btn) roomAction(btn.dataset.roomAct, r);
+      });
+      grid.appendChild(card);
+    }
+  }
+
+  function nextRoomName() {
+    const names = new Set(state.rooms.map((r) => r.name));
+    let i = state.rooms.length + 1;
+    while (names.has(`Pièce ${i}`)) i++;
+    return `Pièce ${i}`;
+  }
+
+  async function createRoom() {
+    const name = await askText('Comment s\'appelle cette pièce ?', 'Créer', nextRoomName());
+    if (!name) return;
+    const r = {
+      id: uid(),
+      owner: state.player.key,
+      name,
+      stickers: [],
+      colors: { ...DEFAULT_COLORS },
+      thumb: '',
+      updated: Date.now(),
+    };
+    state.rooms.push(r);
+    try {
+      await db.putRoom(r);
+    } catch (e) {
+      console.warn('Création impossible', e);
+      toast('La pièce n\'a pas pu être enregistrée. Vérifie ta connexion.');
+    }
+    openRoom(r.id);
+  }
+
+  async function roomAction(action, r) {
+    if (action === 'rename') {
+      const name = await askText('Nouveau nom de la pièce :', 'Renommer', r.name);
+      if (!name || name === r.name) return;
+      r.name = name;
+      r.updated = Date.now();
+      db.putRoom(r).catch(() => toast('Le nouveau nom n\'a pas pu être enregistré.'));
+    } else if (action === 'duplicate') {
+      const copy = {
+        ...JSON.parse(JSON.stringify(r)),
+        id: uid(),
+        name: `${r.name} (copie)`,
+        updated: Date.now(),
+      };
+      state.rooms.push(copy);
+      db.putRoom(copy).catch(() => toast('La copie n\'a pas pu être enregistrée.'));
+    } else if (action === 'delete') {
+      if (!(await askConfirm(`Supprimer « ${r.name} » ? Ses stickers restent dans ta bibliothèque.`, 'Supprimer'))) return;
+      state.rooms = state.rooms.filter((x) => x.id !== r.id);
+      db.deleteRoom(r.id).catch(() => toast('La pièce n\'a pas pu être supprimée.'));
+    }
+    renderRoomList();
+  }
+
+  function openRoom(id) {
+    const r = state.rooms.find((x) => x.id === id);
+    if (!r) return;
+    state.roomId = r.id;
+    state.roomName = r.name;
+    state.colors = { ...DEFAULT_COLORS, ...r.colors };
+    state.stickers = (r.stickers || [])
+      .filter((s) => state.images.has(s.imageId))
+      .map((s) => ({ ...s }));
+    state.selectedId = null;
+    $('#roomName').value = r.name;
+    setSaveStatus('Sauvegardé ✓');
     syncColorInputs();
     drawRoom();
     renderLibrary();
     renderStickers();
+    showScreen('room');
+  }
+
+  $('#roomName').addEventListener('input', (e) => {
+    state.roomName = e.target.value.trim() || 'Sans nom';
+    scheduleSave();
+  });
+
+  $('#btnBack').addEventListener('click', async () => {
+    select(null);
+    await saveRoom();
+    state.roomId = null;
+    renderRoomList();
+    showScreen('rooms');
+  });
+
+  // Sauvegarde ce qui reste en attente si on ferme la page.
+  window.addEventListener('pagehide', () => { saveRoom(); });
+
+  // ---------------------------------------------------------------------------
+  // Démarrage
+  // ---------------------------------------------------------------------------
+  function init() {
+    window.addEventListener('resize', fitStage);
+    new ResizeObserver(fitStage).observe(stageArea);
+    $('#pseudoInput').value = recall();
+    showScreen('start');
+    $('#pseudoInput').focus();
   }
 
   init();
