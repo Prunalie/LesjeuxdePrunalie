@@ -293,11 +293,15 @@
   // Mise à l'échelle de la scène
   // ---------------------------------------------------------------------------
   function fitStage() {
-    const pad = 24;
+    if (!stageArea.clientWidth) return; // écran caché
+    const small = stageArea.clientWidth < 600;
+    const pad = small ? 4 : 24;
     const availW = stageArea.clientWidth - pad * 2;
-    const availH = stageArea.clientHeight - pad * 2 - 50; // place pour la barre d'outils
-    state.scale = Math.max(0.2, Math.min(availW / STAGE_W, availH / STAGE_H));
+    const availH = stageArea.clientHeight - pad * 2 - (small ? 56 : 50); // place pour la barre d'outils
+    state.scale = Math.max(0.1, Math.min(availW / STAGE_W, availH / STAGE_H));
     stage.style.transform = `scale(${state.scale})`;
+    // Les poignées gardent la même taille à l'écran, quel que soit le zoom.
+    stage.style.setProperty('--inv', 1 / state.scale);
     stageScaler.style.width = STAGE_W * state.scale + 'px';
     stageScaler.style.height = STAGE_H * state.scale + 'px';
   }
@@ -426,6 +430,7 @@
       window.removeEventListener('pointerup', end);
       window.removeEventListener('pointercancel', end);
       if (!ghost) {
+        if (ev.type === 'pointercancel') return; // la bande de stickers a défilé
         // Simple clic : on pose le sticker au milieu de la pièce
         addSticker(imageId, STAGE_W / 2 + (Math.random() - 0.5) * 80, 430 + (Math.random() - 0.5) * 80);
         return;
@@ -496,50 +501,103 @@
     return layer.querySelector(`.sticker[data-id="${id}"]`);
   }
 
+  // Geste en cours sur le sticker sélectionné. Un doigt (ou la souris) déplace
+  // le sticker ou agit via une poignée ; un deuxième doigt, posé n'importe où
+  // dans la pièce, passe en mode « pincer » : agrandir et tourner à deux doigts.
+  let gesture = null;
+
   function onStickerPointerDown(e, s, el) {
     if (e.button !== undefined && e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
+    if (joinPinch(e)) return;
     select(s.id);
 
-    const p0 = toStage(e.clientX, e.clientY);
-    const target = e.target;
     let mode = 'move';
-    if (target.classList.contains('handle-scale')) mode = 'scale';
-    else if (target.classList.contains('handle-rotate')) mode = 'rotate';
+    if (e.target.classList.contains('handle-scale')) mode = 'scale';
+    else if (e.target.classList.contains('handle-rotate')) mode = 'rotate';
 
-    const start = { x: s.x, y: s.y, w: s.w, h: s.h, rot: s.rot };
-    const startDist = Math.hypot(p0.x - s.x, p0.y - s.y) || 1;
+    gesture = { s, el, mode, pointers: new Map() };
+    gesture.pointers.set(e.pointerId, toStage(e.clientX, e.clientY));
+    resetGestureStart();
     el.classList.add('dragging');
+    window.addEventListener('pointermove', onGestureMove);
+    window.addEventListener('pointerup', onGestureEnd);
+    window.addEventListener('pointercancel', onGestureEnd);
+  }
 
-    const move = (ev) => {
-      const p = toStage(ev.clientX, ev.clientY);
+  // Mémorise l'état de départ pour le mode courant.
+  function resetGestureStart() {
+    const { s, pointers } = gesture;
+    gesture.start = { x: s.x, y: s.y, w: s.w, h: s.h, rot: s.rot };
+    const pts = [...pointers.values()];
+    if (gesture.mode === 'pinch') {
+      const [a, b] = pts;
+      gesture.startDist = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      gesture.startAngle = Math.atan2(b.y - a.y, b.x - a.x);
+      gesture.startMid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    } else {
+      gesture.p0 = pts[0];
+      gesture.startDist = Math.hypot(pts[0].x - s.x, pts[0].y - s.y) || 1;
+    }
+  }
+
+  function joinPinch(e) {
+    if (!gesture || gesture.pointers.size !== 1 || e.pointerType !== 'touch') return false;
+    gesture.pointers.set(e.pointerId, toStage(e.clientX, e.clientY));
+    gesture.mode = 'pinch';
+    resetGestureStart();
+    return true;
+  }
+
+  function onGestureMove(ev) {
+    if (!gesture || !gesture.pointers.has(ev.pointerId)) return;
+    gesture.pointers.set(ev.pointerId, toStage(ev.clientX, ev.clientY));
+    const { s, el, mode, start } = gesture;
+    const minK = MIN_SIZE / Math.min(start.w, start.h);
+    if (mode === 'pinch') {
+      const [a, b] = [...gesture.pointers.values()];
+      const k = Math.max(Math.hypot(b.x - a.x, b.y - a.y) / gesture.startDist, minK);
+      const da = (Math.atan2(b.y - a.y, b.x - a.x) - gesture.startAngle) * 180 / Math.PI;
+      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      s.w = start.w * k;
+      s.h = start.h * k;
+      s.rot = (((start.rot + da) % 360) + 360) % 360;
+      s.x = clamp(start.x + mid.x - gesture.startMid.x, 0, STAGE_W);
+      s.y = clamp(start.y + mid.y - gesture.startMid.y, 0, STAGE_H);
+    } else {
+      const p = gesture.pointers.get(ev.pointerId);
       if (mode === 'move') {
-        s.x = clamp(start.x + p.x - p0.x, 0, STAGE_W);
-        s.y = clamp(start.y + p.y - p0.y, 0, STAGE_H);
+        s.x = clamp(start.x + p.x - gesture.p0.x, 0, STAGE_W);
+        s.y = clamp(start.y + p.y - gesture.p0.y, 0, STAGE_H);
       } else if (mode === 'scale') {
-        const k = Math.hypot(p.x - s.x, p.y - s.y) / startDist;
-        const kMin = MIN_SIZE / Math.min(start.w, start.h);
-        const kk = Math.max(k, kMin);
-        s.w = start.w * kk;
-        s.h = start.h * kk;
+        const k = Math.max(Math.hypot(p.x - s.x, p.y - s.y) / gesture.startDist, minK);
+        s.w = start.w * k;
+        s.h = start.h * k;
       } else {
         let a = Math.atan2(p.y - s.y, p.x - s.x) * 180 / Math.PI + 90;
         if (ev.shiftKey) a = Math.round(a / 15) * 15;
         s.rot = ((a % 360) + 360) % 360;
       }
-      applyStickerStyle(el, s);
-    };
-    const end = () => {
-      el.classList.remove('dragging');
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', end);
-      window.removeEventListener('pointercancel', end);
-      scheduleSave();
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', end);
-    window.addEventListener('pointercancel', end);
+    }
+    applyStickerStyle(el, s);
+  }
+
+  function onGestureEnd(ev) {
+    if (!gesture || !gesture.pointers.has(ev.pointerId)) return;
+    gesture.pointers.delete(ev.pointerId);
+    if (gesture.pointers.size) {
+      // Un doigt levé pendant le pincement : on continue en déplaçant avec l'autre.
+      gesture.mode = 'move';
+      resetGestureStart();
+      return;
+    }
+    gesture.el.classList.remove('dragging');
+    gesture = null;
+    window.removeEventListener('pointermove', onGestureMove);
+    window.removeEventListener('pointerup', onGestureEnd);
+    window.removeEventListener('pointercancel', onGestureEnd);
+    scheduleSave();
   }
 
   // Molette sur un sticker sélectionné : agrandir / réduire
@@ -556,7 +614,8 @@
 
   // Clic dans le vide : désélection
   stageArea.addEventListener('pointerdown', (e) => {
-    if (!e.target.closest('.sticker') && !e.target.closest('.toolbar')) select(null);
+    if (e.target.closest('.sticker') || e.target.closest('.toolbar')) return;
+    if (!joinPinch(e)) select(null);
   });
 
   // ---------------------------------------------------------------------------
@@ -920,6 +979,24 @@
     renderStickers();
     showScreen('room');
   }
+
+  const roomMenu = $('#roomMenu');
+  const btnMenu = $('#btnMenu');
+  btnMenu.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = !roomMenu.classList.contains('open');
+    roomMenu.classList.toggle('open', open);
+    btnMenu.setAttribute('aria-expanded', open);
+  });
+  document.addEventListener('pointerdown', (e) => {
+    if (roomMenu.classList.contains('open') && !e.target.closest('#roomMenu, #btnMenu')) {
+      roomMenu.classList.remove('open');
+      btnMenu.setAttribute('aria-expanded', 'false');
+    }
+  });
+  roomMenu.addEventListener('click', (e) => {
+    if (e.target.closest('button')) roomMenu.classList.remove('open');
+  });
 
   $('#roomName').addEventListener('input', (e) => {
     state.roomName = e.target.value.trim() || 'Sans nom';

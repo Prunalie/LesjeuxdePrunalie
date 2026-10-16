@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ma petite pièce</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -46,11 +46,12 @@
   <section id="screenRoom" class="screen screen-room" hidden>
   <header class="topbar">
     <div class="room-title">
-      <button id="btnBack" class="btn btn-ghost" title="Retour à mes pièces">← Mes pièces</button>
+      <button id="btnBack" class="btn btn-ghost" title="Retour à mes pièces">←<span class="label-long">&nbsp;Mes pièces</span></button>
       <input id="roomName" class="room-name-input" type="text" maxlength="40" aria-label="Nom de la pièce">
       <span id="saveStatus" class="save-status"></span>
     </div>
-    <div class="topbar-actions">
+    <button id="btnMenu" class="btn btn-ghost btn-menu" aria-expanded="false" aria-controls="roomMenu" title="Couleurs et options">⋯</button>
+    <div id="roomMenu" class="topbar-actions room-menu">
       <label class="color-pick" title="Couleur du mur gauche">Mur G <input type="color" id="colorWallLeft"></label>
       <label class="color-pick" title="Couleur du mur droit">Mur D <input type="color" id="colorWallRight"></label>
       <label class="color-pick" title="Couleur du sol">Sol <input type="color" id="colorFloor"></label>
@@ -64,7 +65,7 @@
       <div class="library-head">
         <h2>Mes stickers</h2>
         <label class="btn btn-primary import-btn">
-          ＋ Importer
+          ＋<span class="label-long">&nbsp;Importer</span>
           <input type="file" id="fileInput" accept="image/*" multiple hidden>
         </label>
       </div>

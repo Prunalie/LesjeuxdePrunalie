@@ -27,7 +27,7 @@
   --scrim: rgba(0, 0, 0, .6); color-scheme: dark;
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 html, body {
   margin: 0;
@@ -37,7 +37,8 @@ html, body {
   font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
-body { display: flex; flex-direction: column; }
+body { display: flex; flex-direction: column; overscroll-behavior: none; }
+@supports (height: 100dvh) { body { height: 100dvh; } }
 
 /* ---------- Barre du haut ---------- */
 .topbar {
@@ -166,23 +167,41 @@ body { display: flex; flex-direction: column; }
   -webkit-user-drag: none;
   filter: drop-shadow(0 4px 3px rgba(0,0,0,.18));
 }
-.sticker.selected { outline: 2px dashed var(--select); outline-offset: 4px; }
+/* --inv = 1 / zoom de la scène : les poignées gardent la même taille à l'écran */
+.stage { --inv: 1; --hs: 22px; }
+.sticker.selected {
+  outline: calc(2px * var(--inv)) dashed var(--select);
+  outline-offset: calc(4px * var(--inv));
+}
 
 .handle {
   position: absolute;
-  width: 22px; height: 22px;
+  width: calc(var(--hs) * var(--inv)); height: calc(var(--hs) * var(--inv));
   border-radius: 50%;
   background: #fff;
-  border: 2px solid var(--select);
+  border: calc(2px * var(--inv)) solid var(--select);
   display: none;
   touch-action: none;
 }
 .sticker.selected .handle { display: block; }
-.handle-scale { right: -15px; bottom: -15px; cursor: nwse-resize; }
-.handle-rotate { left: 50%; top: -40px; margin-left: -11px; cursor: grab; }
+.handle-scale {
+  right: calc(var(--hs) * -0.7 * var(--inv)); bottom: calc(var(--hs) * -0.7 * var(--inv));
+  cursor: nwse-resize;
+}
+.handle-rotate {
+  left: 50%; top: calc(var(--hs) * -1.8 * var(--inv));
+  margin-left: calc(var(--hs) * -0.5 * var(--inv));
+  cursor: grab;
+}
 .handle-rotate::after {
   content: ""; position: absolute; left: 50%; top: 100%;
-  width: 2px; height: 16px; margin-left: -1px; background: var(--select);
+  width: calc(2px * var(--inv)); height: calc(var(--hs) * 0.75 * var(--inv));
+  margin-left: calc(-1px * var(--inv)); background: var(--select);
+}
+/* Écran tactile : poignées plus grosses, bouton de suppression toujours visible */
+@media (pointer: coarse) {
+  .stage { --hs: 30px; }
+  .thumb .thumb-del { display: block; }
 }
 
 /* ---------- Barre d'outils du sticker ---------- */
@@ -262,11 +281,8 @@ body { display: flex; flex-direction: column; }
   font-size: .9rem;
 }
 
-/* ---------- Mobile ---------- */
-@media (max-width: 720px) {
-  .layout { flex-direction: column-reverse; }
-  .library { width: auto; max-height: 38vh; border-right: none; border-top: 1px solid var(--line); }
-}
+/* Bouton « ⋯ » : seulement sur mobile */
+.btn-menu { display: none; }
 
 .modal[hidden], .toast[hidden] { display: none; }
 
@@ -365,3 +381,85 @@ body { display: flex; flex-direction: column; }
 }
 .room-name-input:hover, .room-name-input:focus { border-color: var(--line); background: var(--surface); outline: none; }
 .save-status { font-size: .8rem; color: var(--muted); }
+
+/* ---------- Mobile ---------- */
+@media (max-width: 720px) {
+  .topbar { padding: 8px 12px; gap: 8px; }
+  .topbar h1 { font-size: 1.1rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topbar-actions { flex-shrink: 0; }
+  .topbar .btn { padding: 6px 10px; font-size: .85rem; }
+
+  /* Mes pièces : deux colonnes, bouton « Nouvelle pièce » compact */
+  .rooms-body { padding: 14px 12px calc(24px + env(safe-area-inset-bottom, 0px)); }
+  .room-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .room-new {
+    grid-column: 1 / -1;
+    min-height: 0;
+    flex-direction: row;
+    padding: 12px;
+    border-radius: 12px;
+  }
+  .room-new-plus { font-size: 1.4rem; }
+  .room-card { border-radius: 12px; }
+  .room-meta { padding: 8px 10px 0; }
+  .room-name { font-size: .92rem; }
+  .room-date { font-size: .72rem; }
+  .room-actions { padding: 2px 4px 4px; }
+  .room-actions button { width: 34px; height: 34px; }
+
+  /* Éditeur : en-tête sur une ligne, options dans le menu « ⋯ » */
+  .screen-room .topbar { position: relative; flex-wrap: nowrap; }
+  .room-title { flex: 1; flex-wrap: nowrap; gap: 4px; }
+  #btnBack .label-long { display: none; }
+  .room-name-input { flex: 1; width: auto; font-size: 1.05rem; padding: 4px 6px; }
+  .save-status { font-size: .72rem; white-space: nowrap; }
+  .btn-menu { display: inline-flex; font-size: 1.2rem; line-height: 1; padding: 4px 12px; }
+  .room-menu {
+    display: none;
+    position: absolute; top: calc(100% + 4px); right: 8px;
+    z-index: 50;
+    flex-direction: column; align-items: stretch;
+    width: min(260px, calc(100vw - 16px));
+    padding: 12px;
+    gap: 10px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  }
+  .room-menu.open { display: flex; }
+  .room-menu .color-pick { justify-content: space-between; font-size: .95rem; color: var(--ink); }
+  .room-menu .color-pick input { width: 44px; height: 32px; }
+  .room-menu .btn { justify-content: center; padding: 9px 12px; font-size: .95rem; }
+
+  /* La pièce prend toute la place, la bibliothèque devient une bande en bas */
+  .layout { flex-direction: column-reverse; }
+  .stage-area { touch-action: none; }
+  .library {
+    width: auto;
+    flex-direction: row; align-items: center; gap: 8px;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+    border-right: none; border-top: 1px solid var(--line);
+    overflow: visible;
+  }
+  .library-head h2, .library .hint { display: none; }
+  .library-head { flex-shrink: 0; }
+  .import-btn { flex-direction: column; gap: 0; width: 64px; height: 64px; padding: 4px; border-radius: 12px; justify-content: center; font-size: .72rem; line-height: 1.2; }
+  .import-btn .label-long { margin-top: 2px; }
+  .library-grid {
+    flex: 1; min-width: 0;
+    display: flex; gap: 8px;
+    overflow-x: auto; overflow-y: hidden;
+    padding: 6px 4px 2px;
+    scrollbar-width: none;
+  }
+  .library-grid::-webkit-scrollbar { display: none; }
+  .thumb { width: 64px; height: 64px; flex-shrink: 0; touch-action: pan-x; }
+  .thumb .thumb-del { top: -5px; right: -5px; }
+  .empty { margin: 0; flex: 1; font-size: .78rem; text-align: left; }
+  .empty br { display: none; }
+
+  .toolbar { bottom: 6px; gap: 0; padding: 4px 6px; max-width: calc(100% - 12px); }
+  .toolbar button { width: 34px; height: 34px; font-size: .95rem; }
+  .toolbar .sep { margin: 0 2px; }
+}
