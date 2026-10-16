@@ -298,12 +298,58 @@
     const pad = small ? 4 : 24;
     const availW = stageArea.clientWidth - pad * 2;
     const availH = stageArea.clientHeight - pad * 2 - (small ? 70 : 50); // place pour la barre d'outils
-    state.scale = Math.max(0.1, Math.min(availW / STAGE_W, availH / STAGE_H));
-    stage.style.transform = `scale(${state.scale})`;
+    state.baseScale = Math.max(0.1, Math.min(availW / STAGE_W, availH / STAGE_H));
+    stageScaler.style.width = STAGE_W * state.baseScale + 'px';
+    stageScaler.style.height = STAGE_H * state.baseScale + 'px';
+    applyView();
+  }
+
+  // Zoom dans la pièce : `zoom` multiplie l'échelle qui fait tenir la pièce à
+  // l'écran, (x, y) décale la vue en pixels.
+  const ZOOM_MAX = 5;
+  const view = { zoom: 1, x: 0, y: 0 };
+
+  function applyView() {
+    if (!state.baseScale) return;
+    view.zoom = clamp(view.zoom, 1, ZOOM_MAX);
+    state.scale = state.baseScale * view.zoom;
+    if (view.zoom <= 1.001) {
+      view.zoom = 1; view.x = 0; view.y = 0;
+    } else {
+      // Le centre de la pièce reste toujours dans la zone visible.
+      const a = stageArea.getBoundingClientRect();
+      const sc = stageScaler.getBoundingClientRect();
+      const offX = sc.left - a.left, offY = sc.top - a.top;
+      const w = STAGE_W * state.scale, h = STAGE_H * state.scale;
+      view.x = clamp(view.x, -offX - w / 2, a.width - offX - w / 2);
+      view.y = clamp(view.y, -offY - h / 2, a.height - offY - h / 2);
+    }
+    stage.style.transform = `translate(${view.x}px, ${view.y}px) scale(${state.scale})`;
     // Les poignées gardent la même taille à l'écran, quel que soit le zoom.
     stage.style.setProperty('--inv', 1 / state.scale);
-    stageScaler.style.width = STAGE_W * state.scale + 'px';
-    stageScaler.style.height = STAGE_H * state.scale + 'px';
+    stageArea.classList.toggle('zoomed', view.zoom > 1);
+    $('#zoomReset').hidden = view.zoom === 1;
+  }
+
+  // Zoome en gardant fixe le point de l'écran (clientX, clientY).
+  function zoomAt(clientX, clientY, zoom, anchor) {
+    const p = anchor || toStage(clientX, clientY);
+    view.zoom = clamp(zoom, 1, ZOOM_MAX);
+    const s = state.baseScale * view.zoom;
+    const sc = stageScaler.getBoundingClientRect();
+    view.x = clientX - sc.left - p.x * s;
+    view.y = clientY - sc.top - p.y * s;
+    applyView();
+  }
+
+  function zoomCenter(factor) {
+    const a = stageArea.getBoundingClientRect();
+    zoomAt(a.left + a.width / 2, a.top + a.height / 2, view.zoom * factor);
+  }
+
+  function resetView() {
+    view.zoom = 1; view.x = 0; view.y = 0;
+    applyView();
   }
 
   function toStage(clientX, clientY) {
@@ -431,8 +477,14 @@
       window.removeEventListener('pointercancel', end);
       if (!ghost) {
         if (ev.type === 'pointercancel') return; // la bande de stickers a défilé
-        // Simple clic : on pose le sticker au milieu de la pièce
-        addSticker(imageId, STAGE_W / 2 + (Math.random() - 0.5) * 80, 430 + (Math.random() - 0.5) * 80);
+        // Simple clic : on pose le sticker au milieu de ce qu'on voit de la pièce
+        const r = stageArea.getBoundingClientRect();
+        const c = view.zoom > 1
+          ? toStage(r.left + r.width / 2, r.top + r.height / 2)
+          : { x: STAGE_W / 2, y: 430 };
+        addSticker(imageId,
+          clamp(c.x + (Math.random() - 0.5) * 80 / view.zoom, 0, STAGE_W),
+          clamp(c.y + (Math.random() - 0.5) * 80 / view.zoom, 0, STAGE_H));
         return;
       }
       ghost.remove();
@@ -511,6 +563,7 @@
     e.preventDefault();
     e.stopPropagation();
     if (joinPinch(e)) return;
+    if (viewGesture) { viewPointerDown(e); return; }
     select(s.id);
 
     let mode = 'move';
@@ -600,11 +653,16 @@
     scheduleSave();
   }
 
-  // Molette sur un sticker sélectionné : agrandir / réduire
-  stage.addEventListener('wheel', (e) => {
-    const s = getSelected();
-    if (!s || !e.target.closest('.sticker')) return;
+  // Molette : sur le sticker sélectionné, agrandir / réduire ; ailleurs, zoomer.
+  stageArea.addEventListener('wheel', (e) => {
+    if (e.target.closest('.toolbar, .bar-tab, .zoom-ctrl')) return;
     e.preventDefault();
+    const s = getSelected();
+    const onSelected = s && e.target.closest('.sticker') === elFor(s.id);
+    if (!onSelected) {
+      zoomAt(e.clientX, e.clientY, view.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12));
+      return;
+    }
     const k = e.deltaY < 0 ? 1.06 : 1 / 1.06;
     if (Math.min(s.w, s.h) * k < MIN_SIZE) return;
     s.w *= k; s.h *= k;
@@ -612,11 +670,85 @@
     scheduleSave();
   }, { passive: false });
 
-  // Clic dans le vide : désélection
+  // Dans le vide de la pièce : un appui simple désélectionne, glisser déplace la
+  // vue (quand on a zoomé), pincer à deux doigts zoome.
+  let viewGesture = null;
+
   stageArea.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.sticker, .toolbar, .bar-tab')) return;
-    if (!joinPinch(e)) select(null);
+    if (e.target.closest('.sticker, .toolbar, .bar-tab, .zoom-ctrl')) return;
+    if (e.button !== undefined && e.button !== 0) return;
+    if (joinPinch(e)) return;
+    viewPointerDown(e);
   });
+
+  function viewPointerDown(e) {
+    e.preventDefault();
+    const pt = { x: e.clientX, y: e.clientY };
+    if (viewGesture) {
+      if (viewGesture.pointers.size >= 2) return;
+      viewGesture.pointers.set(e.pointerId, pt);
+      startViewPinch();
+      return;
+    }
+    viewGesture = { pointers: new Map([[e.pointerId, pt]]), moved: false };
+    startViewPan();
+    window.addEventListener('pointermove', onViewMove);
+    window.addEventListener('pointerup', onViewEnd);
+    window.addEventListener('pointercancel', onViewEnd);
+  }
+
+  function startViewPan() {
+    const [p] = [...viewGesture.pointers.values()];
+    viewGesture.mode = 'pan';
+    viewGesture.p0 = p;
+    viewGesture.start = { x: view.x, y: view.y };
+  }
+
+  function startViewPinch() {
+    const [a, b] = [...viewGesture.pointers.values()];
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    viewGesture.mode = 'pinch';
+    viewGesture.moved = true;
+    viewGesture.dist0 = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    viewGesture.zoom0 = view.zoom;
+    viewGesture.anchor = toStage(mid.x, mid.y);
+  }
+
+  function onViewMove(ev) {
+    if (!viewGesture || !viewGesture.pointers.has(ev.pointerId)) return;
+    viewGesture.pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    if (viewGesture.mode === 'pinch') {
+      const [a, b] = [...viewGesture.pointers.values()];
+      const k = Math.hypot(b.x - a.x, b.y - a.y) / viewGesture.dist0;
+      zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, viewGesture.zoom0 * k, viewGesture.anchor);
+      return;
+    }
+    const p = viewGesture.pointers.get(ev.pointerId);
+    const dx = p.x - viewGesture.p0.x, dy = p.y - viewGesture.p0.y;
+    if (!viewGesture.moved && Math.hypot(dx, dy) < 5) return;
+    viewGesture.moved = true;
+    view.x = viewGesture.start.x + dx;
+    view.y = viewGesture.start.y + dy;
+    applyView();
+  }
+
+  function onViewEnd(ev) {
+    if (!viewGesture || !viewGesture.pointers.has(ev.pointerId)) return;
+    viewGesture.pointers.delete(ev.pointerId);
+    if (viewGesture.pointers.size) {
+      startViewPan(); // un doigt levé : on continue à déplacer avec l'autre
+      return;
+    }
+    if (!viewGesture.moved && ev.type === 'pointerup') select(null);
+    viewGesture = null;
+    window.removeEventListener('pointermove', onViewMove);
+    window.removeEventListener('pointerup', onViewEnd);
+    window.removeEventListener('pointercancel', onViewEnd);
+  }
+
+  $('#zoomIn').addEventListener('click', () => zoomCenter(1.4));
+  $('#zoomOut').addEventListener('click', () => zoomCenter(1 / 1.4));
+  $('#zoomReset').addEventListener('click', resetView);
 
   // ---------------------------------------------------------------------------
   // Actions (barre d'outils + clavier)
@@ -966,6 +1098,7 @@
     if (!r) return;
     state.roomId = r.id;
     state.roomName = r.name;
+    view.zoom = 1; view.x = 0; view.y = 0;
     state.colors = { ...DEFAULT_COLORS, ...r.colors };
     state.stickers = (r.stickers || [])
       .filter((s) => state.images.has(s.imageId))
