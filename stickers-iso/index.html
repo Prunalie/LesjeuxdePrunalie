@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ma petite pièce — Stickers</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Ma petite pièce</h1>
+    <div class="topbar-actions">
+      <label class="color-pick" title="Couleur du mur gauche">Mur G <input type="color" id="colorWallLeft"></label>
+      <label class="color-pick" title="Couleur du mur droit">Mur D <input type="color" id="colorWallRight"></label>
+      <label class="color-pick" title="Couleur du sol">Sol <input type="color" id="colorFloor"></label>
+      <button id="btnExport" class="btn">📷 Exporter en image</button>
+      <button id="btnClear" class="btn btn-ghost">🧹 Vider la pièce</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="library">
+      <div class="library-head">
+        <h2>Mes stickers</h2>
+        <label class="btn btn-primary import-btn">
+          ＋ Importer
+          <input type="file" id="fileInput" accept="image/*" multiple hidden>
+        </label>
+      </div>
+      <p class="hint">Glisse un sticker dans la pièce (ou clique dessus). Tu peux aussi déposer des images ici.</p>
+      <div id="libraryGrid" class="library-grid"></div>
+      <p id="libraryEmpty" class="empty">Aucun sticker pour l'instant.<br>Importe des images PNG (fond transparent, c'est mieux&nbsp;!)</p>
+    </aside>
+
+    <section class="stage-area" id="stageArea">
+      <div class="stage-scaler" id="stageScaler">
+        <div class="stage" id="stage">
+          <svg id="room" class="room" viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div id="stickerLayer" class="sticker-layer"></div>
+        </div>
+      </div>
+
+      <div id="toolbar" class="toolbar" hidden>
+        <button data-act="front" title="Tout devant">⏫</button>
+        <button data-act="forward" title="Avancer d'un cran">🔼</button>
+        <button data-act="backward" title="Reculer d'un cran">🔽</button>
+        <button data-act="back" title="Tout derrière">⏬</button>
+        <span class="sep"></span>
+        <button data-act="flip" title="Retourner (miroir)">↔️</button>
+        <button data-act="duplicate" title="Dupliquer">⧉</button>
+        <button data-act="delete" title="Supprimer" class="danger">🗑️</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="dropOverlay" class="drop-overlay" hidden>Lâche tes images pour les importer ✨</div>
+
+  <script src="game.js"></script>
+</body>
+</html>
