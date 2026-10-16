@@ -10,7 +10,8 @@
   const STAGE_W = 1000;
   const STAGE_H = 760;
   const STICKER_DEFAULT_SIZE = 160; // plus grand côté d'un sticker posé
-  const IMPORT_MAX_SIZE = 1024;     // les grosses images sont réduites à l'import
+  const IMPORT_MAX_SIZE = 600;      // les images sont réduites à l'import (taille max en px)
+  const IMPORT_MAX_BYTES = 900000;  // un document Firestore est limité à 1 Mo
   const MIN_SIZE = 16;
 
   const DEFAULT_COLORS = {
@@ -20,7 +21,7 @@
   };
 
   const state = {
-    images: new Map(),   // id -> { id, name, blob, url, w, h }
+    images: new Map(),   // id -> { id, name, data, url, w, h }
     stickers: [],        // ordre du tableau = ordre d'empilement (dernier = devant)
     colors: { ...DEFAULT_COLORS },
     selectedId: null,
@@ -80,9 +81,38 @@
   const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 
   // ---------------------------------------------------------------------------
-  // Stockage (IndexedDB)
+  // Stockage
+  // En ligne : Firebase (configuré dans firebase-config.js), pour retrouver ses
+  // stickers sur tous ses appareils. Sinon : IndexedDB du navigateur.
   // ---------------------------------------------------------------------------
-  const db = (() => {
+  const cloudDb = (() => {
+    if (!window.FIREBASE_CONFIG || !window.firebase || !firebase.firestore) return null;
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+      const fs = firebase.firestore();
+      fs.enablePersistence().catch(() => {});
+      const images = fs.collection('ma-petite-piece-stickers');
+      const scene = fs.collection('ma-petite-piece').doc('scene');
+      return {
+        allImages: async () => {
+          const snap = await images.orderBy('created').get();
+          return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        },
+        putImage: ({ id, name, data, w, h }) => images.doc(id).set({ name, data, w, h, created: Date.now() }),
+        deleteImage: (id) => images.doc(id).delete(),
+        getState: async () => {
+          const d = await scene.get();
+          return d.exists ? d.data() : null;
+        },
+        putState: (v) => scene.set(JSON.parse(JSON.stringify(v))),
+      };
+    } catch (e) {
+      console.warn('Firebase indisponible', e);
+      return null;
+    }
+  })();
+
+  const localDb = (() => {
     let dbPromise = null;
     const open = () => {
       if (!dbPromise) {
@@ -117,12 +147,17 @@
     };
   })();
 
+  const db = cloudDb || localDb;
+
   let saveTimer = null;
   function scheduleSave() {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       db.putState({ stickers: state.stickers, colors: state.colors })
-        .catch((e) => console.warn('Sauvegarde impossible', e));
+        .catch((e) => {
+          console.warn('Sauvegarde impossible', e);
+          toast('La pièce n\'a pas pu être sauvegardée. Vérifie ta connexion.');
+        });
     }, 300);
   }
 
@@ -230,18 +265,9 @@
       try {
         const srcUrl = URL.createObjectURL(file);
         const img = await loadImageEl(srcUrl);
-        let blob = file;
-        let w = img.naturalWidth || 200, h = img.naturalHeight || 200;
-        if (Math.max(w, h) > IMPORT_MAX_SIZE && file.type !== 'image/svg+xml') {
-          const k = IMPORT_MAX_SIZE / Math.max(w, h);
-          w = Math.round(w * k); h = Math.round(h * k);
-          const cv = document.createElement('canvas');
-          cv.width = w; cv.height = h;
-          cv.getContext('2d').drawImage(img, 0, 0, w, h);
-          blob = await new Promise((res) => cv.toBlob(res, 'image/png'));
-        }
         URL.revokeObjectURL(srcUrl);
-        const rec = { id: uid(), name: file.name, blob, w, h };
+        const { data, w, h } = encodeImage(img);
+        const rec = { id: uid(), name: file.name, data, w, h };
         await db.putImage(rec);
         addImageToLibrary(rec);
       } catch (e) {
@@ -252,8 +278,26 @@
     renderLibrary();
   }
 
+  // Réduit l'image et la transforme en texte (data URL) pour la stocker.
+  function encodeImage(img) {
+    const nw = img.naturalWidth || 200, nh = img.naturalHeight || 200;
+    let max = Math.min(IMPORT_MAX_SIZE, Math.max(nw, nh));
+    for (;;) {
+      const k = max / Math.max(nw, nh);
+      const w = Math.max(1, Math.round(nw * k)), h = Math.max(1, Math.round(nh * k));
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      let data = cv.toDataURL('image/webp', 0.9);
+      if (!data.startsWith('data:image/webp')) data = cv.toDataURL('image/png');
+      if (data.length <= IMPORT_MAX_BYTES || max <= 100) return { data, w, h };
+      max = Math.round(max * 0.75);
+    }
+  }
+
   function addImageToLibrary(rec) {
-    state.images.set(rec.id, { ...rec, url: URL.createObjectURL(rec.blob) });
+    const url = rec.data || (rec.blob ? URL.createObjectURL(rec.blob) : '');
+    if (url) state.images.set(rec.id, { ...rec, url });
   }
 
   function renderLibrary() {
@@ -287,11 +331,11 @@
       : 'Supprimer ce sticker de la bibliothèque ?';
     if (!(await askConfirm(msg, 'Supprimer'))) return;
     const img = state.images.get(id);
-    if (img) URL.revokeObjectURL(img.url);
+    if (img && img.url.startsWith('blob:')) URL.revokeObjectURL(img.url);
     state.images.delete(id);
     state.stickers = state.stickers.filter((s) => s.imageId !== id);
     if (!state.stickers.some((s) => s.id === state.selectedId)) state.selectedId = null;
-    await db.deleteImage(id);
+    db.deleteImage(id).catch((e) => console.warn('Suppression impossible', e));
     renderLibrary();
     renderStickers();
     scheduleSave();
@@ -632,7 +676,10 @@
         state.stickers = (saved.stickers || []).filter((s) => state.images.has(s.imageId));
       }
     } catch (e) {
-      console.warn('Chargement impossible (navigation privée ?)', e);
+      console.warn('Chargement impossible', e);
+      toast(cloudDb
+        ? 'Impossible de charger tes stickers. Vérifie ta connexion puis recharge la page.'
+        : 'Impossible de charger tes stickers (navigation privée ?).');
     }
 
     syncColorInputs();

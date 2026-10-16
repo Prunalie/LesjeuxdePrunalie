@@ -15,4 +15,8 @@ Une pièce en isométrie à décorer avec tes propres stickers.
 - **Autres** : ↔️ miroir (F), ⧉ dupliquer (Ctrl+D), 🗑️ supprimer (Suppr), flèches pour ajuster.
 - Couleurs des murs et du sol personnalisables, export de la pièce en PNG.
 
-Tout est sauvegardé automatiquement dans le navigateur (IndexedDB).
+Tout est sauvegardé automatiquement. Par défaut, la sauvegarde reste dans le navigateur (IndexedDB).
+
+**Retrouver ses stickers sur tous ses appareils :** colle la configuration de ton projet Firebase
+dans `stickers-iso/firebase-config.js`. Les stickers sont alors enregistrés dans Firestore
+(collections `ma-petite-piece-stickers` et `ma-petite-piece`).
