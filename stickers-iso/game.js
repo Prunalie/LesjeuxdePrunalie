@@ -39,6 +39,43 @@
   const fileInput = $('#fileInput');
   const dropOverlay = $('#dropOverlay');
 
+
+  // ---------------------------------------------------------------------------
+  // Petits dialogues intégrés à la page (alert/confirm sont bloqués dans certains cadres)
+  // ---------------------------------------------------------------------------
+  const confirmDialog = $('#confirmDialog');
+  const exportDialog = $('#exportDialog');
+  const exportImg = $('#exportImg');
+  const exportLink = $('#exportLink');
+  const toastEl = $('#toast');
+
+  function askConfirm(message, okLabel) {
+    return new Promise((resolve) => {
+      $('#confirmText').textContent = message;
+      const ok = $('#confirmOk'), cancel = $('#confirmCancel');
+      ok.textContent = okLabel;
+      confirmDialog.hidden = false;
+      ok.focus();
+      const done = (v) => {
+        confirmDialog.hidden = true;
+        ok.onclick = cancel.onclick = null;
+        resolve(v);
+      };
+      ok.onclick = () => done(true);
+      cancel.onclick = () => done(false);
+    });
+  }
+
+  let toastTimer = null;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toastEl.hidden = true; }, 4000);
+  }
+
+  $('#exportClose').addEventListener('click', () => { exportDialog.hidden = true; });
+
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 
@@ -209,7 +246,7 @@
         addImageToLibrary(rec);
       } catch (e) {
         console.warn('Import impossible :', file.name, e);
-        alert(`Impossible d'importer « ${file.name} »`);
+        toast(`Impossible d'importer « ${file.name} ». Essaie un PNG ou un JPG.`);
       }
     }
     renderLibrary();
@@ -248,7 +285,7 @@
     const msg = used
       ? `Supprimer ce sticker de la bibliothèque ? Il sera aussi retiré ${used} fois de la pièce.`
       : 'Supprimer ce sticker de la bibliothèque ?';
-    if (!confirm(msg)) return;
+    if (!(await askConfirm(msg, 'Supprimer'))) return;
     const img = state.images.get(id);
     if (img) URL.revokeObjectURL(img.url);
     state.images.delete(id);
@@ -526,8 +563,8 @@
     for (const [key, input] of Object.entries(colorInputs)) input.value = state.colors[key];
   }
 
-  $('#btnClear').addEventListener('click', () => {
-    if (!state.stickers.length || !confirm('Retirer tous les stickers de la pièce ?')) return;
+  $('#btnClear').addEventListener('click', async () => {
+    if (!state.stickers.length || !(await askConfirm('Retirer tous les stickers de la pièce ?', 'Vider'))) return;
     state.stickers = [];
     state.selectedId = null;
     renderStickers();
@@ -568,11 +605,14 @@
     }
 
     cv.toBlob((blob) => {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'ma-petite-piece.png';
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      // On affiche l'image (enregistrable par clic droit / appui long) avec un lien
+      // de téléchargement, qui ne marche pas partout (pages intégrées).
+      const url = URL.createObjectURL(blob);
+      const prev = exportImg.src;
+      exportImg.src = url;
+      exportLink.href = url;
+      exportDialog.hidden = false;
+      if (prev.startsWith('blob:')) URL.revokeObjectURL(prev);
     }, 'image/png');
   });
 

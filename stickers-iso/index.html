@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ma petite pièce — Stickers</title>
+  <title>Ma petite pièce</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -54,6 +54,29 @@
   </main>
 
   <div id="dropOverlay" class="drop-overlay" hidden>Lâche tes images pour les importer ✨</div>
+
+  <div id="confirmDialog" class="modal" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="confirmText">
+      <p id="confirmText"></p>
+      <div class="modal-actions">
+        <button id="confirmCancel" class="btn">Annuler</button>
+        <button id="confirmOk" class="btn btn-primary">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="exportDialog" class="modal" hidden>
+    <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-label="Image de la pièce">
+      <img id="exportImg" class="export-img" alt="Ta pièce décorée">
+      <p class="hint">Clic droit (ou appui long) sur l'image → « Enregistrer l'image ».</p>
+      <div class="modal-actions">
+        <a id="exportLink" class="btn" download="ma-petite-piece.png">Télécharger</a>
+        <button id="exportClose" class="btn btn-primary">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
 
   <script src="game.js"></script>
 </body>
