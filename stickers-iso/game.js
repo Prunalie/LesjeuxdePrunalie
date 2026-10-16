@@ -147,7 +147,7 @@
     };
   })();
 
-  const db = cloudDb || localDb;
+  let db = cloudDb || localDb;
 
   let saveTimer = null;
   function scheduleSave() {
@@ -668,8 +668,21 @@
     window.addEventListener('resize', fitStage);
     new ResizeObserver(fitStage).observe(stageArea);
 
+    let loaded = null;
     try {
-      const [images, saved] = await Promise.all([db.allImages(), db.getState()]);
+      loaded = await Promise.all([db.allImages(), db.getState()]);
+    } catch (e) {
+      if (db !== cloudDb) e = null; // erreur locale : traitée juste en dessous
+      // Firebase ne répond pas (base pas encore créée, règles, réseau…) :
+      // on garde les stickers dans le navigateur pour que le jeu reste utilisable.
+      if (e) {
+        console.warn('Firebase indisponible, sauvegarde dans le navigateur', e);
+        toast('Sauvegarde en ligne indisponible : tes stickers restent dans ce navigateur.');
+        db = localDb;
+      }
+    }
+    try {
+      const [images, saved] = loaded || await Promise.all([db.allImages(), db.getState()]);
       (images || []).forEach(addImageToLibrary);
       if (saved) {
         state.colors = { ...DEFAULT_COLORS, ...saved.colors };
