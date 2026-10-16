@@ -16,7 +16,7 @@
         <polygon points="10,85 60,60 110,85 60,110" fill="#d7b48f"/>
       </svg>
       <h1>Ma petite pièce</h1>
-      <p class="start-sub">Décore tes pièces avec tes propres stickers.</p>
+      <p class="start-sub">Collectionne des stickers et décore tes pièces.</p>
       <label for="pseudoInput" class="field-label">Ton pseudo</label>
       <input id="pseudoInput" class="field" type="text" maxlength="24" autocomplete="nickname" placeholder="Ex. Prunalie">
       <p id="pseudoError" class="field-error" hidden>Choisis un pseudo d'au moins 2 lettres.</p>
@@ -30,7 +30,10 @@
     <header class="topbar">
       <h1>Bonjour <span id="playerName"></span></h1>
       <div class="topbar-actions">
-        <button id="btnChangePseudo" class="btn btn-ghost">Changer de pseudo</button>
+        <span class="points-pill"></span>
+        <button id="btnShop" class="btn btn-primary" title="Boutique">🛍️<span class="label-long">&nbsp;Boutique</span></button>
+        <button id="btnAtelier" class="btn" title="Atelier" hidden>🛠️<span class="label-long">&nbsp;Atelier</span></button>
+        <button id="btnChangePseudo" class="btn btn-ghost" title="Changer de pseudo">👤<span class="label-long">&nbsp;Changer de pseudo</span></button>
       </div>
     </header>
     <div class="rooms-body">
@@ -64,14 +67,11 @@
     <aside id="roomLibrary" class="library">
       <div class="library-head">
         <h2>Mes stickers</h2>
-        <label class="btn btn-primary import-btn">
-          ＋<span class="label-long">&nbsp;Importer</span>
-          <input type="file" id="fileInput" accept="image/*" multiple hidden>
-        </label>
+        <button id="btnLibShop" class="btn btn-primary import-btn" title="Boutique">🛍️<span class="label-long">&nbsp;Boutique</span></button>
       </div>
-      <p class="hint">Glisse un sticker dans la pièce (ou clique dessus). Tu peux aussi déposer des images ici.</p>
+      <p class="hint">Glisse un sticker dans la pièce (ou clique dessus). Le chiffre indique combien d'exemplaires il te reste à poser.</p>
       <div id="libraryGrid" class="library-grid"></div>
-      <p id="libraryEmpty" class="empty">Aucun sticker pour l'instant.<br>Importe des images PNG (fond transparent, c'est mieux&nbsp;!)</p>
+      <p id="libraryEmpty" class="empty">Pas encore de stickers.<br>Ouvre des enveloppes dans la boutique pour en gagner&nbsp;!</p>
     </aside>
 
     <section class="stage-area" id="stageArea">
@@ -106,7 +106,43 @@
   </main>
   </section>
 
-  <div id="dropOverlay" class="drop-overlay" hidden>Lâche tes images pour les importer ✨</div>
+  <!-- Écran 4 : boutique -->
+  <section id="screenShop" class="screen screen-shop" hidden>
+    <header class="topbar">
+      <div class="room-title">
+        <button id="shopBack" class="btn btn-ghost" title="Retour">←<span class="label-long">&nbsp;Retour</span></button>
+        <h1>Boutique</h1>
+      </div>
+      <div class="topbar-actions"><span class="points-pill"></span></div>
+    </header>
+    <div class="rooms-body">
+      <p class="shop-intro">Chaque enveloppe contient <strong>un</strong> sticker tiré au sort. Touche une enveloppe pour voir ce qu'elle peut contenir. Tu gagnes <strong>100 ⭐</strong> chaque jour.</p>
+      <div id="shopGrid" class="shop-grid"></div>
+      <p id="shopEmpty" class="empty" hidden>Aucune enveloppe en vente pour l'instant. Reviens bientôt&nbsp;!</p>
+    </div>
+  </section>
+
+  <!-- Écran 5 : atelier (création des enveloppes) -->
+  <section id="screenAtelier" class="screen screen-atelier" hidden>
+    <header class="topbar">
+      <div class="room-title">
+        <button id="atelierBack" class="btn btn-ghost" title="Retour à mes pièces">←<span class="label-long">&nbsp;Mes pièces</span></button>
+        <h1>Atelier</h1>
+      </div>
+      <div class="topbar-actions">
+        <span class="points-pill"></span>
+        <button id="btnGivePoints" class="btn" title="Pour tester la boutique">＋100 ⭐</button>
+      </div>
+    </header>
+    <div class="rooms-body">
+      <div class="atelier-intro">
+        <p>Crée les enveloppes que les joueurs achètent dans la boutique. Mets 5 à 10 stickers dans chacune et choisis leur rareté. PNG à fond transparent conseillé.</p>
+        <button id="btnNewEnvelope" class="btn btn-primary">＋ Nouvelle enveloppe</button>
+      </div>
+      <p id="atelierEmpty" class="empty" hidden>Aucune enveloppe pour l'instant.</p>
+      <div id="atelierList" class="atelier-list"></div>
+    </div>
+  </section>
 
   <div id="confirmDialog" class="modal" hidden>
     <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="confirmText">
@@ -126,6 +162,33 @@
       <div class="modal-actions">
         <a id="exportLink" class="btn" download="ma-petite-piece.png">Télécharger</a>
         <button id="exportClose" class="btn btn-primary">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="envDialog" class="modal" hidden>
+    <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="envTitle">
+      <h2 id="envTitle" class="modal-title"></h2>
+      <p id="envSub" class="muted"></p>
+      <div id="envGrid" class="env-grid"></div>
+      <div class="modal-actions">
+        <button id="envClose" class="btn">Fermer</button>
+        <button id="envBuy" class="btn btn-primary"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="openDialog" class="modal open-modal" hidden>
+    <div class="open-box" role="dialog" aria-modal="true" aria-live="polite" aria-label="Ouverture de l'enveloppe">
+      <div id="openStage" class="open-stage"></div>
+      <div id="openResult" class="open-result" hidden>
+        <span id="openRarity" class="rarity-tag"></span>
+        <h2 id="openName"></h2>
+        <p id="openText"></p>
+        <div class="modal-actions">
+          <button id="openAgain" class="btn"></button>
+          <button id="openClose" class="btn btn-primary">Super !</button>
+        </div>
       </div>
     </div>
   </div>

@@ -1,7 +1,9 @@
-/* Ma petite pièce — placer des stickers importés dans des pièces isométriques.
- * Trois écrans : choix du pseudo → liste de ses pièces → décoration d'une pièce.
- * Les stickers (bibliothèque commune à toutes ses pièces) et les pièces sont
- * rangés par pseudo dans Firebase, ou dans le navigateur si Firebase manque. */
+/* Ma petite pièce — décorer des pièces isométriques avec des stickers à collectionner.
+ * Écrans : pseudo → mes pièces → décoration, plus la boutique (enveloppes) et
+ * l'atelier (réservé à l'administratrice, pour créer les enveloppes).
+ * Chaque jour on gagne des points ; une enveloppe achetée donne UN sticker tiré
+ * au sort parmi ceux qu'elle contient. Chaque exemplaire obtenu se pose une fois.
+ * Tout est rangé dans Firebase, ou dans le navigateur si Firebase manque. */
 (() => {
   'use strict';
 
@@ -11,9 +13,20 @@
   const STAGE_W = 1000;
   const STAGE_H = 760;
   const STICKER_DEFAULT_SIZE = 160; // plus grand côté d'un sticker posé
-  const IMPORT_MAX_SIZE = 600;      // les images sont réduites à l'import (taille max en px)
+  const IMPORT_MAX_SIZE = 500;      // les images sont réduites à l'import (taille max en px)
   const IMPORT_MAX_BYTES = 900000;  // un document Firestore est limité à 1 Mo
   const MIN_SIZE = 16;
+
+  // Collection
+  const ADMIN_PSEUDOS = ['prunalie'];  // pseudos (en minuscules) qui ont accès à l'atelier
+  const DAILY_POINTS = 100;            // points gagnés une fois par jour
+  const DEFAULT_PRICE = 50;            // prix d'une nouvelle enveloppe
+  const RARITIES = {
+    common: { label: 'Commun', weight: 10 },
+    rare: { label: 'Rare', weight: 3 },
+    epic: { label: 'Très rare', weight: 1 },
+  };
+  const ENVELOPE_COLORS = ['#e8a0ad', '#9cc5e0', '#b8d8a8', '#f2c879', '#c3a6e0'];
 
   const DEFAULT_COLORS = {
     wallLeft: '#f4d9c6',
@@ -26,7 +39,10 @@
     rooms: [],           // pièces du joueur : { id, owner, name, stickers, colors, thumb, updated }
     roomId: null,        // pièce ouverte
     roomName: '',
-    images: new Map(),   // id -> { id, owner, name, data, url, w, h }
+    profile: null,       // { id, pseudo, points, lastDaily, inventory: { stickerId: nombre } }
+    isAdmin: false,
+    envelopes: [],       // { id, name, price, color, created }
+    images: new Map(),   // catalogue : id -> { id, envelope, rarity, name, data, url, w, h }
     stickers: [],        // ordre du tableau = ordre d'empilement (dernier = devant)
     colors: { ...DEFAULT_COLORS },
     selectedId: null,
@@ -42,8 +58,6 @@
   const toolbar = $('#toolbar');
   const libraryGrid = $('#libraryGrid');
   const libraryEmpty = $('#libraryEmpty');
-  const fileInput = $('#fileInput');
-  const dropOverlay = $('#dropOverlay');
 
 
   // ---------------------------------------------------------------------------
@@ -115,13 +129,24 @@
         return snap.docs.map((d) => ({ ...d.data(), id: d.id }));
       };
       const clean = (v) => JSON.parse(JSON.stringify(v));
+      const all = async (query) => (await query.get()).docs.map((d) => ({ ...d.data(), id: d.id }));
+      // Les règles Firestore n'autorisent que deux collections : les pièces, joueurs et
+      // enveloppes partagent « ma-petite-piece » (champ type), les stickers l'autre.
       return {
-        listImages: (owner) => byOwner(images, owner),
+        listCatalog: () => all(images.where('catalog', '==', true)),
         putImage: ({ id, url, ...rec }) => images.doc(id).set(clean(rec)),
         deleteImage: (id) => images.doc(id).delete(),
         listRooms: (owner) => byOwner(rooms, owner),
         putRoom: ({ id, ...room }) => rooms.doc(id).set(clean(room)),
         deleteRoom: (id) => rooms.doc(id).delete(),
+        getPlayer: async (id) => {
+          const d = await rooms.doc(id).get();
+          return d.exists ? { ...d.data(), id } : null;
+        },
+        putPlayer: ({ id, ...p }) => rooms.doc(id).set(clean({ ...p, type: 'player' })),
+        listEnvelopes: () => all(rooms.where('type', '==', 'envelope')),
+        putEnvelope: ({ id, ...env }) => rooms.doc(id).set(clean({ ...env, type: 'envelope' })),
+        deleteEnvelope: (id) => rooms.doc(id).delete(),
       };
     } catch (e) {
       console.warn('Firebase indisponible', e);
@@ -134,11 +159,12 @@
     const open = () => {
       if (!dbPromise) {
         dbPromise = new Promise((resolve, reject) => {
-          const req = indexedDB.open('ma-petite-piece', 2);
+          const req = indexedDB.open('ma-petite-piece', 3);
           req.onupgradeneeded = () => {
             const d = req.result;
-            if (!d.objectStoreNames.contains('images')) d.createObjectStore('images', { keyPath: 'id' });
-            if (!d.objectStoreNames.contains('rooms')) d.createObjectStore('rooms', { keyPath: 'id' });
+            for (const name of ['images', 'rooms', 'players', 'envelopes']) {
+              if (!d.objectStoreNames.contains(name)) d.createObjectStore(name, { keyPath: 'id' });
+            }
           };
           req.onsuccess = () => resolve(req.result);
           req.onerror = () => reject(req.error);
@@ -155,16 +181,22 @@
         tx.onerror = () => reject(tx.error);
       });
     };
-    // Les stickers importés avant l'arrivée des pseudos (sans owner) restent visibles.
+    // Les pièces créées avant l'arrivée des pseudos (sans owner) restent visibles.
     const byOwner = async (store, owner) =>
       ((await run(store, 'readonly', (s) => s.getAll())) || []).filter((r) => !r.owner || r.owner === owner);
+    const getAll = async (store) => (await run(store, 'readonly', (s) => s.getAll())) || [];
     return {
-      listImages: (owner) => byOwner('images', owner),
+      listCatalog: async () => (await getAll('images')).filter((r) => r.catalog),
       putImage: ({ url, ...rec }) => run('images', 'readwrite', (s) => s.put(rec)),
       deleteImage: (id) => run('images', 'readwrite', (s) => s.delete(id)),
       listRooms: (owner) => byOwner('rooms', owner),
       putRoom: (room) => run('rooms', 'readwrite', (s) => s.put(room)),
       deleteRoom: (id) => run('rooms', 'readwrite', (s) => s.delete(id)),
+      getPlayer: async (id) => (await run('players', 'readonly', (s) => s.get(id))) || null,
+      putPlayer: (p) => run('players', 'readwrite', (s) => s.put(p)),
+      listEnvelopes: () => getAll('envelopes'),
+      putEnvelope: (env) => run('envelopes', 'readwrite', (s) => s.put(env)),
+      deleteEnvelope: (id) => run('envelopes', 'readwrite', (s) => s.delete(id)),
     };
   })();
 
@@ -369,7 +401,8 @@
     });
   }
 
-  async function importFiles(files) {
+  // Ajoute des images au catalogue, dans une enveloppe (atelier).
+  async function importFiles(files, envelopeId) {
     const list = [...files].filter((f) => f.type.startsWith('image/'));
     for (const file of list) {
       try {
@@ -377,7 +410,10 @@
         const img = await loadImageEl(srcUrl);
         URL.revokeObjectURL(srcUrl);
         const { data, w, h } = encodeImage(img);
-        const rec = { id: uid(), owner: state.player.key, name: file.name, data, w, h, created: Date.now() };
+        const rec = {
+          id: uid(), catalog: true, envelope: envelopeId, rarity: 'common',
+          name: file.name.replace(/\.[^.]+$/, ''), data, w, h, created: Date.now(),
+        };
         await db.putImage(rec);
         addImageToLibrary(rec);
       } catch (e) {
@@ -385,7 +421,6 @@
         toast(`Impossible d'importer « ${file.name} ». Essaie un PNG ou un JPG.`);
       }
     }
-    renderLibrary();
   }
 
   // Réduit l'image et la transforme en texte (data URL) pour la stocker.
@@ -410,51 +445,44 @@
     if (url) state.images.set(rec.id, { ...rec, url });
   }
 
+  // Exemplaires : chaque sticker obtenu se pose une seule fois, toutes pièces confondues.
+  const owned = (id) => (state.profile && state.profile.inventory[id]) || 0;
+  function usedCount(id) {
+    let n = 0;
+    for (const r of state.rooms) {
+      const list = r.id === state.roomId ? state.stickers : (r.stickers || []);
+      for (const st of list) if (st.imageId === id) n++;
+    }
+    return n;
+  }
+  const available = (id) => owned(id) - usedCount(id);
+
   function renderLibrary() {
     libraryGrid.innerHTML = '';
-    libraryEmpty.hidden = state.images.size > 0;
-    for (const img of state.images.values()) {
+    const mine = [...state.images.values()].filter((img) => owned(img.id) > 0);
+    libraryEmpty.hidden = mine.length > 0;
+    for (const img of mine) {
+      const left = available(img.id);
       const el = document.createElement('div');
-      el.className = 'thumb';
-      el.title = img.name;
-      el.innerHTML = `<img alt="">`;
+      el.className = 'thumb' + (left > 0 ? '' : ' used-up');
+      el.dataset.rarity = img.rarity || 'common';
+      el.title = `${img.name} : ${left} à poser sur ${owned(img.id)}`;
+      el.innerHTML = `<img alt=""><span class="thumb-count"></span>`;
       el.querySelector('img').src = img.url;
-      const del = document.createElement('button');
-      del.className = 'thumb-del';
-      del.textContent = '✕';
-      del.title = 'Supprimer de la bibliothèque';
-      del.addEventListener('pointerdown', (e) => e.stopPropagation());
-      del.addEventListener('click', (e) => {
-        e.stopPropagation();
-        removeImage(img.id);
-      });
-      el.appendChild(del);
+      el.querySelector('.thumb-count').textContent = `${Math.max(0, left)}/${owned(img.id)}`;
       el.addEventListener('pointerdown', (e) => startSpawnDrag(e, img.id));
       libraryGrid.appendChild(el);
     }
-  }
-
-  async function removeImage(id) {
-    const used = state.stickers.filter((s) => s.imageId === id).length;
-    const msg = used
-      ? `Supprimer ce sticker de la bibliothèque ? Il sera aussi retiré ${used} fois de la pièce.`
-      : 'Supprimer ce sticker de la bibliothèque ?';
-    if (!(await askConfirm(msg, 'Supprimer'))) return;
-    const img = state.images.get(id);
-    if (img && img.url.startsWith('blob:')) URL.revokeObjectURL(img.url);
-    state.images.delete(id);
-    state.stickers = state.stickers.filter((s) => s.imageId !== id);
-    if (!state.stickers.some((s) => s.id === state.selectedId)) state.selectedId = null;
-    db.deleteImage(id).catch((e) => console.warn('Suppression impossible', e));
-    renderLibrary();
-    renderStickers();
-    scheduleSave();
   }
 
   // Glisser un sticker depuis la bibliothèque vers la pièce
   function startSpawnDrag(e, imageId) {
     if (e.button !== undefined && e.button !== 0) return;
     e.preventDefault();
+    if (available(imageId) <= 0) {
+      toast('Tu as déjà posé tous tes exemplaires de ce sticker. Ouvre des enveloppes pour en gagner d\'autres !');
+      return;
+    }
     const img = state.images.get(imageId);
     const startX = e.clientX, startY = e.clientY;
     let ghost = null;
@@ -505,7 +533,7 @@
   // ---------------------------------------------------------------------------
   function addSticker(imageId, x, y) {
     const img = state.images.get(imageId);
-    if (!img) return;
+    if (!img || available(imageId) <= 0) return;
     const k = STICKER_DEFAULT_SIZE / Math.max(img.w, img.h);
     const s = { id: uid(), imageId, x, y, w: img.w * k, h: img.h * k, rot: 0, flip: false };
     state.stickers.push(s); // nouveau sticker devant les autres
@@ -547,6 +575,7 @@
       layer.appendChild(el);
     });
     select(state.selectedId);
+    renderLibrary();
   }
 
   function elFor(id) {
@@ -765,6 +794,10 @@
       case 'backward': if (i > 0) [arr[i], arr[i - 1]] = [arr[i - 1], arr[i]]; break;
       case 'flip': s.flip = !s.flip; break;
       case 'duplicate': {
+        if (available(s.imageId) <= 0) {
+          toast('Plus d\'exemplaire disponible de ce sticker. Ouvre des enveloppes pour en gagner d\'autres !');
+          return;
+        }
         const copy = { ...s, id: uid(), x: clamp(s.x + 24, 0, STAGE_W), y: clamp(s.y + 24, 0, STAGE_H) };
         arr.splice(i + 1, 0, copy);
         state.selectedId = copy.id;
@@ -809,36 +842,9 @@
     }
   });
 
-  // ---------------------------------------------------------------------------
-  // Import par glisser-déposer de fichiers
-  // ---------------------------------------------------------------------------
-  let dragDepth = 0;
-  const hasFiles = (e) => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
-  window.addEventListener('dragenter', (e) => {
-    if (!hasFiles(e) || screens.room.hidden) return;
-    e.preventDefault();
-    dragDepth++;
-    dropOverlay.hidden = false;
-  });
-  window.addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault(); });
-  window.addEventListener('dragleave', (e) => {
-    if (!hasFiles(e)) return;
-    dragDepth = Math.max(0, dragDepth - 1);
-    if (!dragDepth) dropOverlay.hidden = true;
-  });
-  window.addEventListener('drop', (e) => {
-    if (!hasFiles(e)) return;
-    e.preventDefault();
-    if (screens.room.hidden) return;
-    dragDepth = 0;
-    dropOverlay.hidden = true;
-    importFiles(e.dataTransfer.files);
-  });
-
-  fileInput.addEventListener('change', () => {
-    importFiles(fileInput.files);
-    fileInput.value = '';
-  });
+  // Un fichier lâché par erreur sur la page ne doit pas l'ouvrir à la place du jeu.
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => e.preventDefault());
 
   // ---------------------------------------------------------------------------
   // Couleurs, vider, exporter
@@ -926,6 +932,8 @@
     start: $('#screenStart'),
     rooms: $('#screenRooms'),
     room: $('#screenRoom'),
+    shop: $('#screenShop'),
+    atelier: $('#screenAtelier'),
   };
   function showScreen(name) {
     for (const [key, el] of Object.entries(screens)) el.hidden = key !== name;
@@ -967,27 +975,67 @@
     }
   });
 
+  const playerDocId = (key) => 'player-' + key.replace(/\//g, '_');
+  const today = () => new Date().toLocaleDateString('fr-CA'); // AAAA-MM-JJ, heure locale
+
   async function login(name) {
     state.player = { key: normalizePseudo(name), name };
+    state.isAdmin = ADMIN_PSEUDOS.includes(state.player.key);
     remember(name);
     $('#playerName').textContent = name;
+    $('#btnAtelier').hidden = !state.isAdmin;
     state.images = new Map();
+    let gained = 0;
     try {
-      const [images, rooms] = await withFallback((d) =>
-        Promise.all([d.listImages(state.player.key), d.listRooms(state.player.key)]));
+      const [images, rooms, envelopes, profile] = await withFallback((d) => Promise.all([
+        d.listCatalog(), d.listRooms(state.player.key), d.listEnvelopes(), d.getPlayer(playerDocId(state.player.key)),
+      ]));
       images.sort((a, b) => (a.created || 0) - (b.created || 0)).forEach(addImageToLibrary);
       state.rooms = rooms;
+      state.envelopes = envelopes.sort((a, b) => (a.created || 0) - (b.created || 0));
+      state.profile = profile || {
+        id: playerDocId(state.player.key), points: 0, lastDaily: '', inventory: {},
+      };
+      state.profile.pseudo = name;
+      state.profile.inventory = state.profile.inventory || {};
+      // Points du jour : une fois par jour, à la première connexion.
+      if (state.profile.lastDaily !== today()) {
+        state.profile.points = (state.profile.points || 0) + DAILY_POINTS;
+        state.profile.lastDaily = today();
+        gained = DAILY_POINTS;
+        saveProfile();
+      }
     } catch (e) {
       console.warn('Chargement impossible', e);
       toast('Impossible de charger tes pièces. Vérifie ta connexion puis recharge la page.');
       state.rooms = [];
+      state.profile = state.profile || { id: playerDocId(state.player.key), points: 0, lastDaily: '', inventory: {} };
     }
+    renderPoints();
     renderRoomList();
     showScreen('rooms');
+    if (gained) toast(`+${gained} ⭐ : tes points du jour ! Va les dépenser dans la boutique.`);
+  }
+
+  function saveProfile() {
+    return db.putPlayer(state.profile).catch((e) => {
+      console.warn('Profil non sauvegardé', e);
+      toast('Tes points n\'ont pas pu être enregistrés. Vérifie ta connexion.');
+    });
+  }
+
+  function renderPoints() {
+    const pts = (state.profile && state.profile.points) || 0;
+    document.querySelectorAll('.points-pill').forEach((el) => {
+      el.textContent = `${pts} ⭐`;
+      el.title = `${pts} points`;
+    });
   }
 
   $('#btnChangePseudo').addEventListener('click', () => {
     state.player = null;
+    state.profile = null;
+    state.isAdmin = false;
     state.rooms = [];
     showScreen('start');
     $('#pseudoInput').focus();
@@ -1081,9 +1129,20 @@
         ...JSON.parse(JSON.stringify(r)),
         id: uid(),
         name: `${r.name} (copie)`,
+        stickers: [],
         updated: Date.now(),
       };
       state.rooms.push(copy);
+      // Chaque exemplaire ne se pose qu'une fois : on ne recopie que ce qui reste.
+      let missing = 0;
+      for (const st of r.stickers || []) {
+        if (available(st.imageId) > 0) copy.stickers.push({ ...st, id: uid() });
+        else missing++;
+      }
+      if (missing) {
+        copy.thumb = '';
+        toast(`${missing} sticker${missing > 1 ? 's' : ''} n'${missing > 1 ? 'ont' : 'a'} pas été copié${missing > 1 ? 's' : ''} : tu n'en as plus d'exemplaire libre.`);
+      }
       db.putRoom(copy).catch(() => toast('La copie n\'a pas pu être enregistrée.'));
     } else if (action === 'delete') {
       if (!(await askConfirm(`Supprimer « ${r.name} » ? Ses stickers restent dans ta bibliothèque.`, 'Supprimer'))) return;
@@ -1108,7 +1167,6 @@
     setSaveStatus('Sauvegardé ✓');
     syncColorInputs();
     drawRoom();
-    renderLibrary();
     renderStickers();
     showScreen('room');
   }
@@ -1182,6 +1240,319 @@
 
   // Sauvegarde ce qui reste en attente si on ferme la page.
   window.addEventListener('pagehide', () => { saveRoom(); });
+
+  // ---------------------------------------------------------------------------
+  // Boutique : acheter et ouvrir des enveloppes
+  // ---------------------------------------------------------------------------
+  const stickersOf = (envId) => [...state.images.values()].filter((img) => img.envelope === envId);
+  let shopReturnRoom = null; // pièce à rouvrir en quittant la boutique
+
+  async function openShop(fromRoom) {
+    if (fromRoom && state.roomId) {
+      select(null);
+      await saveRoom();
+      shopReturnRoom = state.roomId;
+      state.roomId = null;
+    } else {
+      shopReturnRoom = null;
+    }
+    renderShop();
+    showScreen('shop');
+  }
+
+  $('#btnShop').addEventListener('click', () => openShop(false));
+  $('#btnLibShop').addEventListener('click', () => openShop(true));
+  $('#shopBack').addEventListener('click', () => {
+    if (shopReturnRoom && state.rooms.some((r) => r.id === shopReturnRoom)) {
+      openRoom(shopReturnRoom);
+    } else {
+      renderRoomList();
+      showScreen('rooms');
+    }
+  });
+
+  // Petit dessin d'enveloppe, aux couleurs choisies dans l'atelier.
+  function envelopeArt(env, cls = '') {
+    const el = document.createElement('div');
+    el.className = 'env ' + cls;
+    el.style.setProperty('--env', env.color || ENVELOPE_COLORS[0]);
+    el.innerHTML = '<div class="env-back"></div><div class="env-pocket"></div><div class="env-flap"></div><div class="env-seal">★</div>';
+    return el;
+  }
+
+  function renderShop() {
+    renderPoints();
+    const grid = $('#shopGrid');
+    grid.innerHTML = '';
+    const envs = state.envelopes.filter((env) => stickersOf(env.id).length);
+    $('#shopEmpty').hidden = envs.length > 0;
+    for (const env of envs) {
+      const list = stickersOf(env.id);
+      const got = list.filter((img) => owned(img.id) > 0).length;
+      const price = env.price ?? DEFAULT_PRICE;
+      const card = document.createElement('article');
+      card.className = 'shop-card';
+      card.innerHTML = `
+        <button class="shop-art" title="Voir les stickers de cette enveloppe"></button>
+        <h3 class="shop-name"></h3>
+        <p class="shop-progress"><span class="bar"><span></span></span><span class="txt"></span></p>
+        <button class="btn btn-primary shop-buy"></button>`;
+      card.querySelector('.shop-art').appendChild(envelopeArt(env));
+      card.querySelector('.shop-name').textContent = env.name || 'Enveloppe';
+      card.querySelector('.bar span').style.width = `${(got / list.length) * 100}%`;
+      card.querySelector('.txt').textContent = `${got}/${list.length} stickers`;
+      const buy = card.querySelector('.shop-buy');
+      buy.textContent = `Acheter · ${price} ⭐`;
+      buy.disabled = state.profile.points < price;
+      card.querySelector('.shop-art').addEventListener('click', () => showEnvelope(env));
+      buy.addEventListener('click', () => buyEnvelope(env));
+      grid.appendChild(card);
+    }
+  }
+
+  // Contenu d'une enveloppe : les stickers obtenus, et la silhouette des autres.
+  const envDialog = $('#envDialog');
+  function showEnvelope(env) {
+    const list = stickersOf(env.id);
+    $('#envTitle').textContent = env.name || 'Enveloppe';
+    const got = list.filter((img) => owned(img.id) > 0).length;
+    $('#envSub').textContent = `${got}/${list.length} obtenus · un seul sticker par enveloppe, tiré au sort`;
+    const grid = $('#envGrid');
+    grid.innerHTML = '';
+    const order = { epic: 0, rare: 1, common: 2 };
+    for (const img of [...list].sort((a, b) => order[a.rarity || 'common'] - order[b.rarity || 'common'])) {
+      const n = owned(img.id);
+      const cell = document.createElement('div');
+      cell.className = 'env-item' + (n ? '' : ' missing');
+      cell.dataset.rarity = img.rarity || 'common';
+      cell.innerHTML = '<div class="env-item-img"><img alt=""></div><span class="env-item-name"></span><span class="rarity-tag"></span>';
+      cell.querySelector('img').src = img.url;
+      cell.querySelector('.env-item-name').textContent = n ? `${img.name} ×${n}` : '???';
+      cell.querySelector('.rarity-tag').textContent = RARITIES[img.rarity || 'common'].label;
+      grid.appendChild(cell);
+    }
+    const price = env.price ?? DEFAULT_PRICE;
+    const buy = $('#envBuy');
+    buy.textContent = `Acheter · ${price} ⭐`;
+    buy.disabled = state.profile.points < price;
+    buy.onclick = () => { envDialog.hidden = true; buyEnvelope(env); };
+    envDialog.hidden = false;
+  }
+  $('#envClose').addEventListener('click', () => { envDialog.hidden = true; });
+
+  // Tirage pondéré par la rareté.
+  function drawSticker(list) {
+    const total = list.reduce((sum, img) => sum + RARITIES[img.rarity || 'common'].weight, 0);
+    let r = Math.random() * total;
+    for (const img of list) {
+      r -= RARITIES[img.rarity || 'common'].weight;
+      if (r < 0) return img;
+    }
+    return list[list.length - 1];
+  }
+
+  let buying = false;
+  async function buyEnvelope(env) {
+    if (buying) return;
+    const list = stickersOf(env.id);
+    const price = env.price ?? DEFAULT_PRICE;
+    if (!list.length) return;
+    if (state.profile.points < price) {
+      toast(`Il te manque ${price - state.profile.points} ⭐ pour cette enveloppe.`);
+      return;
+    }
+    buying = true;
+    const pick = drawSticker(list);
+    const before = owned(pick.id);
+    state.profile.points -= price;
+    state.profile.inventory[pick.id] = before + 1;
+    renderPoints();
+    saveProfile();
+    await playOpening(env, pick, before + 1);
+    buying = false;
+    renderShop();
+  }
+
+  // Animation : l'enveloppe tremble, s'ouvre, et le sticker en sort.
+  const openDialog = $('#openDialog');
+  async function playOpening(env, img, count) {
+    const stageEl = $('#openStage');
+    stageEl.innerHTML = '';
+    const art = envelopeArt(env, 'env-big');
+    const sticker = document.createElement('img');
+    sticker.className = 'open-sticker';
+    sticker.src = img.url;
+    sticker.alt = img.name;
+    art.appendChild(sticker);
+    stageEl.appendChild(art);
+    const result = $('#openResult');
+    result.hidden = true;
+    openDialog.dataset.rarity = img.rarity || 'common';
+    openDialog.hidden = false;
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const wait = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
+    art.classList.add('shaking');
+    await wait(900);
+    art.classList.remove('shaking');
+    art.classList.add('opened');
+    await wait(700);
+
+    $('#openRarity').textContent = RARITIES[img.rarity || 'common'].label;
+    $('#openName').textContent = img.name;
+    $('#openText').textContent = count === 1
+      ? 'Nouveau sticker pour ta collection !'
+      : `Tu en as maintenant ${count} exemplaires.`;
+    const price = env.price ?? DEFAULT_PRICE;
+    const again = $('#openAgain');
+    again.textContent = `Une autre · ${price} ⭐`;
+    again.disabled = state.profile.points < price;
+    again.onclick = () => { openDialog.hidden = true; buyEnvelope(env); };
+    result.hidden = false;
+  }
+  $('#openClose').addEventListener('click', () => { openDialog.hidden = true; });
+
+  // ---------------------------------------------------------------------------
+  // Atelier : créer les enveloppes et leurs stickers (administratrice)
+  // ---------------------------------------------------------------------------
+  $('#btnAtelier').addEventListener('click', () => {
+    if (!state.isAdmin) return;
+    renderAtelier();
+    showScreen('atelier');
+  });
+  $('#atelierBack').addEventListener('click', () => {
+    renderRoomList();
+    showScreen('rooms');
+  });
+  $('#btnGivePoints').addEventListener('click', () => {
+    state.profile.points += 100;
+    renderPoints();
+    saveProfile();
+    toast('+100 ⭐ ajoutés à ton compte.');
+  });
+
+  $('#btnNewEnvelope').addEventListener('click', async () => {
+    const name = await askText('Nom de la nouvelle enveloppe :', 'Créer', `Enveloppe ${state.envelopes.length + 1}`);
+    if (!name) return;
+    const env = {
+      id: uid(), name, price: DEFAULT_PRICE,
+      color: ENVELOPE_COLORS[state.envelopes.length % ENVELOPE_COLORS.length],
+      created: Date.now(),
+    };
+    state.envelopes.push(env);
+    db.putEnvelope(env).catch(() => toast('L\'enveloppe n\'a pas pu être enregistrée.'));
+    renderAtelier();
+  });
+
+  const envSaveTimers = {};
+  function saveEnvelopeSoon(env) {
+    clearTimeout(envSaveTimers[env.id]);
+    envSaveTimers[env.id] = setTimeout(() => {
+      db.putEnvelope(env).catch(() => toast('L\'enveloppe n\'a pas pu être enregistrée.'));
+    }, 500);
+  }
+
+  function renderAtelier() {
+    const listEl = $('#atelierList');
+    listEl.innerHTML = '';
+    $('#atelierEmpty').hidden = state.envelopes.length > 0;
+    for (const env of state.envelopes) {
+      const sec = document.createElement('section');
+      sec.className = 'atelier-env';
+      sec.innerHTML = `
+        <div class="atelier-head">
+          <div class="atelier-art"></div>
+          <div class="atelier-fields">
+            <label class="atelier-field"><span>Nom</span><input class="field" data-f="name" maxlength="40"></label>
+            <label class="atelier-field small"><span>Prix ⭐</span><input class="field" data-f="price" type="number" min="0" step="10"></label>
+            <label class="atelier-field small"><span>Couleur</span><input data-f="color" type="color"></label>
+          </div>
+          <button class="btn btn-ghost atelier-del" title="Supprimer l'enveloppe">🗑️</button>
+        </div>
+        <p class="atelier-count muted"></p>
+        <div class="atelier-grid"></div>
+        <label class="btn atelier-add">＋ Ajouter des stickers<input type="file" accept="image/*" multiple hidden></label>`;
+      sec.querySelector('.atelier-art').appendChild(envelopeArt(env));
+      const fName = sec.querySelector('[data-f="name"]');
+      const fPrice = sec.querySelector('[data-f="price"]');
+      const fColor = sec.querySelector('[data-f="color"]');
+      fName.value = env.name;
+      fPrice.value = env.price ?? DEFAULT_PRICE;
+      fColor.value = env.color || ENVELOPE_COLORS[0];
+      fName.addEventListener('input', () => { env.name = fName.value.trim() || 'Enveloppe'; saveEnvelopeSoon(env); });
+      fPrice.addEventListener('input', () => {
+        env.price = Math.max(0, Math.round(Number(fPrice.value) || 0));
+        saveEnvelopeSoon(env);
+      });
+      fColor.addEventListener('input', () => {
+        env.color = fColor.value;
+        sec.querySelector('.env').style.setProperty('--env', env.color);
+        saveEnvelopeSoon(env);
+      });
+
+      const list = stickersOf(env.id);
+      sec.querySelector('.atelier-count').textContent = list.length
+        ? `${list.length} sticker${list.length > 1 ? 's' : ''} (conseil : entre 5 et 10). Les « très rares » tombent environ 10 fois moins souvent que les « communs ».`
+        : 'Aucun sticker : l\'enveloppe n\'apparaît pas dans la boutique tant qu\'elle est vide.';
+      const grid = sec.querySelector('.atelier-grid');
+      for (const img of list) {
+        const cell = document.createElement('div');
+        cell.className = 'atelier-item';
+        cell.dataset.rarity = img.rarity || 'common';
+        cell.innerHTML = `
+          <div class="env-item-img"><img alt=""></div>
+          <input class="atelier-name" maxlength="30" aria-label="Nom du sticker">
+          <select aria-label="Rareté">${Object.entries(RARITIES).map(([k, r]) => `<option value="${k}">${r.label}</option>`).join('')}</select>
+          <button class="atelier-item-del" title="Retirer ce sticker">✕</button>`;
+        cell.querySelector('img').src = img.url;
+        const nameIn = cell.querySelector('.atelier-name');
+        nameIn.value = img.name;
+        nameIn.addEventListener('change', () => {
+          img.name = nameIn.value.trim() || 'Sticker';
+          db.putImage(img).catch(() => toast('Le nom n\'a pas pu être enregistré.'));
+        });
+        const sel = cell.querySelector('select');
+        sel.value = img.rarity || 'common';
+        sel.addEventListener('change', () => {
+          img.rarity = sel.value;
+          cell.dataset.rarity = img.rarity;
+          db.putImage(img).catch(() => toast('La rareté n\'a pas pu être enregistrée.'));
+        });
+        cell.querySelector('.atelier-item-del').addEventListener('click', async () => {
+          if (!(await askConfirm(`Retirer « ${img.name} » de l'enveloppe ? Les joueurs qui l'ont déjà le perdront aussi.`, 'Retirer'))) return;
+          state.images.delete(img.id);
+          db.deleteImage(img.id).catch(() => toast('Le sticker n\'a pas pu être supprimé.'));
+          renderAtelier();
+        });
+        grid.appendChild(cell);
+      }
+
+      const fileIn = sec.querySelector('input[type="file"]');
+      fileIn.addEventListener('change', async () => {
+        const addBtn = sec.querySelector('.atelier-add');
+        addBtn.classList.add('busy');
+        await importFiles(fileIn.files, env.id);
+        fileIn.value = '';
+        renderAtelier();
+      });
+
+      sec.querySelector('.atelier-del').addEventListener('click', async () => {
+        const n = stickersOf(env.id).length;
+        const msg = n
+          ? `Supprimer « ${env.name} » et ses ${n} stickers ? Les joueurs qui les ont déjà les perdront aussi.`
+          : `Supprimer « ${env.name} » ?`;
+        if (!(await askConfirm(msg, 'Supprimer'))) return;
+        for (const img of stickersOf(env.id)) {
+          state.images.delete(img.id);
+          db.deleteImage(img.id).catch(() => {});
+        }
+        state.envelopes = state.envelopes.filter((x) => x.id !== env.id);
+        db.deleteEnvelope(env.id).catch(() => toast('L\'enveloppe n\'a pas pu être supprimée.'));
+        renderAtelier();
+      });
+      listEl.appendChild(sec);
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Démarrage
