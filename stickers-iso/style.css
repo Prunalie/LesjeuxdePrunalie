@@ -463,3 +463,56 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
   .toolbar button { width: 34px; height: 34px; font-size: .95rem; }
   .toolbar .sep { margin: 0 2px; }
 }
+
+/* ---------- Barres repliables (éditeur) ---------- */
+.screen-room.hide-top > .topbar { display: none; }
+.screen-room.hide-lib .library { display: none; }
+.bar-tab {
+  position: absolute;
+  z-index: 20;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font: inherit; font-size: .78rem; line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,.08);
+  white-space: nowrap;
+}
+.bar-tab:hover { color: var(--accent); }
+.tab-top {
+  top: 0; left: 50%; transform: translateX(-50%);
+  min-width: 48px; padding: 4px 14px 6px;
+  border-top: none; border-radius: 0 0 12px 12px;
+}
+.tab-lib {
+  left: 0; top: 50%; transform: translateY(-50%);
+  min-height: 48px; padding: 12px 6px;
+  border-left: none; border-radius: 0 12px 12px 0;
+}
+.screen-room.hide-lib .tab-lib { writing-mode: vertical-rl; transform: translateY(-50%) rotate(180deg); border-radius: 12px 0 0 12px; border-left: 1px solid var(--line); border-right: none; }
+
+@media (max-width: 720px) {
+  /* Barre du haut plus fine */
+  .screen-room .topbar { padding: 4px 8px; min-height: 0; }
+  #btnBack { width: 34px; height: 34px; padding: 0; justify-content: center; }
+  .room-name-input { font-size: 1rem; padding: 3px 6px; }
+  .btn-menu { height: 34px; padding: 0 12px; }
+
+  /* Bibliothèque plus fine */
+  .library { padding: 4px 8px calc(4px + env(safe-area-inset-bottom, 0px)); gap: 6px; }
+  .import-btn { width: 52px; height: 52px; font-size: .66rem; border-radius: 10px; }
+  .library-grid { padding: 6px 2px 0; gap: 6px; }
+  .thumb { width: 52px; height: 52px; border-radius: 8px; }
+
+  /* Languette du bas, même style que celle du haut */
+  .tab-lib,
+  .screen-room.hide-lib .tab-lib {
+    top: auto; bottom: 0; left: 50%;
+    transform: translateX(-50%);
+    writing-mode: horizontal-tb;
+    min-height: 0; min-width: 48px; padding: 6px 14px 4px;
+    border: 1px solid var(--line); border-bottom: none;
+    border-radius: 12px 12px 0 0;
+  }
+  .toolbar { bottom: 30px; }
+}

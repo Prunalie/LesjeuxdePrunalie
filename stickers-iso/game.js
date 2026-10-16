@@ -297,7 +297,7 @@
     const small = stageArea.clientWidth < 600;
     const pad = small ? 4 : 24;
     const availW = stageArea.clientWidth - pad * 2;
-    const availH = stageArea.clientHeight - pad * 2 - (small ? 56 : 50); // place pour la barre d'outils
+    const availH = stageArea.clientHeight - pad * 2 - (small ? 70 : 50); // place pour la barre d'outils
     state.scale = Math.max(0.1, Math.min(availW / STAGE_W, availH / STAGE_H));
     stage.style.transform = `scale(${state.scale})`;
     // Les poignées gardent la même taille à l'écran, quel que soit le zoom.
@@ -614,7 +614,7 @@
 
   // Clic dans le vide : désélection
   stageArea.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.sticker') || e.target.closest('.toolbar')) return;
+    if (e.target.closest('.sticker, .toolbar, .bar-tab')) return;
     if (!joinPinch(e)) select(null);
   });
 
@@ -980,6 +980,42 @@
     showScreen('room');
   }
 
+  // Barres repliables : la barre du haut et la bibliothèque se cachent chacune
+  // avec sa languette, pour laisser toute la place à la pièce.
+  const BARS_KEY = 'ma-petite-piece:barres';
+  const mqSmall = window.matchMedia('(max-width: 720px)');
+  const tabTop = $('#tabTop');
+  const tabLib = $('#tabLib');
+  const bars = (() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(BARS_KEY));
+      if (saved) return saved;
+    } catch (e) { /* stockage indisponible */ }
+    // Par défaut sur téléphone, la barre du haut est cachée.
+    return { top: !mqSmall.matches, lib: true };
+  })();
+
+  function applyBars() {
+    screens.room.classList.toggle('hide-top', !bars.top);
+    screens.room.classList.toggle('hide-lib', !bars.lib);
+    tabTop.textContent = bars.top ? '▴' : '▾ Menu';
+    tabTop.title = bars.top ? 'Cacher la barre du haut' : 'Afficher la barre du haut';
+    tabTop.setAttribute('aria-expanded', bars.top);
+    if (mqSmall.matches) tabLib.textContent = bars.lib ? '▾' : '▴ Stickers';
+    else tabLib.textContent = bars.lib ? '‹' : '› Stickers';
+    tabLib.title = bars.lib ? 'Cacher les stickers' : 'Afficher les stickers';
+    tabLib.setAttribute('aria-expanded', bars.lib);
+    if (!bars.top) roomMenu.classList.remove('open');
+  }
+  function toggleBar(name) {
+    bars[name] = !bars[name];
+    try { localStorage.setItem(BARS_KEY, JSON.stringify(bars)); } catch (e) { /* stockage indisponible */ }
+    applyBars();
+  }
+  tabTop.addEventListener('click', () => toggleBar('top'));
+  tabLib.addEventListener('click', () => toggleBar('lib'));
+  mqSmall.addEventListener('change', applyBars);
+
   const roomMenu = $('#roomMenu');
   const btnMenu = $('#btnMenu');
   btnMenu.addEventListener('click', (e) => {
@@ -1020,6 +1056,7 @@
   function init() {
     window.addEventListener('resize', fitStage);
     new ResizeObserver(fitStage).observe(stageArea);
+    applyBars();
     $('#pseudoInput').value = recall();
     showScreen('start');
     $('#pseudoInput').focus();

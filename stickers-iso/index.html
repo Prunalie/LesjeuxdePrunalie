@@ -44,7 +44,7 @@
 
   <!-- Écran 3 : décoration d'une pièce -->
   <section id="screenRoom" class="screen screen-room" hidden>
-  <header class="topbar">
+  <header id="roomTopbar" class="topbar">
     <div class="room-title">
       <button id="btnBack" class="btn btn-ghost" title="Retour à mes pièces">←<span class="label-long">&nbsp;Mes pièces</span></button>
       <input id="roomName" class="room-name-input" type="text" maxlength="40" aria-label="Nom de la pièce">
@@ -61,7 +61,7 @@
   </header>
 
   <main class="layout">
-    <aside class="library">
+    <aside id="roomLibrary" class="library">
       <div class="library-head">
         <h2>Mes stickers</h2>
         <label class="btn btn-primary import-btn">
@@ -81,6 +81,10 @@
           <div id="stickerLayer" class="sticker-layer"></div>
         </div>
       </div>
+
+      <!-- Languettes pour cacher / afficher la barre du haut et la bibliothèque -->
+      <button id="tabTop" class="bar-tab tab-top" aria-controls="roomTopbar"></button>
+      <button id="tabLib" class="bar-tab tab-lib" aria-controls="roomLibrary"></button>
 
       <div id="toolbar" class="toolbar" hidden>
         <button data-act="front" title="Tout devant">⏫</button>
