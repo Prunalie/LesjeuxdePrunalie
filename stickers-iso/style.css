@@ -1066,3 +1066,8 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
 .sell-gain { margin: 4px 0 0; font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .sell-note { margin: 0 0 6px; font-size: .8rem; }
 .sell-note.warn { color: #c0392b; }
+
+.stamp-stars { flex-wrap: wrap; }
+@media (max-width: 720px) {
+  .stamp-stars .btn { flex: 1 1 auto; justify-content: center; }
+}

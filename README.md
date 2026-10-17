@@ -6,7 +6,7 @@ Des pièces en isométrie à décorer avec tes propres stickers.
 
 - **Menu principal** : après le pseudo, quatre entrées : Mes pièces, Boutique, Collection et (pour l'administratrice) Atelier.
 - **Collection** : un classeur avec une page par enveloppe (onglets à sa couleur). Chaque sticker a sa pochette numérotée : ceux obtenus (avec le nombre d'exemplaires), et la silhouette de ceux qui restent à trouver. Toucher un sticker obtenu ouvre sa fiche.
-- **Carte de tampons** : chaque enveloppe achetée donne un tampon ; 10 tampons donnent une étoile 🌟, qui permet de choisir n'importe quel sticker de n'importe quelle enveloppe (réglable avec `STAMPS_PER_STAR` dans `game.js`).
+- **Carte de tampons** : chaque enveloppe achetée donne un tampon ; 10 tampons donnent une étoile 🌟 (on peut aussi l'acheter 1000 🪙, `STAR_PRICE`), qui permet de choisir n'importe quel sticker de n'importe quelle enveloppe (réglable avec `STAMPS_PER_STAR` dans `game.js`).
 - **Vente** : dans la collection, la fiche d'un sticker a un bouton « Vendre… » qui demande combien d'exemplaires vendre (par ex. 2/6) et affiche les pièces gagnées (commun 10 🪙, rare 25 🪙, très rare 60 🪙 l'unité, réglable dans `RARITIES` de `game.js`). Les exemplaires posés dans les pièces ne sont jamais vendus.
 - **Pseudo** : au démarrage, choisis un pseudo (pas de mot de passe). Reprends le même sur tous tes appareils pour retrouver tes pièces.
 - **Mes pièces** : crée autant de pièces que tu veux, renomme-les, duplique-les ou supprime-les. Chaque pièce se sauvegarde toute seule.

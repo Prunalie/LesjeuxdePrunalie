@@ -21,6 +21,7 @@
   const ADMIN_PSEUDOS = ['prunalie'];  // pseudos (en minuscules) qui ont accès à l'atelier
   const DAILY_POINTS = 100;            // points gagnés une fois par jour
   const DEFAULT_PRICE = 50;            // prix d'une nouvelle enveloppe
+  const STAR_PRICE = 1000;             // prix d'une étoile achetée avec des pièces
   const STAMPS_PER_STAR = 10;          // tampons à réunir sur la carte pour gagner une étoile
   const RARITIES = {
     // sell : pièces 🪙 gagnées en revendant un exemplaire
@@ -1574,7 +1575,25 @@
     const use = $('#btnUseStar');
     use.disabled = stars < 1 || !collectible().length;
     use.textContent = stars ? 'Utiliser une étoile' : 'Pas encore d\'étoile';
+    const buy = $('#btnBuyStar');
+    buy.textContent = `Acheter une étoile · ${STAR_PRICE} 🪙`;
+    buy.disabled = state.profile.points < STAR_PRICE;
+    buy.title = buy.disabled ? `Il te manque ${STAR_PRICE - state.profile.points} 🪙` : '';
   }
+
+  // Une étoile peut aussi s'acheter avec des pièces.
+  $('#btnBuyStar').addEventListener('click', async () => {
+    if (state.profile.points < STAR_PRICE) return;
+    if (!(await askConfirm(`Acheter une étoile 🌟 pour ${STAR_PRICE} 🪙 ?`, 'Acheter'))) return;
+    if (state.profile.points < STAR_PRICE) return;
+    state.profile.points -= STAR_PRICE;
+    state.profile.stars = (state.profile.stars || 0) + 1;
+    saveProfile();
+    renderPoints();
+    renderStampCard();
+    renderShop();
+    toast('Étoile achetée 🌟 ! Utilise-la pour choisir le sticker que tu veux.');
+  });
 
   // Avec une étoile : choisir n'importe quel sticker, dans n'importe quelle enveloppe.
   const starDialog = $('#starDialog');
