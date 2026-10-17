@@ -890,7 +890,7 @@
       }
       pipetteKey = key;
       stageArea.classList.add('pipette');
-      toast(`Touche un endroit de la pièce pour prendre sa couleur pour ${PIPETTE_NAMES[key]}.`);
+      toast(`Appuie dans la pièce et glisse la loupe sur la couleur voulue pour ${PIPETTE_NAMES[key]}, puis relâche.`);
     });
   });
 
@@ -899,32 +899,114 @@
     stageArea.classList.remove('pipette');
   }
 
-  // En mode pipette, le prochain appui dans la pièce lit la couleur au lieu
-  // d'agir sur les stickers (écoute en phase de capture, avant tout le reste).
-  stageArea.addEventListener('pointerdown', async (e) => {
+  // En mode pipette, appuyer dans la pièce affiche une loupe au-dessus du doigt :
+  // on glisse pour viser la bonne couleur, et on relâche pour la choisir.
+  // (Écoute en phase de capture, avant les stickers et le zoom.)
+  const loupe = $('#loupe');
+  const loupeCanvas = $('#loupeCanvas');
+  const LOUPE_SIZE = 120;  // diamètre à l'écran, en px
+  const LOUPE_MAG = 5;     // grossissement par rapport à ce qu'on voit
+  const SCENE_K = 2;       // résolution du rendu lu par la pipette
+  let pip = null;          // { key, ctx, pointerId, x, y }
+
+  const toHex = (r, g, b) => '#' + [r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('');
+
+  function sampleAt(clientX, clientY) {
+    if (!pip || !pip.ctx) return null;
+    const p = toStage(clientX, clientY);
+    const x = Math.round(p.x * SCENE_K), y = Math.round(p.y * SCENE_K);
+    if (x < 0 || y < 0 || x >= STAGE_W * SCENE_K || y >= STAGE_H * SCENE_K) return null;
+    const [r, g, b, a] = pip.ctx.getImageData(x, y, 1, 1).data;
+    return a < 20 ? null : toHex(r, g, b);
+  }
+
+  function drawLoupe() {
+    if (!pip) return;
+    const { x, y } = pip;
+    // Au-dessus du doigt ; en dessous s'il n'y a pas la place en haut.
+    let top = y - LOUPE_SIZE - 48;
+    if (top < 8) top = y + 48;
+    loupe.style.left = clamp(x - LOUPE_SIZE / 2, 8, window.innerWidth - LOUPE_SIZE - 8) + 'px';
+    loupe.style.top = top + 'px';
+    loupe.hidden = false;
+    if (!pip.ctx) return; // rendu en cours
+    const dpr = window.devicePixelRatio || 1;
+    const px = Math.round(LOUPE_SIZE * dpr);
+    if (loupeCanvas.width !== px) { loupeCanvas.width = px; loupeCanvas.height = px; }
+    const lctx = loupeCanvas.getContext('2d');
+    lctx.imageSmoothingEnabled = false;
+    lctx.fillStyle = getComputedStyle(document.body).backgroundColor;
+    lctx.fillRect(0, 0, px, px);
+    // Zone de la pièce couverte par la loupe, en unités de la pièce.
+    const p = toStage(x, y);
+    const span = LOUPE_SIZE / (state.scale * LOUPE_MAG);
+    lctx.drawImage(pip.ctx.canvas,
+      (p.x - span / 2) * SCENE_K, (p.y - span / 2) * SCENE_K, span * SCENE_K, span * SCENE_K,
+      0, 0, px, px);
+    const hex = sampleAt(x, y);
+    loupe.style.setProperty('--picked', hex || 'transparent');
+    $('#loupeHex').textContent = hex ? hex.toUpperCase() : '—';
+  }
+
+  function endPip() {
+    pip = null;
+    loupe.hidden = true;
+    window.removeEventListener('pointermove', onPipMove, true);
+    window.removeEventListener('pointerup', onPipUp, true);
+    window.removeEventListener('pointercancel', onPipCancel, true);
+  }
+
+  function onPipMove(e) {
+    if (!pip || e.pointerId !== pip.pointerId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    pip.x = e.clientX; pip.y = e.clientY;
+    drawLoupe();
+  }
+
+  async function onPipUp(e) {
+    if (!pip || e.pointerId !== pip.pointerId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    pip.x = e.clientX; pip.y = e.clientY;
+    if (!pip.ctx) await pip.ready;
+    const key = pip.key;
+    const hex = sampleAt(pip.x, pip.y);
+    endPip();
+    if (hex) setColor(key, hex);
+    else toast('Il n\'y a pas de couleur à cet endroit. Vise la pièce ou un sticker.');
+  }
+
+  function onPipCancel(e) {
+    if (pip && e.pointerId === pip.pointerId) endPip();
+  }
+
+  stageArea.addEventListener('pointerdown', (e) => {
     if (!pipetteKey) return;
     e.preventDefault();
     e.stopPropagation();
-    const key = pipetteKey;
+    if (pip) return; // un seul doigt pour la pipette
+    if (e.target.closest('.bar-tab, .zoom-ctrl, .toolbar')) { stopPipette(); return; }
+    pip = { key: pipetteKey, ctx: null, pointerId: e.pointerId, x: e.clientX, y: e.clientY };
     stopPipette();
-    if (e.target.closest('.bar-tab, .zoom-ctrl, .toolbar')) return;
-    const p = toStage(e.clientX, e.clientY);
-    try {
-      const cv = await renderScene(1, null);
-      const [r, g, b, a] = cv.getContext('2d').getImageData(Math.round(p.x), Math.round(p.y), 1, 1).data;
-      if (a < 20) {
-        toast('Il n\'y a pas de couleur à cet endroit. Touche la pièce ou un sticker.');
-        return;
-      }
-      setColor(key, '#' + [r, g, b].map((c) => c.toString(16).padStart(2, '0')).join(''));
-    } catch (err) {
+    const current = pip;
+    current.ready = renderScene(SCENE_K, null).then((cv) => {
+      current.ctx = cv.getContext('2d', { willReadFrequently: true });
+      if (pip === current) drawLoupe();
+    }).catch((err) => {
       console.warn('Pipette impossible', err);
-      toast('Impossible de lire la couleur à cet endroit.');
-    }
+      if (pip === current) { endPip(); toast('Impossible de lire les couleurs de la pièce.'); }
+    });
+    window.addEventListener('pointermove', onPipMove, true);
+    window.addEventListener('pointerup', onPipUp, true);
+    window.addEventListener('pointercancel', onPipCancel, true);
+    drawLoupe();
   }, true);
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && pipetteKey) stopPipette();
+    if (e.key !== 'Escape') return;
+    if (pipetteKey) stopPipette();
+    if (pip) endPip();
   });
 
   $('#btnClear').addEventListener('click', async () => {

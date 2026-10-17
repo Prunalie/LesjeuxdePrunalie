@@ -20,7 +20,7 @@ Des pièces en isométrie à décorer avec tes propres stickers.
 - **Zoom** : boutons ＋ / − à droite de la pièce, molette dans le vide, ou pincer à deux doigts dans le vide sur téléphone. Une fois zoomé, glisser dans le vide pour se déplacer ; ⤢ pour revoir toute la pièce.
 - **Superposition** : barre d'outils ⏫ 🔼 🔽 ⏬ (ou PageUp / PageDown, Maj pour tout devant / tout derrière).
 - **Autres** : ↔️ miroir (F), ⧉ dupliquer (Ctrl+D), 🗑️ supprimer (Suppr), flèches pour ajuster.
-- Couleurs des murs et du sol personnalisables, avec une pipette pour reprendre une couleur (n'importe où à l'écran sur Chrome/Edge ordinateur, sinon en touchant un endroit de la pièce), export de la pièce en PNG (sur téléphone : menu « ⋯ »).
+- Couleurs des murs et du sol personnalisables, avec une pipette pour reprendre une couleur (n'importe où à l'écran sur Chrome/Edge ordinateur, sinon en appuyant dans la pièce : une loupe suit le doigt, on relâche sur la bonne couleur), export de la pièce en PNG (sur téléphone : menu « ⋯ »).
 
 Tout est sauvegardé automatiquement. Par défaut, la sauvegarde reste dans le navigateur (IndexedDB).
 
