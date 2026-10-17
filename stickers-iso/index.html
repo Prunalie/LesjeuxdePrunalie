@@ -127,10 +127,26 @@
       <button id="tabTop" class="bar-tab tab-top" aria-controls="roomTopbar"></button>
       <button id="tabLib" class="bar-tab tab-lib" aria-controls="roomLibrary"></button>
 
-      <div class="undo-ctrl" role="group" aria-label="Historique">
-        <button id="btnUndo" title="Annuler (Ctrl+Z)" disabled>↶</button>
-        <button id="btnRedo" title="Rétablir (Ctrl+Maj+Z)" disabled>↷</button>
+      <div class="stage-tools">
+        <div class="undo-ctrl" role="group" aria-label="Historique">
+          <button id="btnUndo" title="Annuler (Ctrl+Z)" disabled>↶</button>
+          <button id="btnRedo" title="Rétablir (Ctrl+Maj+Z)" disabled>↷</button>
+        </div>
+        <button id="btnLayers" class="layers-btn" aria-controls="layersPanel" title="Objets posés : sélectionner, verrouiller">☰<span class="label-long">&nbsp;Objets</span></button>
       </div>
+
+      <aside id="layersPanel" class="layers-panel" hidden aria-label="Objets posés">
+        <div class="layers-head">
+          <div>
+            <h2>Objets posés</h2>
+            <p id="layersCount" class="muted"></p>
+          </div>
+          <button id="layersClose" class="layers-close" title="Fermer">✕</button>
+        </div>
+        <p class="layers-hint muted">Du plus devant au plus derrière. Touche un objet pour le sélectionner, même s'il est caché ; 🔒 pour qu'il ne gêne plus dans la pièce.</p>
+        <p id="layersEmpty" class="empty" hidden>Aucun objet dans cette pièce.</p>
+        <ul id="layersList" class="layers-list"></ul>
+      </aside>
 
       <div class="zoom-ctrl" role="group" aria-label="Zoom">
         <button id="zoomIn" title="Zoomer">＋</button>
@@ -146,6 +162,7 @@
         <span class="sep"></span>
         <button data-act="flip" title="Retourner (miroir)">↔️</button>
         <button data-act="duplicate" title="Dupliquer">⧉</button>
+        <button data-act="lock" title="Verrouiller (ne plus pouvoir le toucher dans la pièce)">🔒</button>
         <button data-act="delete" title="Supprimer" class="danger">🗑️</button>
       </div>
     </section>

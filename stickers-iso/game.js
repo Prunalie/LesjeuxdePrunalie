@@ -628,10 +628,15 @@
 
   const getSelected = () => state.stickers.find((s) => s.id === state.selectedId) || null;
 
-  function select(id) {
+  // focus = sélection depuis la liste « Objets posés » : les autres stickers
+  // s'estompent et laissent passer les clics, pour attraper celui qui est derrière.
+  function select(id, focus = false) {
     state.selectedId = id;
+    state.focusId = id && focus ? id : (id && id === state.focusId ? id : null);
     for (const el of layer.children) el.classList.toggle('selected', el.dataset.id === id);
+    layer.classList.toggle('focus', !!state.focusId);
     toolbar.hidden = !id;
+    renderLayers();
   }
 
   function applyStickerStyle(el, s) {
@@ -641,6 +646,7 @@
     el.style.height = s.h + 'px';
     el.style.transform = `rotate(${s.rot}deg)`;
     el.firstChild.style.transform = s.flip ? 'scaleX(-1)' : '';
+    el.classList.toggle('locked', !!s.locked);
   }
 
   function renderStickers() {
@@ -661,6 +667,79 @@
     select(state.selectedId);
     renderLibrary();
   }
+
+  // ---------------------------------------------------------------------------
+  // Objets posés : la liste des stickers de la pièce, du plus devant au plus
+  // derrière, pour sélectionner celui qu'on veut et verrouiller ceux qui gênent.
+  // ---------------------------------------------------------------------------
+  const layersPanel = $('#layersPanel');
+  const layersList = $('#layersList');
+
+  function stickerLabel(s) {
+    const img = state.images.get(s.imageId);
+    const name = img ? img.name : 'Sticker';
+    const same = state.stickers.filter((x) => x.imageId === s.imageId);
+    return same.length > 1 ? `${name} (${same.indexOf(s) + 1})` : name;
+  }
+
+  function renderLayers() {
+    $('#btnLayers').classList.toggle('active', !layersPanel.hidden);
+    if (layersPanel.hidden) return;
+    layersList.innerHTML = '';
+    $('#layersEmpty').hidden = state.stickers.length > 0;
+    const locked = state.stickers.filter((s) => s.locked).length;
+    $('#layersCount').textContent = state.stickers.length
+      ? `${state.stickers.length} objet${state.stickers.length > 1 ? 's' : ''}${locked ? ` · ${locked} verrouillé${locked > 1 ? 's' : ''}` : ''}`
+      : '';
+    for (const s of [...state.stickers].reverse()) {
+      const img = state.images.get(s.imageId);
+      if (!img) continue;
+      const li = document.createElement('li');
+      li.className = 'layer-row' + (s.id === state.selectedId ? ' selected' : '') + (s.locked ? ' locked' : '');
+      li.innerHTML = `
+        <button class="layer-pick" title="Sélectionner"><span class="layer-thumb"><img alt=""></span><span class="layer-name"></span></button>
+        <button class="layer-lock" aria-pressed="${!!s.locked}"></button>`;
+      li.querySelector('img').src = img.url;
+      li.querySelector('.layer-name').textContent = stickerLabel(s);
+      const lock = li.querySelector('.layer-lock');
+      lock.textContent = s.locked ? '🔒' : '🔓';
+      lock.title = s.locked ? 'Déverrouiller' : 'Verrouiller (ne plus pouvoir le toucher dans la pièce)';
+      lock.addEventListener('click', () => toggleLock(s));
+      const pick = li.querySelector('.layer-pick');
+      pick.addEventListener('click', () => {
+        if (s.locked) {
+          toast('Ce sticker est verrouillé : touche 🔒 pour le déverrouiller.');
+          return;
+        }
+        select(s.id, true);
+        if (window.matchMedia('(max-width: 720px)').matches) closeLayers();
+      });
+      // Survol : on montre où il est dans la pièce.
+      pick.addEventListener('pointerenter', () => { const el = elFor(s.id); if (el) el.classList.add('hint'); });
+      pick.addEventListener('pointerleave', () => { const el = elFor(s.id); if (el) el.classList.remove('hint'); });
+      layersList.appendChild(li);
+    }
+  }
+
+  function toggleLock(s) {
+    const before = snapshot();
+    s.locked = !s.locked;
+    if (s.locked && state.selectedId === s.id) state.selectedId = null;
+    renderStickers();
+    scheduleSave();
+    commit(before);
+  }
+
+  function openLayers() {
+    layersPanel.hidden = false;
+    renderLayers();
+  }
+  function closeLayers() {
+    layersPanel.hidden = true;
+    renderLayers();
+  }
+  $('#btnLayers').addEventListener('click', () => (layersPanel.hidden ? openLayers() : closeLayers()));
+  $('#layersClose').addEventListener('click', closeLayers);
 
   function elFor(id) {
     return layer.querySelector(`.sticker[data-id="${id}"]`);
@@ -770,7 +849,7 @@
 
   // Molette : sur le sticker sélectionné, agrandir / réduire ; ailleurs, zoomer.
   stageArea.addEventListener('wheel', (e) => {
-    if (e.target.closest('.toolbar, .bar-tab, .zoom-ctrl, .undo-ctrl')) return;
+    if (e.target.closest('.toolbar, .bar-tab, .zoom-ctrl, .stage-tools, .layers-panel')) return;
     e.preventDefault();
     const s = getSelected();
     const onSelected = s && e.target.closest('.sticker') === elFor(s.id);
@@ -791,7 +870,7 @@
   let viewGesture = null;
 
   stageArea.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.sticker, .toolbar, .bar-tab, .zoom-ctrl, .undo-ctrl')) return;
+    if (e.target.closest('.sticker, .toolbar, .bar-tab, .zoom-ctrl, .stage-tools, .layers-panel')) return;
     if (e.button !== undefined && e.button !== 0) return;
     if (joinPinch(e)) return;
     viewPointerDown(e);
@@ -892,6 +971,11 @@
         break;
       }
       case 'delete': arr.splice(i, 1); state.selectedId = null; break;
+      case 'lock':
+        s.locked = true;
+        state.selectedId = null;
+        toast('Sticker verrouillé 🔒. Pour le déverrouiller : bouton « Objets posés ».');
+        break;
       default: return;
     }
     renderStickers();
@@ -1432,6 +1516,7 @@
       .map((s) => ({ ...s }));
     state.selectedId = null;
     resetHistory();
+    layersPanel.hidden = true;
     $('#roomName').value = r.name;
     setSaveStatus('Sauvegardé ✓');
     syncColorInputs();

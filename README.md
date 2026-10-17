@@ -21,6 +21,7 @@ Des pièces en isométrie à décorer avec tes propres stickers.
 - **Poser** : glisser un sticker de la bibliothèque dans la pièce, ou cliquer dessus pour le poser au centre. Le chiffre sur chaque sticker indique les exemplaires qu'il reste à poser.
 - **Déplacer** : glisser le sticker n'importe où ; on peut les superposer librement.
 - **Taille / rotation** : poignée en bas à droite (taille), poignée du haut (rotation, Maj = pas de 15°), ou molette sur le sticker. Sur téléphone : pincer à deux doigts pour agrandir et tourner.
+- **Objets posés** : bouton ☰ en haut à gauche de la pièce. La liste des stickers de la pièce (du plus devant au plus derrière) permet de sélectionner un sticker même caché derrière d'autres (les autres s'estompent le temps de le déplacer), et de le verrouiller 🔒 : il ne réagit plus dans la pièce, les clics passent à travers. On le déverrouille dans cette même liste. Le bouton 🔒 de la barre d'outils verrouille aussi le sticker sélectionné.
 - **Annuler / rétablir** : boutons ↶ ↷ en haut à gauche de la pièce (ou Ctrl+Z / Ctrl+Maj+Z) pour revenir sur un déplacement, une pose, une suppression, un changement de taille, d'ordre ou de couleur.
 - **Zoom** : boutons ＋ / − à droite de la pièce, molette dans le vide, ou pincer à deux doigts dans le vide sur téléphone. Une fois zoomé, glisser dans le vide pour se déplacer ; ⤢ pour revoir toute la pièce.
 - **Superposition** : barre d'outils ⏫ 🔼 🔽 ⏬ (ou PageUp / PageDown, Maj pour tout devant / tout derrière).

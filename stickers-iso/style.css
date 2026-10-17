@@ -1073,9 +1073,12 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
 }
 
 /* ---------- Annuler / rétablir ---------- */
-.undo-ctrl {
+.stage-tools {
   position: absolute; left: 8px; top: 8px;
   z-index: 20;
+  display: flex; gap: 6px;
+}
+.undo-ctrl {
   display: flex;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -1094,4 +1097,83 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
 .undo-ctrl button:hover:not(:disabled) { color: var(--accent); }
 .undo-ctrl button:disabled { color: var(--muted); opacity: .4; cursor: default; }
 /* Sur ordinateur, la languette des stickers est à gauche : on décale un peu. */
-@media (min-width: 721px) { .undo-ctrl { left: 14px; top: 12px; } }
+@media (min-width: 721px) { .stage-tools { left: 14px; top: 12px; } }
+
+/* ---------- Objets posés (calques) et verrouillage ---------- */
+.layers-btn {
+  display: inline-flex; align-items: center;
+  height: 38px; padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 0 2px 6px rgba(0,0,0,.08);
+  font: inherit; font-size: .9rem;
+  cursor: pointer;
+}
+.layers-btn:hover, .layers-btn.active { color: var(--accent); border-color: var(--accent); }
+.layers-panel {
+  position: absolute; z-index: 25;
+  left: 8px; top: 56px; bottom: 60px;
+  width: 260px;
+  display: flex; flex-direction: column;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(0,0,0,.16);
+}
+@media (min-width: 721px) { .layers-panel { left: 14px; top: 60px; } }
+.layers-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.layers-head h2 { margin: 0; font-size: 1rem; }
+.layers-head p { margin: 2px 0 0; font-size: .78rem; }
+.layers-close { width: 30px; height: 30px; border: none; border-radius: 50%; background: transparent; color: var(--ink); cursor: pointer; }
+.layers-close:hover { background: var(--hover); }
+.layers-hint { margin: 8px 0; font-size: .75rem; }
+.layers-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.layer-row {
+  display: flex; align-items: center; gap: 4px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+}
+.layer-row:hover { background: var(--hover); }
+.layer-row.selected { border-color: var(--select); background: color-mix(in srgb, var(--select) 10%, transparent); }
+.layer-pick {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 6px;
+  border: none; background: transparent; color: var(--ink);
+  font: inherit; font-size: .85rem; text-align: left;
+  cursor: pointer;
+}
+.layer-thumb {
+  width: 36px; height: 36px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border-radius: 8px;
+  background: repeating-conic-gradient(var(--check-a) 0% 25%, var(--check-b) 0% 50%) 0 0 / 10px 10px;
+}
+.layer-thumb img { max-width: 85%; max-height: 85%; }
+.layer-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.layer-row.locked .layer-pick { opacity: .5; cursor: not-allowed; }
+.layer-lock { width: 34px; height: 34px; flex-shrink: 0; border: none; border-radius: 8px; background: transparent; cursor: pointer; font-size: 1rem; opacity: .55; }
+.layer-row.locked .layer-lock { opacity: 1; }
+.layer-lock:hover { background: var(--panel); opacity: 1; }
+
+/* Sticker verrouillé : on ne peut plus le toucher, les clics passent à travers */
+.sticker.locked { pointer-events: none; cursor: default; }
+/* Sélection depuis la liste : les autres stickers s'estompent et laissent passer les clics */
+.sticker-layer.focus .sticker:not(.selected) { opacity: .35; pointer-events: none; }
+.sticker.hint img { outline: calc(3px * var(--inv)) solid var(--accent); outline-offset: calc(2px * var(--inv)); }
+
+@media (max-width: 720px) {
+  .layers-btn .label-long { display: none; }
+  .layers-btn { padding: 0 12px; font-size: 1.05rem; }
+  .layers-panel {
+    left: 0; right: 0; top: auto; bottom: 0;
+    width: auto; max-height: 55%;
+    border-radius: 16px 16px 0 0;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  .layer-pick { padding: 6px; font-size: .92rem; }
+  .layer-lock { width: 42px; height: 42px; }
+}
