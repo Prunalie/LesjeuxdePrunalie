@@ -251,8 +251,10 @@
         <h1>Atelier</h1>
       </div>
       <div class="topbar-actions">
+        <span id="atelierAccount" class="muted atelier-account"></span>
         <span class="points-pill"></span>
         <button id="btnGivePoints" class="btn" title="Pour tester la boutique">＋100 🪙</button>
+        <button id="btnAdminLogout" class="btn btn-ghost" title="Se déconnecter du compte administrateur" hidden>🔓<span class="label-long">&nbsp;Déconnexion</span></button>
       </div>
     </header>
     <div class="rooms-body">
@@ -366,11 +368,28 @@
     <span id="loupeHex" class="loupe-hex"></span>
   </div>
 
+  <div id="loginDialog" class="modal" hidden>
+    <form id="loginForm" class="modal-box login-box" role="dialog" aria-modal="true" aria-labelledby="loginTitle" novalidate>
+      <h2 id="loginTitle" class="modal-title">🛠️ Atelier</h2>
+      <p class="muted">Connecte-toi avec le compte administrateur pour modifier les enveloppes.</p>
+      <label for="loginEmail" class="field-label">E-mail</label>
+      <input id="loginEmail" class="field" type="email" autocomplete="username">
+      <label for="loginPass" class="field-label">Mot de passe</label>
+      <input id="loginPass" class="field" type="password" autocomplete="current-password">
+      <p id="loginError" class="field-error" hidden></p>
+      <div class="modal-actions">
+        <button id="loginCancel" class="btn" type="button">Annuler</button>
+        <button id="loginOk" class="btn btn-primary" type="submit">Se connecter</button>
+      </div>
+    </form>
+  </div>
+
   <div id="toast" class="toast" hidden></div>
 
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
   <script src="firebase-config.js"></script>
   <script src="game.js"></script>
 </body>

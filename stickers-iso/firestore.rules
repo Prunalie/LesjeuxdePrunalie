@@ -1,0 +1,28 @@
+// Règles Firestore de « Ma petite pièce ».
+// À copier dans la console Firebase : Firestore Database → onglet « Règles » → Publier.
+// Remplace COLLE_ICI_TON_UID par l'UID du compte administrateur
+// (Authentication → Utilisateurs → colonne « UID utilisateur »).
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null && request.auth.uid == 'COLLE_ICI_TON_UID';
+    }
+
+    // Stickers des enveloppes : tout le monde les voit, seule l'administratrice les modifie.
+    match /ma-petite-piece-stickers/{doc} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Pièces, joueurs (points, exemplaires) et enveloppes.
+    // Les enveloppes (type « envelope ») ne sont modifiables que par l'administratrice.
+    match /ma-petite-piece/{doc} {
+      allow read: if true;
+      allow create: if isAdmin() || request.resource.data.get('type', '') != 'envelope';
+      allow update: if isAdmin() || (resource.data.get('type', '') != 'envelope'
+                                     && request.resource.data.get('type', '') != 'envelope');
+      allow delete: if isAdmin() || resource.data.get('type', '') != 'envelope';
+    }
+  }
+}

@@ -1897,13 +1897,70 @@
   // ---------------------------------------------------------------------------
   // Atelier : créer les enveloppes et leurs stickers (administratrice)
   // ---------------------------------------------------------------------------
-  function openAtelier() {
+  // Compte administrateur (Firebase Authentication) : le pseudo seul ne suffit pas
+  // pour entrer dans l'atelier, il faut aussi se connecter avec l'e-mail et le mot de
+  // passe du compte administrateur. Les règles Firestore n'acceptent les
+  // modifications des enveloppes et des stickers que de ce compte.
+  const auth = (cloudDb && window.firebase && firebase.auth) ? firebase.auth() : null;
+  const authReady = auth
+    ? new Promise((resolve) => { const stop = auth.onAuthStateChanged((u) => { stop(); resolve(u); }); })
+    : Promise.resolve(null);
+
+  async function openAtelier() {
     if (!state.isAdmin) return;
+    if (auth) {
+      await authReady;
+      if (!auth.currentUser && !(await adminLogin())) return;
+    }
+    $('#atelierAccount').textContent = auth && auth.currentUser ? auth.currentUser.email : '';
+    $('#btnAdminLogout').hidden = !(auth && auth.currentUser);
     renderAtelier();
     showScreen('atelier');
   }
   $('#homeAtelier').addEventListener('click', openAtelier);
   $('#atelierBack').addEventListener('click', goHome);
+
+  // Fenêtre de connexion administrateur. Renvoie true une fois connectée.
+  const loginDialog = $('#loginDialog');
+  function adminLogin() {
+    return new Promise((resolve) => {
+      const email = $('#loginEmail'), pass = $('#loginPass'), err = $('#loginError');
+      err.hidden = true;
+      pass.value = '';
+      loginDialog.hidden = false;
+      (email.value ? pass : email).focus();
+      const done = (ok) => {
+        loginDialog.hidden = true;
+        $('#loginForm').onsubmit = null;
+        $('#loginCancel').onclick = null;
+        resolve(ok);
+      };
+      $('#loginCancel').onclick = () => done(false);
+      $('#loginForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = $('#loginOk');
+        btn.disabled = true;
+        try {
+          await auth.signInWithEmailAndPassword(email.value.trim(), pass.value);
+          done(true);
+        } catch (ex) {
+          console.warn('Connexion refusée', ex);
+          err.textContent = ex && ex.code === 'auth/network-request-failed'
+            ? 'Pas de connexion internet. Réessaie dans un instant.'
+            : 'E-mail ou mot de passe incorrect.';
+          err.hidden = false;
+        } finally {
+          btn.disabled = false;
+        }
+      };
+    });
+  }
+
+  $('#btnAdminLogout').addEventListener('click', async () => {
+    if (auth) await auth.signOut().catch(() => {});
+    toast('Déconnectée du compte administrateur.');
+    goHome();
+  });
   $('#btnGivePoints').addEventListener('click', () => {
     state.profile.points += 100;
     renderPoints();
@@ -1920,15 +1977,25 @@
       created: Date.now(),
     };
     state.envelopes.push(env);
-    db.putEnvelope(env).catch(() => toast('L\'enveloppe n\'a pas pu être enregistrée.'));
+    db.putEnvelope(env).catch(atelierError('L\'enveloppe n\'a pas pu être enregistrée'));
     renderAtelier();
   });
 
   const envSaveTimers = {};
+  // Erreur d'écriture dans l'atelier (par ex. refusée par les règles Firestore).
+  function atelierError(what) {
+    return (e) => {
+      console.warn(what, e);
+      toast(e && e.code === 'permission-denied'
+        ? 'Modification refusée : seul le compte administrateur peut modifier les enveloppes.'
+        : `${what} : vérifie ta connexion.`);
+    };
+  }
+
   function saveEnvelopeSoon(env) {
     clearTimeout(envSaveTimers[env.id]);
     envSaveTimers[env.id] = setTimeout(() => {
-      db.putEnvelope(env).catch(() => toast('L\'enveloppe n\'a pas pu être enregistrée.'));
+      db.putEnvelope(env).catch(atelierError('L\'enveloppe n\'a pas pu être enregistrée'));
     }, 500);
   }
 
@@ -1989,19 +2056,19 @@
         nameIn.value = img.name;
         nameIn.addEventListener('change', () => {
           img.name = nameIn.value.trim() || 'Sticker';
-          db.putImage(img).catch(() => toast('Le nom n\'a pas pu être enregistré.'));
+          db.putImage(img).catch(atelierError('Le nom n\'a pas pu être enregistré'));
         });
         const sel = cell.querySelector('select');
         sel.value = img.rarity || 'common';
         sel.addEventListener('change', () => {
           img.rarity = sel.value;
           cell.dataset.rarity = img.rarity;
-          db.putImage(img).catch(() => toast('La rareté n\'a pas pu être enregistrée.'));
+          db.putImage(img).catch(atelierError('La rareté n\'a pas pu être enregistrée'));
         });
         cell.querySelector('.atelier-item-del').addEventListener('click', async () => {
           if (!(await askConfirm(`Retirer « ${img.name} » de l'enveloppe ? Les joueurs qui l'ont déjà le perdront aussi.`, 'Retirer'))) return;
           state.images.delete(img.id);
-          db.deleteImage(img.id).catch(() => toast('Le sticker n\'a pas pu être supprimé.'));
+          db.deleteImage(img.id).catch(atelierError('Le sticker n\'a pas pu être supprimé'));
           renderAtelier();
         });
         grid.appendChild(cell);
@@ -2027,7 +2094,7 @@
           db.deleteImage(img.id).catch(() => {});
         }
         state.envelopes = state.envelopes.filter((x) => x.id !== env.id);
-        db.deleteEnvelope(env.id).catch(() => toast('L\'enveloppe n\'a pas pu être supprimée.'));
+        db.deleteEnvelope(env.id).catch(atelierError('L\'enveloppe n\'a pas pu être supprimée'));
         renderAtelier();
       });
       listEl.appendChild(sec);
