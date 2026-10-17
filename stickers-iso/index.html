@@ -192,7 +192,6 @@
     <div class="rooms-body">
       <div class="collection-bar">
         <p class="muted">Touche un sticker obtenu pour voir sa fiche ou le vendre. Revente : commun 10 🪙, rare 25 🪙, très rare 60 🪙.</p>
-        <button id="btnSellDoubles" class="btn"></button>
       </div>
       <div class="binder">
         <div id="binderTabs" class="binder-tabs" role="tablist" aria-label="Pages du classeur"></div>
@@ -282,6 +281,27 @@
       <div class="modal-actions">
         <button id="cardSell" class="btn"></button>
         <button id="cardClose" class="btn btn-primary">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="sellDialog" class="modal" hidden>
+    <div class="modal-box card-box sell-box" role="dialog" aria-modal="true" aria-labelledby="sellTitle">
+      <div id="sellImg" class="sell-img"><img alt=""></div>
+      <h2 id="sellTitle" class="modal-title">Vendre <span id="sellName"></span></h2>
+      <label for="sellQty" class="muted sell-label">Combien en vends-tu ?</label>
+      <div class="sell-stepper">
+        <button id="sellMinus" class="btn" aria-label="Un de moins">−</button>
+        <input id="sellQty" class="field sell-qty" type="number" min="1" step="1" inputmode="numeric">
+        <span id="sellMax" class="sell-max"></span>
+        <button id="sellPlus" class="btn" aria-label="Un de plus">＋</button>
+        <button id="sellAll" class="btn btn-ghost">Tout</button>
+      </div>
+      <p class="sell-gain"><span id="sellGain"></span></p>
+      <p id="sellNote" class="sell-note muted"></p>
+      <div class="modal-actions">
+        <button id="sellCancel" class="btn">Annuler</button>
+        <button id="sellConfirm" class="btn btn-primary"></button>
       </div>
     </div>
   </div>
