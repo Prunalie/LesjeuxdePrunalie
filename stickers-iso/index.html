@@ -25,27 +25,59 @@
     </form>
   </section>
 
-  <!-- Écran 2 : mes pièces -->
-  <section id="screenRooms" class="screen screen-rooms" hidden>
+  <!-- Écran 2 : menu principal -->
+  <section id="screenHome" class="screen screen-home" hidden>
     <header class="topbar">
       <h1>Bonjour <span id="playerName"></span></h1>
       <div class="topbar-actions">
         <span class="points-pill"></span>
-        <button id="btnShop" class="btn btn-primary" title="Boutique">🛍️<span class="label-long">&nbsp;Boutique</span></button>
-        <button id="btnAtelier" class="btn" title="Atelier" hidden>🛠️<span class="label-long">&nbsp;Atelier</span></button>
         <button id="btnChangePseudo" class="btn btn-ghost" title="Changer de pseudo">👤<span class="label-long">&nbsp;Changer de pseudo</span></button>
       </div>
     </header>
     <div class="rooms-body">
+      <nav class="home-menu" aria-label="Menu principal">
+        <button id="homeRooms" class="home-tile tile-rooms">
+          <span class="home-icon" aria-hidden="true">🏠</span>
+          <span class="home-label">Mes pièces</span>
+          <span class="home-sub" id="homeRoomsSub"></span>
+        </button>
+        <button id="homeShop" class="home-tile tile-shop">
+          <span class="home-icon" aria-hidden="true">🛍️</span>
+          <span class="home-label">Boutique</span>
+          <span class="home-sub" id="homeShopSub"></span>
+        </button>
+        <button id="homeCollection" class="home-tile tile-collection">
+          <span class="home-icon" aria-hidden="true">📒</span>
+          <span class="home-label">Collection</span>
+          <span class="home-sub" id="homeCollectionSub"></span>
+        </button>
+        <button id="homeAtelier" class="home-tile tile-atelier" hidden>
+          <span class="home-icon" aria-hidden="true">🛠️</span>
+          <span class="home-label">Atelier</span>
+          <span class="home-sub">Créer les enveloppes</span>
+        </button>
+      </nav>
+    </div>
+  </section>
+
+  <!-- Écran 3 : mes pièces -->
+  <section id="screenRooms" class="screen screen-rooms" hidden>
+    <header class="topbar">
+      <div class="room-title">
+        <button id="roomsBack" class="btn btn-ghost" title="Menu principal">←<span class="label-long">&nbsp;Menu</span></button>
+        <h1>Mes pièces</h1>
+      </div>
+      <div class="topbar-actions"><span class="points-pill"></span></div>
+    </header>
+    <div class="rooms-body">
       <div class="rooms-head">
-        <h2>Mes pièces</h2>
         <span id="roomCount" class="muted"></span>
       </div>
       <div id="roomGrid" class="room-grid"></div>
     </div>
   </section>
 
-  <!-- Écran 3 : décoration d'une pièce -->
+  <!-- Écran 4 : décoration d'une pièce -->
   <section id="screenRoom" class="screen screen-room" hidden>
   <header id="roomTopbar" class="topbar">
     <div class="room-title">
@@ -115,7 +147,7 @@
   </main>
   </section>
 
-  <!-- Écran 4 : boutique -->
+  <!-- Écran 5 : boutique -->
   <section id="screenShop" class="screen screen-shop" hidden>
     <header class="topbar">
       <div class="room-title">
@@ -131,11 +163,43 @@
     </div>
   </section>
 
-  <!-- Écran 5 : atelier (création des enveloppes) -->
+  <!-- Écran 6 : collection (classeur) -->
+  <section id="screenCollection" class="screen screen-collection" hidden>
+    <header class="topbar">
+      <div class="room-title">
+        <button id="collectionBack" class="btn btn-ghost" title="Menu principal">←<span class="label-long">&nbsp;Menu</span></button>
+        <h1>Collection</h1>
+      </div>
+      <div class="topbar-actions"><span id="collectionTotal" class="points-pill"></span></div>
+    </header>
+    <div class="rooms-body">
+      <div class="binder">
+        <div id="binderTabs" class="binder-tabs" role="tablist" aria-label="Pages du classeur"></div>
+        <div class="binder-page">
+          <div class="binder-rings" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div class="binder-content">
+            <div class="binder-head">
+              <h2 id="binderTitle"></h2>
+              <p class="shop-progress"><span class="bar"><span id="binderBar"></span></span><span id="binderCount" class="txt"></span></p>
+            </div>
+            <div id="binderGrid" class="binder-grid"></div>
+            <div class="binder-nav">
+              <button id="binderPrev" class="btn btn-ghost">← Page précédente</button>
+              <span id="binderPageNum" class="muted"></span>
+              <button id="binderNext" class="btn btn-ghost">Page suivante →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p id="collectionEmpty" class="empty" hidden>Le classeur est vide pour l'instant : aucune enveloppe n'existe encore.</p>
+    </div>
+  </section>
+
+  <!-- Écran 7 : atelier (création des enveloppes) -->
   <section id="screenAtelier" class="screen screen-atelier" hidden>
     <header class="topbar">
       <div class="room-title">
-        <button id="atelierBack" class="btn btn-ghost" title="Retour à mes pièces">←<span class="label-long">&nbsp;Mes pièces</span></button>
+        <button id="atelierBack" class="btn btn-ghost" title="Menu principal">←<span class="label-long">&nbsp;Menu</span></button>
         <h1>Atelier</h1>
       </div>
       <div class="topbar-actions">
@@ -184,6 +248,16 @@
         <button id="envClose" class="btn">Fermer</button>
         <button id="envBuy" class="btn btn-primary"></button>
       </div>
+    </div>
+  </div>
+
+  <div id="cardDialog" class="modal" hidden>
+    <div class="modal-box card-box" role="dialog" aria-modal="true" aria-labelledby="cardName">
+      <div id="cardImg" class="card-img"><img alt=""></div>
+      <span id="cardRarity" class="rarity-tag"></span>
+      <h2 id="cardName" class="modal-title"></h2>
+      <p id="cardInfo" class="muted"></p>
+      <div class="modal-actions"><button id="cardClose" class="btn btn-primary">Fermer</button></div>
     </div>
   </div>
 

@@ -1074,9 +1074,11 @@
   // ---------------------------------------------------------------------------
   const screens = {
     start: $('#screenStart'),
+    home: $('#screenHome'),
     rooms: $('#screenRooms'),
     room: $('#screenRoom'),
     shop: $('#screenShop'),
+    collection: $('#screenCollection'),
     atelier: $('#screenAtelier'),
   };
   function showScreen(name) {
@@ -1135,7 +1137,7 @@
     state.isAdmin = ADMIN_PSEUDOS.includes(state.player.key);
     remember(name);
     $('#playerName').textContent = name;
-    $('#btnAtelier').hidden = !state.isAdmin;
+    $('#homeAtelier').hidden = !state.isAdmin;
     state.images = new Map();
     let gained = 0;
     try {
@@ -1164,8 +1166,7 @@
       state.profile = state.profile || { id: playerDocId(state.player.key), points: 0, lastDaily: '', inventory: {} };
     }
     renderPoints();
-    renderRoomList();
-    showScreen('rooms');
+    goHome();
     if (gained) toast(`+${gained} ⭐ : tes points du jour ! Va les dépenser dans la boutique.`);
   }
 
@@ -1414,14 +1415,13 @@
     showScreen('shop');
   }
 
-  $('#btnShop').addEventListener('click', () => openShop(false));
+  $('#homeShop').addEventListener('click', () => openShop(false));
   $('#btnLibShop').addEventListener('click', () => openShop(true));
   $('#shopBack').addEventListener('click', () => {
     if (shopReturnRoom && state.rooms.some((r) => r.id === shopReturnRoom)) {
       openRoom(shopReturnRoom);
     } else {
-      renderRoomList();
-      showScreen('rooms');
+      goHome();
     }
   });
 
@@ -1569,15 +1569,13 @@
   // ---------------------------------------------------------------------------
   // Atelier : créer les enveloppes et leurs stickers (administratrice)
   // ---------------------------------------------------------------------------
-  $('#btnAtelier').addEventListener('click', () => {
+  function openAtelier() {
     if (!state.isAdmin) return;
     renderAtelier();
     showScreen('atelier');
-  });
-  $('#atelierBack').addEventListener('click', () => {
-    renderRoomList();
-    showScreen('rooms');
-  });
+  }
+  $('#homeAtelier').addEventListener('click', openAtelier);
+  $('#atelierBack').addEventListener('click', goHome);
   $('#btnGivePoints').addEventListener('click', () => {
     state.profile.points += 100;
     renderPoints();
@@ -1709,6 +1707,127 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Menu principal
+  // ---------------------------------------------------------------------------
+  const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
+  // Stickers du catalogue rangés dans une enveloppe qui existe encore.
+  const collectible = () => [...state.images.values()].filter((img) => state.envelopes.some((e) => e.id === img.envelope));
+
+  function goHome() {
+    renderPoints();
+    const all = collectible();
+    const got = all.filter((img) => owned(img.id) > 0).length;
+    const envs = state.envelopes.filter((env) => stickersOf(env.id).length).length;
+    $('#homeRoomsSub').textContent = state.rooms.length ? plural(state.rooms.length, 'pièce') : 'Crée ta première pièce';
+    $('#homeShopSub').textContent = envs ? `${plural(envs, 'enveloppe')} en vente` : 'Bientôt des enveloppes';
+    $('#homeCollectionSub').textContent = all.length ? `${got}/${all.length} stickers obtenus` : 'Classeur vide';
+    showScreen('home');
+  }
+
+  function openRooms() {
+    renderRoomList();
+    showScreen('rooms');
+  }
+
+  $('#homeRooms').addEventListener('click', openRooms);
+  $('#roomsBack').addEventListener('click', goHome);
+  $('#homeCollection').addEventListener('click', () => openCollection());
+  $('#collectionBack').addEventListener('click', goHome);
+
+  // ---------------------------------------------------------------------------
+  // Collection : un classeur avec une page par enveloppe
+  // ---------------------------------------------------------------------------
+  let binderPage = 0;
+  const binderPages = () => state.envelopes.filter((env) => stickersOf(env.id).length);
+
+  function openCollection(page) {
+    if (page !== undefined) binderPage = page;
+    renderCollection();
+    showScreen('collection');
+  }
+
+  function renderCollection() {
+    const pages = binderPages();
+    const all = collectible();
+    const got = all.filter((img) => owned(img.id) > 0).length;
+    $('#collectionTotal').textContent = `${got}/${all.length}`;
+    $('#collectionTotal').title = `${got} stickers obtenus sur ${all.length}`;
+    $('#collectionEmpty').hidden = pages.length > 0;
+    document.querySelector('.binder').hidden = !pages.length;
+    if (!pages.length) return;
+    binderPage = clamp(binderPage, 0, pages.length - 1);
+    const env = pages[binderPage];
+
+    // Onglets : un par enveloppe, à sa couleur.
+    const tabs = $('#binderTabs');
+    tabs.innerHTML = '';
+    pages.forEach((p, i) => {
+      const list = stickersOf(p.id);
+      const done = list.every((img) => owned(img.id) > 0);
+      const tab = document.createElement('button');
+      tab.className = 'binder-tab' + (i === binderPage ? ' active' : '');
+      tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-selected', i === binderPage);
+      tab.style.setProperty('--tab', p.color || ENVELOPE_COLORS[0]);
+      tab.textContent = (done ? '★ ' : '') + (p.name || 'Enveloppe');
+      tab.title = done ? 'Page complète !' : `${list.filter((img) => owned(img.id) > 0).length}/${list.length}`;
+      tab.addEventListener('click', () => { binderPage = i; renderCollection(); });
+      tabs.appendChild(tab);
+    });
+    const activeTab = tabs.children[binderPage];
+    if (activeTab) activeTab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+
+    // Page : une pochette par sticker, dans l'ordre où ils ont été créés.
+    const list = stickersOf(env.id);
+    const pageGot = list.filter((img) => owned(img.id) > 0).length;
+    document.querySelector('.binder-page').style.setProperty('--tab', env.color || ENVELOPE_COLORS[0]);
+    $('#binderTitle').textContent = env.name || 'Enveloppe';
+    $('#binderCount').textContent = pageGot === list.length ? `Complète ! ${pageGot}/${list.length}` : `${pageGot}/${list.length}`;
+    $('#binderBar').style.width = `${(pageGot / list.length) * 100}%`;
+    const grid = $('#binderGrid');
+    grid.innerHTML = '';
+    list.forEach((img, i) => {
+      const n = owned(img.id);
+      const slot = document.createElement('button');
+      slot.className = 'binder-slot' + (n ? '' : ' missing');
+      slot.dataset.rarity = img.rarity || 'common';
+      slot.innerHTML = `
+        <span class="slot-sleeve"><img alt=""></span>
+        <span class="slot-num">n°${String(i + 1).padStart(2, '0')}</span>
+        <span class="slot-name"></span>
+        ${n > 1 ? `<span class="slot-count">×${n}</span>` : ''}`;
+      slot.querySelector('img').src = img.url;
+      slot.querySelector('.slot-name').textContent = n ? img.name : '???';
+      slot.title = n ? `${img.name} (${RARITIES[img.rarity || 'common'].label})` : 'Pas encore obtenu';
+      slot.addEventListener('click', () => {
+        if (n) showCard(img);
+        else toast(`Pas encore obtenu : il se trouve dans l'enveloppe « ${env.name} ».`);
+      });
+      grid.appendChild(slot);
+    });
+
+    $('#binderPageNum').textContent = `Page ${binderPage + 1} / ${pages.length}`;
+    $('#binderPrev').disabled = binderPage === 0;
+    $('#binderNext').disabled = binderPage === pages.length - 1;
+  }
+
+  $('#binderPrev').addEventListener('click', () => { binderPage--; renderCollection(); });
+  $('#binderNext').addEventListener('click', () => { binderPage++; renderCollection(); });
+
+  // Fiche d'un sticker obtenu.
+  const cardDialog = $('#cardDialog');
+  function showCard(img) {
+    const n = owned(img.id), used = usedCount(img.id);
+    cardDialog.dataset.rarity = img.rarity || 'common';
+    $('#cardImg img').src = img.url;
+    $('#cardRarity').textContent = RARITIES[img.rarity || 'common'].label;
+    $('#cardName').textContent = img.name;
+    $('#cardInfo').textContent = `${plural(n, 'exemplaire')} · ${used ? `${used} posé${used > 1 ? 's' : ''} dans tes pièces` : 'aucun posé pour l\'instant'}`;
+    cardDialog.hidden = false;
+  }
+  $('#cardClose').addEventListener('click', () => { cardDialog.hidden = true; });
+
+  // ---------------------------------------------------------------------------
   // Démarrage
   // ---------------------------------------------------------------------------
   async function init() {
@@ -1736,8 +1855,10 @@
       btn.textContent = 'Jouer';
     }
     if (place.screen === 'room' && state.rooms.some((r) => r.id === place.roomId)) openRoom(place.roomId);
+    else if (place.screen === 'rooms') openRooms();
     else if (place.screen === 'shop') openShop(false);
-    else if (place.screen === 'atelier' && state.isAdmin) $('#btnAtelier').click();
+    else if (place.screen === 'collection') openCollection();
+    else if (place.screen === 'atelier') openAtelier();
   }
 
   init();

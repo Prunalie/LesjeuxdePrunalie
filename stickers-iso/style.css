@@ -807,3 +807,165 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+/* ---------- Menu principal ---------- */
+.home-menu {
+  max-width: 760px; margin: 8px auto 0;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;
+}
+.home-tile {
+  --tile: var(--accent);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  min-height: 150px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--tile) 28%, transparent) 0 38%, transparent 39%),
+    var(--panel);
+  color: var(--ink);
+  font: inherit; text-align: left;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+}
+.home-tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.08); border-color: color-mix(in srgb, var(--tile) 60%, var(--line)); }
+.home-tile:focus-visible { outline: 2px solid var(--tile); outline-offset: 2px; }
+.home-icon { font-size: 2.2rem; line-height: 1; margin-bottom: auto; }
+.home-label { font-size: 1.15rem; font-weight: 700; }
+.home-sub { font-size: .85rem; color: var(--muted); }
+.tile-rooms { --tile: #d7b48f; }
+.tile-shop { --tile: var(--accent); }
+.tile-collection { --tile: var(--r-rare); }
+.tile-atelier { --tile: var(--r-common); }
+.rooms-head:has(#roomCount:only-child) { margin-bottom: 10px; }
+
+/* ---------- Collection : le classeur ---------- */
+.binder { max-width: 980px; margin: 0 auto; }
+.binder[hidden] { display: none; }
+.binder-tabs {
+  display: flex; gap: 4px;
+  padding-left: 46px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.binder-tabs::-webkit-scrollbar { display: none; }
+.binder-tab {
+  flex-shrink: 0;
+  padding: 8px 14px 6px;
+  border: none;
+  border-radius: 10px 10px 0 0;
+  background: var(--tab);
+  color: #3b2f2f;
+  font: inherit; font-size: .85rem; font-weight: 700;
+  opacity: .6;
+  cursor: pointer;
+  transform: translateY(3px);
+  transition: opacity .15s, transform .15s;
+}
+.binder-tab:hover { opacity: .85; }
+.binder-tab.active { opacity: 1; transform: none; }
+.binder-page {
+  --tab: var(--accent);
+  position: relative;
+  display: flex;
+  border-left: 18px solid color-mix(in srgb, var(--tab) 65%, #3b2f2f);
+  border-top: 4px solid var(--tab);
+  border-radius: 6px 18px 18px 6px;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 31px, color-mix(in srgb, var(--line) 55%, transparent) 31px 32px),
+    var(--panel);
+  box-shadow: 0 10px 24px rgba(0,0,0,.08), inset 6px 0 10px -6px rgba(0,0,0,.25);
+}
+.binder-rings {
+  position: absolute; left: -12px; top: 0; bottom: 0;
+  display: flex; flex-direction: column; justify-content: space-around;
+  pointer-events: none;
+}
+.binder-rings span {
+  width: 30px; height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f4f4f4, #a9a9a9 55%, #6f6f6f);
+  box-shadow: 0 2px 3px rgba(0,0,0,.35);
+}
+.binder-content { flex: 1; min-width: 0; padding: 18px 18px 14px 34px; }
+.binder-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.binder-head h2 { margin: 0; font-size: 1.25rem; }
+.binder-head .shop-progress { flex: 1 1 200px; max-width: 320px; }
+.binder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 14px; }
+.binder-slot {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  min-width: 0;
+  padding: 8px 8px 10px;
+  border: 2px solid var(--r, var(--line));
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.55), rgba(255,255,255,0) 45%),
+    var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,.06);
+  transition: transform .15s;
+}
+.binder-slot:hover { transform: translateY(-2px) rotate(-1deg); }
+.binder-slot[data-rarity="common"] { border-color: var(--line); }
+.binder-slot.missing {
+  border: 2px dashed var(--line);
+  background: color-mix(in srgb, var(--surface) 50%, transparent);
+  box-shadow: none;
+}
+.binder-slot.missing:hover { transform: none; }
+.slot-sleeve {
+  width: 100%; aspect-ratio: 1;
+  display: grid; place-items: center;
+}
+.slot-sleeve img { max-width: 84%; max-height: 84%; filter: drop-shadow(0 3px 3px rgba(0,0,0,.18)); }
+.binder-slot.missing .slot-sleeve img { filter: brightness(0); opacity: .1; }
+.slot-num {
+  position: absolute; left: 8px; top: 6px;
+  font-size: .68rem; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.slot-name { font-size: .8rem; font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.binder-slot.missing .slot-name { color: var(--muted); font-weight: 400; }
+.slot-count {
+  position: absolute; right: 6px; top: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--ink); color: var(--bg);
+  font-size: .7rem; font-weight: 700;
+}
+.binder-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 18px; }
+
+/* Fiche d'un sticker */
+.card-box { max-width: 320px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.card-img {
+  width: 100%; aspect-ratio: 1;
+  display: grid; place-items: center;
+  border: 3px solid var(--r, var(--line));
+  border-radius: 16px;
+  background: repeating-conic-gradient(var(--check-a) 0% 25%, var(--check-b) 0% 50%) 0 0 / 16px 16px;
+}
+.card-img img { max-width: 80%; max-height: 80%; }
+.card-box #cardInfo { margin: 0 0 6px; }
+.card-box .modal-actions { align-self: stretch; justify-content: center; }
+
+@media (max-width: 720px) {
+  #screenHome .label-long, #screenCollection .label-long { display: none; }
+  .home-menu { gap: 10px; }
+  .home-tile { min-height: 132px; padding: 14px; border-radius: 14px; }
+  .home-icon { font-size: 1.9rem; }
+  .home-label { font-size: 1.02rem; }
+  .home-sub { font-size: .78rem; }
+  .binder-tabs { padding-left: 24px; }
+  .binder-page { border-left-width: 12px; }
+  .binder-rings { left: -10px; }
+  .binder-rings span { width: 22px; height: 11px; }
+  .binder-content { padding: 14px 10px 12px 20px; }
+  .binder-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .binder-slot { padding: 6px 4px 8px; border-radius: 10px; }
+  .slot-name { font-size: .7rem; }
+  .slot-num { font-size: .6rem; left: 5px; top: 4px; }
+  .binder-nav .btn { padding: 6px 8px; font-size: .8rem; }
+}
