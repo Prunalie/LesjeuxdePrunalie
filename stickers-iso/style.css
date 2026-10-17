@@ -1179,11 +1179,3 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
 }
 
 .bg-reset { font-size: 1rem; }
-
-/* ---------- Connexion administrateur ---------- */
-.login-box { display: flex; flex-direction: column; gap: 6px; max-width: 360px; }
-.login-box p { margin: 0 0 6px; font-size: .88rem; }
-.login-box .field { margin-bottom: 6px; }
-.login-box .modal-actions { margin-top: 6px; }
-.atelier-account { font-size: .8rem; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 720px) { .atelier-account { display: none; } }
