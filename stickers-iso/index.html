@@ -51,6 +51,22 @@
           <span class="home-label">Collection</span>
           <span class="home-sub" id="homeCollectionSub"></span>
         </button>
+        <button id="homeCreations" class="home-tile tile-creations">
+          <span class="home-icon" aria-hidden="true">✏️</span>
+          <span class="home-label">Proposer un sticker</span>
+          <span class="home-sub" id="homeCreationsSub"></span>
+        </button>
+        <button id="homeMail" class="home-tile tile-mail">
+          <span class="home-icon" aria-hidden="true">📬</span>
+          <span id="mailBadge" class="mail-badge" hidden></span>
+          <span class="home-label">Boîte aux lettres</span>
+          <span class="home-sub" id="homeMailSub"></span>
+        </button>
+        <button id="homeCoffre" class="home-tile tile-coffre" hidden>
+          <span class="home-icon" aria-hidden="true">🗃️</span>
+          <span class="home-label">Coffre</span>
+          <span class="home-sub" id="homeCoffreSub">Propositions des joueurs</span>
+        </button>
         <button id="homeAtelier" class="home-tile tile-atelier" hidden>
           <span class="home-icon" aria-hidden="true">🛠️</span>
           <span class="home-label">Atelier</span>
@@ -243,6 +259,76 @@
     </div>
   </section>
 
+  <!-- Proposer un sticker (joueurs) -->
+  <section id="screenCreations" class="screen screen-creations" hidden>
+    <header class="topbar">
+      <div class="room-title">
+        <button id="creationsBack" class="btn btn-ghost" title="Menu principal">←<span class="label-long">&nbsp;Menu</span></button>
+        <h1>Proposer un sticker</h1>
+      </div>
+      <div class="topbar-actions"><span class="points-pill"></span></div>
+    </header>
+    <div class="rooms-body">
+      <form id="propForm" class="prop-form" novalidate>
+        <p class="muted">Envoie tes propres dessins ! L'administrateur les regarde : si ton sticker est accepté, tu gagnes des pièces 🪙 et il pourra apparaître dans une enveloppe. La réponse arrive dans ta boîte aux lettres 📬.</p>
+        <div class="prop-row">
+          <label id="propPick" class="prop-pick">
+            <span class="prop-pick-icon">🖼️</span>
+            <span>Choisir une image</span>
+            <span class="muted">PNG à fond transparent conseillé</span>
+            <input id="propFile" type="file" accept="image/*" hidden>
+          </label>
+          <div id="propPreview" class="prop-preview" hidden>
+            <div class="env-item-img"><img alt="Aperçu de ton sticker"></div>
+            <button id="propClear" class="btn btn-ghost" type="button">Changer d'image</button>
+          </div>
+          <div class="prop-fields">
+            <label for="propName" class="field-label">Nom du sticker</label>
+            <input id="propName" class="field" type="text" maxlength="30" placeholder="Ex. Petit chat endormi">
+            <button id="propSend" class="btn btn-primary btn-big" type="submit" disabled>Envoyer ma proposition</button>
+          </div>
+        </div>
+      </form>
+      <h2 class="section-title">Mes propositions</h2>
+      <p id="propEmpty" class="empty">Tu n'as encore rien proposé.</p>
+      <div id="propList" class="prop-list"></div>
+    </div>
+  </section>
+
+  <!-- Boîte aux lettres -->
+  <section id="screenMail" class="screen screen-mail" hidden>
+    <header class="topbar">
+      <div class="room-title">
+        <button id="mailBack" class="btn btn-ghost" title="Menu principal">←<span class="label-long">&nbsp;Menu</span></button>
+        <h1>Boîte aux lettres</h1>
+      </div>
+      <div class="topbar-actions"><span class="points-pill"></span></div>
+    </header>
+    <div class="rooms-body">
+      <p id="mailEmpty" class="empty">Ta boîte aux lettres est vide.</p>
+      <div id="mailList" class="mail-list"></div>
+    </div>
+  </section>
+
+  <!-- Coffre (administrateur) -->
+  <section id="screenCoffre" class="screen screen-coffre" hidden>
+    <header class="topbar">
+      <div class="room-title">
+        <button id="coffreBack" class="btn btn-ghost" title="Menu principal">←<span class="label-long">&nbsp;Menu</span></button>
+        <h1>Coffre</h1>
+      </div>
+    </header>
+    <div class="rooms-body">
+      <div class="coffre-tabs" role="tablist">
+        <button class="coffre-tab" data-filter="pending">À valider <span></span></button>
+        <button class="coffre-tab" data-filter="accepted">Acceptées <span></span></button>
+        <button class="coffre-tab" data-filter="refused">Refusées <span></span></button>
+      </div>
+      <p id="coffreEmpty" class="empty" hidden>Rien ici pour l'instant.</p>
+      <div id="coffreList" class="coffre-list"></div>
+    </div>
+  </section>
+
   <!-- Écran 7 : atelier (création des enveloppes) -->
   <section id="screenAtelier" class="screen screen-atelier" hidden>
     <header class="topbar">
@@ -258,7 +344,10 @@
     <div class="rooms-body">
       <div class="atelier-intro">
         <p>Crée les enveloppes que les joueurs achètent dans la boutique. Mets 5 à 10 stickers dans chacune et choisis leur rareté. PNG à fond transparent conseillé.</p>
-        <button id="btnNewEnvelope" class="btn btn-primary">＋ Nouvelle enveloppe</button>
+        <div class="atelier-intro-actions">
+          <button id="atelierCoffre" class="btn">🗃️ Coffre</button>
+          <button id="btnNewEnvelope" class="btn btn-primary">＋ Nouvelle enveloppe</button>
+        </div>
       </div>
       <p id="atelierEmpty" class="empty" hidden>Aucune enveloppe pour l'instant.</p>
       <div id="atelierList" class="atelier-list"></div>

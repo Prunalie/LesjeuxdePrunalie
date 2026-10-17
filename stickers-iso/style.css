@@ -1216,3 +1216,112 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
   .multi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .shop-buy5 { font-size: .82rem; padding: 6px; }
 }
+
+/* ---------- Proposer un sticker, boîte aux lettres, coffre ---------- */
+.tile-creations { --tile: #b58ad6; }
+.tile-mail { --tile: #f2a65a; }
+.tile-coffre { --tile: #7aa874; }
+.home-tile { position: relative; }
+.mail-badge {
+  position: absolute; top: 12px; right: 12px;
+  min-width: 24px; height: 24px; padding: 0 7px;
+  display: grid; place-items: center;
+  border-radius: 999px;
+  background: var(--accent); color: #fff;
+  font-size: .8rem; font-weight: 800;
+  box-shadow: 0 2px 6px rgba(0,0,0,.2);
+}
+.section-title { max-width: 1100px; margin: 24px auto 10px; font-size: 1.05rem; }
+
+.prop-form {
+  max-width: 1100px; margin: 0 auto;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.prop-form > p { margin: 0 0 14px; font-size: .88rem; }
+.prop-row { display: flex; gap: 16px; align-items: stretch; flex-wrap: wrap; }
+.prop-pick {
+  flex: 0 0 180px; aspect-ratio: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  border: 2px dashed var(--line);
+  border-radius: 14px;
+  text-align: center; font-size: .9rem;
+  cursor: pointer;
+}
+.prop-pick:hover { border-color: var(--accent); color: var(--accent); }
+.prop-pick .muted { font-size: .72rem; padding: 0 8px; }
+.prop-pick-icon { font-size: 2rem; }
+.prop-preview { flex: 0 0 180px; display: flex; flex-direction: column; gap: 6px; }
+.prop-preview .btn { justify-content: center; font-size: .82rem; }
+.prop-fields { flex: 1 1 240px; display: flex; flex-direction: column; gap: 6px; justify-content: flex-end; }
+.prop-fields .btn-big { margin-top: 8px; }
+
+.prop-list, .coffre-list, .mail-list { max-width: 1100px; margin: 0 auto; }
+.prop-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.prop-card {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  text-align: center;
+}
+.prop-name { font-weight: 600; font-size: .88rem; overflow-wrap: anywhere; }
+.prop-status { padding: 2px 10px; border-radius: 999px; font-size: .72rem; font-weight: 700; background: var(--hover); color: var(--muted); }
+.prop-card[data-status="accepted"] .prop-status { background: #d9f0d3; color: #2f6b27; }
+.prop-card[data-status="refused"] .prop-status { background: #f6dede; color: #a33a3a; }
+.prop-card .btn { font-size: .8rem; padding: 4px 10px; }
+
+.mail-list { display: flex; flex-direction: column; gap: 10px; }
+.mail-item {
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.mail-item.unread { border-left: 5px solid var(--accent); }
+.mail-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.mail-head h3 { margin: 0; font-size: 1rem; }
+.mail-head time { font-size: .75rem; color: var(--muted); }
+.mail-text { margin: 6px 0 0; font-size: .9rem; }
+.mail-claim { margin-top: 10px; }
+
+.coffre-tabs { max-width: 1100px; margin: 0 auto 14px; display: flex; gap: 6px; flex-wrap: wrap; }
+.coffre-tab {
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface); color: var(--ink);
+  font: inherit; font-size: .88rem;
+  cursor: pointer;
+}
+.coffre-tab span { margin-left: 4px; padding: 0 7px; border-radius: 999px; background: var(--hover); font-size: .75rem; font-weight: 700; }
+.coffre-tab.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.coffre-tab.active span { background: var(--bg); color: var(--ink); }
+.coffre-list { display: flex; flex-direction: column; gap: 10px; }
+.coffre-card {
+  display: flex; gap: 14px; align-items: center;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.coffre-card .env-item-img { width: 110px; flex-shrink: 0; }
+.coffre-info { flex: 1; min-width: 0; }
+.coffre-info h3 { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+.coffre-meta { margin: 2px 0 10px; font-size: .8rem; }
+.coffre-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.coffre-select { padding: 7px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; font-size: .85rem; max-width: 100%; }
+.coffre-used { font-size: .82rem; color: #2f6b27; font-weight: 600; }
+.atelier-intro-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+@media (max-width: 720px) {
+  #screenCreations .label-long, #screenMail .label-long, #screenCoffre .label-long { display: none; }
+  .prop-pick, .prop-preview { flex: 1 1 100%; aspect-ratio: auto; min-height: 140px; }
+  .prop-preview .env-item-img { max-width: 200px; margin: 0 auto; }
+  .prop-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .coffre-card { flex-direction: column; align-items: stretch; }
+  .coffre-card .env-item-img { width: 140px; margin: 0 auto; }
+}

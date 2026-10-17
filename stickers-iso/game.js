@@ -22,7 +22,9 @@
   const DAILY_POINTS = 100;            // points gagnés une fois par jour
   const DEFAULT_PRICE = 50;            // prix d'une nouvelle enveloppe
   const MULTI_BUY = 5;                 // nombre d'enveloppes du bouton « ×5 »
-  const STAR_PRICE = 1000;             // prix d'une étoile achetée avec des pièces
+  const STAR_PRICE = 1000;
+  const PROPOSAL_REWARD = 100;         // pièces proposées par défaut quand un sticker est accepté
+  const MAX_PENDING = 10;              // propositions en attente maximum par joueur             // prix d'une étoile achetée avec des pièces
   const STAMPS_PER_STAR = 10;          // tampons à réunir sur la carte pour gagner une étoile
   const RARITIES = {
     // sell : pièces 🪙 gagnées en revendant un exemplaire
@@ -48,6 +50,9 @@
     profile: null,       // { id, pseudo, points, lastDaily, inventory: { stickerId: nombre }, stamps, stars }
     isAdmin: false,
     envelopes: [],       // { id, name, price, color, created }
+    mails: [],           // boîte aux lettres : { id, to, title, text, reward, read, claimed, created }
+    myProposals: [],     // stickers proposés par le joueur : { id, name, data, status, reward, ... }
+    proposals: [],       // coffre (administrateur) : toutes les propositions
     images: new Map(),   // catalogue : id -> { id, envelope, rarity, name, data, url, w, h }
     stickers: [],        // ordre du tableau = ordre d'empilement (dernier = devant)
     colors: { ...DEFAULT_COLORS },
@@ -153,6 +158,12 @@
         listEnvelopes: () => all(rooms.where('type', '==', 'envelope')),
         putEnvelope: ({ id, ...env }) => rooms.doc(id).set(clean({ ...env, type: 'envelope' })),
         deleteEnvelope: (id) => rooms.doc(id).delete(),
+        // Propositions de stickers des joueurs (dans la collection des stickers, proposal: true)
+        listMyProposals: async (owner) => (await all(images.where('owner', '==', owner))).filter((r) => r.proposal),
+        listProposals: () => all(images.where('proposal', '==', true)),
+        // Boîte aux lettres : messages (type « mail ») adressés à un pseudo
+        listMail: (to) => all(rooms.where('to', '==', to)),
+        putMail: ({ id, ...m }) => rooms.doc(id).set(clean({ ...m, type: 'mail' })),
       };
     } catch (e) {
       console.warn('Firebase indisponible', e);
@@ -165,10 +176,10 @@
     const open = () => {
       if (!dbPromise) {
         dbPromise = new Promise((resolve, reject) => {
-          const req = indexedDB.open('ma-petite-piece', 3);
+          const req = indexedDB.open('ma-petite-piece', 4);
           req.onupgradeneeded = () => {
             const d = req.result;
-            for (const name of ['images', 'rooms', 'players', 'envelopes']) {
+            for (const name of ['images', 'rooms', 'players', 'envelopes', 'mails']) {
               if (!d.objectStoreNames.contains(name)) d.createObjectStore(name, { keyPath: 'id' });
             }
           };
@@ -203,6 +214,10 @@
       listEnvelopes: () => getAll('envelopes'),
       putEnvelope: (env) => run('envelopes', 'readwrite', (s) => s.put(env)),
       deleteEnvelope: (id) => run('envelopes', 'readwrite', (s) => s.delete(id)),
+      listMyProposals: async (owner) => (await getAll('images')).filter((r) => r.proposal && r.owner === owner),
+      listProposals: async () => (await getAll('images')).filter((r) => r.proposal),
+      listMail: async (to) => (await getAll('mails')).filter((m) => m.to === to),
+      putMail: (m) => run('mails', 'readwrite', (s) => s.put(m)),
     };
   })();
 
@@ -1289,6 +1304,9 @@
     room: $('#screenRoom'),
     shop: $('#screenShop'),
     collection: $('#screenCollection'),
+    creations: $('#screenCreations'),
+    mail: $('#screenMail'),
+    coffre: $('#screenCoffre'),
     atelier: $('#screenAtelier'),
   };
   function showScreen(name) {
@@ -1351,9 +1369,12 @@
     state.images = new Map();
     let gained = 0;
     try {
-      const [images, rooms, envelopes, profile] = await withFallback((d) => Promise.all([
+      const [images, rooms, envelopes, profile, mails, mine] = await withFallback((d) => Promise.all([
         d.listCatalog(), d.listRooms(state.player.key), d.listEnvelopes(), d.getPlayer(playerDocId(state.player.key)),
+        d.listMail(state.player.key), d.listMyProposals(state.player.key),
       ]));
+      state.mails = mails;
+      state.myProposals = mine;
       images.sort((a, b) => (a.created || 0) - (b.created || 0)).forEach(addImageToLibrary);
       state.rooms = rooms;
       state.envelopes = envelopes.sort((a, b) => (a.created || 0) - (b.created || 0));
@@ -2146,6 +2167,11 @@
       ? `🌟 ${plural(stars, 'étoile')} à utiliser !`
       : (envs ? `${plural(envs, 'enveloppe')} en vente` : 'Bientôt des enveloppes');
     $('#homeCollectionSub').textContent = all.length ? `${got}/${all.length} stickers obtenus` : 'Classeur vide';
+    const pending = state.myProposals.filter((x) => x.status === 'pending').length;
+    $('#homeCreationsSub').textContent = pending ? `${plural(pending, 'proposition')} en attente` : 'Envoie tes dessins !';
+    renderMailBadge();
+    $('#homeCoffre').hidden = !state.isAdmin;
+    if (state.isAdmin) refreshCoffreCount();
     showScreen('home');
   }
 
@@ -2247,7 +2273,7 @@
     cardDialog.dataset.rarity = img.rarity || 'common';
     $('#cardImg img').src = img.url;
     $('#cardRarity').textContent = RARITIES[img.rarity || 'common'].label;
-    $('#cardName').textContent = img.name;
+    $('#cardName').textContent = img.name + (img.author ? ` · par ${img.author}` : '');
     $('#cardInfo').textContent = `${plural(n, 'exemplaire')} · ${used ? `${used} posé${used > 1 ? 's' : ''} dans tes pièces` : 'aucun posé pour l\'instant'}`;
     const sell = $('#cardSell');
     const free = available(img.id);
@@ -2348,6 +2374,324 @@
   });
 
   // ---------------------------------------------------------------------------
+  // Proposer un sticker (joueurs)
+  // ---------------------------------------------------------------------------
+  const STATUS_LABELS = { pending: 'En attente', accepted: 'Accepté', refused: 'Refusé' };
+  let draft = null; // image choisie, pas encore envoyée : { data, w, h }
+
+  function openCreations() {
+    renderCreations();
+    showScreen('creations');
+  }
+  $('#homeCreations').addEventListener('click', openCreations);
+  $('#creationsBack').addEventListener('click', goHome);
+
+  $('#propFile').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file || !file.type.startsWith('image/')) return;
+    try {
+      const url = URL.createObjectURL(file);
+      const img = await loadImageEl(url);
+      URL.revokeObjectURL(url);
+      draft = encodeImage(img);
+      if (!$('#propName').value.trim()) $('#propName').value = file.name.replace(/\.[^.]+$/, '').slice(0, 30);
+      renderDraft();
+    } catch (err) {
+      toast('Impossible de lire cette image. Essaie un PNG ou un JPG.');
+    }
+  });
+
+  function renderDraft() {
+    $('#propPreview').hidden = !draft;
+    $('#propPick').hidden = !!draft;
+    if (draft) $('#propPreview img').src = draft.data;
+    $('#propSend').disabled = !draft;
+  }
+  $('#propClear').addEventListener('click', () => { draft = null; renderDraft(); });
+
+  $('#propForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!draft) return;
+    const name = $('#propName').value.trim() || 'Mon sticker';
+    if (state.myProposals.filter((x) => x.status === 'pending').length >= MAX_PENDING) {
+      toast(`Tu as déjà ${MAX_PENDING} propositions en attente. Attends qu'elles soient regardées !`);
+      return;
+    }
+    const rec = {
+      id: uid(), proposal: true, owner: state.player.key, ownerName: state.player.name,
+      name, ...draft, status: 'pending', created: Date.now(),
+    };
+    $('#propSend').disabled = true;
+    try {
+      await db.putImage(rec);
+      state.myProposals.push(rec);
+      draft = null;
+      $('#propName').value = '';
+      toast('Envoyé ! L\'administrateur va regarder ta proposition. Réponse dans ta boîte aux lettres 📬');
+    } catch (err) {
+      console.warn('Envoi impossible', err);
+      toast('Ta proposition n\'a pas pu être envoyée. Vérifie ta connexion.');
+    }
+    renderCreations();
+  });
+
+  function renderCreations() {
+    renderPoints();
+    renderDraft();
+    const list = $('#propList');
+    list.innerHTML = '';
+    const mine = [...state.myProposals].sort((a, b) => (b.created || 0) - (a.created || 0));
+    $('#propEmpty').hidden = mine.length > 0;
+    for (const p of mine) {
+      const card = document.createElement('div');
+      card.className = 'prop-card';
+      card.dataset.status = p.status;
+      card.innerHTML = `
+        <div class="env-item-img"><img alt=""></div>
+        <span class="prop-name"></span>
+        <span class="prop-status"></span>
+        ${p.status === 'pending' ? '<button class="btn btn-ghost prop-del">Retirer</button>' : ''}`;
+      card.querySelector('img').src = p.data;
+      card.querySelector('.prop-name').textContent = p.name;
+      card.querySelector('.prop-status').textContent = STATUS_LABELS[p.status] + (p.status === 'accepted' && p.reward ? ` · +${p.reward} 🪙` : '');
+      const del = card.querySelector('.prop-del');
+      if (del) del.addEventListener('click', async () => {
+        if (!(await askConfirm(`Retirer ta proposition « ${p.name} » ?`, 'Retirer'))) return;
+        state.myProposals = state.myProposals.filter((x) => x.id !== p.id);
+        db.deleteImage(p.id).catch(() => toast('La proposition n\'a pas pu être retirée.'));
+        renderCreations();
+      });
+      list.appendChild(card);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Boîte aux lettres
+  // ---------------------------------------------------------------------------
+  const unreadMail = () => state.mails.filter((m) => !m.read || (m.reward && !m.claimed)).length;
+
+  function renderMailBadge() {
+    const n = unreadMail();
+    const badge = $('#mailBadge');
+    badge.hidden = !n;
+    badge.textContent = n;
+    $('#homeMailSub').textContent = n > 1 ? `${n} nouveaux messages` : (n ? '1 nouveau message' : 'Aucun nouveau message');
+  }
+
+  function openMail() {
+    renderMail();
+    showScreen('mail');
+    // Ouvrir la boîte marque les messages comme lus (les cadeaux restent à récupérer).
+    for (const m of state.mails) {
+      if (!m.read) {
+        m.read = true;
+        db.putMail(m).catch(() => {});
+      }
+    }
+  }
+  $('#homeMail').addEventListener('click', openMail);
+  $('#mailBack').addEventListener('click', goHome);
+
+  function renderMail() {
+    renderPoints();
+    const list = $('#mailList');
+    list.innerHTML = '';
+    const mails = [...state.mails].sort((a, b) => (b.created || 0) - (a.created || 0));
+    $('#mailEmpty').hidden = mails.length > 0;
+    for (const m of mails) {
+      const el = document.createElement('article');
+      el.className = 'mail-item' + (m.read ? '' : ' unread');
+      el.innerHTML = `
+        <div class="mail-head"><h3></h3><time></time></div>
+        <p class="mail-text"></p>
+        ${m.reward ? `<button class="btn ${m.claimed ? 'btn-ghost' : 'btn-primary'} mail-claim" ${m.claimed ? 'disabled' : ''}>${m.claimed ? `+${m.reward} 🪙 récupérées` : `Récupérer +${m.reward} 🪙`}</button>` : ''}`;
+      el.querySelector('h3').textContent = m.title;
+      el.querySelector('time').textContent = m.created ? dateFmt.format(m.created) : '';
+      el.querySelector('.mail-text').textContent = m.text;
+      const claim = el.querySelector('.mail-claim');
+      if (claim && !m.claimed) claim.addEventListener('click', () => {
+        if (m.claimed) return;
+        m.claimed = true;
+        m.read = true;
+        state.profile.points += m.reward;
+        saveProfile();
+        db.putMail(m).catch(() => {});
+        toast(`+${m.reward} 🪙 ajoutées à ton compte !`);
+        renderMail();
+      });
+      list.appendChild(el);
+    }
+  }
+
+  function sendMail(to, title, text, reward = 0) {
+    const m = { id: uid(), to, title, text, reward, read: false, claimed: false, created: Date.now() };
+    return db.putMail(m);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Coffre (administrateur) : valider les propositions et les ranger en enveloppe
+  // ---------------------------------------------------------------------------
+  async function refreshCoffreCount() {
+    try {
+      state.proposals = await db.listProposals();
+    } catch (e) {
+      return;
+    }
+    const n = state.proposals.filter((p) => p.status === 'pending').length;
+    $('#homeCoffreSub').textContent = n ? `${plural(n, 'proposition')} à regarder` : 'Rien à valider';
+  }
+
+  async function openCoffre() {
+    if (!state.isAdmin) return;
+    showScreen('coffre');
+    $('#coffreList').innerHTML = '<p class="muted">Chargement…</p>';
+    await refreshCoffreCount();
+    renderCoffre();
+  }
+  $('#homeCoffre').addEventListener('click', openCoffre);
+  $('#coffreBack').addEventListener('click', goHome);
+  $('#atelierCoffre').addEventListener('click', openCoffre);
+
+  let coffreFilter = 'pending';
+  document.querySelectorAll('.coffre-tab').forEach((tab) => tab.addEventListener('click', () => {
+    coffreFilter = tab.dataset.filter;
+    renderCoffre();
+  }));
+
+  function renderCoffre() {
+    document.querySelectorAll('.coffre-tab').forEach((tab) => {
+      const n = state.proposals.filter((p) => p.status === tab.dataset.filter).length;
+      tab.classList.toggle('active', tab.dataset.filter === coffreFilter);
+      tab.querySelector('span').textContent = n;
+    });
+    const list = $('#coffreList');
+    list.innerHTML = '';
+    const items = state.proposals
+      .filter((p) => p.status === coffreFilter)
+      .sort((a, b) => (b.created || 0) - (a.created || 0));
+    $('#coffreEmpty').hidden = items.length > 0;
+    for (const p of items) {
+      const card = document.createElement('article');
+      card.className = 'coffre-card';
+      card.innerHTML = `
+        <div class="env-item-img"><img alt=""></div>
+        <div class="coffre-info">
+          <h3></h3>
+          <p class="muted coffre-meta"></p>
+          <div class="coffre-actions"></div>
+        </div>`;
+      card.querySelector('img').src = p.data;
+      card.querySelector('h3').textContent = p.name;
+      card.querySelector('.coffre-meta').textContent = `par ${p.ownerName || p.owner} · ${p.created ? dateFmt.format(p.created) : ''}`
+        + (p.status === 'accepted' && p.reward ? ` · ${p.reward} 🪙 offertes` : '');
+      const actions = card.querySelector('.coffre-actions');
+      const button = (label, cls, fn) => {
+        const b = document.createElement('button');
+        b.className = 'btn ' + cls;
+        b.textContent = label;
+        b.addEventListener('click', fn);
+        actions.appendChild(b);
+        return b;
+      };
+      if (p.status === 'pending') {
+        button('✓ Valider', 'btn-primary', () => acceptProposal(p));
+        button('✕ Refuser', '', () => refuseProposal(p));
+      } else if (p.status === 'accepted') {
+        const used = p.usedIn && state.envelopes.find((e) => e.id === p.usedIn);
+        if (used) {
+          const tag = document.createElement('span');
+          tag.className = 'coffre-used';
+          tag.textContent = `Dans l'enveloppe « ${used.name} »`;
+          actions.appendChild(tag);
+        } else if (state.envelopes.length) {
+          const sel = document.createElement('select');
+          sel.className = 'coffre-select';
+          sel.setAttribute('aria-label', 'Enveloppe');
+          for (const env of state.envelopes) sel.add(new Option(env.name || 'Enveloppe', env.id));
+          actions.appendChild(sel);
+          button('Ajouter à l\'enveloppe', 'btn-primary', () => addProposalToEnvelope(p, sel.value));
+        } else {
+          const tag = document.createElement('span');
+          tag.className = 'muted';
+          tag.textContent = 'Crée une enveloppe dans l\'atelier pour l\'y ranger.';
+          actions.appendChild(tag);
+        }
+        button('Supprimer', 'btn-ghost', () => deleteProposal(p));
+      } else {
+        button('Supprimer', 'btn-ghost', () => deleteProposal(p));
+      }
+      list.appendChild(card);
+    }
+  }
+
+  async function acceptProposal(p) {
+    const answer = await askText(`Valider « ${p.name} » de ${p.ownerName || p.owner}. Combien de pièces lui offrir ?`, 'Valider', String(PROPOSAL_REWARD));
+    if (answer === null) return;
+    const reward = Math.max(0, Math.round(Number(answer) || 0));
+    p.status = 'accepted';
+    p.reward = reward;
+    try {
+      await db.putImage(p);
+      await sendMail(p.owner, 'Sticker accepté 🎉',
+        `Ton sticker « ${p.name} » a été accepté ! Il pourra bientôt apparaître dans une enveloppe.`
+        + (reward ? ` Voici ${reward} 🪙 pour te remercier.` : ''), reward);
+      toast(`« ${p.name} » validé. ${p.ownerName || p.owner} a reçu un message.`);
+    } catch (e) {
+      console.warn('Validation impossible', e);
+      toast('La validation n\'a pas pu être enregistrée. Vérifie ta connexion.');
+    }
+    renderCoffre();
+  }
+
+  async function refuseProposal(p) {
+    const answer = await askText(`Refuser « ${p.name} » de ${p.ownerName || p.owner}. Message pour le joueur :`, 'Refuser',
+      'Merci pour ta proposition ! Elle n\'a pas été retenue cette fois, n\'hésite pas à en envoyer d\'autres.');
+    if (answer === null) return;
+    p.status = 'refused';
+    try {
+      await db.putImage(p);
+      await sendMail(p.owner, 'Proposition non retenue', `« ${p.name} » : ${answer}`);
+      toast(`« ${p.name} » refusé. ${p.ownerName || p.owner} a reçu un message.`);
+    } catch (e) {
+      console.warn('Refus impossible', e);
+      toast('Le refus n\'a pas pu être enregistré. Vérifie ta connexion.');
+    }
+    renderCoffre();
+  }
+
+  async function addProposalToEnvelope(p, envId) {
+    const env = state.envelopes.find((e) => e.id === envId);
+    if (!env) return;
+    const rec = {
+      id: uid(), catalog: true, envelope: env.id, rarity: 'common',
+      name: p.name, data: p.data, w: p.w, h: p.h, created: Date.now(),
+      author: p.ownerName || p.owner,
+    };
+    try {
+      await db.putImage(rec);
+      addImageToLibrary(rec);
+      p.usedIn = env.id;
+      await db.putImage(p);
+      toast(`« ${p.name} » ajouté à l'enveloppe « ${env.name} ». Tu peux choisir sa rareté dans l'atelier.`);
+    } catch (e) {
+      console.warn('Ajout impossible', e);
+      toast('Le sticker n\'a pas pu être ajouté. Vérifie ta connexion.');
+    }
+    renderCoffre();
+  }
+
+  async function deleteProposal(p) {
+    const msg = p.status === 'accepted' && p.usedIn
+      ? `Supprimer « ${p.name} » du coffre ? Le sticker reste dans son enveloppe.`
+      : `Supprimer « ${p.name} » du coffre ?`;
+    if (!(await askConfirm(msg, 'Supprimer'))) return;
+    state.proposals = state.proposals.filter((x) => x.id !== p.id);
+    db.deleteImage(p.id).catch(() => toast('La proposition n\'a pas pu être supprimée.'));
+    renderCoffre();
+  }
+
+  // ---------------------------------------------------------------------------
   // Démarrage
   // ---------------------------------------------------------------------------
   async function init() {
@@ -2379,6 +2723,9 @@
     else if (place.screen === 'shop') openShop(false);
     else if (place.screen === 'collection') openCollection();
     else if (place.screen === 'atelier') openAtelier();
+    else if (place.screen === 'creations') openCreations();
+    else if (place.screen === 'mail') openMail();
+    else if (place.screen === 'coffre') openCoffre();
   }
 
   init();
