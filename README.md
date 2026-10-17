@@ -8,10 +8,10 @@ Des pièces en isométrie à décorer avec tes propres stickers.
 - **Collection** : un classeur avec une page par enveloppe (onglets à sa couleur). Chaque sticker a sa pochette numérotée : ceux obtenus (avec le nombre d'exemplaires), et la silhouette de ceux qui restent à trouver. Toucher un sticker obtenu ouvre sa fiche.
 - **Pseudo** : au démarrage, choisis un pseudo (pas de mot de passe). Reprends le même sur tous tes appareils pour retrouver tes pièces.
 - **Mes pièces** : crée autant de pièces que tu veux, renomme-les, duplique-les ou supprime-les. Chaque pièce se sauvegarde toute seule.
-- **Points** : chaque jour, à la première connexion, on gagne 100 ⭐.
+- **Points** : chaque jour, à la première connexion, on gagne 100 🪙.
 - **Boutique** : avec les points, on achète des enveloppes. Chaque enveloppe donne **un** sticker tiré au sort parmi ceux qu'elle contient (commun, rare ou très rare). Toucher une enveloppe montre son contenu : les stickers obtenus et la silhouette des autres.
 - **Exemplaires** : chaque sticker obtenu se pose **une seule fois**, toutes pièces confondues. Pour le poser plusieurs fois, il faut l'obtenir plusieurs fois. Le retirer d'une pièce le rend de nouveau disponible.
-- **Atelier** (réservé aux pseudos listés dans `ADMIN_PSEUDOS` dans `game.js`, aujourd'hui « Prunalie ») : créer les enveloppes (nom, prix, couleur), y ajouter les stickers et choisir leur rareté. Un bouton « ＋100 ⭐ » permet de tester la boutique.
+- **Atelier** (réservé aux pseudos listés dans `ADMIN_PSEUDOS` dans `game.js`, aujourd'hui « Prunalie ») : créer les enveloppes (nom, prix, couleur), y ajouter les stickers et choisir leur rareté. Un bouton « ＋100 🪙 » permet de tester la boutique.
 
 **Lancer le jeu :** ouvre `stickers-iso/index.html` dans un navigateur
 (ou sers le dossier, par ex. `python3 -m http.server` dans `stickers-iso/`).

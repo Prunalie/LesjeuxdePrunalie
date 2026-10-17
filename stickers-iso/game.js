@@ -21,6 +21,7 @@
   const ADMIN_PSEUDOS = ['prunalie'];  // pseudos (en minuscules) qui ont accès à l'atelier
   const DAILY_POINTS = 100;            // points gagnés une fois par jour
   const DEFAULT_PRICE = 50;            // prix d'une nouvelle enveloppe
+  const STAMPS_PER_STAR = 20;          // tampons à réunir sur la carte pour gagner une étoile
   const RARITIES = {
     common: { label: 'Commun', weight: 10 },
     rare: { label: 'Rare', weight: 3 },
@@ -39,7 +40,7 @@
     rooms: [],           // pièces du joueur : { id, owner, name, stickers, colors, thumb, updated }
     roomId: null,        // pièce ouverte
     roomName: '',
-    profile: null,       // { id, pseudo, points, lastDaily, inventory: { stickerId: nombre } }
+    profile: null,       // { id, pseudo, points, lastDaily, inventory: { stickerId: nombre }, stamps, stars }
     isAdmin: false,
     envelopes: [],       // { id, name, price, color, created }
     images: new Map(),   // catalogue : id -> { id, envelope, rarity, name, data, url, w, h }
@@ -1152,6 +1153,8 @@
       };
       state.profile.pseudo = name;
       state.profile.inventory = state.profile.inventory || {};
+      state.profile.stamps = state.profile.stamps || 0;
+      state.profile.stars = state.profile.stars || 0;
       // Points du jour : une fois par jour, à la première connexion.
       if (state.profile.lastDaily !== today()) {
         state.profile.points = (state.profile.points || 0) + DAILY_POINTS;
@@ -1167,7 +1170,7 @@
     }
     renderPoints();
     goHome();
-    if (gained) toast(`+${gained} ⭐ : tes points du jour ! Va les dépenser dans la boutique.`);
+    if (gained) toast(`+${gained} 🪙 : tes points du jour ! Va les dépenser dans la boutique.`);
   }
 
   function saveProfile() {
@@ -1180,7 +1183,7 @@
   function renderPoints() {
     const pts = (state.profile && state.profile.points) || 0;
     document.querySelectorAll('.points-pill').forEach((el) => {
-      el.textContent = `${pts} ⭐`;
+      el.textContent = `${pts} 🪙`;
       el.title = `${pts} points`;
     });
   }
@@ -1436,6 +1439,7 @@
 
   function renderShop() {
     renderPoints();
+    renderStampCard();
     const grid = $('#shopGrid');
     grid.innerHTML = '';
     const envs = state.envelopes.filter((env) => stickersOf(env.id).length);
@@ -1456,7 +1460,7 @@
       card.querySelector('.bar span').style.width = `${(got / list.length) * 100}%`;
       card.querySelector('.txt').textContent = `${got}/${list.length} stickers`;
       const buy = card.querySelector('.shop-buy');
-      buy.textContent = `Acheter · ${price} ⭐`;
+      buy.textContent = `Acheter · ${price} 🪙`;
       buy.disabled = state.profile.points < price;
       card.querySelector('.shop-art').addEventListener('click', () => showEnvelope(env));
       buy.addEventListener('click', () => buyEnvelope(env));
@@ -1487,7 +1491,7 @@
     }
     const price = env.price ?? DEFAULT_PRICE;
     const buy = $('#envBuy');
-    buy.textContent = `Acheter · ${price} ⭐`;
+    buy.textContent = `Acheter · ${price} 🪙`;
     buy.disabled = state.profile.points < price;
     buy.onclick = () => { envDialog.hidden = true; buyEnvelope(env); };
     envDialog.hidden = false;
@@ -1512,7 +1516,7 @@
     const price = env.price ?? DEFAULT_PRICE;
     if (!list.length) return;
     if (state.profile.points < price) {
-      toast(`Il te manque ${price - state.profile.points} ⭐ pour cette enveloppe.`);
+      toast(`Il te manque ${price - state.profile.points} 🪙 pour cette enveloppe.`);
       return;
     }
     buying = true;
@@ -1520,16 +1524,91 @@
     const before = owned(pick.id);
     state.profile.points -= price;
     state.profile.inventory[pick.id] = before + 1;
+    // Carte de tampons : un tampon par enveloppe achetée.
+    state.profile.stamps = (state.profile.stamps || 0) + 1;
+    let starWon = false;
+    if (state.profile.stamps >= STAMPS_PER_STAR) {
+      state.profile.stamps = 0;
+      state.profile.stars = (state.profile.stars || 0) + 1;
+      starWon = true;
+    }
     renderPoints();
     saveProfile();
-    await playOpening(env, pick, before + 1);
+    await playOpening(env, pick, before + 1, { starWon });
     buying = false;
+    renderShop();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Carte de tampons et étoiles
+  // ---------------------------------------------------------------------------
+  function renderStampCard() {
+    const n = state.profile.stamps || 0;
+    const stars = state.profile.stars || 0;
+    const grid = $('#stampGrid');
+    grid.innerHTML = '';
+    for (let i = 0; i < STAMPS_PER_STAR; i++) {
+      const cell = document.createElement('span');
+      const last = i === STAMPS_PER_STAR - 1;
+      cell.className = 'stamp' + (i < n ? ' on' : '') + (last ? ' reward' : '');
+      // Chaque tampon est un peu de travers, comme un vrai coup de tampon.
+      cell.style.setProperty('--tilt', `${((i * 47) % 30) - 15}deg`);
+      cell.textContent = i < n ? '★' : (last ? '🌟' : i + 1);
+      grid.appendChild(cell);
+    }
+    $('#stampText').textContent = `${n}/${STAMPS_PER_STAR} tampons · encore ${STAMPS_PER_STAR - n} enveloppe${STAMPS_PER_STAR - n > 1 ? 's' : ''} pour gagner une étoile`;
+    $('#starCount').textContent = `🌟 ×${stars}`;
+    const use = $('#btnUseStar');
+    use.disabled = stars < 1 || !collectible().length;
+    use.textContent = stars ? 'Utiliser une étoile' : 'Pas encore d\'étoile';
+  }
+
+  // Avec une étoile : choisir n'importe quel sticker, dans n'importe quelle enveloppe.
+  const starDialog = $('#starDialog');
+  $('#btnUseStar').addEventListener('click', () => {
+    if ((state.profile.stars || 0) < 1) return;
+    const body = $('#starList');
+    body.innerHTML = '';
+    for (const env of state.envelopes.filter((e) => stickersOf(e.id).length)) {
+      const h = document.createElement('h3');
+      h.className = 'star-env';
+      h.textContent = env.name || 'Enveloppe';
+      body.appendChild(h);
+      const grid = document.createElement('div');
+      grid.className = 'env-grid';
+      for (const img of stickersOf(env.id)) {
+        const n = owned(img.id);
+        const cell = document.createElement('button');
+        cell.className = 'env-item star-pick';
+        cell.dataset.rarity = img.rarity || 'common';
+        cell.innerHTML = '<div class="env-item-img"><img alt=""></div><span class="env-item-name"></span><span class="rarity-tag"></span>';
+        cell.querySelector('img').src = img.url;
+        cell.querySelector('.env-item-name').textContent = n ? `${img.name} ×${n}` : `${img.name} · nouveau !`;
+        cell.querySelector('.rarity-tag').textContent = RARITIES[img.rarity || 'common'].label;
+        cell.addEventListener('click', () => useStar(env, img));
+        grid.appendChild(cell);
+      }
+      body.appendChild(grid);
+    }
+    starDialog.hidden = false;
+  });
+  $('#starClose').addEventListener('click', () => { starDialog.hidden = true; });
+
+  async function useStar(env, img) {
+    if (!(await askConfirm(`Utiliser une étoile 🌟 pour obtenir « ${img.name} » ?`, 'Oui !'))) return;
+    if ((state.profile.stars || 0) < 1) return;
+    starDialog.hidden = true;
+    state.profile.stars -= 1;
+    const count = owned(img.id) + 1;
+    state.profile.inventory[img.id] = count;
+    saveProfile();
+    await playOpening(env, img, count, { withStar: true });
     renderShop();
   }
 
   // Animation : l'enveloppe tremble, s'ouvre, et le sticker en sort.
   const openDialog = $('#openDialog');
-  async function playOpening(env, img, count) {
+  async function playOpening(env, img, count, opts = {}) {
     const stageEl = $('#openStage');
     stageEl.innerHTML = '';
     const art = envelopeArt(env, 'env-big');
@@ -1554,12 +1633,20 @@
 
     $('#openRarity').textContent = RARITIES[img.rarity || 'common'].label;
     $('#openName').textContent = img.name;
-    $('#openText').textContent = count === 1
+    $('#openText').textContent = (opts.withStar ? 'Obtenu avec une étoile ! ' : '') + (count === 1
       ? 'Nouveau sticker pour ta collection !'
-      : `Tu en as maintenant ${count} exemplaires.`;
+      : `Tu en as maintenant ${count} exemplaires.`);
+    // Tampon gagné (pas pour un sticker choisi avec une étoile).
+    const stampEl = $('#openStamp');
+    stampEl.hidden = !!opts.withStar;
+    stampEl.classList.toggle('won', !!opts.starWon);
+    stampEl.textContent = opts.starWon
+      ? `Carte complète ! Tu gagnes une étoile 🌟`
+      : `+1 tampon · ${state.profile.stamps}/${STAMPS_PER_STAR}`;
     const price = env.price ?? DEFAULT_PRICE;
     const again = $('#openAgain');
-    again.textContent = `Une autre · ${price} ⭐`;
+    again.hidden = !!opts.withStar;
+    again.textContent = `Une autre · ${price} 🪙`;
     again.disabled = state.profile.points < price;
     again.onclick = () => { openDialog.hidden = true; buyEnvelope(env); };
     result.hidden = false;
@@ -1580,7 +1667,7 @@
     state.profile.points += 100;
     renderPoints();
     saveProfile();
-    toast('+100 ⭐ ajoutés à ton compte.');
+    toast('+100 🪙 ajoutés à ton compte.');
   });
 
   $('#btnNewEnvelope').addEventListener('click', async () => {
@@ -1616,7 +1703,7 @@
           <div class="atelier-art"></div>
           <div class="atelier-fields">
             <label class="atelier-field"><span>Nom</span><input class="field" data-f="name" maxlength="40"></label>
-            <label class="atelier-field small"><span>Prix ⭐</span><input class="field" data-f="price" type="number" min="0" step="10"></label>
+            <label class="atelier-field small"><span>Prix 🪙</span><input class="field" data-f="price" type="number" min="0" step="10"></label>
             <label class="atelier-field small"><span>Couleur</span><input data-f="color" type="color"></label>
           </div>
           <button class="btn btn-ghost atelier-del" title="Supprimer l'enveloppe">🗑️</button>
@@ -1719,7 +1806,10 @@
     const got = all.filter((img) => owned(img.id) > 0).length;
     const envs = state.envelopes.filter((env) => stickersOf(env.id).length).length;
     $('#homeRoomsSub').textContent = state.rooms.length ? plural(state.rooms.length, 'pièce') : 'Crée ta première pièce';
-    $('#homeShopSub').textContent = envs ? `${plural(envs, 'enveloppe')} en vente` : 'Bientôt des enveloppes';
+    const stars = state.profile.stars || 0;
+    $('#homeShopSub').textContent = stars
+      ? `🌟 ${plural(stars, 'étoile')} à utiliser !`
+      : (envs ? `${plural(envs, 'enveloppe')} en vente` : 'Bientôt des enveloppes');
     $('#homeCollectionSub').textContent = all.length ? `${got}/${all.length} stickers obtenus` : 'Classeur vide';
     showScreen('home');
   }

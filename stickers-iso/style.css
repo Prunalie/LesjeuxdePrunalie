@@ -31,6 +31,8 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* Un élément caché reste caché, même si son style lui donne un display. */
+[hidden] { display: none !important; }
 
 html, body {
   margin: 0;
@@ -969,3 +971,72 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
   .slot-num { font-size: .6rem; left: 5px; top: 4px; }
   .binder-nav .btn { padding: 6px 8px; font-size: .8rem; }
 }
+
+/* ---------- Carte de tampons ---------- */
+.stamp-card {
+  max-width: 1100px; margin: 20px auto 0;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--r-epic) 14%, transparent) 0 90px, transparent 91px),
+    var(--panel);
+}
+.stamp-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.stamp-head h2 { margin: 0; font-size: 1.05rem; }
+.stamp-head p { margin: 2px 0 0; font-size: .85rem; }
+.stamp-stars { display: flex; align-items: center; gap: 8px; }
+.star-pill {
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--r-epic) 18%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--r-epic) 50%, var(--line));
+  font-weight: 700; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.stamp-grid { display: grid; grid-template-columns: repeat(10, minmax(0, 58px)); gap: 10px; }
+.stamp {
+  aspect-ratio: 1;
+  display: grid; place-items: center;
+  border: 2px dashed var(--line);
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: .78rem;
+  font-variant-numeric: tabular-nums;
+}
+.stamp.reward { border-color: var(--r-epic); border-style: solid; font-size: 1.1rem; }
+.stamp.on {
+  border: 3px double color-mix(in srgb, var(--accent) 85%, #000);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: color-mix(in srgb, var(--accent) 85%, #000);
+  font-size: 1.2rem;
+  transform: rotate(var(--tilt));
+  opacity: .9;
+}
+.stamp-help { margin: 12px 0 0; font-size: .78rem; }
+.open-stamp {
+  margin: 0 0 8px !important;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.14);
+  font-size: .85rem; font-weight: 700;
+  opacity: 1 !important;
+}
+.open-stamp.won { background: var(--r-epic); color: #2b2113; animation: star-pop .6s ease-out; }
+.open-stamp[hidden] { display: none; }
+@keyframes star-pop { 0% { transform: scale(.6); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+.star-sub { margin: 0 0 12px; font-size: .85rem; }
+.star-list { max-height: 60vh; overflow-y: auto; margin-bottom: 14px; }
+.star-list .env-grid { max-height: none; overflow: visible; }
+.star-env { margin: 4px 0 8px; font-size: .95rem; }
+.star-pick { border: none; background: none; padding: 0; color: var(--ink); font: inherit; cursor: pointer; }
+.star-pick:hover .env-item-img { transform: translateY(-2px); }
+.star-pick .env-item-img { transition: transform .15s; }
+@media (max-width: 720px) {
+  .stamp-card { padding: 12px; border-radius: 12px; }
+  .stamp-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; max-width: 260px; }
+  .stamp-stars { width: 100%; justify-content: space-between; }
+}
+@media (prefers-reduced-motion: reduce) { .open-stamp.won { animation: none; } }
+/* La question de confirmation passe toujours devant les autres fenêtres. */
+#confirmDialog { z-index: 3500; }

@@ -157,9 +157,23 @@
       <div class="topbar-actions"><span class="points-pill"></span></div>
     </header>
     <div class="rooms-body">
-      <p class="shop-intro">Chaque enveloppe contient <strong>un</strong> sticker tiré au sort. Touche une enveloppe pour voir ce qu'elle peut contenir. Tu gagnes <strong>100 ⭐</strong> chaque jour.</p>
+      <p class="shop-intro">Chaque enveloppe contient <strong>un</strong> sticker tiré au sort. Touche une enveloppe pour voir ce qu'elle peut contenir. Tu gagnes <strong>100 🪙</strong> chaque jour.</p>
       <div id="shopGrid" class="shop-grid"></div>
       <p id="shopEmpty" class="empty" hidden>Aucune enveloppe en vente pour l'instant. Reviens bientôt&nbsp;!</p>
+      <section class="stamp-card" aria-label="Carte de tampons">
+        <div class="stamp-head">
+          <div>
+            <h2>Carte de tampons</h2>
+            <p id="stampText" class="muted"></p>
+          </div>
+          <div class="stamp-stars">
+            <span id="starCount" class="star-pill"></span>
+            <button id="btnUseStar" class="btn btn-primary"></button>
+          </div>
+        </div>
+        <div id="stampGrid" class="stamp-grid"></div>
+        <p class="stamp-help muted">1 enveloppe achetée = 1 tampon. 20 tampons = 1 étoile 🌟, qui permet de choisir le sticker que tu veux dans n'importe quelle enveloppe.</p>
+      </section>
     </div>
   </section>
 
@@ -204,7 +218,7 @@
       </div>
       <div class="topbar-actions">
         <span class="points-pill"></span>
-        <button id="btnGivePoints" class="btn" title="Pour tester la boutique">＋100 ⭐</button>
+        <button id="btnGivePoints" class="btn" title="Pour tester la boutique">＋100 🪙</button>
       </div>
     </header>
     <div class="rooms-body">
@@ -261,6 +275,15 @@
     </div>
   </div>
 
+  <div id="starDialog" class="modal" hidden>
+    <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="starTitle">
+      <h2 id="starTitle" class="modal-title">Choisis ton sticker 🌟</h2>
+      <p class="muted star-sub">Ton étoile te permet de prendre le sticker que tu veux, dans n'importe quelle enveloppe.</p>
+      <div id="starList" class="star-list"></div>
+      <div class="modal-actions"><button id="starClose" class="btn">Plus tard</button></div>
+    </div>
+  </div>
+
   <div id="openDialog" class="modal open-modal" hidden>
     <div class="open-box" role="dialog" aria-modal="true" aria-live="polite" aria-label="Ouverture de l'enveloppe">
       <div id="openStage" class="open-stage"></div>
@@ -268,6 +291,7 @@
         <span id="openRarity" class="rarity-tag"></span>
         <h2 id="openName"></h2>
         <p id="openText"></p>
+        <p id="openStamp" class="open-stamp"></p>
         <div class="modal-actions">
           <button id="openAgain" class="btn"></button>
           <button id="openClose" class="btn btn-primary">Super !</button>
