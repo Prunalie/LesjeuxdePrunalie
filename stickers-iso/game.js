@@ -21,7 +21,7 @@
   const ADMIN_PSEUDOS = ['prunalie'];  // pseudos (en minuscules) qui ont accès à l'atelier
   const DAILY_POINTS = 100;            // points gagnés une fois par jour
   const DEFAULT_PRICE = 50;            // prix d'une nouvelle enveloppe
-  const STAMPS_PER_STAR = 20;          // tampons à réunir sur la carte pour gagner une étoile
+  const STAMPS_PER_STAR = 10;          // tampons à réunir sur la carte pour gagner une étoile
   const RARITIES = {
     // sell : pièces 🪙 gagnées en revendant un exemplaire
     common: { label: 'Commun', weight: 10, sell: 10 },
@@ -1156,6 +1156,11 @@
       state.profile.inventory = state.profile.inventory || {};
       state.profile.stamps = state.profile.stamps || 0;
       state.profile.stars = state.profile.stars || 0;
+      // Cartes déjà assez remplies (par ex. si le nombre de tampons requis a baissé).
+      if (convertStamps()) {
+        saveProfile();
+        setTimeout(() => toast('Ta carte de tampons est complète : tu gagnes une étoile 🌟 !'), 2500);
+      }
       // Points du jour : une fois par jour, à la première connexion.
       if (state.profile.lastDaily !== today()) {
         state.profile.points = (state.profile.points || 0) + DAILY_POINTS;
@@ -1528,11 +1533,7 @@
     // Carte de tampons : un tampon par enveloppe achetée.
     state.profile.stamps = (state.profile.stamps || 0) + 1;
     let starWon = false;
-    if (state.profile.stamps >= STAMPS_PER_STAR) {
-      state.profile.stamps = 0;
-      state.profile.stars = (state.profile.stars || 0) + 1;
-      starWon = true;
-    }
+    if (convertStamps()) starWon = true;
     renderPoints();
     saveProfile();
     await playOpening(env, pick, before + 1, { starWon });
@@ -1543,6 +1544,17 @@
   // ---------------------------------------------------------------------------
   // Carte de tampons et étoiles
   // ---------------------------------------------------------------------------
+  // Chaque carte complète devient une étoile ; les tampons en trop restent sur la carte suivante.
+  function convertStamps() {
+    let won = 0;
+    while ((state.profile.stamps || 0) >= STAMPS_PER_STAR) {
+      state.profile.stamps -= STAMPS_PER_STAR;
+      state.profile.stars = (state.profile.stars || 0) + 1;
+      won++;
+    }
+    return won;
+  }
+
   function renderStampCard() {
     const n = state.profile.stamps || 0;
     const stars = state.profile.stars || 0;
