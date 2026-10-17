@@ -163,6 +163,7 @@
         listProposals: () => all(images.where('proposal', '==', true)),
         // Boîte aux lettres : messages (type « mail ») adressés à un pseudo
         listMail: (to) => all(rooms.where('to', '==', to)),
+        listPlayers: () => all(rooms.where('type', '==', 'player')),
         putMail: ({ id, ...m }) => rooms.doc(id).set(clean({ ...m, type: 'mail' })),
       };
     } catch (e) {
@@ -217,6 +218,7 @@
       listMyProposals: async (owner) => (await getAll('images')).filter((r) => r.proposal && r.owner === owner),
       listProposals: async () => (await getAll('images')).filter((r) => r.proposal),
       listMail: async (to) => (await getAll('mails')).filter((m) => m.to === to),
+      listPlayers: () => getAll('players'),
       putMail: (m) => run('mails', 'readwrite', (s) => s.put(m)),
     };
   })();
@@ -1304,6 +1306,7 @@
     room: $('#screenRoom'),
     shop: $('#screenShop'),
     collection: $('#screenCollection'),
+    players: $('#screenPlayers'),
     creations: $('#screenCreations'),
     mail: $('#screenMail'),
     coffre: $('#screenCoffre'),
@@ -1382,6 +1385,10 @@
         id: playerDocId(state.player.key), points: 0, lastDaily: '', inventory: {},
       };
       state.profile.pseudo = name;
+      state.profile.key = state.player.key;
+      state.profile.firstSeen = state.profile.firstSeen || Date.now();
+      state.profile.lastSeen = Date.now();
+      saveProfile();
       state.profile.inventory = state.profile.inventory || {};
       state.profile.stamps = state.profile.stamps || 0;
       state.profile.stars = state.profile.stars || 0;
@@ -2171,6 +2178,7 @@
     $('#homeCreationsSub').textContent = pending ? `${plural(pending, 'proposition')} en attente` : 'Envoie tes dessins !';
     renderMailBadge();
     $('#homeCoffre').hidden = !state.isAdmin;
+    $('#homePlayers').hidden = !state.isAdmin;
     if (state.isAdmin) refreshCoffreCount();
     showScreen('home');
   }
@@ -2692,6 +2700,106 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Joueurs (administrateur) : qui a commencé à jouer, et lui écrire
+  // ---------------------------------------------------------------------------
+  let players = [];
+  let playersSort = 'recent';
+
+  async function openPlayers() {
+    if (!state.isAdmin) return;
+    showScreen('players');
+    $('#playersList').innerHTML = '<p class="muted">Chargement…</p>';
+    try {
+      players = await db.listPlayers();
+    } catch (e) {
+      console.warn('Liste des joueurs impossible', e);
+      $('#playersList').innerHTML = '';
+      toast('Impossible de charger les joueurs. Vérifie ta connexion.');
+      return;
+    }
+    renderPlayers();
+  }
+  $('#homePlayers').addEventListener('click', openPlayers);
+  $('#playersBack').addEventListener('click', goHome);
+  $('#playersSort').addEventListener('change', (e) => { playersSort = e.target.value; renderPlayers(); });
+  $('#playersSearch').addEventListener('input', renderPlayers);
+
+  const playerKey = (p) => p.key || normalizePseudo(p.pseudo || (p.id || '').replace(/^player-/, ''));
+  const relDays = (t) => {
+    if (!t) return '—';
+    const days = Math.floor((Date.now() - t) / 86400000);
+    if (days <= 0) return 'aujourd\'hui';
+    if (days === 1) return 'hier';
+    return `il y a ${days} jours`;
+  };
+
+  function renderPlayers() {
+    const total = collectible().length;
+    const q = normalizePseudo($('#playersSearch').value || '');
+    const list = players
+      .filter((p) => !q || playerKey(p).includes(q))
+      .map((p) => {
+        const inv = p.inventory || {};
+        const distinct = Object.keys(inv).filter((id) => inv[id] > 0 && state.images.has(id)).length;
+        const copies = Object.values(inv).reduce((a, b) => a + (b > 0 ? b : 0), 0);
+        const lastSeen = p.lastSeen || (p.lastDaily ? new Date(p.lastDaily).getTime() : 0);
+        return { p, distinct, copies, lastSeen };
+      })
+      .sort((a, b) => {
+        if (playersSort === 'name') return (a.p.pseudo || '').localeCompare(b.p.pseudo || '', 'fr');
+        if (playersSort === 'points') return (b.p.points || 0) - (a.p.points || 0);
+        if (playersSort === 'collection') return b.distinct - a.distinct;
+        return b.lastSeen - a.lastSeen;
+      });
+
+    const active7 = players.filter((p) => (p.lastSeen || 0) > Date.now() - 7 * 86400000).length;
+    $('#playersCount').textContent = `${plural(players.length, 'joueur')} · ${active7} venu${active7 > 1 ? 's' : ''} ces 7 derniers jours`;
+    const body = $('#playersList');
+    body.innerHTML = '';
+    $('#playersEmpty').hidden = list.length > 0;
+    for (const { p, distinct, copies, lastSeen } of list) {
+      const key = playerKey(p);
+      const row = document.createElement('article');
+      row.className = 'player-row';
+      row.innerHTML = `
+        <div class="player-main">
+          <h3 class="player-name"></h3>
+          <p class="muted player-seen"></p>
+        </div>
+        <dl class="player-stats">
+          <div><dt>Pièces</dt><dd class="s-points"></dd></div>
+          <div><dt>Collection</dt><dd class="s-coll"></dd></div>
+          <div><dt>Étoiles</dt><dd class="s-stars"></dd></div>
+        </dl>
+        <button class="btn player-write" title="Envoyer un message dans sa boîte aux lettres">✉️<span class="label-long">&nbsp;Écrire</span></button>`;
+      row.querySelector('.player-name').textContent = (p.pseudo || key) + (ADMIN_PSEUDOS.includes(key) ? ' · admin' : '');
+      row.querySelector('.player-seen').textContent = `Vu ${relDays(lastSeen)}` + (p.firstSeen ? ` · depuis le ${dateFmt.format(p.firstSeen).replace(/ à .*/, '')}` : '');
+      row.querySelector('.s-points').textContent = `${p.points || 0} 🪙`;
+      row.querySelector('.s-coll').textContent = total ? `${distinct}/${total}` : `${distinct}`;
+      row.querySelector('.s-coll').title = `${copies} exemplaires en tout`;
+      row.querySelector('.s-stars').textContent = `🌟 ${p.stars || 0}`;
+      row.querySelector('.player-write').addEventListener('click', () => writeToPlayer(p, key));
+      body.appendChild(row);
+    }
+  }
+
+  async function writeToPlayer(p, key) {
+    const name = p.pseudo || key;
+    const text = await askText(`Message pour ${name} (il arrivera dans sa boîte aux lettres) :`, 'Suivant', '');
+    if (!text) return;
+    const gift = await askText(`Offrir des pièces avec ce message ? (0 = aucune)`, 'Envoyer', '0');
+    if (gift === null) return;
+    const reward = Math.max(0, Math.round(Number(gift) || 0));
+    try {
+      await sendMail(key, reward ? 'Un cadeau pour toi 🎁' : 'Message de l\'administrateur', text, reward);
+      toast(`Message envoyé à ${name}${reward ? ` avec ${reward} 🪙` : ''}.`);
+    } catch (e) {
+      console.warn('Message impossible', e);
+      toast('Le message n\'a pas pu être envoyé. Vérifie ta connexion.');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Démarrage
   // ---------------------------------------------------------------------------
   async function init() {
@@ -2726,6 +2834,7 @@
     else if (place.screen === 'creations') openCreations();
     else if (place.screen === 'mail') openMail();
     else if (place.screen === 'coffre') openCoffre();
+    else if (place.screen === 'players') openPlayers();
   }
 
   init();

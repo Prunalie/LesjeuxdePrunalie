@@ -1325,3 +1325,32 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
   .coffre-card { flex-direction: column; align-items: stretch; }
   .coffre-card .env-item-img { width: 140px; margin: 0 auto; }
 }
+
+/* ---------- Joueurs (administrateur) ---------- */
+.tile-players { --tile: #5aa6b8; }
+.players-bar { max-width: 1100px; margin: 0 auto 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.players-bar p { margin: 0; flex: 1 1 220px; font-size: .88rem; }
+.players-search { width: 220px; padding: 7px 10px; font-size: .9rem; }
+.players-list { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+.player-row {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.player-main { flex: 1; min-width: 0; }
+.player-name { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+.player-seen { margin: 2px 0 0; font-size: .78rem; }
+.player-stats { display: flex; gap: 18px; margin: 0; }
+.player-stats div { display: flex; flex-direction: column; align-items: flex-end; }
+.player-stats dt { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.player-stats dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 720px) {
+  #screenPlayers .label-long { display: none; }
+  .player-row { flex-wrap: wrap; gap: 8px 12px; }
+  .player-main { flex: 1 1 60%; }
+  .player-stats { order: 3; flex: 1 1 100%; justify-content: space-between; }
+  .player-stats div { align-items: flex-start; }
+  .players-search { flex: 1 1 140px; width: auto; }
+}

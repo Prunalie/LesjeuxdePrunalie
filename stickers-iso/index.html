@@ -67,6 +67,11 @@
           <span class="home-label">Coffre</span>
           <span class="home-sub" id="homeCoffreSub">Propositions des joueurs</span>
         </button>
+        <button id="homePlayers" class="home-tile tile-players" hidden>
+          <span class="home-icon" aria-hidden="true">👥</span>
+          <span class="home-label">Joueurs</span>
+          <span class="home-sub">Qui joue, et leur écrire</span>
+        </button>
         <button id="homeAtelier" class="home-tile tile-atelier" hidden>
           <span class="home-icon" aria-hidden="true">🛠️</span>
           <span class="home-label">Atelier</span>
@@ -307,6 +312,30 @@
     <div class="rooms-body">
       <p id="mailEmpty" class="empty">Ta boîte aux lettres est vide.</p>
       <div id="mailList" class="mail-list"></div>
+    </div>
+  </section>
+
+  <!-- Joueurs (administrateur) -->
+  <section id="screenPlayers" class="screen screen-players" hidden>
+    <header class="topbar">
+      <div class="room-title">
+        <button id="playersBack" class="btn btn-ghost" title="Menu principal">←<span class="label-long">&nbsp;Menu</span></button>
+        <h1>Joueurs</h1>
+      </div>
+    </header>
+    <div class="rooms-body">
+      <div class="players-bar">
+        <p id="playersCount" class="muted"></p>
+        <input id="playersSearch" class="field players-search" type="search" placeholder="Chercher un pseudo" aria-label="Chercher un pseudo">
+        <select id="playersSort" class="coffre-select" aria-label="Trier">
+          <option value="recent">Dernière visite</option>
+          <option value="name">Pseudo (A → Z)</option>
+          <option value="points">Pièces</option>
+          <option value="collection">Collection</option>
+        </select>
+      </div>
+      <p id="playersEmpty" class="empty" hidden>Aucun joueur pour l'instant.</p>
+      <div id="playersList" class="players-list"></div>
     </div>
   </section>
 
