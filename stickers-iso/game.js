@@ -534,15 +534,96 @@
   // ---------------------------------------------------------------------------
   // Stickers posés dans la pièce
   // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // Annuler / rétablir : on garde des instantanés de la pièce (stickers + couleurs)
+  // ---------------------------------------------------------------------------
+  const HISTORY_MAX = 60;
+  const history = { undo: [], redo: [] };
+  let lastCoalesce = { kind: null, time: 0 };
+
+  const snapshot = () => JSON.stringify({ stickers: state.stickers, colors: state.colors });
+
+  // Enregistre l'état « avant » si la pièce a vraiment changé depuis.
+  function commit(before) {
+    if (before === snapshot()) return;
+    history.undo.push(before);
+    if (history.undo.length > HISTORY_MAX) history.undo.shift();
+    history.redo = [];
+    lastCoalesce = { kind: null, time: 0 };
+    updateUndoButtons();
+  }
+
+  // Pour les petits changements en rafale (molette, flèches, nuancier) : un seul
+  // retour en arrière pour toute la rafale.
+  function checkpoint(kind) {
+    const now = Date.now();
+    const same = lastCoalesce.kind === kind && now - lastCoalesce.time < 800;
+    lastCoalesce = { kind, time: now };
+    if (same) return;
+    history.undo.push(snapshot());
+    if (history.undo.length > HISTORY_MAX) history.undo.shift();
+    history.redo = [];
+    updateUndoButtons();
+  }
+
+  function resetHistory() {
+    history.undo = [];
+    history.redo = [];
+    lastCoalesce = { kind: null, time: 0 };
+    updateUndoButtons();
+  }
+
+  function restore(snap) {
+    const data = JSON.parse(snap);
+    state.stickers = data.stickers.filter((st) => state.images.has(st.imageId));
+    state.colors = { ...DEFAULT_COLORS, ...data.colors };
+    // Un exemplaire vendu entre-temps ne peut pas revenir dans la pièce.
+    for (const id of new Set(state.stickers.map((st) => st.imageId))) {
+      let extra = usedCount(id) - owned(id);
+      for (let i = state.stickers.length - 1; i >= 0 && extra > 0; i--) {
+        if (state.stickers[i].imageId === id) { state.stickers.splice(i, 1); extra--; }
+      }
+    }
+    if (!state.stickers.some((st) => st.id === state.selectedId)) state.selectedId = null;
+    lastCoalesce = { kind: null, time: 0 };
+    syncColorInputs();
+    drawRoom();
+    renderStickers();
+    scheduleSave();
+    updateUndoButtons();
+  }
+
+  function undo() {
+    if (!history.undo.length || gesture) return;
+    history.redo.push(snapshot());
+    restore(history.undo.pop());
+  }
+
+  function redo() {
+    if (!history.redo.length || gesture) return;
+    history.undo.push(snapshot());
+    restore(history.redo.pop());
+  }
+
+  function updateUndoButtons() {
+    $('#btnUndo').disabled = !history.undo.length;
+    $('#btnRedo').disabled = !history.redo.length;
+  }
+
+  $('#btnUndo').addEventListener('click', undo);
+  $('#btnRedo').addEventListener('click', redo);
+
   function addSticker(imageId, x, y) {
     const img = state.images.get(imageId);
     if (!img || available(imageId) <= 0) return;
+    const before = snapshot();
     const k = STICKER_DEFAULT_SIZE / Math.max(img.w, img.h);
     const s = { id: uid(), imageId, x, y, w: img.w * k, h: img.h * k, rot: 0, flip: false };
     state.stickers.push(s); // nouveau sticker devant les autres
     state.selectedId = s.id;
     renderStickers();
     scheduleSave();
+    commit(before);
   }
 
   const getSelected = () => state.stickers.find((s) => s.id === state.selectedId) || null;
@@ -602,7 +683,7 @@
     if (e.target.classList.contains('handle-scale')) mode = 'scale';
     else if (e.target.classList.contains('handle-rotate')) mode = 'rotate';
 
-    gesture = { s, el, mode, pointers: new Map() };
+    gesture = { s, el, mode, pointers: new Map(), before: snapshot() };
     gesture.pointers.set(e.pointerId, toStage(e.clientX, e.clientY));
     resetGestureStart();
     el.classList.add('dragging');
@@ -678,16 +759,18 @@
       return;
     }
     gesture.el.classList.remove('dragging');
+    const before = gesture.before;
     gesture = null;
     window.removeEventListener('pointermove', onGestureMove);
     window.removeEventListener('pointerup', onGestureEnd);
     window.removeEventListener('pointercancel', onGestureEnd);
+    commit(before);
     scheduleSave();
   }
 
   // Molette : sur le sticker sélectionné, agrandir / réduire ; ailleurs, zoomer.
   stageArea.addEventListener('wheel', (e) => {
-    if (e.target.closest('.toolbar, .bar-tab, .zoom-ctrl')) return;
+    if (e.target.closest('.toolbar, .bar-tab, .zoom-ctrl, .undo-ctrl')) return;
     e.preventDefault();
     const s = getSelected();
     const onSelected = s && e.target.closest('.sticker') === elFor(s.id);
@@ -697,6 +780,7 @@
     }
     const k = e.deltaY < 0 ? 1.06 : 1 / 1.06;
     if (Math.min(s.w, s.h) * k < MIN_SIZE) return;
+    checkpoint('wheel:' + s.id);
     s.w *= k; s.h *= k;
     applyStickerStyle(elFor(s.id), s);
     scheduleSave();
@@ -707,7 +791,7 @@
   let viewGesture = null;
 
   stageArea.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.sticker, .toolbar, .bar-tab, .zoom-ctrl')) return;
+    if (e.target.closest('.sticker, .toolbar, .bar-tab, .zoom-ctrl, .undo-ctrl')) return;
     if (e.button !== undefined && e.button !== 0) return;
     if (joinPinch(e)) return;
     viewPointerDown(e);
@@ -788,6 +872,7 @@
   function act(action) {
     const s = getSelected();
     if (!s) return;
+    const before = snapshot();
     const arr = state.stickers;
     const i = arr.indexOf(s);
     switch (action) {
@@ -811,6 +896,7 @@
     }
     renderStickers();
     scheduleSave();
+    commit(before);
   }
 
   toolbar.addEventListener('click', (e) => {
@@ -820,12 +906,24 @@
 
   document.addEventListener('keydown', (e) => {
     if (e.target.matches('input, textarea')) return;
+    if (screens.room.hidden) return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      if (e.shiftKey) redo(); else undo();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+      e.preventDefault();
+      redo();
+      return;
+    }
     const s = getSelected();
     if (!s) return;
     const step = e.shiftKey ? 10 : 2;
     const moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
     if (moves[e.key]) {
       e.preventDefault();
+      checkpoint('keys:' + s.id);
       s.x = clamp(s.x + moves[e.key][0], 0, STAGE_W);
       s.y = clamp(s.y + moves[e.key][1], 0, STAGE_H);
       applyStickerStyle(elFor(s.id), s);
@@ -859,6 +957,7 @@
   };
   for (const [key, input] of Object.entries(colorInputs)) {
     input.addEventListener('input', () => {
+      checkpoint('color:' + key);
       state.colors[key] = input.value;
       drawRoom();
       scheduleSave();
@@ -869,7 +968,9 @@
   }
 
   function setColor(key, hex) {
+    const before = snapshot();
     state.colors[key] = hex;
+    commit(before);
     syncColorInputs();
     drawRoom();
     scheduleSave();
@@ -1014,7 +1115,9 @@
 
   $('#btnClear').addEventListener('click', async () => {
     if (!state.stickers.length || !(await askConfirm('Retirer tous les stickers de la pièce ?', 'Vider'))) return;
+    const before = snapshot();
     state.stickers = [];
+    commit(before);
     state.selectedId = null;
     renderStickers();
     scheduleSave();
@@ -1328,6 +1431,7 @@
       .filter((s) => state.images.has(s.imageId))
       .map((s) => ({ ...s }));
     state.selectedId = null;
+    resetHistory();
     $('#roomName').value = r.name;
     setSaveStatus('Sauvegardé ✓');
     syncColorInputs();

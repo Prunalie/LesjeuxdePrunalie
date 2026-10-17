@@ -1071,3 +1071,27 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
 @media (max-width: 720px) {
   .stamp-stars .btn { flex: 1 1 auto; justify-content: center; }
 }
+
+/* ---------- Annuler / rétablir ---------- */
+.undo-ctrl {
+  position: absolute; left: 8px; top: 8px;
+  z-index: 20;
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 2px 6px rgba(0,0,0,.08);
+  overflow: hidden;
+}
+.undo-ctrl button {
+  width: 40px; height: 36px;
+  border: none; background: transparent;
+  color: var(--ink);
+  font: inherit; font-size: 1.15rem; line-height: 1;
+  cursor: pointer;
+}
+.undo-ctrl button + button { border-left: 1px solid var(--line); }
+.undo-ctrl button:hover:not(:disabled) { color: var(--accent); }
+.undo-ctrl button:disabled { color: var(--muted); opacity: .4; cursor: default; }
+/* Sur ordinateur, la languette des stickers est à gauche : on décale un peu. */
+@media (min-width: 721px) { .undo-ctrl { left: 14px; top: 12px; } }
