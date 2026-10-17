@@ -1177,3 +1177,5 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
   .layer-pick { padding: 6px; font-size: .92rem; }
   .layer-lock { width: 42px; height: 42px; }
 }
+
+.bg-reset { font-size: 1rem; }

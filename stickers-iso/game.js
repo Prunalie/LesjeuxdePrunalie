@@ -35,7 +35,9 @@
     wallLeft: '#f4d9c6',
     wallRight: '#ecc8b4',
     floor: '#d7b48f',
+    // background : couleur du fond autour de la pièce (absente = fond de la page)
   };
+  const DEFAULT_BACKGROUND = '#f6f0ea';
 
   const state = {
     player: null,        // { key, name } : key = pseudo normalisé, sert d'identifiant
@@ -221,7 +223,7 @@
     savePending = false;
     let thumb = '';
     try {
-      const cv = await renderScene(0.3, null);
+      const cv = await renderScene(0.3, state.colors.background || null);
       thumb = cv.toDataURL('image/webp', 0.8);
       if (!thumb.startsWith('data:image/webp')) thumb = cv.toDataURL('image/png');
     } catch (e) {
@@ -278,6 +280,7 @@
 
   function drawRoom() {
     room.innerHTML = roomSvg(state.colors);
+    stageArea.style.background = state.colors.background || '';
   }
 
   function roomSvg(colors) {
@@ -1038,18 +1041,32 @@
     wallLeft: $('#colorWallLeft'),
     wallRight: $('#colorWallRight'),
     floor: $('#colorFloor'),
+    background: $('#colorBackground'),
   };
   for (const [key, input] of Object.entries(colorInputs)) {
     input.addEventListener('input', () => {
       checkpoint('color:' + key);
       state.colors[key] = input.value;
+      if (key === 'background') $('#bgReset').hidden = false;
       drawRoom();
       scheduleSave();
     });
   }
   function syncColorInputs() {
-    for (const [key, input] of Object.entries(colorInputs)) input.value = state.colors[key];
+    for (const [key, input] of Object.entries(colorInputs)) {
+      input.value = state.colors[key] || (key === 'background' ? DEFAULT_BACKGROUND : DEFAULT_COLORS[key]);
+    }
+    $('#bgReset').hidden = !state.colors.background;
   }
+
+  $('#bgReset').addEventListener('click', () => {
+    const before = snapshot();
+    delete state.colors.background;
+    syncColorInputs();
+    drawRoom();
+    scheduleSave();
+    commit(before);
+  });
 
   function setColor(key, hex) {
     const before = snapshot();
@@ -1064,9 +1081,9 @@
   // ordinateur : on peut viser n'importe où à l'écran) ; sinon on touche un
   // endroit de la pièce pour prendre sa couleur.
   let pipetteKey = null;
-  const PIPETTE_NAMES = { wallLeft: 'le mur gauche', wallRight: 'le mur droit', floor: 'le sol' };
+  const PIPETTE_NAMES = { wallLeft: 'le mur gauche', wallRight: 'le mur droit', floor: 'le sol', background: 'le fond' };
 
-  document.querySelectorAll('.pipette-btn').forEach((btn) => {
+  document.querySelectorAll('.pipette-btn[data-color]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const key = btn.dataset.color;
       if (window.EyeDropper) {
@@ -1103,9 +1120,11 @@
     if (!pip || !pip.ctx) return null;
     const p = toStage(clientX, clientY);
     const x = Math.round(p.x * SCENE_K), y = Math.round(p.y * SCENE_K);
-    if (x < 0 || y < 0 || x >= STAGE_W * SCENE_K || y >= STAGE_H * SCENE_K) return null;
+    // En dehors de la pièce dessinée : c'est le fond qu'on voit.
+    const bg = state.colors.background || null;
+    if (x < 0 || y < 0 || x >= STAGE_W * SCENE_K || y >= STAGE_H * SCENE_K) return bg;
     const [r, g, b, a] = pip.ctx.getImageData(x, y, 1, 1).data;
-    return a < 20 ? null : toHex(r, g, b);
+    return a < 20 ? bg : toHex(r, g, b);
   }
 
   function drawLoupe() {
@@ -1178,7 +1197,7 @@
     pip = { key: pipetteKey, ctx: null, pointerId: e.pointerId, x: e.clientX, y: e.clientY };
     stopPipette();
     const current = pip;
-    current.ready = renderScene(SCENE_K, null).then((cv) => {
+    current.ready = renderScene(SCENE_K, state.colors.background || null).then((cv) => {
       current.ctx = cv.getContext('2d', { willReadFrequently: true });
       if (pip === current) drawLoupe();
     }).catch((err) => {
@@ -1246,7 +1265,7 @@
 
   $('#btnExport').addEventListener('click', async () => {
     // export en haute définition
-    const cv = await renderScene(2, getComputedStyle(document.body).backgroundColor);
+    const cv = await renderScene(2, state.colors.background || getComputedStyle(document.body).backgroundColor);
     cv.toBlob((blob) => {
       // On affiche l'image (enregistrable par clic droit / appui long) avec un lien
       // de téléchargement, qui ne marche pas partout (pages intégrées).
@@ -1427,6 +1446,7 @@
           <button data-room-act="delete" title="Supprimer" class="danger">🗑️</button>
         </div>`;
       if (r.thumb) card.querySelector('img').src = r.thumb;
+      if (r.colors && r.colors.background) card.querySelector('.room-open').style.background = r.colors.background;
       card.querySelector('.room-name').textContent = r.name || 'Sans nom';
       const n = (r.stickers || []).length;
       card.querySelector('.room-date').textContent =
