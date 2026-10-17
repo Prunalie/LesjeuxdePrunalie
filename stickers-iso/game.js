@@ -938,11 +938,19 @@
   function showScreen(name) {
     for (const [key, el] of Object.entries(screens)) el.hidden = key !== name;
     if (name === 'room') fitStage();
+    // On retient l'écran (et la pièce) pour y revenir après une actualisation.
+    if (name !== 'start') store(PLACE_KEY, JSON.stringify({ screen: name, roomId: state.roomId }));
   }
 
+  // Mémorisé dans le navigateur : le dernier pseudo (pré-rempli à l'accueil), la
+  // session en cours (pour rester connectée en actualisant) et l'écran ouvert.
   const PSEUDO_KEY = 'ma-petite-piece:pseudo';
-  const remember = (v) => { try { localStorage.setItem(PSEUDO_KEY, v); } catch (e) { /* stockage indisponible */ } };
-  const recall = () => { try { return localStorage.getItem(PSEUDO_KEY) || ''; } catch (e) { return ''; } };
+  const SESSION_KEY = 'ma-petite-piece:session';
+  const PLACE_KEY = 'ma-petite-piece:ecran';
+  const store = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* stockage indisponible */ } };
+  const read = (k) => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } };
+  const remember = (v) => { store(PSEUDO_KEY, v); store(SESSION_KEY, v); };
+  const recall = () => read(PSEUDO_KEY);
   const normalizePseudo = (name) => name.trim().replace(/\s+/g, ' ').toLowerCase();
 
   // Charge une liste en basculant sur le navigateur si Firebase ne répond pas.
@@ -1033,6 +1041,8 @@
   }
 
   $('#btnChangePseudo').addEventListener('click', () => {
+    store(SESSION_KEY, null);
+    store(PLACE_KEY, null);
     state.player = null;
     state.profile = null;
     state.isAdmin = false;
@@ -1557,13 +1567,33 @@
   // ---------------------------------------------------------------------------
   // Démarrage
   // ---------------------------------------------------------------------------
-  function init() {
+  async function init() {
     window.addEventListener('resize', fitStage);
     new ResizeObserver(fitStage).observe(stageArea);
     applyBars();
     $('#pseudoInput').value = recall();
     showScreen('start');
-    $('#pseudoInput').focus();
+
+    // Session en cours : on se reconnecte tout seul et on rouvre le même écran.
+    const session = read(SESSION_KEY);
+    if (!session) {
+      $('#pseudoInput').focus();
+      return;
+    }
+    const btn = $('#startBtn');
+    btn.disabled = true;
+    btn.textContent = 'Connexion…';
+    let place = {};
+    try { place = JSON.parse(read(PLACE_KEY)) || {}; } catch (e) { /* écran inconnu */ }
+    try {
+      await login(session);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Jouer';
+    }
+    if (place.screen === 'room' && state.rooms.some((r) => r.id === place.roomId)) openRoom(place.roomId);
+    else if (place.screen === 'shop') openShop(false);
+    else if (place.screen === 'atelier' && state.isAdmin) $('#btnAtelier').click();
   }
 
   init();
