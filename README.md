@@ -13,7 +13,7 @@ Des pièces en isométrie à décorer avec tes propres stickers.
 - **Points** : chaque jour, à la première connexion, on gagne 100 🪙.
 - **Boutique** : avec les points, on achète des enveloppes. Chaque enveloppe donne **un** sticker tiré au sort parmi ceux qu'elle contient (commun, rare ou très rare). Toucher une enveloppe montre son contenu : les stickers obtenus et la silhouette des autres.
 - **Exemplaires** : chaque sticker obtenu se pose **une seule fois**, toutes pièces confondues. Pour le poser plusieurs fois, il faut l'obtenir plusieurs fois. Le retirer d'une pièce le rend de nouveau disponible.
-- **Atelier** (réservé aux pseudos listés dans `ADMIN_PSEUDOS` dans `game.js`, aujourd'hui « Prunalie ») : créer les enveloppes (nom, prix, couleur), y ajouter les stickers et choisir leur rareté. Un bouton « ＋100 🪙 » permet de tester la boutique.
+- **Atelier** (réservé au pseudo « Administrateur », réglable avec `ADMIN_PSEUDOS` dans `game.js` ; sans mot de passe, toute personne qui utilise ce pseudo y a accès) : créer les enveloppes (nom, prix, couleur), y ajouter les stickers et choisir leur rareté. Un bouton « ＋100 🪙 » permet de tester la boutique.
 
 **Lancer le jeu :** ouvre `stickers-iso/index.html` dans un navigateur
 (ou sers le dossier, par ex. `python3 -m http.server` dans `stickers-iso/`).

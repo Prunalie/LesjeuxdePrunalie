@@ -18,7 +18,7 @@
   const MIN_SIZE = 16;
 
   // Collection
-  const ADMIN_PSEUDOS = ['prunalie'];  // pseudos (en minuscules) qui ont accès à l'atelier
+  const ADMIN_PSEUDOS = ['administrateur'];  // pseudos (en minuscules) qui ont accès à l'atelier
   const DAILY_POINTS = 100;            // points gagnés une fois par jour
   const DEFAULT_PRICE = 50;            // prix d'une nouvelle enveloppe
   const STAR_PRICE = 1000;             // prix d'une étoile achetée avec des pièces
