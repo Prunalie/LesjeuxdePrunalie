@@ -1727,19 +1727,25 @@
     const list = stickersOf(env.id);
     $('#envTitle').textContent = env.name || 'Enveloppe';
     const got = list.filter((img) => owned(img.id) > 0).length;
-    $('#envSub').textContent = `${got}/${list.length} obtenus · un seul sticker par enveloppe, tiré au sort`;
+    $('#envSub').textContent = `${list.length} stickers possibles · ${got} déjà obtenu${got > 1 ? 's' : ''} · un seul par enveloppe, tiré au sort`;
     const grid = $('#envGrid');
     grid.innerHTML = '';
+    grid.classList.add('env-grid-small');
+    // Tous les stickers sont montrés en vrai (en petit), avec leur chance de sortir.
+    const totalWeight = list.reduce((sum, img) => sum + RARITIES[img.rarity || 'common'].weight, 0);
     const order = { epic: 0, rare: 1, common: 2 };
     for (const img of [...list].sort((a, b) => order[a.rarity || 'common'] - order[b.rarity || 'common'])) {
       const n = owned(img.id);
+      const chance = Math.round((RARITIES[img.rarity || 'common'].weight / totalWeight) * 100);
       const cell = document.createElement('div');
-      cell.className = 'env-item' + (n ? '' : ' missing');
+      cell.className = 'env-item' + (n ? ' owned' : '');
       cell.dataset.rarity = img.rarity || 'common';
-      cell.innerHTML = '<div class="env-item-img"><img alt=""></div><span class="env-item-name"></span><span class="rarity-tag"></span>';
+      cell.title = `${img.name} · ${RARITIES[img.rarity || 'common'].label} · ${chance || '<1'} % de chance`;
+      cell.innerHTML = `<div class="env-item-img"><img alt="">${n ? `<span class="env-owned">✓${n > 1 ? ` ×${n}` : ''}</span>` : ''}</div>
+        <span class="env-item-name"></span>
+        <span class="env-chance"><span class="rarity-dot"></span>${chance || '<1'} %</span>`;
       cell.querySelector('img').src = img.url;
-      cell.querySelector('.env-item-name').textContent = n ? `${img.name} ×${n}` : '???';
-      cell.querySelector('.rarity-tag').textContent = RARITIES[img.rarity || 'common'].label;
+      cell.querySelector('.env-item-name').textContent = img.name;
       grid.appendChild(cell);
     }
     const price = env.price ?? DEFAULT_PRICE;

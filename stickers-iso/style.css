@@ -1354,3 +1354,24 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
   .player-stats div { align-items: flex-start; }
   .players-search { flex: 1 1 140px; width: auto; }
 }
+
+/* Contenu d'une enveloppe : tous les stickers en petit, avant d'acheter */
+.env-grid-small { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+.env-grid-small .env-item-img { position: relative; border-width: 2px; border-radius: 10px; }
+.env-grid-small .env-item-name { font-size: .7rem; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.env-owned {
+  position: absolute; right: -4px; top: -4px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: #2f8a3c; color: #fff;
+  font-size: .62rem; font-weight: 800;
+}
+.env-chance { display: inline-flex; align-items: center; gap: 4px; font-size: .68rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rarity-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--r, var(--r-common)); }
+.env-grid-small .env-item:not(.owned) .env-item-img { border-style: dashed; }
+@media (max-width: 720px) {
+  .env-grid-small { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .env-grid-small .env-item-name { font-size: .64rem; }
+  #envDialog .modal-actions { flex-wrap: wrap; }
+  #envDialog .modal-actions .btn { flex: 1 1 auto; justify-content: center; white-space: nowrap; }
+}
