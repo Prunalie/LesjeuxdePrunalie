@@ -6,6 +6,7 @@ Des pièces en isométrie à décorer avec tes propres stickers.
 
 - **Menu principal** : après le pseudo, quatre entrées : Mes pièces, Boutique, Collection et (pour l'administratrice) Atelier.
 - **Collection** : un classeur avec une page par enveloppe (onglets à sa couleur). Chaque sticker a sa pochette numérotée : ceux obtenus (avec le nombre d'exemplaires), et la silhouette de ceux qui restent à trouver. Toucher un sticker obtenu ouvre sa fiche.
+- **Vente** : dans la collection, la fiche d'un sticker permet d'en vendre un exemplaire (commun 10 🪙, rare 25 🪙, très rare 60 🪙, réglable dans `RARITIES` de `game.js`). « Vendre mes doubles » vend tout d'un coup en gardant un exemplaire de chaque. Les exemplaires posés dans les pièces ne sont jamais vendus.
 - **Pseudo** : au démarrage, choisis un pseudo (pas de mot de passe). Reprends le même sur tous tes appareils pour retrouver tes pièces.
 - **Mes pièces** : crée autant de pièces que tu veux, renomme-les, duplique-les ou supprime-les. Chaque pièce se sauvegarde toute seule.
 - **Points** : chaque jour, à la première connexion, on gagne 100 🪙.

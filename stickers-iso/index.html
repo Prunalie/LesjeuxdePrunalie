@@ -184,9 +184,16 @@
         <button id="collectionBack" class="btn btn-ghost" title="Menu principal">←<span class="label-long">&nbsp;Menu</span></button>
         <h1>Collection</h1>
       </div>
-      <div class="topbar-actions"><span id="collectionTotal" class="points-pill"></span></div>
+      <div class="topbar-actions">
+        <span class="points-pill"></span>
+        <span id="collectionTotal" class="points-pill" title="Stickers obtenus"></span>
+      </div>
     </header>
     <div class="rooms-body">
+      <div class="collection-bar">
+        <p class="muted">Touche un sticker obtenu pour voir sa fiche ou le vendre. Revente : commun 10 🪙, rare 25 🪙, très rare 60 🪙.</p>
+        <button id="btnSellDoubles" class="btn"></button>
+      </div>
       <div class="binder">
         <div id="binderTabs" class="binder-tabs" role="tablist" aria-label="Pages du classeur"></div>
         <div class="binder-page">
@@ -271,7 +278,11 @@
       <span id="cardRarity" class="rarity-tag"></span>
       <h2 id="cardName" class="modal-title"></h2>
       <p id="cardInfo" class="muted"></p>
-      <div class="modal-actions"><button id="cardClose" class="btn btn-primary">Fermer</button></div>
+      <p id="cardSellHint" class="card-sell-hint muted"></p>
+      <div class="modal-actions">
+        <button id="cardSell" class="btn"></button>
+        <button id="cardClose" class="btn btn-primary">Fermer</button>
+      </div>
     </div>
   </div>
 

@@ -23,9 +23,10 @@
   const DEFAULT_PRICE = 50;            // prix d'une nouvelle enveloppe
   const STAMPS_PER_STAR = 20;          // tampons à réunir sur la carte pour gagner une étoile
   const RARITIES = {
-    common: { label: 'Commun', weight: 10 },
-    rare: { label: 'Rare', weight: 3 },
-    epic: { label: 'Très rare', weight: 1 },
+    // sell : pièces 🪙 gagnées en revendant un exemplaire
+    common: { label: 'Commun', weight: 10, sell: 10 },
+    rare: { label: 'Rare', weight: 3, sell: 25 },
+    epic: { label: 'Très rare', weight: 1, sell: 60 },
   };
   const ENVELOPE_COLORS = ['#e8a0ad', '#9cc5e0', '#b8d8a8', '#f2c879', '#c3a6e0'];
 
@@ -1841,6 +1842,9 @@
     const all = collectible();
     const got = all.filter((img) => owned(img.id) > 0).length;
     $('#collectionTotal').textContent = `${got}/${all.length}`;
+    const dbl = doubles().reduce((sum, d) => sum + d.k, 0);
+    $('#btnSellDoubles').textContent = dbl ? `Vendre mes doubles (${dbl})` : 'Pas de doubles';
+    $('#btnSellDoubles').disabled = !dbl;
     $('#collectionTotal').title = `${got} stickers obtenus sur ${all.length}`;
     $('#collectionEmpty').hidden = pages.length > 0;
     document.querySelector('.binder').hidden = !pages.length;
@@ -1908,14 +1912,83 @@
   const cardDialog = $('#cardDialog');
   function showCard(img) {
     const n = owned(img.id), used = usedCount(img.id);
+    const price = sellPrice(img);
     cardDialog.dataset.rarity = img.rarity || 'common';
     $('#cardImg img').src = img.url;
     $('#cardRarity').textContent = RARITIES[img.rarity || 'common'].label;
     $('#cardName').textContent = img.name;
     $('#cardInfo').textContent = `${plural(n, 'exemplaire')} · ${used ? `${used} posé${used > 1 ? 's' : ''} dans tes pièces` : 'aucun posé pour l\'instant'}`;
+    const sell = $('#cardSell');
+    const free = available(img.id);
+    sell.disabled = free < 1;
+    sell.textContent = `Vendre 1 · +${price} 🪙`;
+    $('#cardSellHint').textContent = free < 1
+      ? 'Tous tes exemplaires sont posés : retire-en un d\'une pièce pour pouvoir le vendre.'
+      : `Tu peux en vendre ${free} (ceux qui ne sont pas posés dans tes pièces).`;
+    sell.onclick = () => sellSticker(img);
     cardDialog.hidden = false;
   }
   $('#cardClose').addEventListener('click', () => { cardDialog.hidden = true; });
+
+  // ---------------------------------------------------------------------------
+  // Vente : un exemplaire non posé rapporte des pièces selon sa rareté
+  // ---------------------------------------------------------------------------
+  const sellPrice = (img) => RARITIES[img.rarity || 'common'].sell;
+
+  function removeCopies(img, k) {
+    const left = owned(img.id) - k;
+    if (left > 0) state.profile.inventory[img.id] = left;
+    else delete state.profile.inventory[img.id];
+  }
+
+  async function sellSticker(img) {
+    if (available(img.id) < 1) return;
+    const price = sellPrice(img);
+    const last = owned(img.id) === 1;
+    const msg = last
+      ? `Vendre « ${img.name} » pour ${price} 🪙 ? C'est ton dernier exemplaire : il quittera ta collection.`
+      : `Vendre un exemplaire de « ${img.name} » pour ${price} 🪙 ?`;
+    if (!(await askConfirm(msg, 'Vendre'))) return;
+    if (available(img.id) < 1) return;
+    removeCopies(img, 1);
+    state.profile.points += price;
+    saveProfile();
+    renderPoints();
+    toast(`+${price} 🪙 : « ${img.name} » vendu.`);
+    if (owned(img.id) > 0) showCard(img);
+    else cardDialog.hidden = true;
+    if (!screens.collection.hidden) renderCollection();
+  }
+
+  // Vendre tous les doubles d'un coup : on garde toujours un exemplaire de chaque
+  // sticker, et on ne touche pas à ceux posés dans les pièces.
+  function doubles() {
+    const out = [];
+    for (const img of collectible()) {
+      const k = Math.min(owned(img.id) - 1, available(img.id));
+      if (k > 0) out.push({ img, k });
+    }
+    return out;
+  }
+
+  $('#btnSellDoubles').addEventListener('click', async () => {
+    const list = doubles();
+    if (!list.length) {
+      toast('Tu n\'as pas de doubles à vendre (on garde toujours un exemplaire de chaque sticker).');
+      return;
+    }
+    const count = list.reduce((sum, d) => sum + d.k, 0);
+    const total = list.reduce((sum, d) => sum + d.k * sellPrice(d.img), 0);
+    if (!(await askConfirm(`Vendre tes ${plural(count, 'double')} pour ${total} 🪙 ? Tu gardes un exemplaire de chaque sticker, et ceux posés dans tes pièces ne sont pas vendus.`, 'Vendre'))) return;
+    for (const { img, k } of doubles()) {
+      removeCopies(img, k);
+      state.profile.points += k * sellPrice(img);
+    }
+    saveProfile();
+    renderPoints();
+    renderCollection();
+    toast(`+${total} 🪙 : ${plural(count, 'double')} vendu${count > 1 ? 's' : ''}.`);
+  });
 
   // ---------------------------------------------------------------------------
   // Démarrage

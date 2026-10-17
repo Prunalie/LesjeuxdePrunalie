@@ -1040,3 +1040,14 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
 @media (prefers-reduced-motion: reduce) { .open-stamp.won { animation: none; } }
 /* La question de confirmation passe toujours devant les autres fenêtres. */
 #confirmDialog { z-index: 3500; }
+
+/* ---------- Vente ---------- */
+.collection-bar {
+  max-width: 980px; margin: 0 auto 14px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+}
+.collection-bar p { margin: 0; flex: 1 1 260px; font-size: .85rem; }
+.card-sell-hint { margin: -4px 0 6px; font-size: .78rem; }
+@media (max-width: 720px) {
+  .collection-bar .btn { width: 100%; justify-content: center; }
+}
