@@ -21,6 +21,7 @@
   const ADMIN_PSEUDOS = ['administrateur'];  // pseudos (en minuscules) qui ont accès à l'atelier
   const DAILY_POINTS = 100;            // points gagnés une fois par jour
   const DEFAULT_PRICE = 50;            // prix d'une nouvelle enveloppe
+  const MULTI_BUY = 5;                 // nombre d'enveloppes du bouton « ×5 »
   const STAR_PRICE = 1000;             // prix d'une étoile achetée avec des pièces
   const STAMPS_PER_STAR = 10;          // tampons à réunir sur la carte pour gagner une étoile
   const RARITIES = {
@@ -1670,7 +1671,10 @@
         <button class="shop-art" title="Voir les stickers de cette enveloppe"></button>
         <h3 class="shop-name"></h3>
         <p class="shop-progress"><span class="bar"><span></span></span><span class="txt"></span></p>
-        <button class="btn btn-primary shop-buy"></button>`;
+        <div class="shop-buttons">
+          <button class="btn btn-primary shop-buy"></button>
+          <button class="btn shop-buy5"></button>
+        </div>`;
       card.querySelector('.shop-art').appendChild(envelopeArt(env));
       card.querySelector('.shop-name').textContent = env.name || 'Enveloppe';
       card.querySelector('.bar span').style.width = `${(got / list.length) * 100}%`;
@@ -1680,6 +1684,11 @@
       buy.disabled = state.profile.points < price;
       card.querySelector('.shop-art').addEventListener('click', () => showEnvelope(env));
       buy.addEventListener('click', () => buyEnvelope(env));
+      const buy5 = card.querySelector('.shop-buy5');
+      buy5.textContent = `×${MULTI_BUY} · ${price * MULTI_BUY} 🪙`;
+      buy5.title = `Acheter ${MULTI_BUY} enveloppes « ${env.name} » d'un coup`;
+      buy5.disabled = state.profile.points < price * MULTI_BUY;
+      buy5.addEventListener('click', () => buyEnvelopes(env, MULTI_BUY));
       grid.appendChild(card);
     }
   }
@@ -1710,6 +1719,10 @@
     buy.textContent = `Acheter · ${price} 🪙`;
     buy.disabled = state.profile.points < price;
     buy.onclick = () => { envDialog.hidden = true; buyEnvelope(env); };
+    const buy5 = $('#envBuy5');
+    buy5.textContent = `×${MULTI_BUY} · ${price * MULTI_BUY} 🪙`;
+    buy5.disabled = state.profile.points < price * MULTI_BUY;
+    buy5.onclick = () => { envDialog.hidden = true; buyEnvelopes(env, MULTI_BUY); };
     envDialog.hidden = false;
   }
   $('#envClose').addEventListener('click', () => { envDialog.hidden = true; });
@@ -1750,6 +1763,87 @@
     buying = false;
     renderShop();
   }
+
+  // Acheter plusieurs enveloppes identiques d'un coup : autant de tirages et de
+  // tampons, puis tous les stickers obtenus sont montrés ensemble.
+  const multiDialog = $('#multiDialog');
+  async function buyEnvelopes(env, n) {
+    if (buying) return;
+    const list = stickersOf(env.id);
+    const price = env.price ?? DEFAULT_PRICE;
+    if (!list.length) return;
+    const total = price * n;
+    if (state.profile.points < total) {
+      toast(`Il te manque ${total - state.profile.points} 🪙 pour ${n} enveloppes.`);
+      return;
+    }
+    buying = true;
+    const results = [];
+    for (let i = 0; i < n; i++) {
+      const pick = drawSticker(list);
+      const isNew = owned(pick.id) === 0;
+      state.profile.inventory[pick.id] = owned(pick.id) + 1;
+      results.push({ img: pick, isNew });
+    }
+    state.profile.points -= total;
+    state.profile.stamps = (state.profile.stamps || 0) + n;
+    const starsWon = convertStamps();
+    renderPoints();
+    saveProfile();
+    await playMultiOpening(env, results, starsWon);
+    buying = false;
+    renderShop();
+  }
+
+  async function playMultiOpening(env, results, starsWon) {
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const wait = (ms) => new Promise((r) => setTimeout(r, reduced ? 0 : ms));
+    $('#multiTitle').textContent = `${results.length} enveloppes « ${env.name || 'Enveloppe'} »`;
+    const stageEl = $('#multiStage');
+    stageEl.innerHTML = '';
+    const art = envelopeArt(env, 'env-big');
+    stageEl.appendChild(art);
+    stageEl.hidden = false;
+    const grid = $('#multiGrid');
+    grid.innerHTML = '';
+    grid.hidden = true;
+    $('#multiFoot').hidden = true;
+    multiDialog.hidden = false;
+    art.classList.add('shaking');
+    await wait(900);
+    stageEl.hidden = true;
+
+    // Les stickers apparaissent l'un après l'autre.
+    results.forEach(({ img, isNew }, i) => {
+      const cell = document.createElement('div');
+      cell.className = 'multi-item';
+      cell.dataset.rarity = img.rarity || 'common';
+      cell.style.animationDelay = `${i * 0.15}s`;
+      cell.innerHTML = `<div class="env-item-img"><img alt=""></div><span class="env-item-name"></span><span class="rarity-tag"></span>${isNew ? '<span class="multi-new">Nouveau !</span>' : ''}`;
+      cell.querySelector('img').src = img.url;
+      cell.querySelector('.env-item-name').textContent = img.name;
+      cell.querySelector('.rarity-tag').textContent = RARITIES[img.rarity || 'common'].label;
+      grid.appendChild(cell);
+    });
+    grid.hidden = false;
+    const fresh = results.filter((r) => r.isNew).length;
+    $('#multiText').textContent = fresh
+      ? `${fresh} nouveau${fresh > 1 ? 'x' : ''} sticker${fresh > 1 ? 's' : ''} pour ta collection !`
+      : 'Que des doubles cette fois… tu peux les vendre dans ta collection.';
+    const stamp = $('#multiStamp');
+    stamp.classList.toggle('won', starsWon > 0);
+    stamp.textContent = starsWon
+      ? `+${results.length} tampons · carte complète ! Tu gagnes ${starsWon > 1 ? `${starsWon} étoiles` : 'une étoile'} 🌟`
+      : `+${results.length} tampons · ${state.profile.stamps}/${STAMPS_PER_STAR}`;
+    const price = (env.price ?? DEFAULT_PRICE) * results.length;
+    const again = $('#multiAgain');
+    again.textContent = `Encore ×${results.length} · ${price} 🪙`;
+    again.disabled = state.profile.points < price;
+    again.onclick = () => { multiDialog.hidden = true; buyEnvelopes(env, results.length); };
+    await wait(results.length * 150);
+    $('#multiFoot').hidden = false;
+  }
+  $('#multiClose').addEventListener('click', () => { multiDialog.hidden = true; });
 
   // ---------------------------------------------------------------------------
   // Carte de tampons et étoiles

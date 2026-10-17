@@ -294,6 +294,7 @@
       <div id="envGrid" class="env-grid"></div>
       <div class="modal-actions">
         <button id="envClose" class="btn">Fermer</button>
+        <button id="envBuy5" class="btn"></button>
         <button id="envBuy" class="btn btn-primary"></button>
       </div>
     </div>
@@ -340,6 +341,22 @@
       <p class="muted star-sub">Ton étoile te permet de prendre le sticker que tu veux, dans n'importe quelle enveloppe.</p>
       <div id="starList" class="star-list"></div>
       <div class="modal-actions"><button id="starClose" class="btn">Plus tard</button></div>
+    </div>
+  </div>
+
+  <div id="multiDialog" class="modal open-modal" hidden>
+    <div class="open-box multi-box" role="dialog" aria-modal="true" aria-live="polite" aria-labelledby="multiTitle">
+      <h2 id="multiTitle" class="multi-title"></h2>
+      <div id="multiStage" class="open-stage multi-stage"></div>
+      <div id="multiGrid" class="multi-grid" hidden></div>
+      <div id="multiFoot" class="open-result" hidden>
+        <p id="multiText"></p>
+        <p id="multiStamp" class="open-stamp"></p>
+        <div class="modal-actions">
+          <button id="multiAgain" class="btn"></button>
+          <button id="multiClose" class="btn btn-primary">Super !</button>
+        </div>
+      </div>
     </div>
   </div>
 
