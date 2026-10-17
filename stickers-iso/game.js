@@ -865,6 +865,68 @@
     for (const [key, input] of Object.entries(colorInputs)) input.value = state.colors[key];
   }
 
+  function setColor(key, hex) {
+    state.colors[key] = hex;
+    syncColorInputs();
+    drawRoom();
+    scheduleSave();
+  }
+
+  // Pipette : avec l'outil du navigateur quand il existe (Chrome, Edge sur
+  // ordinateur : on peut viser n'importe où à l'écran) ; sinon on touche un
+  // endroit de la pièce pour prendre sa couleur.
+  let pipetteKey = null;
+  const PIPETTE_NAMES = { wallLeft: 'le mur gauche', wallRight: 'le mur droit', floor: 'le sol' };
+
+  document.querySelectorAll('.pipette-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const key = btn.dataset.color;
+      if (window.EyeDropper) {
+        try {
+          const { sRGBHex } = await new window.EyeDropper().open();
+          setColor(key, sRGBHex);
+        } catch (e) { /* annulé avec Échap */ }
+        return;
+      }
+      pipetteKey = key;
+      stageArea.classList.add('pipette');
+      toast(`Touche un endroit de la pièce pour prendre sa couleur pour ${PIPETTE_NAMES[key]}.`);
+    });
+  });
+
+  function stopPipette() {
+    pipetteKey = null;
+    stageArea.classList.remove('pipette');
+  }
+
+  // En mode pipette, le prochain appui dans la pièce lit la couleur au lieu
+  // d'agir sur les stickers (écoute en phase de capture, avant tout le reste).
+  stageArea.addEventListener('pointerdown', async (e) => {
+    if (!pipetteKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const key = pipetteKey;
+    stopPipette();
+    if (e.target.closest('.bar-tab, .zoom-ctrl, .toolbar')) return;
+    const p = toStage(e.clientX, e.clientY);
+    try {
+      const cv = await renderScene(1, null);
+      const [r, g, b, a] = cv.getContext('2d').getImageData(Math.round(p.x), Math.round(p.y), 1, 1).data;
+      if (a < 20) {
+        toast('Il n\'y a pas de couleur à cet endroit. Touche la pièce ou un sticker.');
+        return;
+      }
+      setColor(key, '#' + [r, g, b].map((c) => c.toString(16).padStart(2, '0')).join(''));
+    } catch (err) {
+      console.warn('Pipette impossible', err);
+      toast('Impossible de lire la couleur à cet endroit.');
+    }
+  }, true);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && pipetteKey) stopPipette();
+  });
+
   $('#btnClear').addEventListener('click', async () => {
     if (!state.stickers.length || !(await askConfirm('Retirer tous les stickers de la pièce ?', 'Vider'))) return;
     state.stickers = [];
