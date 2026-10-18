@@ -1375,3 +1375,22 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
   #envDialog .modal-actions { flex-wrap: wrap; }
   #envDialog .modal-actions .btn { flex: 1 1 auto; justify-content: center; white-space: nowrap; }
 }
+
+/* ---------- Atelier : pièces du jour ---------- */
+.daily-form {
+  max-width: 1100px; margin: 0 auto 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.daily-form h2 { margin: 0; font-size: 1rem; }
+.daily-form p { margin: 2px 0 0; font-size: .82rem; }
+.daily-field { display: flex; flex-direction: column; gap: 4px; font-size: .78rem; }
+.daily-row { display: flex; gap: 8px; }
+.daily-row .field { width: 120px; font-weight: 700; }
+@media (max-width: 720px) {
+  .daily-field { flex: 1 1 100%; }
+  .daily-row .field { flex: 1; width: auto; }
+}

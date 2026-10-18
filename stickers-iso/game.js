@@ -19,7 +19,7 @@
 
   // Collection
   const ADMIN_PSEUDOS = ['administrateur'];  // pseudos (en minuscules) qui ont accès à l'atelier
-  const DAILY_POINTS = 100;            // points gagnés une fois par jour
+  const DAILY_POINTS = 100;            // points gagnés une fois par jour (par défaut ; réglable dans l'atelier)
   const DEFAULT_PRICE = 50;            // prix d'une nouvelle enveloppe
   const MULTI_BUY = 5;                 // nombre d'enveloppes du bouton « ×5 »
   const STAR_PRICE = 1000;
@@ -50,6 +50,7 @@
     profile: null,       // { id, pseudo, points, lastDaily, inventory: { stickerId: nombre }, stamps, stars }
     isAdmin: false,
     envelopes: [],       // { id, name, price, color, created }
+    settings: { dailyPoints: DAILY_POINTS }, // réglages communs, modifiables par l'administrateur
     mails: [],           // boîte aux lettres : { id, to, title, text, reward, read, claimed, created }
     myProposals: [],     // stickers proposés par le joueur : { id, name, data, status, reward, ... }
     proposals: [],       // coffre (administrateur) : toutes les propositions
@@ -164,6 +165,11 @@
         // Boîte aux lettres : messages (type « mail ») adressés à un pseudo
         listMail: (to) => all(rooms.where('to', '==', to)),
         listPlayers: () => all(rooms.where('type', '==', 'player')),
+        getSettings: async () => {
+          const d = await rooms.doc('settings').get();
+          return d.exists ? d.data() : null;
+        },
+        putSettings: (st) => rooms.doc('settings').set(clean({ ...st, type: 'settings' })),
         putMail: ({ id, ...m }) => rooms.doc(id).set(clean({ ...m, type: 'mail' })),
       };
     } catch (e) {
@@ -177,10 +183,10 @@
     const open = () => {
       if (!dbPromise) {
         dbPromise = new Promise((resolve, reject) => {
-          const req = indexedDB.open('ma-petite-piece', 4);
+          const req = indexedDB.open('ma-petite-piece', 5);
           req.onupgradeneeded = () => {
             const d = req.result;
-            for (const name of ['images', 'rooms', 'players', 'envelopes', 'mails']) {
+            for (const name of ['images', 'rooms', 'players', 'envelopes', 'mails', 'settings']) {
               if (!d.objectStoreNames.contains(name)) d.createObjectStore(name, { keyPath: 'id' });
             }
           };
@@ -219,6 +225,8 @@
       listProposals: async () => (await getAll('images')).filter((r) => r.proposal),
       listMail: async (to) => (await getAll('mails')).filter((m) => m.to === to),
       listPlayers: () => getAll('players'),
+      getSettings: async () => (await run('settings', 'readonly', (s) => s.get('settings'))) || null,
+      putSettings: (st) => run('settings', 'readwrite', (s) => s.put({ ...st, id: 'settings' })),
       putMail: (m) => run('mails', 'readwrite', (s) => s.put(m)),
     };
   })();
@@ -1360,6 +1368,7 @@
     }
   });
 
+  const dailyPoints = () => Math.max(0, Math.round(Number(state.settings.dailyPoints) || 0));
   const playerDocId = (key) => 'player-' + key.replace(/\//g, '_');
   const today = () => new Date().toLocaleDateString('fr-CA'); // AAAA-MM-JJ, heure locale
 
@@ -1372,10 +1381,11 @@
     state.images = new Map();
     let gained = 0;
     try {
-      const [images, rooms, envelopes, profile, mails, mine] = await withFallback((d) => Promise.all([
+      const [images, rooms, envelopes, profile, mails, mine, settings] = await withFallback((d) => Promise.all([
         d.listCatalog(), d.listRooms(state.player.key), d.listEnvelopes(), d.getPlayer(playerDocId(state.player.key)),
-        d.listMail(state.player.key), d.listMyProposals(state.player.key),
+        d.listMail(state.player.key), d.listMyProposals(state.player.key), d.getSettings(),
       ]));
+      state.settings = { dailyPoints: DAILY_POINTS, ...(settings || {}) };
       state.mails = mails;
       state.myProposals = mine;
       images.sort((a, b) => (a.created || 0) - (b.created || 0)).forEach(addImageToLibrary);
@@ -1399,9 +1409,9 @@
       }
       // Points du jour : une fois par jour, à la première connexion.
       if (state.profile.lastDaily !== today()) {
-        state.profile.points = (state.profile.points || 0) + DAILY_POINTS;
+        state.profile.points = (state.profile.points || 0) + dailyPoints();
         state.profile.lastDaily = today();
-        gained = DAILY_POINTS;
+        gained = dailyPoints();
         saveProfile();
       }
     } catch (e) {
@@ -1684,6 +1694,7 @@
 
   function renderShop() {
     renderPoints();
+    $('#shopDaily').textContent = `${dailyPoints()} 🪙`;
     renderStampCard();
     const grid = $('#shopGrid');
     grid.innerHTML = '';
@@ -2060,7 +2071,33 @@
     }, 500);
   }
 
+  $('#dailyForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const value = Math.round(Number($('#dailyInput').value));
+    if (!(value >= 0) || value > 100000) {
+      toast('Indique un nombre de pièces entre 0 et 100 000.');
+      return;
+    }
+    const before = state.settings.dailyPoints;
+    state.settings.dailyPoints = value;
+    try {
+      await db.putSettings(state.settings);
+      toast(`C'est enregistré : les joueurs gagneront ${value} 🪙 par jour, dès leur prochaine connexion du jour.`);
+    } catch (err) {
+      state.settings.dailyPoints = before;
+      console.warn('Réglage impossible', err);
+      toast('Le réglage n\'a pas pu être enregistré. Vérifie ta connexion.');
+    }
+    renderDailySetting();
+  });
+
+  function renderDailySetting() {
+    $('#dailyInput').value = dailyPoints();
+    $('#dailyCurrent').textContent = `Actuellement : ${dailyPoints()} 🪙 par jour.`;
+  }
+
   function renderAtelier() {
+    renderDailySetting();
     const listEl = $('#atelierList');
     listEl.innerHTML = '';
     $('#atelierEmpty').hidden = state.envelopes.length > 0;

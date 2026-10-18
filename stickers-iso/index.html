@@ -205,7 +205,7 @@
       <div class="topbar-actions"><span class="points-pill"></span></div>
     </header>
     <div class="rooms-body">
-      <p class="shop-intro">Chaque enveloppe contient <strong>un</strong> sticker tiré au sort. Touche une enveloppe pour voir ce qu'elle peut contenir. Tu gagnes <strong>100 🪙</strong> chaque jour.</p>
+      <p class="shop-intro">Chaque enveloppe contient <strong>un</strong> sticker tiré au sort. Touche une enveloppe pour voir ce qu'elle peut contenir. Tu gagnes <strong id="shopDaily">100 🪙</strong> chaque jour.</p>
       <div id="shopGrid" class="shop-grid"></div>
       <p id="shopEmpty" class="empty" hidden>Aucune enveloppe en vente pour l'instant. Reviens bientôt&nbsp;!</p>
       <section class="stamp-card" aria-label="Carte de tampons">
@@ -378,6 +378,19 @@
           <button id="btnNewEnvelope" class="btn btn-primary">＋ Nouvelle enveloppe</button>
         </div>
       </div>
+      <form id="dailyForm" class="daily-form" novalidate>
+        <div>
+          <h2>Pièces du jour</h2>
+          <p id="dailyCurrent" class="muted"></p>
+        </div>
+        <label class="daily-field">
+          <span class="muted">Nombre de pièces gagnées une fois par jour</span>
+          <span class="daily-row">
+            <input id="dailyInput" class="field" type="number" min="0" max="100000" step="10" inputmode="numeric">
+            <button class="btn btn-primary" type="submit">Enregistrer</button>
+          </span>
+        </label>
+      </form>
       <p id="atelierEmpty" class="empty" hidden>Aucune enveloppe pour l'instant.</p>
       <div id="atelierList" class="atelier-list"></div>
     </div>
