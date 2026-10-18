@@ -327,6 +327,7 @@
       <div class="players-bar">
         <p id="playersCount" class="muted"></p>
         <input id="playersSearch" class="field players-search" type="search" placeholder="Chercher un pseudo" aria-label="Chercher un pseudo">
+        <button id="giftAll" class="btn" title="Offrir un cadeau à tous les joueurs">🎁<span class="label-long">&nbsp;Offrir à tous</span></button>
         <select id="playersSort" class="coffre-select" aria-label="Trier">
           <option value="recent">Dernière visite</option>
           <option value="name">Pseudo (A → Z)</option>
@@ -463,6 +464,20 @@
       <div class="modal-actions">
         <button id="sellCancel" class="btn">Annuler</button>
         <button id="sellConfirm" class="btn btn-primary"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="giftDialog" class="modal" hidden>
+    <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="giftTitle">
+      <h2 id="giftTitle" class="modal-title">Offrir des stickers 🎁</h2>
+      <p class="muted star-sub">Touche un sticker pour l'ajouter au cadeau (touche encore pour en offrir plusieurs exemplaires).</p>
+      <div id="giftList" class="star-list gift-list"></div>
+      <label class="gift-field"><span>Message</span><input id="giftText" class="field" maxlength="300"></label>
+      <label class="gift-field small"><span>Pièces en plus 🪙</span><input id="giftCoins" class="field" type="number" min="0" step="10" value="0"></label>
+      <div class="modal-actions">
+        <button id="giftCancel" class="btn">Annuler</button>
+        <button id="giftSend" class="btn btn-primary">Envoyer</button>
       </div>
     </div>
   </div>

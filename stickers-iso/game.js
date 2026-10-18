@@ -2578,7 +2578,9 @@
   // ---------------------------------------------------------------------------
   // Boîte aux lettres
   // ---------------------------------------------------------------------------
-  const hasGift = (m) => !!(m.reward || m.sticker);
+  // Stickers offerts dans un message (un id par exemplaire).
+  const giftIds = (m) => m.stickers || (m.sticker ? [m.sticker] : []);
+  const hasGift = (m) => !!(m.reward || giftIds(m).length);
   const unreadMail = () => state.mails.filter((m) => !m.read || (hasGift(m) && !m.claimed)).length;
 
   function renderMailBadge() {
@@ -2615,43 +2617,55 @@
       el.innerHTML = `
         <div class="mail-head"><h3></h3><time></time></div>
         <p class="mail-text"></p>
-        <div class="mail-gift" hidden><div class="env-item-img"><img alt=""></div><span></span></div>
+        <div class="mail-gift" hidden></div>
         ${hasGift(m) ? `<button class="btn ${m.claimed ? 'btn-ghost' : 'btn-primary'} mail-claim" ${m.claimed ? 'disabled' : ''}></button>` : ''}`;
       el.querySelector('h3').textContent = m.title;
       el.querySelector('time').textContent = m.created ? dateFmt.format(m.created) : '';
       el.querySelector('.mail-text').textContent = m.text;
-      // Cadeau : des pièces et/ou un sticker (1 exemplaire).
-      const img = m.sticker && state.images.get(m.sticker);
-      const stickerName = img ? img.name : 'ton sticker';
-      if (img) {
+      // Cadeau : des pièces et/ou des stickers.
+      const ids = giftIds(m);
+      const counts = {};
+      for (const id of ids) counts[id] = (counts[id] || 0) + 1;
+      const known = Object.keys(counts).filter((id) => state.images.has(id));
+      if (known.length) {
         const gift = el.querySelector('.mail-gift');
         gift.hidden = false;
-        gift.querySelector('img').src = img.url;
-        gift.querySelector('span').textContent = `« ${img.name} » · 1 exemplaire`;
+        gift.innerHTML = '';
+        for (const id of known) {
+          const img = state.images.get(id);
+          const item = document.createElement('div');
+          item.className = 'mail-gift-item';
+          item.innerHTML = '<div class="env-item-img"><img alt=""></div><span></span>';
+          item.querySelector('img').src = img.url;
+          item.querySelector('span').textContent = img.name + (counts[id] > 1 ? ` ×${counts[id]}` : '');
+          gift.appendChild(item);
+        }
       }
       const parts = [];
       if (m.reward) parts.push(`+${m.reward} 🪙`);
-      if (m.sticker) parts.push(`« ${stickerName} »`);
+      if (ids.length === 1) parts.push(`« ${state.images.get(ids[0])?.name || 'ton sticker'} »`);
+      else if (ids.length) parts.push(`${ids.length} stickers`);
       const claim = el.querySelector('.mail-claim');
-      if (claim) claim.textContent = m.claimed ? `${parts.join(' et ')} récupéré${m.sticker ? '' : 'es'}` : `Récupérer ${parts.join(' et ')}`;
+      if (claim) claim.textContent = m.claimed ? `${parts.join(' et ')} récupéré${ids.length ? (parts.length > 1 || ids.length > 1 ? 's' : '') : 'es'}` : `Récupérer ${parts.join(' et ')}`;
       if (claim && !m.claimed) claim.addEventListener('click', () => {
         if (m.claimed) return;
         m.claimed = true;
         m.read = true;
         if (m.reward) state.profile.points += m.reward;
-        if (m.sticker) state.profile.inventory[m.sticker] = (state.profile.inventory[m.sticker] || 0) + 1;
+        for (const id of ids) state.profile.inventory[id] = (state.profile.inventory[id] || 0) + 1;
         saveProfile();
         db.putMail(m).catch(() => {});
-        toast(m.sticker ? `${parts.join(' et ')} reçu${parts.length > 1 ? "s" : ""} !` : `+${m.reward} 🪙 ajoutées à ton compte !`);
+        toast(ids.length ? `${parts.join(' et ')} reçu${parts.length > 1 || ids.length > 1 ? 's' : ''} !` : `+${m.reward} 🪙 ajoutées à ton compte !`);
         renderMail();
       });
       list.appendChild(el);
     }
   }
 
-  function sendMail(to, title, text, reward = 0, sticker = null) {
+  // stickers : un id, ou une liste d'ids (un par exemplaire offert).
+  function sendMail(to, title, text, reward = 0, stickers = null) {
     const m = { id: uid(), to, title, text, reward, read: false, claimed: false, created: Date.now() };
-    if (sticker) m.sticker = sticker;
+    if (stickers) m.stickers = [].concat(stickers);
     return db.putMail(m);
   }
 
@@ -2960,7 +2974,10 @@
           <div><dt>Collection</dt><dd class="s-coll"></dd></div>
           <div><dt>Étoiles</dt><dd class="s-stars"></dd></div>
         </dl>
-        <button class="btn player-write" title="Envoyer un message dans sa boîte aux lettres">✉️<span class="label-long">&nbsp;Écrire</span></button>`;
+        <div class="player-actions">
+          <button class="btn player-gift" title="Offrir des stickers">🎁<span class="label-long">&nbsp;Offrir</span></button>
+          <button class="btn player-write" title="Envoyer un message dans sa boîte aux lettres">✉️<span class="label-long">&nbsp;Écrire</span></button>
+        </div>`;
       row.querySelector('.player-name').textContent = (p.pseudo || key) + (ADMIN_PSEUDOS.includes(key) ? ' · admin' : '');
       row.querySelector('.player-seen').textContent = `Vu ${relDays(lastSeen)}` + (p.firstSeen ? ` · depuis le ${dateFmt.format(p.firstSeen).replace(/ à .*/, '')}` : '');
       row.querySelector('.s-points').textContent = `${p.points || 0} 🪙`;
@@ -2968,6 +2985,7 @@
       row.querySelector('.s-coll').title = `${copies} exemplaires en tout`;
       row.querySelector('.s-stars').textContent = `🌟 ${p.stars || 0}`;
       row.querySelector('.player-write').addEventListener('click', () => writeToPlayer(p, key));
+      row.querySelector('.player-gift').addEventListener('click', () => openGift([{ key, name: p.pseudo || key }]));
       body.appendChild(row);
     }
   }
@@ -2987,6 +3005,104 @@
       toast('Le message n\'a pas pu être envoyé. Vérifie ta connexion.');
     }
   }
+
+  // Offrir des stickers (et des pièces) à un joueur ou à tous, par la boîte aux lettres.
+  const giftDialog = $('#giftDialog');
+  let giftTargets = [];
+  let giftPick = {};
+
+  function openGift(targets) {
+    giftTargets = targets;
+    giftPick = {};
+    $('#giftTitle').textContent = targets.length === 1
+      ? `Offrir à ${targets[0].name} 🎁`
+      : `Offrir à tous les joueurs (${targets.length}) 🎁`;
+    $('#giftText').value = 'Un petit cadeau pour toi !';
+    $('#giftCoins').value = '0';
+    const body = $('#giftList');
+    body.innerHTML = '';
+    const all = [...state.images.values()].filter((img) => img.catalog);
+    const groups = state.envelopes.map((env) => [env.name || 'Enveloppe', all.filter((img) => img.envelope === env.id)]);
+    groups.push(['Hors enveloppe', all.filter((img) => !envelopeExists(img.envelope))]);
+    for (const [title, list] of groups) {
+      if (!list.length) continue;
+      const h = document.createElement('h3');
+      h.className = 'star-env';
+      h.textContent = title;
+      body.appendChild(h);
+      const grid = document.createElement('div');
+      grid.className = 'env-grid env-grid-small';
+      for (const img of list) {
+        const cell = document.createElement('button');
+        cell.className = 'env-item star-pick gift-pick';
+        cell.dataset.rarity = img.rarity || 'common';
+        cell.innerHTML = '<div class="env-item-img"><img alt=""><span class="env-owned gift-count" hidden></span></div><span class="env-item-name"></span><span class="gift-minus" role="button" title="Enlever" hidden>−</span>';
+        cell.querySelector('img').src = img.url;
+        cell.querySelector('.env-item-name').textContent = img.name;
+        const refresh = () => {
+          const n = giftPick[img.id] || 0;
+          cell.classList.toggle('picked', n > 0);
+          cell.querySelector('.gift-count').hidden = !n;
+          cell.querySelector('.gift-count').textContent = `×${n}`;
+          cell.querySelector('.gift-minus').hidden = !n;
+          renderGiftSend();
+        };
+        cell.addEventListener('click', (e) => {
+          if (e.target.closest('.gift-minus')) {
+            giftPick[img.id] = Math.max(0, (giftPick[img.id] || 0) - 1);
+            if (!giftPick[img.id]) delete giftPick[img.id];
+          } else {
+            giftPick[img.id] = (giftPick[img.id] || 0) + 1;
+          }
+          refresh();
+        });
+        grid.appendChild(cell);
+      }
+      body.appendChild(grid);
+    }
+    if (!body.children.length) body.innerHTML = '<p class="muted">Aucun sticker pour l\'instant : ajoute-en dans l\'atelier.</p>';
+    renderGiftSend();
+    giftDialog.hidden = false;
+  }
+
+  function giftCoins() { return Math.max(0, Math.round(Number($('#giftCoins').value) || 0)); }
+  function renderGiftSend() {
+    const n = Object.values(giftPick).reduce((a, b) => a + b, 0);
+    const coins = giftCoins();
+    const btn = $('#giftSend');
+    btn.disabled = !n && !coins;
+    const parts = [];
+    if (n) parts.push(plural(n, 'sticker'));
+    if (coins) parts.push(`${coins} 🪙`);
+    btn.textContent = parts.length ? `Envoyer ${parts.join(' + ')}` : 'Choisis un cadeau';
+  }
+  $('#giftCoins').addEventListener('input', renderGiftSend);
+  $('#giftCancel').addEventListener('click', () => { giftDialog.hidden = true; });
+  $('#giftSend').addEventListener('click', async () => {
+    const ids = [];
+    for (const [id, n] of Object.entries(giftPick)) for (let i = 0; i < n; i++) ids.push(id);
+    const coins = giftCoins();
+    if (!ids.length && !coins) return;
+    const text = $('#giftText').value.trim() || 'Un petit cadeau pour toi !';
+    const btn = $('#giftSend');
+    btn.disabled = true;
+    try {
+      for (const t of giftTargets) await sendMail(t.key, 'Un cadeau pour toi 🎁', text, coins, ids.length ? ids : null);
+      giftDialog.hidden = true;
+      toast(giftTargets.length === 1 ? `Cadeau envoyé à ${giftTargets[0].name} !` : `Cadeau envoyé à ${plural(giftTargets.length, 'joueur')} !`);
+    } catch (e) {
+      console.warn('Cadeau impossible', e);
+      toast('Le cadeau n\'a pas pu être envoyé. Vérifie ta connexion.');
+      btn.disabled = false;
+    }
+  });
+  $('#giftAll').addEventListener('click', () => {
+    const targets = players
+      .map((p) => ({ key: playerKey(p), name: p.pseudo || playerKey(p) }))
+      .filter((t) => t.key && !ADMIN_PSEUDOS.includes(t.key));
+    if (!targets.length) { toast('Aucun joueur pour l\'instant.'); return; }
+    openGift(targets);
+  });
 
   // ---------------------------------------------------------------------------
   // Démarrage

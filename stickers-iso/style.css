@@ -1401,3 +1401,22 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
   .daily-field { flex: 1 1 100%; }
   .daily-row .field { flex: 1; width: auto; }
 }
+
+/* Cadeaux de l'administrateur */
+.gift-list { max-height: 42vh; overflow-y: auto; margin-bottom: 12px; }
+.gift-pick { position: relative; }
+.gift-pick.picked .env-item-img { outline: 3px solid var(--accent); outline-offset: 1px; }
+.gift-minus {
+  position: absolute; left: -4px; top: -4px;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--panel); color: var(--ink);
+  box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  font-weight: 800; line-height: 1;
+}
+.gift-minus[hidden] { display: none !important; }
+.gift-field { display: flex; flex-direction: column; gap: 3px; font-size: .78rem; color: var(--muted); }
+.gift-field .field { margin-bottom: 10px; }
+.player-actions { display: flex; gap: 6px; }
+.mail-gift { flex-wrap: wrap; }
+.mail-gift-item { display: flex; align-items: center; gap: 8px; }
