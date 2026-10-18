@@ -2692,7 +2692,8 @@
   function coffreStatus(p) {
     if (p.status !== 'accepted') return p.status;
     const rec = catalogOf(p);
-    return rec && rec.archived && !envelopeExists(rec.envelope) ? 'archived' : 'accepted';
+    if (rec && envelopeExists(rec.envelope)) return 'accepted';
+    return rec && rec.archived ? 'archived' : 'unfiled';
   }
 
   async function archiveSticker(img) {
