@@ -1656,6 +1656,9 @@
   // Boutique : acheter et ouvrir des enveloppes
   // ---------------------------------------------------------------------------
   const stickersOf = (envId) => [...state.images.values()].filter((img) => img.envelope === envId);
+  const envelopeExists = (id) => !!id && state.envelopes.some((e) => e.id === id);
+  // Stickers retirés de leur enveloppe : on peut les y remettre depuis l'atelier.
+  const archivedStickers = () => [...state.images.values()].filter((img) => img.catalog && !envelopeExists(img.envelope));
   let shopReturnRoom = null; // pièce à rouvrir en quittant la boutique
 
   async function openShop(fromRoom) {
@@ -2146,8 +2149,9 @@
         cell.innerHTML = `
           <div class="env-item-img"><img alt=""></div>
           <input class="atelier-name" maxlength="30" aria-label="Nom du sticker">
-          <select aria-label="Rareté">${Object.entries(RARITIES).map(([k, r]) => `<option value="${k}">${r.label}</option>`).join('')}</select>
-          <button class="atelier-item-del" title="Retirer ce sticker">✕</button>`;
+          <select class="atelier-rarity" aria-label="Rareté">${Object.entries(RARITIES).map(([k, r]) => `<option value="${k}">${r.label}</option>`).join('')}</select>
+          <select class="atelier-move" aria-label="Enveloppe" title="Changer d'enveloppe"></select>
+          <button class="atelier-item-del" title="Retirer et archiver">✕</button>`;
         cell.querySelector('img').src = img.url;
         const nameIn = cell.querySelector('.atelier-name');
         nameIn.value = img.name;
@@ -2155,23 +2159,20 @@
           img.name = nameIn.value.trim() || 'Sticker';
           db.putImage(img).catch(() => toast('Le nom n\'a pas pu être enregistré.'));
         });
-        const sel = cell.querySelector('select');
+        const sel = cell.querySelector('.atelier-rarity');
         sel.value = img.rarity || 'common';
         sel.addEventListener('change', () => {
           img.rarity = sel.value;
           cell.dataset.rarity = img.rarity;
           db.putImage(img).catch(() => toast('La rareté n\'a pas pu être enregistrée.'));
         });
+        const moveSel = cell.querySelector('.atelier-move');
+        for (const e of state.envelopes) moveSel.add(new Option('✉️ ' + (e.name || 'Enveloppe'), e.id));
+        moveSel.value = env.id;
+        moveSel.addEventListener('change', () => moveToEnvelope(img, moveSel.value));
         cell.querySelector('.atelier-item-del').addEventListener('click', async () => {
-          if (proposalOf(img)) {
-            if (!(await askConfirm(`Retirer « ${img.name} » de l'enveloppe ? Il sera archivé dans le coffre : tu pourras le remettre dans une enveloppe quand tu veux. Les joueurs qui l'ont le gardent.`, 'Archiver'))) return;
-            await archiveSticker(img);
-            renderAtelier();
-            return;
-          }
-          if (!(await askConfirm(`Retirer « ${img.name} » de l'enveloppe ? Les joueurs qui l'ont déjà le perdront aussi.`, 'Retirer'))) return;
-          state.images.delete(img.id);
-          db.deleteImage(img.id).catch(() => toast('Le sticker n\'a pas pu être supprimé.'));
+          if (!(await askConfirm(`Retirer « ${img.name} » de l'enveloppe ? Il sera archivé en bas de l'atelier : tu pourras le remettre dans une enveloppe quand tu veux. Les joueurs qui l'ont le gardent.`, 'Archiver'))) return;
+          await archiveSticker(img);
           renderAtelier();
         });
         grid.appendChild(cell);
@@ -2189,21 +2190,71 @@
       sec.querySelector('.atelier-del').addEventListener('click', async () => {
         const n = stickersOf(env.id).length;
         const msg = n
-          ? `Supprimer « ${env.name} » et ses ${n} stickers ? Les joueurs qui les ont déjà les perdront aussi (sauf les stickers proposés par des joueurs, qui seront archivés dans le coffre).`
+          ? `Supprimer « ${env.name} » ? Ses ${n} stickers seront archivés en bas de l'atelier : tu pourras les remettre dans une autre enveloppe.`
           : `Supprimer « ${env.name} » ?`;
         if (!(await askConfirm(msg, 'Supprimer'))) return;
-        for (const img of stickersOf(env.id)) {
-          // Les stickers proposés par les joueurs partent aux archives du coffre.
-          if (proposalOf(img)) { archiveSticker(img); continue; }
-          state.images.delete(img.id);
-          db.deleteImage(img.id).catch(() => {});
-        }
+        // Ses stickers partent aux archives (les joueurs les gardent).
+        for (const img of stickersOf(env.id)) archiveSticker(img);
         state.envelopes = state.envelopes.filter((x) => x.id !== env.id);
         db.deleteEnvelope(env.id).catch(() => toast('L\'enveloppe n\'a pas pu être supprimée.'));
         renderAtelier();
       });
       listEl.appendChild(sec);
     }
+    renderArchives(listEl);
+  }
+
+  async function moveToEnvelope(img, envId) {
+    const env = state.envelopes.find((e) => e.id === envId);
+    if (!env) return;
+    img.envelope = env.id;
+    img.archived = false;
+    try {
+      await db.putImage(img);
+      toast(`« ${img.name} » est maintenant dans l'enveloppe « ${env.name} ».`);
+    } catch (e) {
+      console.warn('Déplacement impossible', e);
+      toast('Le sticker n\'a pas pu être déplacé. Vérifie ta connexion.');
+    }
+    renderAtelier();
+  }
+
+  function renderArchives(listEl) {
+    const list = archivedStickers();
+    if (!list.length) return;
+    const sec = document.createElement('section');
+    sec.className = 'atelier-env atelier-archives';
+    sec.innerHTML = `
+      <h3>📦 Archives</h3>
+      <p class="atelier-count muted">Stickers retirés de leur enveloppe. On ne peut plus les gagner, mais les joueurs qui les ont les gardent.</p>
+      <div class="atelier-grid"></div>`;
+    const grid = sec.querySelector('.atelier-grid');
+    for (const img of list) {
+      const cell = document.createElement('div');
+      cell.className = 'atelier-item';
+      cell.dataset.rarity = img.rarity || 'common';
+      cell.innerHTML = `
+        <div class="env-item-img"><img alt=""></div>
+        <p class="atelier-arch-name"></p>
+        <select aria-label="Enveloppe"></select>
+        <button class="btn btn-primary atelier-restore">Remettre</button>
+        <button class="atelier-item-del" title="Supprimer définitivement">🗑️</button>`;
+      cell.querySelector('img').src = img.url;
+      cell.querySelector('.atelier-arch-name').textContent = img.name + (img.author ? ` · par ${img.author}` : '');
+      const sel = cell.querySelector('select');
+      for (const e of state.envelopes) sel.add(new Option('✉️ ' + (e.name || 'Enveloppe'), e.id));
+      const restore = cell.querySelector('.atelier-restore');
+      if (!state.envelopes.length) { sel.hidden = true; restore.disabled = true; restore.textContent = 'Crée une enveloppe'; }
+      restore.addEventListener('click', () => moveToEnvelope(img, sel.value));
+      cell.querySelector('.atelier-item-del').addEventListener('click', async () => {
+        if (!(await askConfirm(`Supprimer définitivement « ${img.name} » ? Les joueurs qui l'ont le perdront.`, 'Supprimer'))) return;
+        state.images.delete(img.id);
+        db.deleteImage(img.id).catch(() => toast('Le sticker n\'a pas pu être supprimé.'));
+        renderAtelier();
+      });
+      grid.appendChild(cell);
+    }
+    listEl.appendChild(sec);
   }
 
   // ---------------------------------------------------------------------------
@@ -2601,15 +2652,10 @@
   }
 
   // Lien entre une proposition et le sticker du catalogue qu'on en a tiré.
-  const envelopeExists = (id) => !!id && state.envelopes.some((e) => e.id === id);
   function catalogOf(p) {
     const list = [...state.images.values()];
     return list.find((img) => img.fromProposal === p.id)
       || list.find((img) => !img.fromProposal && img.data && img.data === p.data);
-  }
-  function proposalOf(img) {
-    if (img.fromProposal) return true;
-    return (state.proposals || []).some((p) => p.status === 'accepted' && p.data && p.data === img.data);
   }
   // Onglet d'une proposition : une acceptée dont le sticker n'est plus dans une enveloppe est archivée.
   function coffreStatus(p) {
