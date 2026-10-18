@@ -1420,3 +1420,28 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
 .player-actions { display: flex; gap: 6px; }
 .mail-gift { flex-wrap: wrap; }
 .mail-gift-item { display: flex; align-items: center; gap: 8px; }
+
+/* Atelier : liste des enveloppes en tuiles */
+.atelier-search { max-width: 1100px; display: block; margin: 0 auto 14px; }
+.atelier-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.atelier-tile {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; text-align: left;
+  background: var(--panel); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 14px;
+  font: inherit; cursor: pointer;
+}
+.atelier-tile:hover { border-color: var(--ink); }
+.atelier-tile.empty { opacity: .75; border-style: dashed; }
+.atelier-tile.archives { border-style: dashed; background: transparent; }
+.atelier-tile-art { flex: 0 0 64px; display: grid; place-items: center; }
+.atelier-tile-art .env { width: 64px; }
+.atelier-tile-icon { font-size: 34px; line-height: 1; }
+.atelier-tile-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.atelier-tile-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.atelier-tile-text .muted { font-size: .8rem; }
+.atelier-tile-go { font-size: 1.4rem; color: var(--muted); }
+.atelier-detail-bar { max-width: 1100px; margin: 0 auto 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.atelier-detail-bar h2 { margin: 0; font-size: 1.15rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 720px) { .atelier-tiles { grid-template-columns: 1fr; } }
+.atelier-daily { margin-top: 18px; }

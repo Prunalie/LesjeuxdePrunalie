@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ma petite pièce</title>
-  <link rel="stylesheet" href="style.css?v=202610181854">
+  <link rel="stylesheet" href="style.css?v=202610182043">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -374,6 +374,7 @@
       </div>
     </header>
     <div class="rooms-body">
+      <div id="atelierHome">
       <div class="atelier-intro">
         <p>Crée les enveloppes que les joueurs achètent dans la boutique. Mets 5 à 10 stickers dans chacune et choisis leur rareté. PNG à fond transparent conseillé.</p>
         <div class="atelier-intro-actions">
@@ -381,7 +382,15 @@
           <button id="btnNewEnvelope" class="btn btn-primary">＋ Nouvelle enveloppe</button>
         </div>
       </div>
-      <form id="dailyForm" class="daily-form" novalidate>
+      <input id="atelierSearch" class="field atelier-search" type="search" placeholder="Chercher une enveloppe ou un sticker" aria-label="Chercher une enveloppe ou un sticker">
+      </div>
+      <div id="atelierDetailBar" class="atelier-detail-bar" hidden>
+        <button id="atelierAll" class="btn">← Toutes les enveloppes</button>
+        <h2 id="atelierDetailTitle"></h2>
+      </div>
+      <p id="atelierEmpty" class="empty" hidden>Aucune enveloppe pour l'instant.</p>
+      <div id="atelierList" class="atelier-list"></div>
+      <form id="dailyForm" class="daily-form atelier-daily" novalidate>
         <div>
           <h2>Pièces du jour</h2>
           <p id="dailyCurrent" class="muted"></p>
@@ -394,8 +403,6 @@
           </span>
         </label>
       </form>
-      <p id="atelierEmpty" class="empty" hidden>Aucune enveloppe pour l'instant.</p>
-      <div id="atelierList" class="atelier-list"></div>
     </div>
   </section>
 
@@ -536,7 +543,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610181854"></script>
-  <script src="game.js?v=202610181854"></script>
+  <script src="firebase-config.js?v=202610182043"></script>
+  <script src="game.js?v=202610182043"></script>
 </body>
 </html>

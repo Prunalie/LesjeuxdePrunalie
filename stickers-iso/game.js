@@ -2037,8 +2037,13 @@
   // ---------------------------------------------------------------------------
   // Atelier : créer les enveloppes et leurs stickers (administratrice)
   // ---------------------------------------------------------------------------
+  // Atelier : d'abord la liste des enveloppes, puis une seule enveloppe ouverte à la fois.
+  let atelierOpen = null; // id d'enveloppe, 'archives' ou null (liste)
+
   function openAtelier() {
     if (!state.isAdmin) return;
+    atelierOpen = null;
+    $('#atelierSearch').value = '';
     renderAtelier();
     refreshCoffreCount();
     showScreen('atelier');
@@ -2062,6 +2067,7 @@
     };
     state.envelopes.push(env);
     db.putEnvelope(env).catch(() => toast('L\'enveloppe n\'a pas pu être enregistrée.'));
+    atelierOpen = env.id;
     renderAtelier();
   });
 
@@ -2100,10 +2106,27 @@
 
   function renderAtelier() {
     renderDailySetting();
+    if (atelierOpen === 'archives' ? !archivedStickers().length : atelierOpen && !state.envelopes.some((e) => e.id === atelierOpen)) atelierOpen = null;
+    const detail = !!atelierOpen;
+    $('#atelierHome').hidden = detail;
+    $('#dailyForm').hidden = detail;
+    $('#atelierDetailBar').hidden = !detail;
     const listEl = $('#atelierList');
     listEl.innerHTML = '';
-    $('#atelierEmpty').hidden = state.envelopes.length > 0;
-    for (const env of state.envelopes) {
+    if (!detail) {
+      $('#atelierEmpty').hidden = state.envelopes.length > 0;
+      renderAtelierTiles(listEl);
+      return;
+    }
+    $('#atelierEmpty').hidden = true;
+    window.scrollTo(0, 0);
+    if (atelierOpen === 'archives') {
+      $('#atelierDetailTitle').textContent = '📦 Archives';
+      renderArchives(listEl);
+      return;
+    }
+    for (const env of state.envelopes.filter((e) => e.id === atelierOpen)) {
+      $('#atelierDetailTitle').textContent = env.name || 'Enveloppe';
       const sec = document.createElement('section');
       sec.className = 'atelier-env';
       sec.innerHTML = `
@@ -2126,7 +2149,11 @@
       fName.value = env.name;
       fPrice.value = env.price ?? DEFAULT_PRICE;
       fColor.value = env.color || ENVELOPE_COLORS[0];
-      fName.addEventListener('input', () => { env.name = fName.value.trim() || 'Enveloppe'; saveEnvelopeSoon(env); });
+      fName.addEventListener('input', () => {
+        env.name = fName.value.trim() || 'Enveloppe';
+        $('#atelierDetailTitle').textContent = env.name;
+        saveEnvelopeSoon(env);
+      });
       fPrice.addEventListener('input', () => {
         env.price = Math.max(0, Math.round(Number(fPrice.value) || 0));
         saveEnvelopeSoon(env);
@@ -2201,8 +2228,49 @@
       });
       listEl.appendChild(sec);
     }
-    renderArchives(listEl);
   }
+
+  // Liste des enveloppes en tuiles (avec recherche par nom d'enveloppe ou de sticker).
+  function renderAtelierTiles(listEl) {
+    const q = normalizeText($('#atelierSearch').value);
+    const grid = document.createElement('div');
+    grid.className = 'atelier-tiles';
+    const tile = (artEl, title, sub, onClick, extra = '') => {
+      const b = document.createElement('button');
+      b.className = 'atelier-tile ' + extra;
+      b.innerHTML = '<div class="atelier-tile-art"></div><div class="atelier-tile-text"><strong></strong><span class="muted"></span></div><span class="atelier-tile-go">›</span>';
+      b.querySelector('.atelier-tile-art').appendChild(artEl);
+      b.querySelector('strong').textContent = title;
+      b.querySelector('.muted').textContent = sub;
+      b.addEventListener('click', onClick);
+      grid.appendChild(b);
+    };
+    let shown = 0;
+    for (const env of state.envelopes) {
+      const list = stickersOf(env.id);
+      const hits = q ? list.filter((img) => normalizeText(img.name).includes(q)) : [];
+      if (q && !normalizeText(env.name).includes(q) && !hits.length) continue;
+      shown++;
+      const sub = (list.length ? plural(list.length, 'sticker') : 'Vide : pas dans la boutique')
+        + ` · ${env.price ?? DEFAULT_PRICE} 🪙`
+        + (hits.length ? ` · contient « ${hits.slice(0, 2).map((h) => h.name).join(' », « ')} »${hits.length > 2 ? '…' : ''}` : '');
+      tile(envelopeArt(env), env.name || 'Enveloppe', sub, () => { atelierOpen = env.id; renderAtelier(); }, list.length ? '' : 'empty');
+    }
+    const arch = archivedStickers();
+    const archHits = q ? arch.filter((img) => normalizeText(img.name).includes(q)) : arch;
+    if (archHits.length) {
+      shown++;
+      const art = document.createElement('div');
+      art.className = 'atelier-tile-icon';
+      art.textContent = '📦';
+      tile(art, 'Archives', `${plural(arch.length, 'sticker')} retiré${arch.length > 1 ? 's' : ''} des enveloppes`, () => { atelierOpen = 'archives'; renderAtelier(); }, 'archives');
+    }
+    listEl.appendChild(grid);
+    if (q && !shown) listEl.insertAdjacentHTML('beforeend', '<p class="muted">Aucune enveloppe ni sticker ne correspond.</p>');
+  }
+  const normalizeText = (t) => (t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  $('#atelierSearch').addEventListener('input', () => renderAtelier());
+  $('#atelierAll').addEventListener('click', () => { atelierOpen = null; renderAtelier(); });
 
   async function moveToEnvelope(img, envId) {
     const env = state.envelopes.find((e) => e.id === envId);
@@ -2225,7 +2293,6 @@
     const sec = document.createElement('section');
     sec.className = 'atelier-env atelier-archives';
     sec.innerHTML = `
-      <h3>📦 Archives</h3>
       <p class="atelier-count muted">Stickers retirés de leur enveloppe. On ne peut plus les gagner, mais les joueurs qui les ont les gardent.</p>
       <div class="atelier-grid"></div>`;
     const grid = sec.querySelector('.atelier-grid');
