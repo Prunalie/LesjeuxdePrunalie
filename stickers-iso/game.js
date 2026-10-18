@@ -511,10 +511,8 @@
   function startSpawnDrag(e, imageId) {
     if (e.button !== undefined && e.button !== 0) return;
     e.preventDefault();
-    if (available(imageId) <= 0) {
-      toast('Tu as déjà posé tous tes exemplaires de ce sticker. Ouvre des enveloppes pour en gagner d\'autres !');
-      return;
-    }
+    // Plus d'exemplaire à poser : le sticker est grisé, on ne fait rien.
+    if (available(imageId) <= 0) return;
     const img = state.images.get(imageId);
     const startX = e.clientX, startY = e.clientY;
     let ghost = null;
