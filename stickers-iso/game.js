@@ -1658,7 +1658,7 @@
   const stickersOf = (envId) => [...state.images.values()].filter((img) => img.envelope === envId);
   const envelopeExists = (id) => !!id && state.envelopes.some((e) => e.id === id);
   // Stickers retirés de leur enveloppe : on peut les y remettre depuis l'atelier.
-  const archivedStickers = () => [...state.images.values()].filter((img) => img.catalog && !envelopeExists(img.envelope));
+  const archivedStickers = () => [...state.images.values()].filter((img) => img.catalog && img.archived && !envelopeExists(img.envelope));
   let shopReturnRoom = null; // pièce à rouvrir en quittant la boutique
 
   async function openShop(fromRoom) {
@@ -2578,7 +2578,8 @@
   // ---------------------------------------------------------------------------
   // Boîte aux lettres
   // ---------------------------------------------------------------------------
-  const unreadMail = () => state.mails.filter((m) => !m.read || (m.reward && !m.claimed)).length;
+  const hasGift = (m) => !!(m.reward || m.sticker);
+  const unreadMail = () => state.mails.filter((m) => !m.read || (hasGift(m) && !m.claimed)).length;
 
   function renderMailBadge() {
     const n = unreadMail();
@@ -2614,27 +2615,43 @@
       el.innerHTML = `
         <div class="mail-head"><h3></h3><time></time></div>
         <p class="mail-text"></p>
-        ${m.reward ? `<button class="btn ${m.claimed ? 'btn-ghost' : 'btn-primary'} mail-claim" ${m.claimed ? 'disabled' : ''}>${m.claimed ? `+${m.reward} 🪙 récupérées` : `Récupérer +${m.reward} 🪙`}</button>` : ''}`;
+        <div class="mail-gift" hidden><div class="env-item-img"><img alt=""></div><span></span></div>
+        ${hasGift(m) ? `<button class="btn ${m.claimed ? 'btn-ghost' : 'btn-primary'} mail-claim" ${m.claimed ? 'disabled' : ''}></button>` : ''}`;
       el.querySelector('h3').textContent = m.title;
       el.querySelector('time').textContent = m.created ? dateFmt.format(m.created) : '';
       el.querySelector('.mail-text').textContent = m.text;
+      // Cadeau : des pièces et/ou un sticker (1 exemplaire).
+      const img = m.sticker && state.images.get(m.sticker);
+      const stickerName = img ? img.name : 'ton sticker';
+      if (img) {
+        const gift = el.querySelector('.mail-gift');
+        gift.hidden = false;
+        gift.querySelector('img').src = img.url;
+        gift.querySelector('span').textContent = `« ${img.name} » · 1 exemplaire`;
+      }
+      const parts = [];
+      if (m.reward) parts.push(`+${m.reward} 🪙`);
+      if (m.sticker) parts.push(`« ${stickerName} »`);
       const claim = el.querySelector('.mail-claim');
+      if (claim) claim.textContent = m.claimed ? `${parts.join(' et ')} récupéré${m.sticker ? '' : 'es'}` : `Récupérer ${parts.join(' et ')}`;
       if (claim && !m.claimed) claim.addEventListener('click', () => {
         if (m.claimed) return;
         m.claimed = true;
         m.read = true;
-        state.profile.points += m.reward;
+        if (m.reward) state.profile.points += m.reward;
+        if (m.sticker) state.profile.inventory[m.sticker] = (state.profile.inventory[m.sticker] || 0) + 1;
         saveProfile();
         db.putMail(m).catch(() => {});
-        toast(`+${m.reward} 🪙 ajoutées à ton compte !`);
+        toast(m.sticker ? `${parts.join(' et ')} reçu${parts.length > 1 ? "s" : ""} !` : `+${m.reward} 🪙 ajoutées à ton compte !`);
         renderMail();
       });
       list.appendChild(el);
     }
   }
 
-  function sendMail(to, title, text, reward = 0) {
+  function sendMail(to, title, text, reward = 0, sticker = null) {
     const m = { id: uid(), to, title, text, reward, read: false, claimed: false, created: Date.now() };
+    if (sticker) m.sticker = sticker;
     return db.putMail(m);
   }
 
@@ -2661,7 +2678,7 @@
   function coffreStatus(p) {
     if (p.status !== 'accepted') return p.status;
     const rec = catalogOf(p);
-    return rec && !envelopeExists(rec.envelope) ? 'archived' : 'accepted';
+    return rec && rec.archived && !envelopeExists(rec.envelope) ? 'archived' : 'accepted';
   }
 
   async function archiveSticker(img) {
@@ -2759,12 +2776,12 @@
             renderCoffre();
           });
         } else if (state.envelopes.length) {
-          if (rec) note('📦 Archivé', 'coffre-archived');
+          if (rec) note(rec.archived ? '📦 Archivé' : 'Pas encore dans une enveloppe', rec.archived ? 'coffre-archived' : 'muted');
           const sel = envSelect(null);
-          button(rec ? 'Remettre dans l\'enveloppe' : 'Ajouter à l\'enveloppe', 'btn-primary',
+          button(rec && rec.archived ? 'Remettre dans l\'enveloppe' : 'Ajouter à l\'enveloppe', 'btn-primary',
             () => (rec ? moveSticker(p, rec, sel.value) : addProposalToEnvelope(p, sel.value)));
         } else {
-          if (rec) note('📦 Archivé', 'coffre-archived');
+          if (rec && rec.archived) note('📦 Archivé', 'coffre-archived');
           note('Crée une enveloppe dans l\'atelier pour l\'y ranger.', 'muted');
         }
         button('Supprimer', 'btn-ghost', () => deleteProposal(p));
@@ -2781,11 +2798,19 @@
     const reward = Math.max(0, Math.round(Number(answer) || 0));
     p.status = 'accepted';
     p.reward = reward;
+    // Le sticker entre au catalogue (pas encore dans une enveloppe) : le joueur en reçoit 1 exemplaire.
+    const rec = catalogOf(p) || {
+      id: uid(), catalog: true, envelope: null, archived: false, rarity: 'common',
+      name: p.name, data: p.data, w: p.w, h: p.h, created: Date.now(),
+      author: p.ownerName || p.owner, fromProposal: p.id,
+    };
     try {
+      await db.putImage(rec);
+      addImageToLibrary(rec);
       await db.putImage(p);
       await sendMail(p.owner, 'Sticker accepté 🎉',
-        `Ton sticker « ${p.name} » a été accepté ! Il pourra bientôt apparaître dans une enveloppe.`
-        + (reward ? ` Voici ${reward} 🪙 pour te remercier.` : ''), reward);
+        `Ton sticker « ${p.name} » a été accepté ! Voici ${reward ? `${reward} 🪙 et ` : ''}ton sticker en 1 exemplaire pour te remercier. Il pourra bientôt apparaître dans une enveloppe.`,
+        reward, rec.id);
       toast(`« ${p.name} » validé. ${p.ownerName || p.owner} a reçu un message.`);
     } catch (e) {
       console.warn('Validation impossible', e);
