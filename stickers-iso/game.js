@@ -2037,6 +2037,7 @@
   function openAtelier() {
     if (!state.isAdmin) return;
     renderAtelier();
+    refreshCoffreCount();
     showScreen('atelier');
   }
   $('#homeAtelier').addEventListener('click', openAtelier);
@@ -2162,6 +2163,12 @@
           db.putImage(img).catch(() => toast('La rareté n\'a pas pu être enregistrée.'));
         });
         cell.querySelector('.atelier-item-del').addEventListener('click', async () => {
+          if (proposalOf(img)) {
+            if (!(await askConfirm(`Retirer « ${img.name} » de l'enveloppe ? Il sera archivé dans le coffre : tu pourras le remettre dans une enveloppe quand tu veux. Les joueurs qui l'ont le gardent.`, 'Archiver'))) return;
+            await archiveSticker(img);
+            renderAtelier();
+            return;
+          }
           if (!(await askConfirm(`Retirer « ${img.name} » de l'enveloppe ? Les joueurs qui l'ont déjà le perdront aussi.`, 'Retirer'))) return;
           state.images.delete(img.id);
           db.deleteImage(img.id).catch(() => toast('Le sticker n\'a pas pu être supprimé.'));
@@ -2182,10 +2189,12 @@
       sec.querySelector('.atelier-del').addEventListener('click', async () => {
         const n = stickersOf(env.id).length;
         const msg = n
-          ? `Supprimer « ${env.name} » et ses ${n} stickers ? Les joueurs qui les ont déjà les perdront aussi.`
+          ? `Supprimer « ${env.name} » et ses ${n} stickers ? Les joueurs qui les ont déjà les perdront aussi (sauf les stickers proposés par des joueurs, qui seront archivés dans le coffre).`
           : `Supprimer « ${env.name} » ?`;
         if (!(await askConfirm(msg, 'Supprimer'))) return;
         for (const img of stickersOf(env.id)) {
+          // Les stickers proposés par les joueurs partent aux archives du coffre.
+          if (proposalOf(img)) { archiveSticker(img); continue; }
           state.images.delete(img.id);
           db.deleteImage(img.id).catch(() => {});
         }
@@ -2591,6 +2600,35 @@
     $('#homeCoffreSub').textContent = n ? `${plural(n, 'proposition')} à regarder` : 'Rien à valider';
   }
 
+  // Lien entre une proposition et le sticker du catalogue qu'on en a tiré.
+  const envelopeExists = (id) => !!id && state.envelopes.some((e) => e.id === id);
+  function catalogOf(p) {
+    const list = [...state.images.values()];
+    return list.find((img) => img.fromProposal === p.id)
+      || list.find((img) => !img.fromProposal && img.data && img.data === p.data);
+  }
+  function proposalOf(img) {
+    if (img.fromProposal) return true;
+    return (state.proposals || []).some((p) => p.status === 'accepted' && p.data && p.data === img.data);
+  }
+  // Onglet d'une proposition : une acceptée dont le sticker n'est plus dans une enveloppe est archivée.
+  function coffreStatus(p) {
+    if (p.status !== 'accepted') return p.status;
+    const rec = catalogOf(p);
+    return rec && !envelopeExists(rec.envelope) ? 'archived' : 'accepted';
+  }
+
+  async function archiveSticker(img) {
+    img.envelope = null;
+    img.archived = true;
+    try {
+      await db.putImage(img);
+    } catch (e) {
+      console.warn('Archivage impossible', e);
+      toast('Le sticker n\'a pas pu être archivé. Vérifie ta connexion.');
+    }
+  }
+
   async function openCoffre() {
     if (!state.isAdmin) return;
     showScreen('coffre');
@@ -2610,14 +2648,14 @@
 
   function renderCoffre() {
     document.querySelectorAll('.coffre-tab').forEach((tab) => {
-      const n = state.proposals.filter((p) => p.status === tab.dataset.filter).length;
+      const n = state.proposals.filter((p) => coffreStatus(p) === tab.dataset.filter).length;
       tab.classList.toggle('active', tab.dataset.filter === coffreFilter);
       tab.querySelector('span').textContent = n;
     });
     const list = $('#coffreList');
     list.innerHTML = '';
     const items = state.proposals
-      .filter((p) => p.status === coffreFilter)
+      .filter((p) => coffreStatus(p) === coffreFilter)
       .sort((a, b) => (b.created || 0) - (a.created || 0));
     $('#coffreEmpty').hidden = items.length > 0;
     for (const p of items) {
@@ -2647,24 +2685,41 @@
         button('✓ Valider', 'btn-primary', () => acceptProposal(p));
         button('✕ Refuser', '', () => refuseProposal(p));
       } else if (p.status === 'accepted') {
-        const used = p.usedIn && state.envelopes.find((e) => e.id === p.usedIn);
-        if (used) {
-          const tag = document.createElement('span');
-          tag.className = 'coffre-used';
-          tag.textContent = `Dans l'enveloppe « ${used.name} »`;
-          actions.appendChild(tag);
-        } else if (state.envelopes.length) {
+        const rec = catalogOf(p);
+        const envSelect = (exclude) => {
           const sel = document.createElement('select');
           sel.className = 'coffre-select';
           sel.setAttribute('aria-label', 'Enveloppe');
-          for (const env of state.envelopes) sel.add(new Option(env.name || 'Enveloppe', env.id));
+          for (const env of state.envelopes) if (env.id !== exclude) sel.add(new Option(env.name || 'Enveloppe', env.id));
           actions.appendChild(sel);
-          button('Ajouter à l\'enveloppe', 'btn-primary', () => addProposalToEnvelope(p, sel.value));
-        } else {
+          return sel;
+        };
+        const note = (text, cls) => {
           const tag = document.createElement('span');
-          tag.className = 'muted';
-          tag.textContent = 'Crée une enveloppe dans l\'atelier pour l\'y ranger.';
+          tag.className = cls;
+          tag.textContent = text;
           actions.appendChild(tag);
+        };
+        if (rec && envelopeExists(rec.envelope)) {
+          const env = state.envelopes.find((e) => e.id === rec.envelope);
+          note(`Dans l'enveloppe « ${env.name} »`, 'coffre-used');
+          if (state.envelopes.length > 1) {
+            const sel = envSelect(env.id);
+            button('Déplacer', '', () => moveSticker(p, rec, sel.value));
+          }
+          button('📦 Archiver', '', async () => {
+            if (!(await askConfirm(`Retirer « ${rec.name} » de l'enveloppe « ${env.name} » et l'archiver ? Les joueurs qui l'ont le gardent.`, 'Archiver'))) return;
+            await archiveSticker(rec);
+            renderCoffre();
+          });
+        } else if (state.envelopes.length) {
+          if (rec) note('📦 Archivé', 'coffre-archived');
+          const sel = envSelect(null);
+          button(rec ? 'Remettre dans l\'enveloppe' : 'Ajouter à l\'enveloppe', 'btn-primary',
+            () => (rec ? moveSticker(p, rec, sel.value) : addProposalToEnvelope(p, sel.value)));
+        } else {
+          if (rec) note('📦 Archivé', 'coffre-archived');
+          note('Crée une enveloppe dans l\'atelier pour l\'y ranger.', 'muted');
         }
         button('Supprimer', 'btn-ghost', () => deleteProposal(p));
       } else {
@@ -2715,7 +2770,7 @@
     const rec = {
       id: uid(), catalog: true, envelope: env.id, rarity: 'common',
       name: p.name, data: p.data, w: p.w, h: p.h, created: Date.now(),
-      author: p.ownerName || p.owner,
+      author: p.ownerName || p.owner, fromProposal: p.id,
     };
     try {
       await db.putImage(rec);
@@ -2730,10 +2785,32 @@
     renderCoffre();
   }
 
+  // Change l'enveloppe d'un sticker proposé (ou le sort des archives). Les joueurs gardent leurs exemplaires.
+  async function moveSticker(p, rec, envId) {
+    const env = state.envelopes.find((e) => e.id === envId);
+    if (!env) return;
+    rec.envelope = env.id;
+    rec.archived = false;
+    rec.fromProposal = p.id;
+    try {
+      await db.putImage(rec);
+      p.usedIn = env.id;
+      await db.putImage(p);
+      toast(`« ${rec.name} » est maintenant dans l'enveloppe « ${env.name} ».`);
+    } catch (e) {
+      console.warn('Déplacement impossible', e);
+      toast('Le sticker n\'a pas pu être déplacé. Vérifie ta connexion.');
+    }
+    renderCoffre();
+  }
+
   async function deleteProposal(p) {
-    const msg = p.status === 'accepted' && p.usedIn
-      ? `Supprimer « ${p.name} » du coffre ? Le sticker reste dans son enveloppe.`
-      : `Supprimer « ${p.name} » du coffre ?`;
+    const st = coffreStatus(p);
+    const msg = st === 'archived'
+      ? `Supprimer « ${p.name} » du coffre ? Tu ne pourras plus le remettre dans une enveloppe (les joueurs qui l'ont le gardent).`
+      : st === 'accepted' && catalogOf(p)
+        ? `Supprimer « ${p.name} » du coffre ? Le sticker reste dans son enveloppe.`
+        : `Supprimer « ${p.name} » du coffre ?`;
     if (!(await askConfirm(msg, 'Supprimer'))) return;
     state.proposals = state.proposals.filter((x) => x.id !== p.id);
     db.deleteImage(p.id).catch(() => toast('La proposition n\'a pas pu être supprimée.'));

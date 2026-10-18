@@ -1315,6 +1315,7 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
 .coffre-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .coffre-select { padding: 7px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; font-size: .85rem; max-width: 100%; }
 .coffre-used { font-size: .82rem; color: #2f6b27; font-weight: 600; }
+.coffre-archived { font-size: .82rem; color: #8a6420; font-weight: 600; }
 .atelier-intro-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 @media (max-width: 720px) {
