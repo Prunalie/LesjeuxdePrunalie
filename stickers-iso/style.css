@@ -1445,3 +1445,12 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
 .atelier-detail-bar h2 { margin: 0; font-size: 1.15rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 720px) { .atelier-tiles { grid-template-columns: 1fr; } }
 .atelier-daily { margin-top: 18px; }
+
+/* Atelier : changer le dessin d'un sticker */
+.atelier-item-img {
+  position: absolute; top: 4px; left: 4px;
+  width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--panel); box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  cursor: pointer; font-size: 13px;
+}

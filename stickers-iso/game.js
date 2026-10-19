@@ -683,6 +683,12 @@
     state.stickers.forEach((s, i) => {
       const img = state.images.get(s.imageId);
       if (!img) return;
+      // Dessin remplacé par un autre de proportions différentes : même surface, nouvelles proportions.
+      if (img.w && img.h && Math.abs(s.w / s.h - img.w / img.h) > 0.01) {
+        const k = Math.sqrt((s.w * s.h) / (img.w * img.h));
+        s.w = img.w * k;
+        s.h = img.h * k;
+      }
       const el = document.createElement('div');
       el.className = 'sticker';
       el.dataset.id = s.id;
@@ -2200,7 +2206,8 @@
           <input class="atelier-name" maxlength="30" aria-label="Nom du sticker">
           <select class="atelier-rarity" aria-label="Rareté">${Object.entries(RARITIES).map(([k, r]) => `<option value="${k}">${r.label}</option>`).join('')}</select>
           <select class="atelier-move" aria-label="Enveloppe" title="Changer d'enveloppe"></select>
-          <button class="atelier-item-del" title="Retirer et archiver">✕</button>`;
+          <button class="atelier-item-del" title="Retirer et archiver">✕</button>
+          <label class="atelier-item-img" title="Changer le dessin">🖼️<input type="file" accept="image/*" hidden></label>`;
         cell.querySelector('img').src = img.url;
         const nameIn = cell.querySelector('.atelier-name');
         nameIn.value = img.name;
@@ -2214,6 +2221,12 @@
           img.rarity = sel.value;
           cell.dataset.rarity = img.rarity;
           db.putImage(img).catch(() => toast('La rareté n\'a pas pu être enregistrée.'));
+        });
+        const imgIn = cell.querySelector('.atelier-item-img input');
+        imgIn.addEventListener('change', async () => {
+          const file = imgIn.files[0];
+          imgIn.value = '';
+          if (file) await replaceStickerImage(img, file);
         });
         const moveSel = cell.querySelector('.atelier-move');
         for (const e of state.envelopes) moveSel.add(new Option('✉️ ' + (e.name || 'Enveloppe'), e.id));
@@ -2293,6 +2306,31 @@
   const normalizeText = (t) => (t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
   $('#atelierSearch').addEventListener('input', () => renderAtelier());
   $('#atelierAll').addEventListener('click', () => { atelierOpen = null; renderAtelier(); });
+
+  // Nouveau dessin pour un sticker existant : il garde son nom, sa rareté, son enveloppe,
+  // et les joueurs qui l'ont voient le nouveau dessin partout (même dans leurs pièces).
+  async function replaceStickerImage(img, file) {
+    if (!file.type.startsWith('image/')) return;
+    if (!(await askConfirm(`Remplacer le dessin de « ${img.name} » par « ${file.name} » ? Les joueurs qui l'ont garderont leur sticker, avec le nouveau dessin.`, 'Remplacer'))) return;
+    // Garde le lien avec la proposition d'origine (retrouvée jusqu'ici par l'image).
+    const prop = !img.fromProposal && (state.proposals || []).find((p) => p.data && p.data === img.data);
+    if (prop) img.fromProposal = prop.id;
+    const old = { data: img.data, w: img.w, h: img.h, url: img.url };
+    try {
+      const srcUrl = URL.createObjectURL(file);
+      const el = await loadImageEl(srcUrl);
+      URL.revokeObjectURL(srcUrl);
+      const { data, w, h } = encodeImage(el);
+      Object.assign(img, { data, w, h, url: data, updated: Date.now() });
+      await db.putImage(img);
+      toast(`Nouveau dessin enregistré pour « ${img.name} ».`);
+    } catch (e) {
+      console.warn('Remplacement impossible', e);
+      Object.assign(img, old);
+      toast('Le dessin n\'a pas pu être remplacé. Essaie un PNG ou un JPG, et vérifie ta connexion.');
+    }
+    renderAtelier();
+  }
 
   async function moveToEnvelope(img, envId) {
     const env = state.envelopes.find((e) => e.id === envId);
