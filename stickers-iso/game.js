@@ -1354,8 +1354,16 @@
   $('#startForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = $('#pseudoInput').value.trim().replace(/\s+/g, ' ');
+    const err = $('#pseudoError');
     if (name.length < 2) {
-      $('#pseudoError').hidden = false;
+      err.textContent = 'Choisis un pseudo d\'au moins 2 lettres.';
+      err.hidden = false;
+      return;
+    }
+    // L'ancien profil d'administration n'existe plus.
+    if (normalizePseudo(name) === OLD_ADMIN) {
+      err.textContent = 'Ce profil n\'existe plus : utilise « Administratrice ».';
+      err.hidden = false;
       return;
     }
     $('#pseudoError').hidden = true;
