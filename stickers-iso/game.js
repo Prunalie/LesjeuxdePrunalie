@@ -18,7 +18,7 @@
   const MIN_SIZE = 16;
 
   // Collection
-  const ADMIN_PSEUDOS = ['administrateur'];  // pseudos (en minuscules) qui ont accès à l'atelier
+  const ADMIN_PSEUDOS = ['administratrice'];  // pseudos (en minuscules) qui ont accès à l'atelier
   const DAILY_POINTS = 100;            // points gagnés une fois par jour (par défaut ; réglable dans l'atelier)
   const DEFAULT_PRICE = 50;            // prix d'une nouvelle enveloppe
   const MULTI_BUY = 5;                 // nombre d'enveloppes du bouton « ×5 »
@@ -50,10 +50,10 @@
     profile: null,       // { id, pseudo, points, lastDaily, inventory: { stickerId: nombre }, stamps, stars }
     isAdmin: false,
     envelopes: [],       // { id, name, price, color, created }
-    settings: { dailyPoints: DAILY_POINTS }, // réglages communs, modifiables par l'administrateur
+    settings: { dailyPoints: DAILY_POINTS }, // réglages communs, modifiables par l'administratrice
     mails: [],           // boîte aux lettres : { id, to, title, text, reward, read, claimed, created }
     myProposals: [],     // stickers proposés par le joueur : { id, name, data, status, reward, ... }
-    proposals: [],       // coffre (administrateur) : toutes les propositions
+    proposals: [],       // coffre (administratrice) : toutes les propositions
     images: new Map(),   // catalogue : id -> { id, envelope, rarity, name, data, url, w, h }
     stickers: [],        // ordre du tableau = ordre d'empilement (dernier = devant)
     colors: { ...DEFAULT_COLORS },
@@ -156,6 +156,7 @@
           return d.exists ? { ...d.data(), id } : null;
         },
         putPlayer: ({ id, ...p }) => rooms.doc(id).set(clean({ ...p, type: 'player' })),
+        deletePlayer: (id) => rooms.doc(id).delete(),
         listEnvelopes: () => all(rooms.where('type', '==', 'envelope')),
         putEnvelope: ({ id, ...env }) => rooms.doc(id).set(clean({ ...env, type: 'envelope' })),
         deleteEnvelope: (id) => rooms.doc(id).delete(),
@@ -218,6 +219,7 @@
       deleteRoom: (id) => run('rooms', 'readwrite', (s) => s.delete(id)),
       getPlayer: async (id) => (await run('players', 'readonly', (s) => s.get(id))) || null,
       putPlayer: (p) => run('players', 'readwrite', (s) => s.put(p)),
+      deletePlayer: (id) => run('players', 'readwrite', (s) => s.delete(id)),
       listEnvelopes: () => getAll('envelopes'),
       putEnvelope: (env) => run('envelopes', 'readwrite', (s) => s.put(env)),
       deleteEnvelope: (id) => run('envelopes', 'readwrite', (s) => s.delete(id)),
@@ -1370,6 +1372,23 @@
   const playerDocId = (key) => 'player-' + key.replace(/\//g, '_');
   const today = () => new Date().toLocaleDateString('fr-CA'); // AAAA-MM-JJ, heure locale
 
+  // L'ancien profil « Administrateur » devient « Administratrice » : on reprend ses pièces,
+  // sa collection et ses pièces décorées la première fois qu'on se connecte avec le nouveau pseudo.
+  const OLD_ADMIN = 'administrateur';
+  async function migrateOldAdmin(d) {
+    const key = state.player.key;
+    if (await d.getPlayer(playerDocId(key))) return;
+    const old = await d.getPlayer(playerDocId(OLD_ADMIN));
+    if (!old) return;
+    const { id, ...rest } = old;
+    await d.putPlayer({ ...rest, id: playerDocId(key), key, pseudo: state.player.name });
+    for (const room of await d.listRooms(OLD_ADMIN)) {
+      if (room.owner === OLD_ADMIN) await d.putRoom({ ...room, owner: key });
+    }
+    for (const m of await d.listMail(OLD_ADMIN)) await d.putMail({ ...m, to: key });
+    await d.deletePlayer(playerDocId(OLD_ADMIN));
+  }
+
   async function login(name) {
     state.player = { key: normalizePseudo(name), name };
     state.isAdmin = ADMIN_PSEUDOS.includes(state.player.key);
@@ -1379,6 +1398,7 @@
     state.images = new Map();
     let gained = 0;
     try {
+      if (state.isAdmin) await withFallback(migrateOldAdmin);
       const [images, rooms, envelopes, profile, mails, mine, settings] = await withFallback((d) => Promise.all([
         d.listCatalog(), d.listRooms(state.player.key), d.listEnvelopes(), d.getPlayer(playerDocId(state.player.key)),
         d.listMail(state.player.key), d.listMyProposals(state.player.key), d.getSettings(),
@@ -2604,7 +2624,7 @@
       state.myProposals.push(rec);
       draft = null;
       $('#propName').value = '';
-      toast('Envoyé ! L\'administrateur va regarder ta proposition. Réponse dans ta boîte aux lettres 📬');
+      toast('Envoyé ! L\'administratrice va regarder ta proposition. Réponse dans ta boîte aux lettres 📬');
     } catch (err) {
       console.warn('Envoi impossible', err);
       toast('Ta proposition n\'a pas pu être envoyée. Vérifie ta connexion.');
@@ -2737,7 +2757,7 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Coffre (administrateur) : valider les propositions et les ranger en enveloppe
+  // Coffre (administratrice) : valider les propositions et les ranger en enveloppe
   // ---------------------------------------------------------------------------
   async function refreshCoffreCount() {
     try {
@@ -2971,7 +2991,7 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Joueurs (administrateur) : qui a commencé à jouer, et lui écrire
+  // Joueurs (administratrice) : qui a commencé à jouer, et lui écrire
   // ---------------------------------------------------------------------------
   let players = [];
   let playersSort = 'recent';
@@ -3066,7 +3086,7 @@
     if (gift === null) return;
     const reward = Math.max(0, Math.round(Number(gift) || 0));
     try {
-      await sendMail(key, reward ? 'Un cadeau pour toi 🎁' : 'Message de l\'administrateur', text, reward);
+      await sendMail(key, reward ? 'Un cadeau pour toi 🎁' : 'Message de l\'administratrice', text, reward);
       toast(`Message envoyé à ${name}${reward ? ` avec ${reward} 🪙` : ''}.`);
     } catch (e) {
       console.warn('Message impossible', e);
@@ -3183,7 +3203,9 @@
     showScreen('start');
 
     // Session en cours : on se reconnecte tout seul et on rouvre le même écran.
-    const session = read(SESSION_KEY);
+    let session = read(SESSION_KEY);
+    // Session ouverte avec l'ancien pseudo : on passe directement sur « Administratrice ».
+    if (session && normalizePseudo(session) === OLD_ADMIN) session = 'Administratrice';
     if (!session) {
       $('#pseudoInput').focus();
       return;
