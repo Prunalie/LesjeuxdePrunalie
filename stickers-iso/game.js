@@ -1360,12 +1360,6 @@
       err.hidden = false;
       return;
     }
-    // L'ancien profil d'administration n'existe plus.
-    if (normalizePseudo(name) === OLD_ADMIN) {
-      err.textContent = 'Ce profil n\'existe plus : utilise « Administratrice ».';
-      err.hidden = false;
-      return;
-    }
     $('#pseudoError').hidden = true;
     const btn = $('#startBtn');
     btn.disabled = true;
