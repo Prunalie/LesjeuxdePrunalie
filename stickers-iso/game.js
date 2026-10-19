@@ -24,7 +24,7 @@
   const MULTI_BUY = 5;                 // nombre d'enveloppes du bouton « ×5 »
   const STAR_PRICE = 1000;
   const PROPOSAL_REWARD = 100;         // pièces proposées par défaut quand un sticker est accepté
-  const MAX_PENDING = 10;              // propositions en attente maximum par joueur             // prix d'une étoile achetée avec des pièces
+  const MAX_PENDING = 30;              // propositions en attente par joueur (par défaut, réglable dans l'atelier)
   const STAMPS_PER_STAR = 10;          // tampons à réunir sur la carte pour gagner une étoile
   const RARITIES = {
     // sell : pièces 🪙 gagnées en revendant un exemplaire
@@ -2155,7 +2155,30 @@
     renderDailySetting();
   });
 
+  const maxPending = () => Math.max(1, Math.round(Number(state.settings.maxPending) || MAX_PENDING));
+  $('#pendingForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const value = Math.round(Number($('#pendingInput').value));
+    if (!(value >= 1) || value > 1000) {
+      toast('Indique un nombre entre 1 et 1000.');
+      return;
+    }
+    const before = state.settings.maxPending;
+    state.settings.maxPending = value;
+    try {
+      await db.putSettings(state.settings);
+      toast(`C'est enregistré : chaque joueur peut avoir ${value} propositions en attente.`);
+    } catch (err) {
+      state.settings.maxPending = before;
+      console.warn('Réglage impossible', err);
+      toast('Le réglage n\'a pas pu être enregistré. Vérifie ta connexion.');
+    }
+    renderDailySetting();
+  });
+
   function renderDailySetting() {
+    $('#pendingInput').value = maxPending();
+    $('#pendingCurrent').textContent = `Actuellement : ${maxPending()} en attente au plus. Les propositions déjà regardées ne comptent pas.`;
     $('#dailyInput').value = dailyPoints();
     $('#dailyCurrent').textContent = `Actuellement : ${dailyPoints()} 🪙 par jour.`;
   }
@@ -2166,6 +2189,7 @@
     const detail = !!atelierOpen;
     $('#atelierHome').hidden = detail;
     $('#dailyForm').hidden = detail;
+    $('#pendingForm').hidden = detail;
     $('#atelierDetailBar').hidden = !detail;
     const listEl = $('#atelierList');
     listEl.innerHTML = '';
@@ -2680,8 +2704,8 @@
     e.preventDefault();
     if (!draft) return;
     const name = $('#propName').value.trim() || 'Mon sticker';
-    if (state.myProposals.filter((x) => x.status === 'pending').length >= MAX_PENDING) {
-      toast(`Tu as déjà ${MAX_PENDING} propositions en attente. Attends qu'elles soient regardées !`);
+    if (state.myProposals.filter((x) => x.status === 'pending').length >= maxPending()) {
+      toast(`Tu as déjà ${maxPending()} propositions en attente. Attends qu'elles soient regardées !`);
       return;
     }
     const rec = {

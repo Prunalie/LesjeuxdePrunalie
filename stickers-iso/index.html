@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ma petite pièce</title>
-  <link rel="stylesheet" href="style.css?v=202610191600">
+  <link rel="stylesheet" href="style.css?v=202610191700">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -406,6 +406,19 @@
           </span>
         </label>
       </form>
+      <form id="pendingForm" class="daily-form atelier-daily" novalidate>
+        <div>
+          <h2>Propositions de stickers</h2>
+          <p id="pendingCurrent" class="muted"></p>
+        </div>
+        <label class="daily-field">
+          <span class="muted">Nombre maximum de propositions en attente par joueur</span>
+          <span class="daily-row">
+            <input id="pendingInput" class="field" type="number" min="0" max="1000" step="1" inputmode="numeric">
+            <button class="btn btn-primary" type="submit">Enregistrer</button>
+          </span>
+        </label>
+      </form>
     </div>
   </section>
 
@@ -546,7 +559,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610191600"></script>
-  <script src="game.js?v=202610191600"></script>
+  <script src="firebase-config.js?v=202610191700"></script>
+  <script src="game.js?v=202610191700"></script>
 </body>
 </html>
