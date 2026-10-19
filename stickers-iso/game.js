@@ -1650,6 +1650,11 @@
   function applyBars() {
     screens.room.classList.toggle('hide-top', !bars.top);
     screens.room.classList.toggle('hide-lib', !bars.lib);
+    screens.room.classList.toggle('lib-big', !!bars.big);
+    const sizeBtn = $('#btnLibSize');
+    sizeBtn.textContent = bars.big ? '⤡' : '⤢';
+    sizeBtn.title = bars.big ? 'Réduire la fenêtre des stickers' : 'Agrandir la fenêtre des stickers';
+    sizeBtn.setAttribute('aria-pressed', !!bars.big);
     tabTop.textContent = bars.top ? '▴' : '▾ Menu';
     tabTop.title = bars.top ? 'Cacher la barre du haut' : 'Afficher la barre du haut';
     tabTop.setAttribute('aria-expanded', bars.top);
@@ -1659,6 +1664,7 @@
     tabLib.setAttribute('aria-expanded', bars.lib);
     if (!bars.top) roomMenu.classList.remove('open');
   }
+  $('#btnLibSize').addEventListener('click', () => toggleBar('big'));
   function toggleBar(name) {
     bars[name] = !bars[name];
     try { localStorage.setItem(BARS_KEY, JSON.stringify(bars)); } catch (e) { /* stockage indisponible */ }

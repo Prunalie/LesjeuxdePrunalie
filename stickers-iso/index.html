@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ma petite pièce</title>
-  <link rel="stylesheet" href="style.css?v=202610191500">
+  <link rel="stylesheet" href="style.css?v=202610191600">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -134,7 +134,10 @@
     <aside id="roomLibrary" class="library">
       <div class="library-head">
         <h2>Mes stickers</h2>
-        <button id="btnLibShop" class="btn btn-primary import-btn" title="Boutique">🛍️<span class="label-long">&nbsp;Boutique</span></button>
+        <div class="library-actions">
+          <button id="btnLibSize" class="btn lib-size-btn" title="Agrandir la fenêtre des stickers" aria-pressed="false">⤢</button>
+          <button id="btnLibShop" class="btn btn-primary import-btn" title="Boutique">🛍️<span class="label-long">&nbsp;Boutique</span></button>
+        </div>
       </div>
       <p class="hint">Glisse un sticker dans la pièce (ou clique dessus). Le chiffre indique combien d'exemplaires il te reste à poser.</p>
       <div id="libraryGrid" class="library-grid"></div>
@@ -543,7 +546,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610191500"></script>
-  <script src="game.js?v=202610191500"></script>
+  <script src="firebase-config.js?v=202610191600"></script>
+  <script src="game.js?v=202610191600"></script>
 </body>
 </html>
