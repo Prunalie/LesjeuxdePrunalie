@@ -6,7 +6,6 @@ Coche une case (`- [x]`) quand c'est fait.
 ## À faire
 
 - [ ] **Concours du jour** : chaque jour un thème, chaque joueur propose une décoration de pièce. Le lendemain, tout le monde vote pour la plus belle, et un nouveau thème commence. Le gagnant gagne des pièces 🪙.
-
 - [ ] **Agrandir la fenêtre de sélection des stickers** (le panneau où on choisit les stickers à poser dans une pièce).
 - [ ] **Boîte à idées pour les joueurs** : un espace où les joueurs envoient leurs idées pour le jeu, que l'administratrice lit de son côté.
 
