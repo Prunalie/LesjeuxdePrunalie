@@ -1447,10 +1447,11 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
 .atelier-daily { margin-top: 18px; }
 
 /* Atelier : changer le dessin d'un sticker */
-.atelier-item-img {
-  position: absolute; top: 4px; left: 4px;
+.atelier-item-img, .atelier-item-dl {
+  position: absolute; top: 4px; left: 4px; border: none; color: inherit; padding: 0;
   width: 26px; height: 26px; border-radius: 50%;
   display: grid; place-items: center;
   background: var(--panel); box-shadow: 0 1px 3px rgba(0,0,0,.2);
   cursor: pointer; font-size: 13px;
 }
+.atelier-item-dl { left: 34px; }

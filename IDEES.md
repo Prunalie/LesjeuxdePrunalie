@@ -17,6 +17,7 @@ Coche une case (`- [x]`) quand c'est fait.
 
 ## Fait ✅
 
+- [x] **Télécharger une image** : bouton ⬇️ dans le Coffre (image envoyée par le joueur) et dans l'Atelier (dessin d'un sticker), en PNG.
 - [x] **Remplacer l'image d'un sticker** : pouvoir réimporter une nouvelle image sur un sticker existant (pour améliorer son dessin) sans le perdre : les joueurs qui l'ont et les pièces où il est posé gardent le sticker, avec le nouveau dessin.
 - [x] Atelier réorganisé : liste des enveloppes, recherche, une enveloppe à la fois
 - [x] Offrir des stickers et des pièces aux joueurs

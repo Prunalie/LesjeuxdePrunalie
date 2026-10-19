@@ -474,6 +474,28 @@
     }
   }
 
+  // Télécharge une image (en PNG, plus simple à retoucher) sous le nom donné.
+  async function downloadImage(src, name) {
+    try {
+      const el = await loadImageEl(src);
+      const cv = document.createElement('canvas');
+      cv.width = el.naturalWidth; cv.height = el.naturalHeight;
+      cv.getContext('2d').drawImage(el, 0, 0);
+      const blob = await new Promise((resolve) => cv.toBlob(resolve, 'image/png'));
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (name || 'sticker').replace(/[\\/:*?"<>|]+/g, '-').trim() + '.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (e) {
+      console.warn('Téléchargement impossible', e);
+      toast('L\'image n\'a pas pu être téléchargée.');
+    }
+  }
+
   function addImageToLibrary(rec) {
     const url = rec.data || (rec.blob ? URL.createObjectURL(rec.blob) : '');
     if (url) state.images.set(rec.id, { ...rec, url });
@@ -2207,7 +2229,8 @@
           <select class="atelier-rarity" aria-label="Rareté">${Object.entries(RARITIES).map(([k, r]) => `<option value="${k}">${r.label}</option>`).join('')}</select>
           <select class="atelier-move" aria-label="Enveloppe" title="Changer d'enveloppe"></select>
           <button class="atelier-item-del" title="Retirer et archiver">✕</button>
-          <label class="atelier-item-img" title="Changer le dessin">🖼️<input type="file" accept="image/*" hidden></label>`;
+          <label class="atelier-item-img" title="Changer le dessin">🖼️<input type="file" accept="image/*" hidden></label>
+          <button class="atelier-item-dl" title="Télécharger le dessin">⬇️</button>`;
         cell.querySelector('img').src = img.url;
         const nameIn = cell.querySelector('.atelier-name');
         nameIn.value = img.name;
@@ -2222,6 +2245,7 @@
           cell.dataset.rarity = img.rarity;
           db.putImage(img).catch(() => toast('La rareté n\'a pas pu être enregistrée.'));
         });
+        cell.querySelector('.atelier-item-dl').addEventListener('click', () => downloadImage(img.url, img.name));
         const imgIn = cell.querySelector('.atelier-item-img input');
         imgIn.addEventListener('change', async () => {
           const file = imgIn.files[0];
@@ -2888,9 +2912,11 @@
       };
       if (p.status === 'pending') {
         button('✓ Valider', 'btn-primary', () => acceptProposal(p));
+        button('⬇️ Télécharger', '', () => downloadImage(p.data, `${p.name} - ${p.ownerName || p.owner}`));
         button('✕ Refuser', '', () => refuseProposal(p));
       } else if (p.status === 'accepted') {
         const rec = catalogOf(p);
+        button('⬇️', 'btn-ghost', () => downloadImage(p.data, `${p.name} - ${p.ownerName || p.owner}`)).title = 'Télécharger l\'image envoyée par le joueur';
         const envSelect = (exclude) => {
           const sel = document.createElement('select');
           sel.className = 'coffre-select';
@@ -2928,6 +2954,7 @@
         }
         button('Supprimer', 'btn-ghost', () => deleteProposal(p));
       } else {
+        button('⬇️ Télécharger', '', () => downloadImage(p.data, `${p.name} - ${p.ownerName || p.owner}`));
         button('Supprimer', 'btn-ghost', () => deleteProposal(p));
       }
       list.appendChild(card);
