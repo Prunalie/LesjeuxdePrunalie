@@ -1479,3 +1479,4 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
   .screen-room.lib-big .thumb { width: 72px; height: 72px; }
   .screen-room.lib-big .library-actions .btn { height: 34px; }
 }
+.binder-star { margin-left: auto; }

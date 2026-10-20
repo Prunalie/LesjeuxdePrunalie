@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ma petite pièce</title>
-  <link rel="stylesheet" href="style.css?v=202610191700">
+  <link rel="stylesheet" href="style.css?v=202610200900">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -253,6 +253,7 @@
             <div class="binder-head">
               <h2 id="binderTitle"></h2>
               <p class="shop-progress"><span class="bar"><span id="binderBar"></span></span><span id="binderCount" class="txt"></span></p>
+              <button id="binderStar" class="btn btn-primary binder-star" hidden></button>
             </div>
             <div id="binderGrid" class="binder-grid"></div>
             <div class="binder-nav">
@@ -451,6 +452,7 @@
       <div id="envGrid" class="env-grid"></div>
       <div class="modal-actions">
         <button id="envClose" class="btn">Fermer</button>
+        <button id="envStar" class="btn" hidden>🌟 Étoile</button>
         <button id="envBuy5" class="btn"></button>
         <button id="envBuy" class="btn btn-primary"></button>
       </div>
@@ -559,7 +561,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610191700"></script>
-  <script src="game.js?v=202610191700"></script>
+  <script src="firebase-config.js?v=202610200900"></script>
+  <script src="game.js?v=202610200900"></script>
 </body>
 </html>

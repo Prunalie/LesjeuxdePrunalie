@@ -1825,6 +1825,9 @@
     buy5.textContent = `×${MULTI_BUY} · ${price * MULTI_BUY} 🪙`;
     buy5.disabled = state.profile.points < price * MULTI_BUY;
     buy5.onclick = () => { envDialog.hidden = true; buyEnvelopes(env, MULTI_BUY); };
+    const starBtn = $('#envStar');
+    starBtn.hidden = (state.profile.stars || 0) < 1;
+    starBtn.onclick = () => { envDialog.hidden = true; openStarPicker(env, () => renderShop()); };
     envDialog.hidden = false;
   }
   $('#envClose').addEventListener('click', () => { envDialog.hidden = true; });
@@ -2002,11 +2005,19 @@
 
   // Avec une étoile : choisir n'importe quel sticker, dans n'importe quelle enveloppe.
   const starDialog = $('#starDialog');
-  $('#btnUseStar').addEventListener('click', () => {
+  let starAfter = () => renderShop();
+  // onlyEnv : ne proposer que les stickers d'une enveloppe (depuis le classeur ou l'aperçu d'une enveloppe).
+  function openStarPicker(onlyEnv = null, after = () => renderShop()) {
     if ((state.profile.stars || 0) < 1) return;
+    starAfter = after;
+    $('#starTitle').textContent = onlyEnv ? `Choisis ton sticker « ${onlyEnv.name || 'Enveloppe'} » 🌟` : 'Choisis ton sticker 🌟';
+    $('.star-sub').textContent = onlyEnv
+      ? `Ton étoile te permet de prendre le sticker que tu veux dans « ${onlyEnv.name || 'Enveloppe'} ».`
+      : 'Ton étoile te permet de prendre le sticker que tu veux, dans n\'importe quelle enveloppe.';
     const body = $('#starList');
     body.innerHTML = '';
-    for (const env of state.envelopes.filter((e) => stickersOf(e.id).length)) {
+    const envs = onlyEnv ? [onlyEnv] : state.envelopes;
+    for (const env of envs.filter((e) => stickersOf(e.id).length)) {
       const h = document.createElement('h3');
       h.className = 'star-env';
       h.textContent = env.name || 'Enveloppe';
@@ -2028,7 +2039,8 @@
       body.appendChild(grid);
     }
     starDialog.hidden = false;
-  });
+  }
+  $('#btnUseStar').addEventListener('click', () => openStarPicker());
   $('#starClose').addEventListener('click', () => { starDialog.hidden = true; });
 
   async function useStar(env, img) {
@@ -2040,7 +2052,7 @@
     state.profile.inventory[img.id] = count;
     saveProfile();
     await playOpening(env, img, count, { withStar: true });
-    renderShop();
+    starAfter();
   }
 
   // Animation : l'enveloppe tremble, s'ouvre, et le sticker en sort.
@@ -2525,6 +2537,11 @@
     $('#binderTitle').textContent = env.name || 'Enveloppe';
     $('#binderCount').textContent = pageGot === list.length ? `Complète ! ${pageGot}/${list.length}` : `${pageGot}/${list.length}`;
     $('#binderBar').style.width = `${(pageGot / list.length) * 100}%`;
+    const stars = state.profile.stars || 0;
+    const starBtn = $('#binderStar');
+    starBtn.hidden = stars < 1;
+    starBtn.textContent = `🌟 Utiliser une étoile${stars > 1 ? ` (${stars})` : ''}`;
+    starBtn.onclick = () => openStarPicker(env, () => renderCollection());
     const grid = $('#binderGrid');
     grid.innerHTML = '';
     list.forEach((img, i) => {
