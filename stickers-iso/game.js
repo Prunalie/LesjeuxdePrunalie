@@ -349,6 +349,10 @@
 
   function drawRoom() {
     room.innerHTML = roomSvg(state.colors, state.shape);
+    // Couleurs des étages : seulement quand la pièce en a.
+    const hasLevels = !!(state.shape && state.shape.levels.length);
+    document.querySelectorAll('.level-color').forEach((el) => { el.hidden = !hasLevels; });
+    if (hasLevels) syncColorInputs();
     stageArea.style.background = state.colors.background || '';
   }
 
@@ -371,6 +375,18 @@
     const line = (a, b) => parts.push(`<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke="${lineColor}" stroke-width="1.5"/>`);
     for (let i = 1; i < w; i++) line(P(i, 0, z), P(i, d, z));
     for (let j = 1; j < d; j++) line(P(0, j, z), P(w, j, z));
+  }
+
+  // Couleurs des étages : choisies par le joueur, sinon tirées du sol.
+  function levelColors(colors, shape) {
+    const garden = normShape(shape).kind === 'garden';
+    const base = { ...(garden ? GARDEN_COLORS : DEFAULT_COLORS), ...colors };
+    const side = garden ? '#a07a55' : base.floor;
+    return {
+      levelLeft: colors.levelLeft || shade(side, -0.25),
+      levelRight: colors.levelRight || shade(side, -0.38),
+      levelFloor: colors.levelFloor || shade(base.floor, 0.08),
+    };
   }
 
   function roomSvg(colors, shape) {
@@ -417,15 +433,15 @@
     let z = 0;
     sh.levels.forEach((lv) => {
       const z1 = z + lv.h;
-      const top = shade(floor, 0.08);
-      const side = garden ? '#a07a55' : floor;
+      const lc = levelColors(colors || {}, shape);
+      const top = lc.levelFloor;
       // Face avant gauche (côté v = d) et face avant droite (côté u = w).
-      parts.push(`<polygon points="${pts(P(0, lv.d, z), P(lv.w, lv.d, z), P(lv.w, lv.d, z1), P(0, lv.d, z1))}" fill="${shade(side, -0.25)}"/>`);
-      parts.push(`<polygon points="${pts(P(lv.w, 0, z), P(lv.w, lv.d, z), P(lv.w, lv.d, z1), P(lv.w, 0, z1))}" fill="${shade(side, -0.38)}"/>`);
+      parts.push(`<polygon points="${pts(P(0, lv.d, z), P(lv.w, lv.d, z), P(lv.w, lv.d, z1), P(0, lv.d, z1))}" fill="${lc.levelLeft}"/>`);
+      parts.push(`<polygon points="${pts(P(lv.w, 0, z), P(lv.w, lv.d, z), P(lv.w, lv.d, z1), P(lv.w, 0, z1))}" fill="${lc.levelRight}"/>`);
       parts.push(`<polygon points="${pts(P(0, 0, z1), P(lv.w, 0, z1), P(lv.w, lv.d, z1), P(0, lv.d, z1))}" fill="${top}"/>`);
       floorPattern(parts, P, lv.w, lv.d, z1, top, garden, k);
       // Petite bordure sur l'arête avant.
-      parts.push(`<polyline points="${pts(P(0, lv.d, z1), P(lv.w, lv.d, z1), P(lv.w, 0, z1))}" fill="none" stroke="${shade(floor, -0.45)}" stroke-opacity=".5" stroke-width="2"/>`);
+      parts.push(`<polyline points="${pts(P(0, lv.d, z1), P(lv.w, lv.d, z1), P(lv.w, 0, z1))}" fill="none" stroke="${shade(top, -0.45)}" stroke-opacity=".5" stroke-width="2"/>`);
       z = z1;
     });
 
@@ -1192,6 +1208,9 @@
     wallRight: $('#colorWallRight'),
     floor: $('#colorFloor'),
     background: $('#colorBackground'),
+    levelLeft: $('#colorLevelLeft'),
+    levelRight: $('#colorLevelRight'),
+    levelFloor: $('#colorLevelFloor'),
   };
   for (const [key, input] of Object.entries(colorInputs)) {
     input.addEventListener('input', () => {
@@ -1203,8 +1222,9 @@
     });
   }
   function syncColorInputs() {
+    const lc = levelColors(state.colors, state.shape);
     for (const [key, input] of Object.entries(colorInputs)) {
-      input.value = state.colors[key] || (key === 'background' ? DEFAULT_BACKGROUND : DEFAULT_COLORS[key]);
+      input.value = state.colors[key] || lc[key] || (key === 'background' ? DEFAULT_BACKGROUND : DEFAULT_COLORS[key]);
     }
     $('#bgReset').hidden = !state.colors.background;
   }
@@ -1231,7 +1251,10 @@
   // ordinateur : on peut viser n'importe où à l'écran) ; sinon on touche un
   // endroit de la pièce pour prendre sa couleur.
   let pipetteKey = null;
-  const PIPETTE_NAMES = { wallLeft: 'le mur gauche', wallRight: 'le mur droit', floor: 'le sol', background: 'le fond' };
+  const PIPETTE_NAMES = {
+    wallLeft: 'le mur gauche', wallRight: 'le mur droit', floor: 'le sol', background: 'le fond',
+    levelLeft: 'les murs de l\'étage (gauche)', levelRight: 'les murs de l\'étage (droite)', levelFloor: 'le sol de l\'étage',
+  };
 
   document.querySelectorAll('.pipette-btn[data-color]').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -3060,6 +3083,12 @@
   // ---------------------------------------------------------------------------
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
+    {
+      id: 'n-2026-10-20b', date: Date.UTC(2026, 9, 20, 9), title: 'Des couleurs pour tes étages 🎨',
+      items: [
+        'Dans 🎨 Couleurs, tu peux maintenant choisir la couleur des murs de tes étages (côté gauche et côté droit) et celle de leur sol.',
+      ],
+    },
     {
       id: 'n-2026-10-20', date: Date.UTC(2026, 9, 19, 22), title: 'Aménage tes pièces 🏗️',
       items: [
