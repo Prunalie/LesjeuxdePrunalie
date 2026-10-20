@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ma petite pièce</title>
-  <link rel="stylesheet" href="style.css?v=202610201500">
+  <link rel="stylesheet" href="style.css?v=202610201600">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -105,6 +105,8 @@
       <button id="btnBack" class="btn btn-ghost" title="Retour à mes pièces">←<span class="label-long">&nbsp;Mes pièces</span></button>
       <input id="roomName" class="room-name-input" type="text" maxlength="40" aria-label="Nom de la pièce">
       <span id="saveStatus" class="save-status"></span>
+      <button id="btnExport" class="btn btn-ghost top-icon" title="Exporter la pièce en image">📷<span class="label-long">&nbsp;Exporter</span></button>
+      <button id="btnClear" class="btn btn-ghost top-icon" title="Retirer tous les stickers de la pièce">🧹<span class="label-long">&nbsp;Tout vider</span></button>
     </div>
   </header>
 
@@ -143,8 +145,6 @@
         <div class="room-tools" role="group" aria-label="Pièce">
           <button id="btnColors" aria-controls="colorsPanel" aria-expanded="false" title="Couleurs des murs, du sol et du fond">🎨<span class="label-long">&nbsp;Couleurs</span></button>
           <button id="btnShape" title="Aménager : jardin, taille, étages">🏗️<span class="label-long">&nbsp;Aménager</span></button>
-          <button id="btnExport" title="Exporter la pièce en image">📷<span class="label-long">&nbsp;Exporter</span></button>
-          <button id="btnClear" title="Retirer tous les stickers de la pièce">🧹<span class="label-long">&nbsp;Tout vider</span></button>
         </div>
       </div>
 
@@ -590,7 +590,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610201500"></script>
-  <script src="game.js?v=202610201500"></script>
+  <script src="firebase-config.js?v=202610201600"></script>
+  <script src="game.js?v=202610201600"></script>
 </body>
 </html>

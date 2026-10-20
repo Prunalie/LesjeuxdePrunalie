@@ -1546,3 +1546,10 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
 .colors-panel .pipette-btn { width: 36px; height: 34px; border-color: var(--line); background: var(--surface); }
 .layers-panel { top: 100px; }
 @media (min-width: 721px) { .layers-panel, .colors-panel { left: 14px; top: 104px; } }
+
+/* Exporter et Tout vider dans la barre du haut, à côté de « Sauvegardé » */
+.top-icon { flex-shrink: 0; }
+@media (max-width: 720px) {
+  .top-icon { width: 34px; height: 34px; padding: 0; justify-content: center; font-size: 1rem; }
+  .top-icon .label-long { display: none; }
+}
