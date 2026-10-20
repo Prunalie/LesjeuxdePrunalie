@@ -4,7 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ma petite pièce</title>
-  <link rel="stylesheet" href="style.css?v=202610201130">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
+  <link rel="stylesheet" href="style.css?v=202610201300">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -27,67 +30,100 @@
 
   <!-- Écran 2 : menu principal -->
   <section id="screenHome" class="screen screen-home" hidden>
-    <header class="topbar">
-      <h1>Bonjour <span id="playerName"></span></h1>
-      <div class="topbar-actions">
+    <div class="home-deco" aria-hidden="true"><span class="deco-1"></span><span class="deco-2"></span><span class="deco-3"></span></div>
+    <header class="topbar home-top">
+      <h1>Bonjour <span id="playerName" class="home-name"></span></h1>
+      <div class="home-top-actions">
         <span class="points-pill"></span>
-        <button id="btnChangePseudo" class="btn btn-ghost" title="Changer de pseudo">👤<span class="label-long">&nbsp;Changer de pseudo</span></button>
+        <button id="homeMail" class="mini home-icon-btn icon-mail" title="Boîte aux lettres">
+          <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect x="14.5" y="19" width="3" height="10" fill="#5A3E3A"/><path d="M5 17 A8 8 0 0 1 13 9 H20 A7 7 0 0 1 20 24 H5 Z" fill="#6CB4E0" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round" transform="translate(0 -3)"/><rect x="24" y="4" width="2.4" height="12" fill="#5A3E3A"/><path d="M26.4 4 H31 L28.5 7 L31 10 H26.4 Z" fill="#F0658A" stroke="#5A3E3A" stroke-width="1.6" stroke-linejoin="round"/></svg>
+          <span id="mailBadge" class="mail-badge" hidden></span>
+          <span id="homeMailSub" class="sr-only"></span>
+        </button>
+        <button id="homeNews" class="mini home-icon-btn icon-news" title="Nouveautés">
+          <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M13 4 L17 14 L27 18 L17 22 L13 32 L9 22 L-1 18 L9 14 Z" transform="translate(3 -3) scale(.85)" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.8" stroke-linejoin="round"/><path d="M25 3 L26.5 7.5 L31 9 L26.5 10.5 L25 15 L23.5 10.5 L19 9 L23.5 7.5 Z" fill="#F0658A" stroke="#5A3E3A" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          <span id="newsBadge" class="mail-badge" hidden></span>
+          <span id="homeNewsSub" class="sr-only"></span>
+        </button>
+        <button id="btnChangePseudo" class="mini home-pseudo-btn" title="Changer de pseudo">
+          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4.5" fill="#B07AD8" stroke="#5A3E3A" stroke-width="2.2"/><path d="M3.5 21 C4 15 8 13.5 12 13.5 C16 13.5 20 15 20.5 21 Z" fill="#B07AD8" stroke="#5A3E3A" stroke-width="2.2" stroke-linejoin="round"/></svg>
+          <span class="label-long">Changer de pseudo</span>
+        </button>
       </div>
     </header>
-    <div class="rooms-body">
-      <nav class="home-menu" aria-label="Menu principal">
-        <button id="homeRooms" class="home-tile tile-rooms">
-          <span class="home-icon" aria-hidden="true">🏠</span>
-          <span class="home-label">Mes pièces</span>
-          <span class="home-sub" id="homeRoomsSub"></span>
-        </button>
-        <button id="homeShop" class="home-tile tile-shop">
-          <span class="home-icon" aria-hidden="true">🛍️</span>
-          <span class="home-label">Boutique</span>
-          <span class="home-sub" id="homeShopSub"></span>
-        </button>
-        <button id="homeCollection" class="home-tile tile-collection">
-          <span class="home-icon" aria-hidden="true">📒</span>
-          <span class="home-label">Collection</span>
-          <span class="home-sub" id="homeCollectionSub"></span>
-        </button>
-        <button id="homeCreations" class="home-tile tile-creations">
-          <span class="home-icon" aria-hidden="true">✏️</span>
-          <span class="home-label">Proposer un sticker</span>
-          <span class="home-sub" id="homeCreationsSub"></span>
-        </button>
-        <button id="homeMail" class="home-tile tile-mail">
-          <span class="home-icon" aria-hidden="true">📬</span>
-          <span id="mailBadge" class="mail-badge" hidden></span>
-          <span class="home-label">Boîte aux lettres</span>
-          <span class="home-sub" id="homeMailSub"></span>
-        </button>
-        <button id="homeContest" class="home-tile tile-contest">
-          <span class="home-icon" aria-hidden="true">🏆</span>
-          <span class="home-label">Concours du jour</span>
-          <span class="home-sub" id="homeContestSub"></span>
-        </button>
-        <button id="homeNews" class="home-tile tile-news">
-          <span class="home-icon" aria-hidden="true">✨</span>
-          <span id="newsBadge" class="mail-badge" hidden></span>
-          <span class="home-label">Nouveautés</span>
-          <span class="home-sub" id="homeNewsSub"></span>
-        </button>
-        <button id="homeCoffre" class="home-tile tile-coffre" hidden>
-          <span class="home-icon" aria-hidden="true">🗃️</span>
-          <span class="home-label">Coffre</span>
-          <span class="home-sub" id="homeCoffreSub">Propositions des joueurs</span>
-        </button>
-        <button id="homePlayers" class="home-tile tile-players" hidden>
-          <span class="home-icon" aria-hidden="true">👥</span>
-          <span class="home-label">Joueurs</span>
-          <span class="home-sub">Qui joue, et leur écrire</span>
-        </button>
-        <button id="homeAtelier" class="home-tile tile-atelier" hidden>
-          <span class="home-icon" aria-hidden="true">🛠️</span>
-          <span class="home-label">Atelier</span>
-          <span class="home-sub">Créer les enveloppes</span>
-        </button>
+    <div class="rooms-body home-body">
+      <nav class="home-main" aria-label="Menu principal">
+        <section class="home-big" aria-label="Jouer">
+          <button id="homeRooms" class="card home-card big">
+            <span class="card-blob" style="background:#F7D9C4"></span>
+            <span class="big-text">
+              <span class="tile-icon big" style="background:#FFE8D6"><svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><path d="M7 15 H25 V27 H7 Z" fill="#FFF8EF" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M3.5 16 L16 5 L28.5 16 Z" fill="#F0658A" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><rect x="13" y="19" width="6" height="8" rx="1" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.2"/></svg></span>
+              <span><span class="card-title big">Mes pièces</span><span id="homeRoomsSub" class="card-sub big"></span></span>
+            </span>
+            <svg class="big-illu" viewBox="0 0 240 200" width="170" height="142" aria-hidden="true">
+              <polygon points="40,120 120,80 120,10 40,50" fill="#FFD9E0" stroke="#5A3E3A" stroke-width="3" stroke-linejoin="round"/>
+              <polygon points="120,80 200,120 200,50 120,10" fill="#FFF1C9" stroke="#5A3E3A" stroke-width="3" stroke-linejoin="round"/>
+              <polygon points="120,80 200,120 120,160 40,120" fill="#C9E8D9" stroke="#5A3E3A" stroke-width="3" stroke-linejoin="round"/>
+              <polygon points="40,120 120,160 120,172 40,132" fill="#9CCDB6" stroke="#5A3E3A" stroke-width="3" stroke-linejoin="round"/>
+              <polygon points="120,160 200,120 200,132 120,172" fill="#86BDA4" stroke="#5A3E3A" stroke-width="3" stroke-linejoin="round"/>
+              <g transform="translate(70 62) skewY(-26)"><path d="M0 6 C-12 -6 -4 -16 0 -9 C4 -16 12 -6 0 6 Z" fill="#F0658A" stroke="#5A3E3A" stroke-width="2.5" stroke-linejoin="round"/></g>
+              <g transform="translate(166 58) skewY(26)"><path d="M0 -13 L4 -4 L14 -3 L7 4 L9 14 L0 9 L-9 14 L-7 4 L-14 -3 L-4 -4 Z" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.5" stroke-linejoin="round"/></g>
+              <polygon points="120,100 148,114 120,128 92,114" fill="#F7A8B8" stroke="#5A3E3A" stroke-width="2.5" stroke-linejoin="round"/>
+              <polygon points="120,104 134,111 120,118 106,111" fill="#FFF8EF" stroke="#5A3E3A" stroke-width="2.5" stroke-linejoin="round"/>
+              <polygon points="106,111 120,118 120,128 106,121" fill="#F3D9C4" stroke="#5A3E3A" stroke-width="2.5" stroke-linejoin="round"/>
+              <polygon points="120,118 134,111 134,121 120,128" fill="#E8C5AC" stroke="#5A3E3A" stroke-width="2.5" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button id="homeContest" class="card home-card big">
+            <span class="card-blob" style="background:#FBEBB8"></span>
+            <span class="big-text">
+              <span class="tile-icon big" style="background:#FFF3CC"><svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><path d="M9 5 H23 V13 A7 7 0 0 1 9 13 Z" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M9 8 H4 C4 14 6 16 9 16 M23 8 H28 C28 14 26 16 23 16" fill="none" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/><rect x="14.5" y="19" width="3" height="5" fill="#5A3E3A"/><rect x="10" y="24" width="12" height="5" rx="1.5" fill="#B07AD8" stroke="#5A3E3A" stroke-width="2.4"/></svg></span>
+              <span>
+                <span class="card-title big">Concours du jour</span>
+                <span id="homeContestSub" class="card-sub big">Thème du jour : <span id="homeContestTheme" class="theme-name"></span></span>
+                <span class="chip"><svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="#FFF8EF" stroke="#5A3E3A" stroke-width="2.2"/><path d="M10 5.5 V10 L13 12" fill="none" stroke="#5A3E3A" stroke-width="2.2" stroke-linecap="round"/></svg><span id="homeContestChip">votes jusqu'à 20 h</span></span>
+              </span>
+            </span>
+          </button>
+        </section>
+
+        <section class="home-small" aria-label="Raccourcis">
+          <button id="homeCollection" class="card home-card small">
+            <span class="tile-icon" style="background:#E3EEF9"><svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect x="8" y="4" width="19" height="25" rx="3" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.4"/><path d="M13 11 H22 M13 16 H22" stroke="#5A3E3A" stroke-width="2.2" stroke-linecap="round"/><path d="M5 8 H11 M5 13 H11 M5 18 H11 M5 23 H11" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+            <span class="small-text"><span class="card-title">Collection</span><span id="homeCollectionSub" class="card-sub"></span>
+              <span class="mini-bar"><span id="homeCollectionBar"></span></span></span>
+          </button>
+          <button id="homeShop" class="card home-card small">
+            <span class="tile-icon" style="background:#FFE0E6"><svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M11 12 V9 A5 5 0 0 1 21 9 V12" fill="none" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/><rect x="5" y="12" width="22" height="16" rx="4" fill="#6CB4E0" stroke="#5A3E3A" stroke-width="2.4"/><circle cx="12" cy="18" r="1.8" fill="#5A3E3A"/><circle cx="20" cy="18" r="1.8" fill="#5A3E3A"/></svg></span>
+            <span class="small-text"><span class="card-title">Boutique</span><span id="homeShopSub" class="card-sub"></span></span>
+          </button>
+          <button id="homeCreations" class="card home-card small">
+            <span class="tile-icon" style="background:#F1E7F8"><svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 27 L7 19 L21 5 L27 11 L13 25 Z" fill="#FF9B6B" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M5 27 L7 19 L13 25 Z" fill="#FFF8EF" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M18 8 L24 14" stroke="#5A3E3A" stroke-width="2.2"/></svg></span>
+            <span class="small-text"><span class="card-title">Proposer un sticker</span><span id="homeCreationsSub" class="card-sub"></span></span>
+          </button>
+        </section>
+
+        <details id="homeAdmin" class="home-admin" hidden>
+          <summary>
+            <span class="tile-icon admin" style="background:#E2F0E6"><svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3 L27 7 V15 C27 22 22 27 16 29 C10 27 5 22 5 15 V7 Z" fill="#7CC59B" stroke="#5A3E3A" stroke-width="2.6" stroke-linejoin="round"/><path d="M11 16 L15 20 L22 12" fill="none" stroke="#5A3E3A" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span class="admin-title">Menu admin</span>
+            <svg class="chev" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9 L12 15 L18 9" fill="none" stroke="#5A3E3A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </summary>
+          <div class="admin-grid">
+            <button id="homeCoffre" class="mini home-card admin-card" hidden>
+              <span class="tile-icon" style="background:#E2F0E6"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 14 A11 9 0 0 1 27 14 Z" fill="#B07AD8" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><rect x="5" y="14" width="22" height="13" rx="2.5" fill="#9C7BD0" stroke="#5A3E3A" stroke-width="2.4"/><rect x="13" y="12" width="6" height="8" rx="1.5" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.2"/></svg></span>
+              <span class="small-text"><span class="card-title">Coffre</span><span id="homeCoffreSub" class="card-sub">Propositions des joueurs</span></span>
+            </button>
+            <button id="homePlayers" class="mini home-card admin-card" hidden>
+              <span class="tile-icon" style="background:#E0F0F1"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><circle cx="21" cy="11" r="4.5" fill="#F0658A" stroke="#5A3E3A" stroke-width="2.4"/><path d="M13 27 C13 20 17 18 21 18 C25 18 29 20 29 27 Z" fill="#F0658A" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><circle cx="11" cy="12" r="5" fill="#7A52B3" stroke="#5A3E3A" stroke-width="2.4"/><path d="M2 28 C2 20 6 18.5 11 18.5 C16 18.5 20 20 20 28 Z" fill="#7A52B3" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/></svg></span>
+              <span class="small-text"><span class="card-title">Joueurs</span><span class="card-sub">Qui joue, et leur écrire</span></span>
+            </button>
+            <button id="homeAtelier" class="mini home-card admin-card" hidden>
+              <span class="tile-icon" style="background:#F6E8E3"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect x="13.5" y="12" width="5" height="17" rx="2" fill="#E8906B" stroke="#5A3E3A" stroke-width="2.4"/><rect x="6" y="4" width="20" height="9" rx="2.5" fill="#A9B4C2" stroke="#5A3E3A" stroke-width="2.4"/><path d="M6 8.5 H2.5" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+              <span class="small-text"><span class="card-title">Atelier</span><span class="card-sub">Créer les enveloppes</span></span>
+            </button>
+          </div>
+        </details>
       </nav>
     </div>
   </section>
@@ -714,7 +750,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610201130"></script>
-  <script src="game.js?v=202610201130"></script>
+  <script src="firebase-config.js?v=202610201300"></script>
+  <script src="game.js?v=202610201300"></script>
 </body>
 </html>

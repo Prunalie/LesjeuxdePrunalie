@@ -1728,6 +1728,7 @@
     remember(name);
     $('#playerName').textContent = name;
     $('#homeAtelier').hidden = !state.isAdmin;
+    $('#homeAdmin').hidden = !state.isAdmin;
     state.images = new Map();
     let gained = 0;
     try {
@@ -1790,14 +1791,16 @@
     });
   }
 
+  // Icônes dessinées (pièce, étoile) du nouveau design.
+  const COIN_SVG = (n) => `<svg width="${n}" height="${n}" viewBox="0 0 26 26" role="img" aria-label="pièces"><circle cx="13" cy="13" r="11" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.5"/><circle cx="13" cy="13" r="6" fill="none" stroke="#E39A1B" stroke-width="2.5"/></svg>`;
+  const STAR_SVG = (n) => `<svg width="${n}" height="${n}" viewBox="0 0 28 28" role="img" aria-label="étoiles"><path d="M14 3 L17.5 10.5 L25.5 11.5 L19.5 17 L21.2 25 L14 21 L6.8 25 L8.5 17 L2.5 11.5 L10.5 10.5 Z" fill="#FFD96B" stroke="#5A3E3A" stroke-width="2.5" stroke-linejoin="round"/></svg>`;
+
   function renderPoints() {
     const pts = (state.profile && state.profile.points) || 0;
     const stars = (state.profile && state.profile.stars) || 0;
     // Pièces et étoiles dans la même bulle.
     document.querySelectorAll('.points-pill:not(#collectionTotal)').forEach((el) => {
-      el.innerHTML = '<span></span><span class="pill-sep" aria-hidden="true"></span><span></span>';
-      el.firstChild.textContent = `${pts} 🪙`;
-      el.lastChild.textContent = `${stars} 🌟`;
+      el.innerHTML = `<span class="pill-part">${pts} ${COIN_SVG(22)}</span><span class="pill-sep" aria-hidden="true"></span><span class="pill-part">${stars} ${STAR_SVG(22)}</span>`;
       el.title = `${pts} pièces · ${stars} étoile${stars > 1 ? 's' : ''} (une étoile = le sticker de ton choix)`;
     });
   }
@@ -2944,9 +2947,8 @@
   const collectible = () => [...state.images.values()].filter((img) => state.envelopes.some((e) => e.id === img.envelope));
 
   function renderContestTile() {
-    $('#homeContestSub').textContent = votingOver()
-      ? `Gagnant dévoilé ! Thème du jour : ${themeOf(today())}`
-      : `Thème du jour : ${themeOf(today())} · votes jusqu'à 20 h`;
+    $('#homeContestTheme').textContent = themeOf(today());
+    $('#homeContestChip').textContent = votingOver() ? 'Gagnant dévoilé !' : 'votes jusqu\'à 20 h';
   }
 
   function goHome() {
@@ -2958,10 +2960,11 @@
     const envs = state.envelopes.filter((env) => stickersOf(env.id).length).length;
     $('#homeRoomsSub').textContent = state.rooms.length ? plural(state.rooms.length, 'pièce') : 'Crée ta première pièce';
     const stars = state.profile.stars || 0;
-    $('#homeShopSub').textContent = stars
-      ? `🌟 ${plural(stars, 'étoile')} à utiliser !`
-      : (envs ? `${plural(envs, 'enveloppe')} en vente` : 'Bientôt des enveloppes');
+    if (stars) $('#homeShopSub').innerHTML = `${STAR_SVG(15)} ${plural(stars, 'étoile')} à utiliser !`;
+    else $('#homeShopSub').textContent = envs ? `${plural(envs, 'enveloppe')} en vente` : 'Bientôt des enveloppes';
     $('#homeCollectionSub').textContent = all.length ? `${got}/${all.length} stickers obtenus` : 'Classeur vide';
+    $('#homeCollectionBar').style.width = all.length ? `${Math.round((got / all.length) * 100)}%` : '0%';
+    $('#homeAdmin').hidden = !state.isAdmin;
     const pending = state.myProposals.filter((x) => x.status === 'pending').length;
     $('#homeCreationsSub').textContent = pending ? `${plural(pending, 'proposition')} en attente` : 'Envoie tes dessins !';
     renderMailBadge();
@@ -3274,6 +3277,13 @@
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
     {
+      id: 'n-2026-10-20e', date: Date.UTC(2026, 9, 20, 11, 30), title: 'Nouveau look ✨',
+      items: [
+        'Le menu principal fait peau neuve : nouvelles couleurs, nouvelles icônes et une jolie police.',
+        'La boîte aux lettres 📬 et les Nouveautés ✨ sont maintenant en haut, à côté de tes pièces et de tes étoiles.',
+      ],
+    },
+    {
       id: 'n-2026-10-20d', date: Date.UTC(2026, 9, 20, 9, 45), title: 'Concours du jour 🏆',
       items: [
         'Chaque jour, un nouveau thème ! Décore une pièce et publie-la depuis 🏆 Concours du jour.',
@@ -3335,6 +3345,7 @@
     $('#newsBadge').hidden = !n;
     $('#newsBadge').textContent = n;
     $('#homeNewsSub').textContent = n ? `${plural(n, 'nouveauté')} à découvrir !` : 'Les dernières mises à jour';
+    $('#homeNews').setAttribute('aria-label', `Nouveautés, ${$('#homeNewsSub').textContent.toLowerCase()}`);
   }
 
   // Une nouveauté (titre, date, liste ou texte) dans un élément.
@@ -3757,6 +3768,7 @@
     badge.hidden = !n;
     badge.textContent = n;
     $('#homeMailSub').textContent = n > 1 ? `${n} nouveaux messages` : (n ? '1 nouveau message' : 'Aucun nouveau message');
+    $('#homeMail').setAttribute('aria-label', `Boîte aux lettres, ${$('#homeMailSub').textContent.toLowerCase()}`);
   }
 
   function openMail() {
