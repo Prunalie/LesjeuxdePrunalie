@@ -1738,6 +1738,7 @@
     state.isAdmin = ADMIN_PSEUDOS.includes(state.player.key);
     remember(name);
     $('#playerName').textContent = name;
+    $('#playerName2').textContent = name;
     $('#homeAtelier').hidden = !state.isAdmin;
     $('#homeAdmin').hidden = !state.isAdmin;
     state.images = new Map();
