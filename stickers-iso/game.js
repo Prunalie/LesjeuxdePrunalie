@@ -786,7 +786,7 @@
     lastCoalesce = { kind: null, time: 0 };
     syncColorInputs();
     drawRoom();
-    if (cpKey) renderPickerState(currentColor(cpKey), true);
+    if (cpKey && !cpTarget) renderPickerState(currentColor(cpKey), true);
     renderStickers();
     scheduleSave();
     updateUndoButtons();
@@ -1283,6 +1283,9 @@
   ];
   const colorPicker = $('#colorPicker');
   let cpKey = null;
+  // Autre chose qu'une couleur de pièce (ex. une enveloppe) : { label, get(), set(hex) }.
+  let cpTarget = null;
+  const cpCurrent = () => (cpTarget ? cpTarget.get() : currentColor(cpKey));
   const CP_LABELS = {
     wallLeft: 'Mur gauche', wallRight: 'Mur droit', floor: 'Sol', background: 'Fond',
     levelLeft: 'Étage, côté gauche', levelRight: 'Étage, côté droit', levelFloor: 'Sol de l\'étage',
@@ -1318,6 +1321,11 @@
   function applyPickedColor(hex, fromSliders = false) {
     if (!cpKey || !validHex(hex)) return;
     hex = hex.toLowerCase();
+    if (cpTarget) {
+      cpTarget.set(hex);
+      renderPickerState(hex, !fromSliders);
+      return;
+    }
     checkpoint('color:' + cpKey);
     state.colors[cpKey] = hex;
     drawRoom();
@@ -1380,10 +1388,23 @@
         box.appendChild(empty);
       }
     }
-    renderPickerState(currentColor(cpKey), false);
+    renderPickerState(cpCurrent(), false);
+  }
+
+  // Palette pour une autre cible que la pièce (enveloppes de l'atelier…).
+  function openColorPickerFor(target) {
+    cpTarget = target;
+    cpKey = 'custom';
+    $('#cpTitle').textContent = target.label;
+    const base = $('#cpBase');
+    if (!base.children.length) BASE_COLORS.forEach((c) => base.appendChild(swatchButton(c, (x) => applyPickedColor(x))));
+    renderSaved();
+    renderPickerState(cpCurrent(), true);
+    colorPicker.hidden = false;
   }
 
   function openColorPicker(key) {
+    cpTarget = null;
     cpKey = key;
     $('#cpTitle').textContent = CP_LABELS[key] || 'Couleur';
     const base = $('#cpBase');
@@ -1400,13 +1421,15 @@
     if (colorPicker.hidden && !cpKey) return;
     colorPicker.hidden = true;
     cpKey = null;
+    if (cpTarget && cpTarget.close) cpTarget.close();
+    cpTarget = null;
     if (cpReopenPanel && reopen && !screens.room.hidden) colorsPanel.hidden = false;
     cpReopenPanel = false;
   }
   $('#cpOk').addEventListener('click', () => closeColorPicker());
   $('#cpSave').addEventListener('click', () => {
     if (!cpKey) return;
-    const c = currentColor(cpKey).toLowerCase();
+    const c = cpCurrent().toLowerCase();
     const list = [c, ...savedColors().filter((x) => x !== c)].slice(0, SAVED_MAX);
     state.profile.savedColors = list;
     saveProfile();
@@ -1418,7 +1441,7 @@
     panel.hidden = !panel.hidden;
     $('#cpCustomBtn').setAttribute('aria-expanded', !panel.hidden);
     // Les curseurs partent toujours de la couleur actuelle.
-    if (!panel.hidden) renderPickerState(currentColor(cpKey), true);
+    if (!panel.hidden) renderPickerState(cpCurrent(), true);
   });
   for (const id of ['#cpH', '#cpS', '#cpL']) {
     $(id).addEventListener('input', () => {
@@ -1430,7 +1453,7 @@
     if (!v.startsWith('#')) v = '#' + v;
     if (validHex(v)) applyPickedColor(v);
   });
-  $('#cpHex').addEventListener('blur', () => { if (cpKey) $('#cpHex').value = currentColor(cpKey); });
+  $('#cpHex').addEventListener('blur', () => { if (cpKey) $('#cpHex').value = cpCurrent(); });
 
   $('#bgReset').addEventListener('click', () => {
     const before = snapshot();
@@ -2275,10 +2298,12 @@
   });
 
   // Petit dessin d'enveloppe, aux couleurs choisies dans l'atelier.
+  const DEFAULT_SEAL = '#f0658a';
   function envelopeArt(env, cls = '') {
     const el = document.createElement('div');
     el.className = 'env ' + cls;
     el.style.setProperty('--env', env.color || ENVELOPE_COLORS[0]);
+    if (env.seal) el.style.setProperty('--seal', env.seal);
     el.innerHTML = '<div class="env-back"></div><div class="env-pocket"></div><div class="env-flap"></div><div class="env-seal">★</div>';
     return el;
   }
@@ -2787,7 +2812,8 @@
           <div class="atelier-fields">
             <label class="atelier-field"><span>Nom</span><input class="field" data-f="name" maxlength="40"></label>
             <label class="atelier-field small"><span>Prix 🪙</span><input class="field" data-f="price" type="number" min="0" step="10"></label>
-            <label class="atelier-field small"><span>Couleur</span><input data-f="color" type="color"></label>
+            <div class="atelier-field small"><span>Couleur</span><button type="button" class="swatch-btn env-swatch" data-f="color" title="Couleur de l'enveloppe"></button></div>
+            <div class="atelier-field small"><span>Rond</span><button type="button" class="swatch-btn env-swatch" data-f="seal" title="Couleur du petit rond (cachet)"></button></div>
           </div>
           <button class="btn btn-ghost atelier-del" title="Supprimer l'enveloppe">🗑️</button>
         </div>
@@ -2800,7 +2826,12 @@
       const fColor = sec.querySelector('[data-f="color"]');
       fName.value = env.name;
       fPrice.value = env.price ?? DEFAULT_PRICE;
-      fColor.value = env.color || ENVELOPE_COLORS[0];
+      const fSeal = sec.querySelector('[data-f="seal"]');
+      const paintSwatches = () => {
+        fColor.style.background = env.color || ENVELOPE_COLORS[0];
+        fSeal.style.background = env.seal || DEFAULT_SEAL;
+      };
+      paintSwatches();
       fName.addEventListener('input', () => {
         env.name = fName.value.trim() || 'Enveloppe';
         $('#atelierDetailTitle').textContent = env.name;
@@ -2810,11 +2841,20 @@
         env.price = Math.max(0, Math.round(Number(fPrice.value) || 0));
         saveEnvelopeSoon(env);
       });
-      fColor.addEventListener('input', () => {
-        env.color = fColor.value;
-        sec.querySelector('.env').style.setProperty('--env', env.color);
-        saveEnvelopeSoon(env);
+      // Même palette que pour les pièces : couleurs en mémoire, couleurs de base, curseurs.
+      const pickFor = (field, label) => () => openColorPickerFor({
+        label: `${label} · ${env.name || 'Enveloppe'}`,
+        get: () => (field === 'seal' ? env.seal || DEFAULT_SEAL : env.color || ENVELOPE_COLORS[0]),
+        set: (hex) => {
+          env[field] = hex;
+          const art = sec.querySelector('.env');
+          art.style.setProperty(field === 'seal' ? '--seal' : '--env', hex);
+          paintSwatches();
+          saveEnvelopeSoon(env);
+        },
       });
+      fColor.addEventListener('click', pickFor('color', 'Enveloppe'));
+      fSeal.addEventListener('click', pickFor('seal', 'Petit rond'));
 
       const list = stickersOf(env.id);
       sec.querySelector('.atelier-count').textContent = list.length
