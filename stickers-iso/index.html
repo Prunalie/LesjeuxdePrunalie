@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ma petite pièce</title>
-  <link rel="stylesheet" href="style.css?v=202610201000">
+  <link rel="stylesheet" href="style.css?v=202610201300">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -125,6 +125,7 @@
         <button class="pipette-btn" data-color="background" title="Pipette : prendre la couleur du fond ailleurs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.6 3.9a2.2 2.2 0 0 1 3.1 3.1l-2.4 2.4 1 1-1.5 1.5-1-1-7.6 7.6H6.6v-3.6l7.6-7.6-1-1 1.5-1.5 1 1z M6.6 17.4 4 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
         <button id="bgReset" class="pipette-btn bg-reset" title="Remettre le fond par défaut" hidden>↺</button>
       </div>
+      <button id="btnShape" class="btn">🏗️ Aménager</button>
       <button id="btnExport" class="btn">📷 Exporter en image</button>
       <button id="btnClear" class="btn btn-ghost">🧹 Vider la pièce</button>
     </div>
@@ -420,6 +421,18 @@
           </span>
         </label>
       </form>
+      <form id="unlockForm" class="daily-form atelier-daily" novalidate>
+        <div>
+          <h2>Options d'aménagement</h2>
+          <p class="muted">Prix en étoiles 🌟 pour débloquer chaque option (0 = gratuit).</p>
+        </div>
+        <div class="unlock-fields">
+          <label class="unlock-field"><span class="muted">🌳 Jardin</span><input id="unlock_garden" class="field" type="number" min="0" max="100" step="1" inputmode="numeric"></label>
+          <label class="unlock-field"><span class="muted">📐 Taille</span><input id="unlock_size" class="field" type="number" min="0" max="100" step="1" inputmode="numeric"></label>
+          <label class="unlock-field"><span class="muted">🏢 Étages</span><input id="unlock_levels" class="field" type="number" min="0" max="100" step="1" inputmode="numeric"></label>
+          <button class="btn btn-primary" type="submit">Enregistrer</button>
+        </div>
+      </form>
     </div>
   </section>
 
@@ -431,6 +444,15 @@
         <button id="confirmCancel" class="btn">Annuler</button>
         <button id="confirmOk" class="btn btn-primary">OK</button>
       </div>
+    </div>
+  </div>
+
+  <div id="shapeDialog" class="modal" hidden>
+    <div class="modal-box modal-wide shape-box" role="dialog" aria-modal="true" aria-labelledby="shapeTitle">
+      <h2 id="shapeTitle" class="modal-title">Aménager 🏗️</h2>
+      <p id="shapeStars" class="muted"></p>
+      <div id="shapeBody" class="shape-body"></div>
+      <div class="modal-actions"><button id="shapeClose" class="btn btn-primary">Terminé</button></div>
     </div>
   </div>
 
@@ -561,7 +583,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610201000"></script>
-  <script src="game.js?v=202610201000"></script>
+  <script src="firebase-config.js?v=202610201300"></script>
+  <script src="game.js?v=202610201300"></script>
 </body>
 </html>

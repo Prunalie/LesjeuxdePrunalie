@@ -57,6 +57,7 @@
     images: new Map(),   // catalogue : id -> { id, envelope, rarity, name, data, url, w, h }
     stickers: [],        // ordre du tableau = ordre d'empilement (dernier = devant)
     colors: { ...DEFAULT_COLORS },
+    shape: null,         // forme de la pièce ouverte (type, taille, étages)
     selectedId: null,
     scale: 1,
   };
@@ -263,11 +264,12 @@
       name: state.roomName,
       stickers: state.stickers,
       colors: state.colors,
+      shape: state.shape,
       thumb,
       updated: Date.now(),
     };
     const i = state.rooms.findIndex((r) => r.id === room.id);
-    if (i >= 0) state.rooms[i] = { ...room, stickers: [...room.stickers], colors: { ...room.colors } };
+    if (i >= 0) state.rooms[i] = { ...room, stickers: [...room.stickers], colors: { ...room.colors }, shape: JSON.parse(JSON.stringify(room.shape)) };
     try {
       await db.putRoom(room);
       if (!savePending) setSaveStatus('Sauvegardé ✓');
@@ -285,19 +287,51 @@
   // ---------------------------------------------------------------------------
   // Dessin de la pièce isométrique
   // ---------------------------------------------------------------------------
-  // Coin du fond au sol, et les deux axes du sol.
-  const C = { x: 500, y: 330 };   // coin du fond
-  const R = { x: 920, y: 540 };   // coin droit
-  const L = { x: 80, y: 540 };    // coin gauche
-  const WALL_H = 300;
-  const TILES = 8;
+  // Forme de la pièce : type (pièce ou jardin), taille en carreaux, hauteur des murs,
+  // et étages (niveaux surélevés collés au coin du fond, chacun posé sur le précédent).
+  const DEFAULT_SHAPE = { kind: 'room', w: 8, d: 8, h: 5, levels: [] };
+  const SIZE_MIN = 3, SIZE_MAX = 16, WALL_MIN = 2, WALL_MAX = 10, LEVELS_MAX = 3;
+  const GARDEN_COLORS = { wallLeft: '#86b86b', wallRight: '#74a85b', floor: '#9fd07f', background: '#d4ecf7' };
 
-  const floorPoint = (u, v) => ({
-    x: C.x + u * (R.x - C.x) + v * (L.x - C.x),
-    y: C.y + u * (R.y - C.y) + v * (L.y - C.y),
-  });
-  const up = (p, h = WALL_H) => ({ x: p.x, y: p.y - h });
-  const pts = (...ps) => ps.map((p) => `${p.x},${p.y}`).join(' ');
+  function normShape(sh) {
+    const s = { ...DEFAULT_SHAPE, ...(sh || {}) };
+    s.kind = s.kind === 'garden' ? 'garden' : 'room';
+    s.w = clamp(Math.round(s.w), SIZE_MIN, SIZE_MAX);
+    s.d = clamp(Math.round(s.d), SIZE_MIN, SIZE_MAX);
+    s.h = clamp(Math.round(s.h), WALL_MIN, WALL_MAX);
+    let pw = s.w, pd = s.d;
+    s.levels = (Array.isArray(s.levels) ? s.levels : []).slice(0, LEVELS_MAX).map((lv) => {
+      const l = { w: clamp(Math.round(lv.w || 1), 1, pw), d: clamp(Math.round(lv.d || 1), 1, pd), h: clamp(Math.round(lv.h || 1), 1, 4) };
+      pw = l.w; pd = l.d;
+      return l;
+    });
+    return s;
+  }
+
+  // Géométrie : la pièce est mise à l'échelle et centrée dans la scène (1000 × 760).
+  // Avec la forme par défaut, on retrouve exactement la pièce d'origine.
+  const TILE_X = 52.5, TILE_Y = 26.25, TILE_Z = 60;
+  function roomGeom(shape) {
+    const sh = normShape(shape);
+    const garden = sh.kind === 'garden';
+    const levelsH = sh.levels.reduce((a, l) => a + l.h, 0);
+    // Les murs dépassent toujours un peu du dernier étage.
+    const wallTiles = garden ? Math.max(1.2, levelsH + 1.2) : Math.max(sh.h, levelsH + 2);
+    const span = sh.w + sh.d;
+    const k = Math.min(1, 840 / (span * TILE_X), 738 / (wallTiles * TILE_Z + span * TILE_Y + 18));
+    const wallPx = wallTiles * TILE_Z * k;
+    const C = {
+      x: 500 + ((sh.d - sh.w) * TILE_X * k) / 2,
+      y: 399 + (wallPx - span * TILE_Y * k - 18) / 2,
+    };
+    const P = (u, v, z = 0) => ({
+      x: C.x + (u - v) * TILE_X * k,
+      y: C.y + (u + v) * TILE_Y * k - z * TILE_Z * k,
+    });
+    return { sh, k, C, P, wallPx, wallTiles, garden };
+  }
+
+  const pts = (...ps) => ps.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
 
   function shade(hex, amount) {
     const n = parseInt(hex.slice(1), 16);
@@ -307,50 +341,102 @@
   }
 
   function drawRoom() {
-    room.innerHTML = roomSvg(state.colors);
+    room.innerHTML = roomSvg(state.colors, state.shape);
     stageArea.style.background = state.colors.background || '';
   }
 
-  function roomSvg(colors) {
-    const { wallLeft, wallRight, floor } = { ...DEFAULT_COLORS, ...colors };
-    const B = floorPoint(1, 1);
+  // Quadrillage (ou herbe pour un jardin) d'un sol rectangulaire à la hauteur z.
+  function floorPattern(parts, P, w, d, z, floor, garden, k) {
+    if (garden) {
+      // Petites touffes d'herbe, placées toujours au même endroit.
+      const tuft = shade(floor, -0.18);
+      for (let u = 0; u < w; u++) {
+        for (let v = 0; v < d; v++) {
+          const seed = (u * 73 + v * 37 + z * 11) % 10;
+          const p = P(u + 0.25 + seed / 20, v + 0.3 + ((seed * 7) % 10) / 20, z);
+          const s = 5 * k;
+          parts.push(`<path d="M${(p.x - s).toFixed(1)},${p.y.toFixed(1)} l${s.toFixed(1)},${(-2 * s).toFixed(1)} l${s.toFixed(1)},${(2 * s).toFixed(1)}" fill="none" stroke="${tuft}" stroke-width="${(1.6 * k).toFixed(2)}" stroke-linecap="round"/>`);
+        }
+      }
+      return;
+    }
+    const lineColor = shade(floor, -0.12);
+    const line = (a, b) => parts.push(`<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke="${lineColor}" stroke-width="1.5"/>`);
+    for (let i = 1; i < w; i++) line(P(i, 0, z), P(i, d, z));
+    for (let j = 1; j < d; j++) line(P(0, j, z), P(w, j, z));
+  }
+
+  function roomSvg(colors, shape) {
+    const g = roomGeom(shape);
+    const { sh, k, P, garden } = g;
+    const base = garden ? { ...GARDEN_COLORS } : { ...DEFAULT_COLORS };
+    const { wallLeft, wallRight, floor } = { ...base, ...colors };
+    const W = sh.w, D = sh.d, Z = g.wallTiles;
+    const C = P(0, 0), R = P(W, 0), L = P(0, D), B = P(W, D);
+    const up = (p) => ({ x: p.x, y: p.y - g.wallPx });
+    const off = (p, dx, dy) => ({ x: p.x + dx, y: p.y + dy });
+    const T = 16 * Math.max(k, 0.5);
     const parts = [];
 
-    // Murs
+    // Murs (ou haies pour un jardin)
     parts.push(`<polygon points="${pts(L, C, up(C), up(L))}" fill="${wallLeft}"/>`);
     parts.push(`<polygon points="${pts(C, R, up(R), up(C))}" fill="${wallRight}"/>`);
+    if (garden) {
+      // Feuillage : quelques bosses sur le haut des haies.
+      const bumps = (a, b, n, fill) => {
+        for (let i = 0; i < n; i++) {
+          const t = (i + 0.5) / n;
+          const c = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t - g.wallPx };
+          parts.push(`<ellipse cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" rx="${(30 * k).toFixed(1)}" ry="${(14 * k).toFixed(1)}" fill="${fill}"/>`);
+        }
+      };
+      bumps(L, C, D, shade(wallLeft, 0.12));
+      bumps(C, R, W, shade(wallRight, 0.12));
+    } else {
+      // Plinthes
+      const BASE = 14 * Math.max(k, 0.5);
+      parts.push(`<polygon points="${pts(L, C, off(C, 0, -BASE), off(L, 0, -BASE))}" fill="${shade(wallLeft, -0.18)}"/>`);
+      parts.push(`<polygon points="${pts(C, R, off(R, 0, -BASE), off(C, 0, -BASE))}" fill="${shade(wallRight, -0.18)}"/>`);
+    }
 
-    // Plinthes
-    const BASE = 14;
-    parts.push(`<polygon points="${pts(L, C, up(C, BASE), up(L, BASE))}" fill="${shade(wallLeft, -0.18)}"/>`);
-    parts.push(`<polygon points="${pts(C, R, up(R, BASE), up(C, BASE))}" fill="${shade(wallRight, -0.18)}"/>`);
+    // Arête du coin
+    if (!garden) parts.push(`<line x1="${C.x.toFixed(1)}" y1="${C.y.toFixed(1)}" x2="${C.x.toFixed(1)}" y2="${up(C).y.toFixed(1)}" stroke="${shade(wallLeft, -0.3)}" stroke-opacity=".35" stroke-width="2"/>`);
 
     // Sol
     parts.push(`<polygon points="${pts(C, R, B, L)}" fill="${floor}"/>`);
-    const lineColor = shade(floor, -0.12);
-    for (let i = 1; i < TILES; i++) {
-      const t = i / TILES;
-      const a1 = floorPoint(t, 0), a2 = floorPoint(t, 1);
-      const b1 = floorPoint(0, t), b2 = floorPoint(1, t);
-      parts.push(`<line x1="${a1.x}" y1="${a1.y}" x2="${a2.x}" y2="${a2.y}" stroke="${lineColor}" stroke-width="1.5"/>`);
-      parts.push(`<line x1="${b1.x}" y1="${b1.y}" x2="${b2.x}" y2="${b2.y}" stroke="${lineColor}" stroke-width="1.5"/>`);
-    }
+    floorPattern(parts, P, W, D, 0, floor, garden, k);
+
+    // Étages : chacun est un bloc collé au coin du fond, posé sur le précédent.
+    let z = 0;
+    sh.levels.forEach((lv) => {
+      const z1 = z + lv.h;
+      const top = shade(floor, 0.08);
+      const side = garden ? '#a07a55' : floor;
+      // Face avant gauche (côté v = d) et face avant droite (côté u = w).
+      parts.push(`<polygon points="${pts(P(0, lv.d, z), P(lv.w, lv.d, z), P(lv.w, lv.d, z1), P(0, lv.d, z1))}" fill="${shade(side, -0.25)}"/>`);
+      parts.push(`<polygon points="${pts(P(lv.w, 0, z), P(lv.w, lv.d, z), P(lv.w, lv.d, z1), P(lv.w, 0, z1))}" fill="${shade(side, -0.38)}"/>`);
+      parts.push(`<polygon points="${pts(P(0, 0, z1), P(lv.w, 0, z1), P(lv.w, lv.d, z1), P(0, lv.d, z1))}" fill="${top}"/>`);
+      floorPattern(parts, P, lv.w, lv.d, z1, top, garden, k);
+      // Petite bordure sur l'arête avant.
+      parts.push(`<polyline points="${pts(P(0, lv.d, z1), P(lv.w, lv.d, z1), P(lv.w, 0, z1))}" fill="none" stroke="${shade(floor, -0.45)}" stroke-opacity=".5" stroke-width="2"/>`);
+      z = z1;
+    });
 
     // Épaisseur des murs (tranche du dessus) et du sol
-    const T = 16;
-    const edge = shade(wallLeft, -0.3);
-    parts.push(`<polygon points="${pts(up(L), up(C), { x: up(C).x, y: up(C).y - T / 2 }, { x: up(L).x - T, y: up(L).y - T / 2 })}" fill="${shade(wallLeft, 0.35)}"/>`);
-    parts.push(`<polygon points="${pts(up(C), up(R), { x: up(R).x + T, y: up(R).y - T / 2 }, { x: up(C).x, y: up(C).y - T / 2 })}" fill="${shade(wallRight, 0.35)}"/>`);
-    parts.push(`<polygon points="${pts(L, { x: L.x - T, y: L.y - T / 2 }, { x: up(L).x - T, y: up(L).y - T / 2 }, up(L))}" fill="${shade(wallLeft, -0.25)}"/>`);
-    parts.push(`<polygon points="${pts(R, { x: R.x + T, y: R.y - T / 2 }, { x: up(R).x + T, y: up(R).y - T / 2 }, up(R))}" fill="${shade(wallRight, -0.3)}"/>`);
-    const SLAB = 18;
-    parts.push(`<polygon points="${pts({ x: L.x - T, y: L.y - T / 2 }, B, { x: B.x, y: B.y + SLAB }, { x: L.x - T, y: L.y - T / 2 + SLAB })}" fill="${shade(floor, -0.25)}"/>`);
-    parts.push(`<polygon points="${pts(B, { x: R.x + T, y: R.y - T / 2 }, { x: R.x + T, y: R.y - T / 2 + SLAB }, { x: B.x, y: B.y + SLAB })}" fill="${shade(floor, -0.38)}"/>`);
-    parts.push(`<polygon points="${pts({ x: L.x - T, y: L.y - T / 2 }, L, B)}" fill="${floor}"/>`);
-    parts.push(`<polygon points="${pts({ x: R.x + T, y: R.y - T / 2 }, R, B)}" fill="${floor}"/>`);
+    if (!garden) {
+      parts.push(`<polygon points="${pts(up(L), up(C), off(up(C), 0, -T / 2), off(up(L), -T, -T / 2))}" fill="${shade(wallLeft, 0.35)}"/>`);
+      parts.push(`<polygon points="${pts(up(C), up(R), off(up(R), T, -T / 2), off(up(C), 0, -T / 2))}" fill="${shade(wallRight, 0.35)}"/>`);
+    }
+    parts.push(`<polygon points="${pts(L, off(L, -T, -T / 2), off(up(L), -T, -T / 2), up(L))}" fill="${shade(wallLeft, -0.25)}"/>`);
+    parts.push(`<polygon points="${pts(R, off(R, T, -T / 2), off(up(R), T, -T / 2), up(R))}" fill="${shade(wallRight, -0.3)}"/>`);
+    const SLAB = 18 * Math.max(k, 0.5);
+    const slabColor = garden ? '#9b7653' : floor;
+    const LT = off(L, -T, -T / 2), RT = off(R, T, -T / 2);
+    parts.push(`<polygon points="${pts(LT, B, off(B, 0, SLAB), off(LT, 0, SLAB))}" fill="${shade(slabColor, -0.25)}"/>`);
+    parts.push(`<polygon points="${pts(B, RT, off(RT, 0, SLAB), off(B, 0, SLAB))}" fill="${shade(slabColor, -0.38)}"/>`);
+    parts.push(`<polygon points="${pts(LT, L, B)}" fill="${floor}"/>`);
+    parts.push(`<polygon points="${pts(RT, R, B)}" fill="${floor}"/>`);
 
-    // Arête du coin
-    parts.push(`<line x1="${C.x}" y1="${C.y}" x2="${C.x}" y2="${up(C).y}" stroke="${edge}" stroke-opacity=".35" stroke-width="2"/>`);
 
     return parts.join('');
   }
@@ -592,7 +678,7 @@
   const history = { undo: [], redo: [] };
   let lastCoalesce = { kind: null, time: 0 };
 
-  const snapshot = () => JSON.stringify({ stickers: state.stickers, colors: state.colors });
+  const snapshot = () => JSON.stringify({ stickers: state.stickers, colors: state.colors, shape: state.shape });
 
   // Enregistre l'état « avant » si la pièce a vraiment changé depuis.
   function commit(before) {
@@ -628,6 +714,8 @@
     const data = JSON.parse(snap);
     state.stickers = data.stickers.filter((st) => state.images.has(st.imageId));
     state.colors = { ...DEFAULT_COLORS, ...data.colors };
+    state.shape = normShape(data.shape);
+    if (!shapeDialog.hidden) renderShapeDialog();
     // Un exemplaire vendu entre-temps ne peut pas revenir dans la pièce.
     for (const id of new Set(state.stickers.map((st) => st.imageId))) {
       let extra = usedCount(id) - owned(id);
@@ -1450,6 +1538,7 @@
       state.profile.inventory = state.profile.inventory || {};
       state.profile.stamps = state.profile.stamps || 0;
       state.profile.stars = state.profile.stars || 0;
+      state.profile.unlocks = state.profile.unlocks || {};
       // Cartes déjà assez remplies (par ex. si le nombre de tampons requis a baissé).
       if (convertStamps()) {
         saveProfile();
@@ -1525,7 +1614,7 @@
       card.className = 'room-card';
       const preview = r.thumb
         ? `<img class="room-thumb" alt="">`
-        : `<svg class="room-thumb" viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg">${roomSvg(r.colors)}</svg>`;
+        : `<svg class="room-thumb" viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg">${roomSvg(r.colors, r.shape)}</svg>`;
       card.innerHTML = `
         <button class="room-open" title="Ouvrir">${preview}</button>
         <div class="room-meta">
@@ -1623,6 +1712,7 @@
     state.roomName = r.name;
     view.zoom = 1; view.x = 0; view.y = 0;
     state.colors = { ...DEFAULT_COLORS, ...r.colors };
+    state.shape = normShape(r.shape);
     state.stickers = (r.stickers || [])
       .filter((s) => state.images.has(s.imageId))
       .map((s) => ({ ...s }));
@@ -1636,6 +1726,161 @@
     renderStickers();
     showScreen('room');
   }
+
+  // ---------------------------------------------------------------------------
+  // Aménager la pièce : jardin, taille sur mesure, étages (options à débloquer avec des étoiles)
+  // ---------------------------------------------------------------------------
+  const UNLOCKS = {
+    garden: { label: 'Jardin', cost: 2, desc: 'Transforme une pièce en jardin : haies, pelouse et ciel.' },
+    size: { label: 'Taille sur mesure', cost: 1, desc: 'Choisis la largeur, la profondeur et la hauteur des murs.' },
+    levels: { label: 'Étages', cost: 2, desc: 'Ajoute jusqu\'à 3 niveaux surélevés au fond de la pièce.' },
+  };
+  const unlockCost = (key) => Math.max(0, Math.round(Number(state.settings['unlock_' + key] ?? UNLOCKS[key].cost)));
+  const isUnlocked = (key) => state.isAdmin || !!(state.profile.unlocks && state.profile.unlocks[key]);
+  const shapeDialog = $('#shapeDialog');
+
+  async function unlock(key) {
+    const u = UNLOCKS[key], cost = unlockCost(key);
+    const stars = state.profile.stars || 0;
+    if (stars < cost) {
+      toast(`Il te faut ${cost} 🌟 pour débloquer « ${u.label} ». Remplis ta carte de tampons ou achète une étoile dans la boutique.`);
+      return;
+    }
+    if (!(await askConfirm(`Débloquer « ${u.label} » pour ${cost} 🌟 ? ${u.desc} Ce sera valable pour toutes tes pièces.`, 'Débloquer'))) return;
+    state.profile.stars = stars - cost;
+    state.profile.unlocks = { ...(state.profile.unlocks || {}), [key]: true };
+    saveProfile();
+    toast(`« ${u.label} » est débloqué 🎉`);
+    renderShapeDialog();
+  }
+
+  // Modifie la forme de la pièce (avec retour en arrière possible).
+  function changeShape(kind, fn) {
+    checkpoint('shape-' + kind);
+    const sh = JSON.parse(JSON.stringify(state.shape));
+    fn(sh);
+    state.shape = normShape(sh);
+    drawRoom();
+    scheduleSave();
+  }
+
+  function renderShapeDialog() {
+    const sh = state.shape;
+    const body = $('#shapeBody');
+    const scroll = body.scrollTop;
+    body.innerHTML = '';
+    const section = (key, title, build) => {
+      const sec = document.createElement('section');
+      sec.className = 'shape-sec';
+      sec.innerHTML = '<div class="shape-sec-head"><h3></h3></div><div class="shape-sec-body"></div>';
+      sec.querySelector('h3').textContent = title;
+      const inner = sec.querySelector('.shape-sec-body');
+      if (isUnlocked(key)) {
+        build(inner);
+      } else {
+        sec.classList.add('locked');
+        sec.querySelector('h3').textContent = UNLOCKS[key].label;
+        const p = document.createElement('p');
+        p.className = 'muted';
+        p.textContent = UNLOCKS[key].desc;
+        const b = document.createElement('button');
+        b.className = 'btn btn-primary';
+        b.textContent = `🔓 Débloquer · ${unlockCost(key)} 🌟`;
+        b.addEventListener('click', () => unlock(key));
+        inner.append(p, b);
+      }
+      body.appendChild(sec);
+    };
+    const slider = (parent, label, value, min, max, onInput) => {
+      const row = document.createElement('label');
+      row.className = 'shape-slider';
+      row.innerHTML = '<span class="shape-slider-label"></span><input type="range"><output></output>';
+      row.querySelector('.shape-slider-label').textContent = label;
+      const input = row.querySelector('input');
+      input.min = min; input.max = max; input.step = 1; input.value = value;
+      row.querySelector('output').textContent = value;
+      input.disabled = max <= min;
+      input.addEventListener('input', () => {
+        row.querySelector('output').textContent = input.value;
+        onInput(Number(input.value));
+      });
+      input.addEventListener('change', () => renderShapeDialog());
+      parent.appendChild(row);
+    };
+
+    section('garden', 'Type', (inner) => {
+      const row = document.createElement('div');
+      row.className = 'shape-kind';
+      for (const [kind, label] of [['room', '🏠 Pièce'], ['garden', '🌳 Jardin']]) {
+        const b = document.createElement('button');
+        b.className = 'btn' + (sh.kind === kind ? ' btn-primary' : '');
+        b.textContent = label;
+        b.setAttribute('aria-pressed', sh.kind === kind);
+        b.addEventListener('click', () => {
+          if (sh.kind === kind) return;
+          changeShape('kind', (x) => { x.kind = kind; });
+          // Couleurs de départ adaptées (on garde la couleur du fond choisie à la main).
+          const bg = state.colors.background;
+          state.colors = kind === 'garden' ? { ...GARDEN_COLORS } : { ...DEFAULT_COLORS, ...(bg && bg !== GARDEN_COLORS.background ? { background: bg } : {}) };
+          syncColorInputs();
+          drawRoom();
+          renderShapeDialog();
+        });
+        row.appendChild(b);
+      }
+      inner.appendChild(row);
+    });
+
+    section('size', 'Taille', (inner) => {
+      slider(inner, 'Largeur', sh.w, SIZE_MIN, SIZE_MAX, (v) => changeShape('w', (x) => { x.w = v; }));
+      slider(inner, 'Profondeur', sh.d, SIZE_MIN, SIZE_MAX, (v) => changeShape('d', (x) => { x.d = v; }));
+      if (sh.kind !== 'garden') slider(inner, 'Hauteur des murs', sh.h, WALL_MIN, WALL_MAX, (v) => changeShape('h', (x) => { x.h = v; }));
+    });
+
+    section('levels', 'Étages', (inner) => {
+      const hint = document.createElement('p');
+      hint.className = 'muted shape-hint';
+      hint.textContent = 'Les étages se placent au fond de la pièce, dans le coin. Chacun est posé sur le précédent et ne peut pas être plus grand que lui.';
+      inner.appendChild(hint);
+      sh.levels.forEach((lv, i) => {
+        const box = document.createElement('div');
+        box.className = 'shape-level';
+        box.innerHTML = '<div class="shape-level-head"><strong></strong><button class="btn btn-ghost">Retirer</button></div>';
+        box.querySelector('strong').textContent = `Étage ${i + 1}`;
+        box.querySelector('button').addEventListener('click', () => {
+          changeShape('remove', (x) => { x.levels.splice(i); });
+          renderShapeDialog();
+        });
+        const maxW = i ? sh.levels[i - 1].w : sh.w, maxD = i ? sh.levels[i - 1].d : sh.d;
+        slider(box, 'Largeur', lv.w, 1, maxW, (v) => changeShape('lw' + i, (x) => { x.levels[i].w = v; }));
+        slider(box, 'Profondeur', lv.d, 1, maxD, (v) => changeShape('ld' + i, (x) => { x.levels[i].d = v; }));
+        slider(box, 'Hauteur', lv.h, 1, 4, (v) => changeShape('lh' + i, (x) => { x.levels[i].h = v; }));
+        inner.appendChild(box);
+      });
+      if (sh.levels.length < LEVELS_MAX) {
+        const add = document.createElement('button');
+        add.className = 'btn';
+        add.textContent = '＋ Ajouter un étage';
+        add.addEventListener('click', () => {
+          changeShape('add', (x) => {
+            const prev = x.levels[x.levels.length - 1] || { w: x.w, d: x.d };
+            x.levels.push({ w: Math.max(1, Math.ceil(prev.w * 0.6)), d: Math.max(1, Math.ceil(prev.d * 0.5)), h: 2 });
+          });
+          renderShapeDialog();
+        });
+        inner.appendChild(add);
+      }
+    });
+    $('#shapeStars').textContent = `Tu as ${state.profile.stars || 0} 🌟`;
+    body.scrollTop = scroll;
+  }
+
+  $('#btnShape').addEventListener('click', () => {
+    roomMenu.classList.remove('open');
+    renderShapeDialog();
+    shapeDialog.hidden = false;
+  });
+  $('#shapeClose').addEventListener('click', () => { shapeDialog.hidden = true; });
 
   // Barres repliables : la barre du haut et la bibliothèque se cachent chacune
   // avec sa languette, pour laisser toute la place à la pièce.
@@ -2172,6 +2417,26 @@
     renderDailySetting();
   });
 
+  // Prix des options d'aménagement, en étoiles.
+  $('#unlockForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const before = { ...state.settings };
+    for (const key of Object.keys(UNLOCKS)) {
+      const v = Math.round(Number($(`#unlock_${key}`).value));
+      if (!(v >= 0) || v > 100) { toast('Indique un nombre d\'étoiles entre 0 et 100.'); return; }
+      state.settings['unlock_' + key] = v;
+    }
+    try {
+      await db.putSettings(state.settings);
+      toast('C\'est enregistré : nouveaux prix des options d\'aménagement.');
+    } catch (err) {
+      state.settings = before;
+      console.warn('Réglage impossible', err);
+      toast('Le réglage n\'a pas pu être enregistré. Vérifie ta connexion.');
+    }
+    renderDailySetting();
+  });
+
   const maxPending = () => Math.max(1, Math.round(Number(state.settings.maxPending) || MAX_PENDING));
   $('#pendingForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -2194,6 +2459,7 @@
   });
 
   function renderDailySetting() {
+    for (const key of Object.keys(UNLOCKS)) $(`#unlock_${key}`).value = unlockCost(key);
     $('#pendingInput').value = maxPending();
     $('#pendingCurrent').textContent = `Actuellement : ${maxPending()} en attente au plus. Les propositions déjà regardées ne comptent pas.`;
     $('#dailyInput').value = dailyPoints();
@@ -2207,6 +2473,7 @@
     $('#atelierHome').hidden = detail;
     $('#dailyForm').hidden = detail;
     $('#pendingForm').hidden = detail;
+    $('#unlockForm').hidden = detail;
     $('#atelierDetailBar').hidden = !detail;
     const listEl = $('#atelierList');
     listEl.innerHTML = '';

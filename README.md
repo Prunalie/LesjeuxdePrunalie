@@ -38,3 +38,4 @@ dans `stickers-iso/firebase-config.js`. Les stickers sont alors enregistrés dan
 (collection `ma-petite-piece-stickers` pour les stickers des enveloppes, `ma-petite-piece` pour les
 pièces, les joueurs — points et exemplaires —, les enveloppes et les messages, distingués par le champ `type` ;
 les propositions des joueurs sont dans la collection des stickers avec `proposal: true`).
+- **Aménager** 🏗️ (menu ⋯ de la pièce) : options à débloquer avec des étoiles 🌟, valables pour toutes les pièces du joueur : **Jardin** (haies, pelouse, ciel), **Taille sur mesure** (largeur, profondeur, hauteur des murs) et **Étages** (jusqu'à 3 niveaux surélevés collés au coin du fond, chacun posé sur le précédent). Prix réglables par l'administratrice dans l'Atelier (« Options d'aménagement »).

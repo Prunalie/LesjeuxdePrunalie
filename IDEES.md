@@ -18,6 +18,8 @@ Coche une case (`- [x]`) quand c'est fait.
 
 ## Fait ✅
 
+- [x] **Aménager les pièces** (à débloquer avec des étoiles) : jardin, taille sur mesure, étages au fond de la pièce. Prix réglables dans l'Atelier.
+- [x] Nombre d'étoiles affiché à côté des pièces.
 - [x] **Étoile depuis une collection** : bouton « 🌟 Utiliser une étoile » dans le classeur (et « 🌟 Étoile » dans l'aperçu d'une enveloppe), qui ne propose que les stickers de cette enveloppe.
 - [x] **Agrandir la fenêtre de sélection des stickers** (le panneau où on choisit les stickers à poser dans une pièce). Bouton ⤢ à côté de la Boutique.
 - [x] **Télécharger une image** : bouton ⬇️ dans le Coffre (image envoyée par le joueur) et dans l'Atelier (dessin d'un sticker), en PNG.

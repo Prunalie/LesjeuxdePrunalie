@@ -1482,3 +1482,25 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
 .binder-star { margin-left: auto; }
 .pill-sep { width: 1px; align-self: stretch; margin: 0 7px; background: var(--line); }
 @media (max-width: 720px) { .pill-sep { margin: 0 5px; } }
+
+/* Aménager la pièce */
+.shape-box { max-width: 520px; }
+.shape-body { display: flex; flex-direction: column; gap: 12px; max-height: 60vh; overflow-y: auto; margin-bottom: 14px; padding-right: 2px; }
+.shape-sec { padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.shape-sec h3 { margin: 0 0 8px; font-size: 1rem; }
+.shape-sec.locked { border-style: dashed; }
+.shape-sec.locked h3::after { content: ' 🔒'; }
+.shape-sec.locked p { margin: 0 0 10px; font-size: .85rem; }
+.shape-kind { display: flex; gap: 8px; }
+.shape-kind .btn { flex: 1; justify-content: center; }
+.shape-slider { display: grid; grid-template-columns: 130px 1fr 32px; align-items: center; gap: 10px; margin: 6px 0; font-size: .88rem; }
+.shape-slider input { width: 100%; accent-color: var(--accent); }
+.shape-slider output { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.shape-hint { margin: 0 0 8px; font-size: .8rem; }
+.shape-level { padding: 8px 10px; margin-bottom: 8px; border-radius: 10px; background: var(--panel); }
+.shape-level-head { display: flex; justify-content: space-between; align-items: center; }
+.shape-level-head .btn { padding: 4px 10px; font-size: .8rem; }
+@media (max-width: 720px) { .shape-slider { grid-template-columns: 96px 1fr 28px; } }
+.unlock-fields { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+.unlock-field { display: flex; flex-direction: column; gap: 3px; font-size: .78rem; }
+.unlock-field .field { width: 80px; }
