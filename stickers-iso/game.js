@@ -173,6 +173,16 @@
         },
         putSettings: (st) => rooms.doc('settings').set(clean({ ...st, type: 'settings' })),
         putMail: ({ id, ...m }) => rooms.doc(id).set(clean({ ...m, type: 'mail' })),
+        // On ne touche qu'au champ « lu » (sinon une vieille copie pourrait effacer « récupéré »).
+        markMailRead: (id) => rooms.doc(id).set({ read: true }, { merge: true }),
+        // Récupérer un cadeau une seule fois, même avec le jeu ouvert sur deux appareils.
+        claimMail: (id) => fs.runTransaction(async (tx) => {
+          const ref = rooms.doc(id);
+          const d = await tx.get(ref);
+          if (!d.exists || d.data().claimed) return false;
+          tx.set(ref, { claimed: true, read: true }, { merge: true });
+          return true;
+        }),
         // Nouveautés écrites par l'administratrice (type « news »)
         listNews: () => all(rooms.where('type', '==', 'news')),
         putNews: ({ id, ...n }) => rooms.doc(id).set(clean({ ...n, type: 'news' })),
@@ -239,6 +249,16 @@
       getSettings: async () => (await run('settings', 'readonly', (s) => s.get('settings'))) || null,
       putSettings: (st) => run('settings', 'readwrite', (s) => s.put({ ...st, id: 'settings' })),
       putMail: (m) => run('mails', 'readwrite', (s) => s.put(m)),
+      markMailRead: async (id) => {
+        const m = await run('mails', 'readonly', (s) => s.get(id));
+        if (m && !m.read) await run('mails', 'readwrite', (s) => s.put({ ...m, read: true }));
+      },
+      claimMail: async (id) => {
+        const m = await run('mails', 'readonly', (s) => s.get(id));
+        if (!m || m.claimed) return false;
+        await run('mails', 'readwrite', (s) => s.put({ ...m, claimed: true, read: true }));
+        return true;
+      },
       listNews: () => getAll('news'),
       putNews: (n) => run('news', 'readwrite', (s) => s.put(n)),
       deleteNews: (id) => run('news', 'readwrite', (s) => s.delete(id)),
@@ -1798,6 +1818,31 @@
     if (gained) toast(`+${gained} 🪙 : tes points du jour ! Va les dépenser dans la boutique.`);
     showNewsPopup();
   }
+
+  // Relit le profil enregistré (pièces, stickers, étoiles) : utile si le jeu est
+  // ouvert sur plusieurs appareils, pour ne pas écraser ce qui a changé ailleurs.
+  let profileRefreshedAt = 0;
+  async function refreshProfile() {
+    if (!state.profile || !state.player) return;
+    try {
+      const fresh = await db.getPlayer(playerDocId(state.player.key));
+      if (!fresh) return;
+      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily']) {
+        if (fresh[k] !== undefined) state.profile[k] = fresh[k];
+      }
+      state.profile.inventory = state.profile.inventory || {};
+      profileRefreshedAt = Date.now();
+      renderPoints();
+    } catch (e) { /* hors ligne : on garde la version en mémoire */ }
+  }
+  // En revenant sur le jeu après un moment, on relit le profil.
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState !== 'visible' || !state.profile) return;
+    if (Date.now() - profileRefreshedAt < 30000) return;
+    await refreshProfile();
+    if (!screens.home.hidden) goHome();
+    else if (!screens.room.hidden) renderLibrary();
+  });
 
   function saveProfile() {
     renderPoints();
@@ -3805,16 +3850,22 @@
     $('#homeMail').setAttribute('aria-label', `Boîte aux lettres, ${$('#homeMailSub').textContent.toLowerCase()}`);
   }
 
-  function openMail() {
+  async function openMail() {
     renderMail();
     showScreen('mail');
+    // On recharge les messages : ils ont pu changer sur un autre appareil.
+    try {
+      state.mails = await db.listMail(state.player.key);
+      renderMail();
+    } catch (e) { /* on garde ceux déjà chargés */ }
     // Ouvrir la boîte marque les messages comme lus (les cadeaux restent à récupérer).
     for (const m of state.mails) {
       if (!m.read) {
         m.read = true;
-        db.putMail(m).catch(() => {});
+        db.markMailRead(m.id).catch(() => {});
       }
     }
+    renderMailBadge();
   }
   $('#homeMail').addEventListener('click', openMail);
   $('#mailBack').addEventListener('click', goHome);
@@ -3861,14 +3912,29 @@
       else if (ids.length) parts.push(`${ids.length} stickers`);
       const claim = el.querySelector('.mail-claim');
       if (claim) claim.textContent = m.claimed ? `${parts.join(' et ')} récupéré${ids.length ? (parts.length > 1 || ids.length > 1 ? 's' : '') : 'es'}` : `Récupérer ${parts.join(' et ')}`;
-      if (claim && !m.claimed) claim.addEventListener('click', () => {
-        if (m.claimed) return;
+      if (claim && !m.claimed) claim.addEventListener('click', async () => {
+        if (m.claimed || claim.disabled) return;
+        claim.disabled = true;
+        let ok;
+        try {
+          ok = await db.claimMail(m.id);
+        } catch (e) {
+          console.warn('Récupération impossible', e);
+          toast('Le cadeau n\'a pas pu être récupéré. Vérifie ta connexion.');
+          claim.disabled = false;
+          return;
+        }
         m.claimed = true;
         m.read = true;
+        if (!ok) {
+          toast('Ce cadeau a déjà été récupéré (peut-être sur un autre appareil).');
+          renderMail();
+          return;
+        }
+        await refreshProfile();
         if (m.reward) state.profile.points += m.reward;
         for (const id of ids) state.profile.inventory[id] = (state.profile.inventory[id] || 0) + 1;
         saveProfile();
-        db.putMail(m).catch(() => {});
         toast(ids.length ? `${parts.join(' et ')} reçu${parts.length > 1 || ids.length > 1 ? 's' : ''} !` : `+${m.reward} 🪙 ajoutées à ton compte !`);
         renderMail();
       });
