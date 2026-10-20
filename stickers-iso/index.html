@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ma petite pièce</title>
-  <link rel="stylesheet" href="style.css?v=202610200930">
+  <link rel="stylesheet" href="style.css?v=202610201030">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -160,31 +160,31 @@
           <button id="colorsClose" class="layers-close" title="Fermer">✕</button>
         </div>
         <div class="color-row">
-          <label class="color-pick" title="Couleur du mur gauche">Mur G <input type="color" id="colorWallLeft"></label>
+          <label class="color-pick" title="Couleur du mur gauche">Mur G <button type="button" class="swatch-btn" id="colorWallLeft" aria-haspopup="dialog"></button></label>
           <button class="pipette-btn" data-color="wallLeft" title="Pipette : prendre la couleur du mur gauche ailleurs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.6 3.9a2.2 2.2 0 0 1 3.1 3.1l-2.4 2.4 1 1-1.5 1.5-1-1-7.6 7.6H6.6v-3.6l7.6-7.6-1-1 1.5-1.5 1 1z M6.6 17.4 4 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
         </div>
         <div class="color-row">
-          <label class="color-pick" title="Couleur du mur droit">Mur D <input type="color" id="colorWallRight"></label>
+          <label class="color-pick" title="Couleur du mur droit">Mur D <button type="button" class="swatch-btn" id="colorWallRight" aria-haspopup="dialog"></button></label>
           <button class="pipette-btn" data-color="wallRight" title="Pipette : prendre la couleur du mur droit ailleurs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.6 3.9a2.2 2.2 0 0 1 3.1 3.1l-2.4 2.4 1 1-1.5 1.5-1-1-7.6 7.6H6.6v-3.6l7.6-7.6-1-1 1.5-1.5 1 1z M6.6 17.4 4 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
         </div>
         <div class="color-row">
-          <label class="color-pick" title="Couleur du sol">Sol <input type="color" id="colorFloor"></label>
+          <label class="color-pick" title="Couleur du sol">Sol <button type="button" class="swatch-btn" id="colorFloor" aria-haspopup="dialog"></button></label>
           <button class="pipette-btn" data-color="floor" title="Pipette : prendre la couleur du sol ailleurs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.6 3.9a2.2 2.2 0 0 1 3.1 3.1l-2.4 2.4 1 1-1.5 1.5-1-1-7.6 7.6H6.6v-3.6l7.6-7.6-1-1 1.5-1.5 1 1z M6.6 17.4 4 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
         </div>
         <div class="color-row level-color" hidden>
-          <label class="color-pick" title="Couleur des murs de l'étage, côté gauche">Étage G <input type="color" id="colorLevelLeft"></label>
+          <label class="color-pick" title="Couleur des murs de l'étage, côté gauche">Étage G <button type="button" class="swatch-btn" id="colorLevelLeft" aria-haspopup="dialog"></button></label>
           <button class="pipette-btn" data-color="levelLeft" title="Pipette : prendre la couleur ailleurs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.6 3.9a2.2 2.2 0 0 1 3.1 3.1l-2.4 2.4 1 1-1.5 1.5-1-1-7.6 7.6H6.6v-3.6l7.6-7.6-1-1 1.5-1.5 1 1z M6.6 17.4 4 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
         </div>
         <div class="color-row level-color" hidden>
-          <label class="color-pick" title="Couleur des murs de l'étage, côté droit">Étage D <input type="color" id="colorLevelRight"></label>
+          <label class="color-pick" title="Couleur des murs de l'étage, côté droit">Étage D <button type="button" class="swatch-btn" id="colorLevelRight" aria-haspopup="dialog"></button></label>
           <button class="pipette-btn" data-color="levelRight" title="Pipette : prendre la couleur ailleurs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.6 3.9a2.2 2.2 0 0 1 3.1 3.1l-2.4 2.4 1 1-1.5 1.5-1-1-7.6 7.6H6.6v-3.6l7.6-7.6-1-1 1.5-1.5 1 1z M6.6 17.4 4 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
         </div>
         <div class="color-row level-color" hidden>
-          <label class="color-pick" title="Couleur du sol de l'étage">Sol étage <input type="color" id="colorLevelFloor"></label>
+          <label class="color-pick" title="Couleur du sol de l'étage">Sol étage <button type="button" class="swatch-btn" id="colorLevelFloor" aria-haspopup="dialog"></button></label>
           <button class="pipette-btn" data-color="levelFloor" title="Pipette : prendre la couleur ailleurs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.6 3.9a2.2 2.2 0 0 1 3.1 3.1l-2.4 2.4 1 1-1.5 1.5-1-1-7.6 7.6H6.6v-3.6l7.6-7.6-1-1 1.5-1.5 1 1z M6.6 17.4 4 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
         </div>
         <div class="color-row">
-          <label class="color-pick" title="Couleur du fond autour de la pièce">Fond <input type="color" id="colorBackground"></label>
+          <label class="color-pick" title="Couleur du fond autour de la pièce">Fond <button type="button" class="swatch-btn" id="colorBackground" aria-haspopup="dialog"></button></label>
           <button class="pipette-btn" data-color="background" title="Pipette : prendre la couleur du fond ailleurs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.6 3.9a2.2 2.2 0 0 1 3.1 3.1l-2.4 2.4 1 1-1.5 1.5-1-1-7.6 7.6H6.6v-3.6l7.6-7.6-1-1 1.5-1.5 1 1z M6.6 17.4 4 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
           <button id="bgReset" class="pipette-btn bg-reset" title="Remettre le fond par défaut" hidden>↺</button>
         </div>
@@ -494,6 +494,32 @@
     </div>
   </div>
 
+  <!-- Palette de couleurs (en bas de l'écran, la pièce reste visible) -->
+  <div id="colorPicker" class="color-sheet" hidden role="dialog" aria-labelledby="cpTitle">
+    <div class="cp-head">
+      <span id="cpPreview" class="cp-preview"></span>
+      <div class="cp-title-wrap">
+        <h2 id="cpTitle"></h2>
+        <input id="cpHex" class="field cp-hex" maxlength="7" spellcheck="false" aria-label="Code couleur">
+      </div>
+      <button id="cpOk" class="btn btn-primary">OK</button>
+    </div>
+    <div class="cp-section">
+      <div class="cp-section-head"><h3>Mes couleurs</h3><button id="cpSave" class="btn btn-ghost cp-small">＋ Garder cette couleur</button></div>
+      <div id="cpSaved" class="cp-swatches"></div>
+    </div>
+    <div class="cp-section">
+      <h3>Couleurs de base</h3>
+      <div id="cpBase" class="cp-swatches"></div>
+    </div>
+    <button id="cpCustomBtn" class="btn cp-custom-btn" aria-expanded="false">🎚️ Personnaliser</button>
+    <div id="cpCustom" class="cp-custom" hidden>
+      <label class="cp-slider"><span>Teinte</span><input id="cpH" type="range" min="0" max="360" step="1"></label>
+      <label class="cp-slider"><span>Saturation</span><input id="cpS" type="range" min="0" max="100" step="1"></label>
+      <label class="cp-slider"><span>Luminosité</span><input id="cpL" type="range" min="0" max="100" step="1"></label>
+    </div>
+  </div>
+
   <div id="newsDialog" class="modal" hidden>
     <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="newsDialogTitle">
       <h2 id="newsDialogTitle" class="modal-title">Quoi de neuf ? ✨</h2>
@@ -643,7 +669,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610200930"></script>
-  <script src="game.js?v=202610200930"></script>
+  <script src="firebase-config.js?v=202610201030"></script>
+  <script src="game.js?v=202610201030"></script>
 </body>
 </html>

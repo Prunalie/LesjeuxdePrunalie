@@ -750,6 +750,7 @@
     lastCoalesce = { kind: null, time: 0 };
     syncColorInputs();
     drawRoom();
+    if (cpKey) renderPickerState(currentColor(cpKey), true);
     renderStickers();
     scheduleSave();
     updateUndoButtons();
@@ -1212,22 +1213,186 @@
     levelRight: $('#colorLevelRight'),
     levelFloor: $('#colorLevelFloor'),
   };
+  // Chaque carré de couleur ouvre la palette maison.
   for (const [key, input] of Object.entries(colorInputs)) {
-    input.addEventListener('input', () => {
-      checkpoint('color:' + key);
-      state.colors[key] = input.value;
-      if (key === 'background') $('#bgReset').hidden = false;
-      drawRoom();
-      scheduleSave();
-    });
+    input.addEventListener('click', (e) => { e.preventDefault(); openColorPicker(key); });
   }
-  function syncColorInputs() {
+  const currentColor = (key) => {
     const lc = levelColors(state.colors, state.shape);
+    const base = normShape(state.shape).kind === 'garden' ? GARDEN_COLORS : DEFAULT_COLORS;
+    return state.colors[key] || lc[key] || base[key] || (key === 'background' ? DEFAULT_BACKGROUND : '#cccccc');
+  };
+  function syncColorInputs() {
     for (const [key, input] of Object.entries(colorInputs)) {
-      input.value = state.colors[key] || lc[key] || (key === 'background' ? DEFAULT_BACKGROUND : DEFAULT_COLORS[key]);
+      const c = currentColor(key);
+      input.value = c;
+      input.style.background = c;
+      input.title = c;
     }
     $('#bgReset').hidden = !state.colors.background;
   }
+
+  // ---------------------------------------------------------------------------
+  // Palette de couleurs : 8 couleurs en mémoire, couleurs de base, et curseurs
+  // (teinte, saturation, luminosité) placés sur la couleur actuelle.
+  // ---------------------------------------------------------------------------
+  const SAVED_MAX = 8;
+  const BASE_COLORS = [
+    '#ffffff', '#f4ede4', '#d9d2c5', '#9e9a93', '#5a5550', '#2e2b28',
+    '#f6d6d0', '#eaa9a0', '#d9645a', '#f7e3b5', '#f0c46c', '#d8973c',
+    '#dcebc8', '#a9cf8f', '#6a9f58', '#cfe6ee', '#8cc3d8', '#4a87a8',
+    '#dcd3f0', '#ab9bd6', '#7a63b0', '#e8cfb4', '#c49a6c', '#8a5d3b',
+  ];
+  const colorPicker = $('#colorPicker');
+  let cpKey = null;
+  const CP_LABELS = {
+    wallLeft: 'Mur gauche', wallRight: 'Mur droit', floor: 'Sol', background: 'Fond',
+    levelLeft: 'Étage, côté gauche', levelRight: 'Étage, côté droit', levelFloor: 'Sol de l\'étage',
+  };
+
+  function hexToHsl(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0;
+    const l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h *= 60;
+    }
+    return { h: Math.round(h), s: Math.round(s * 100), l: Math.round(l * 100) };
+  }
+  function hslToHex(h, s, l) {
+    s /= 100; l /= 100;
+    const k = (n) => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    const to = (x) => Math.round(x * 255).toString(16).padStart(2, '0');
+    return '#' + to(f(0)) + to(f(8)) + to(f(4));
+  }
+  const validHex = (v) => /^#[0-9a-f]{6}$/i.test(v);
+
+  // Applique la couleur choisie à la pièce (un seul retour en arrière par rafale).
+  function applyPickedColor(hex, fromSliders = false) {
+    if (!cpKey || !validHex(hex)) return;
+    hex = hex.toLowerCase();
+    checkpoint('color:' + cpKey);
+    state.colors[cpKey] = hex;
+    drawRoom();
+    syncColorInputs();
+    scheduleSave();
+    renderPickerState(hex, !fromSliders);
+  }
+
+  function renderPickerState(hex, moveSliders = true) {
+    $('#cpPreview').style.background = hex;
+    if (document.activeElement !== $('#cpHex')) $('#cpHex').value = hex;
+    if (moveSliders) {
+      const { h, s, l } = hexToHsl(hex);
+      $('#cpH').value = h; $('#cpS').value = s; $('#cpL').value = l;
+    }
+    updateSliderTracks();
+    document.querySelectorAll('#colorPicker .cp-swatch').forEach((b) => b.classList.toggle('active', b.dataset.color === hex));
+  }
+  function updateSliderTracks() {
+    const h = +$('#cpH').value, s = +$('#cpS').value, l = +$('#cpL').value;
+    $('#cpS').style.background = `linear-gradient(to right, ${hslToHex(h, 0, l)}, ${hslToHex(h, 100, l)})`;
+    $('#cpL').style.background = `linear-gradient(to right, #000, ${hslToHex(h, s, 50)}, #fff)`;
+  }
+
+  function swatchButton(color, onPick) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'cp-swatch';
+    b.dataset.color = color;
+    b.style.background = color;
+    b.title = color;
+    b.addEventListener('click', () => onPick(color));
+    return b;
+  }
+  const savedColors = () => (state.profile && state.profile.savedColors) || [];
+  function renderSaved() {
+    const box = $('#cpSaved');
+    box.innerHTML = '';
+    const list = savedColors();
+    for (let i = 0; i < SAVED_MAX; i++) {
+      if (list[i]) {
+        const b = swatchButton(list[i], (c) => applyPickedColor(c));
+        // Appui long (ou clic droit) : retirer la couleur de la mémoire.
+        let timer = null;
+        const remove = () => {
+          state.profile.savedColors = savedColors().filter((c) => c !== list[i]);
+          saveProfile();
+          renderSaved();
+          toast('Couleur retirée de ta mémoire.');
+        };
+        b.addEventListener('contextmenu', (e) => { e.preventDefault(); remove(); });
+        b.addEventListener('pointerdown', () => { timer = setTimeout(() => { timer = 'done'; remove(); }, 650); });
+        b.addEventListener('pointerup', () => { if (timer !== 'done') clearTimeout(timer); });
+        b.addEventListener('pointerleave', () => { if (timer !== 'done') clearTimeout(timer); });
+        box.appendChild(b);
+      } else {
+        const empty = document.createElement('span');
+        empty.className = 'cp-swatch empty';
+        empty.title = 'Emplacement libre';
+        box.appendChild(empty);
+      }
+    }
+    renderPickerState(currentColor(cpKey), false);
+  }
+
+  function openColorPicker(key) {
+    cpKey = key;
+    $('#cpTitle').textContent = CP_LABELS[key] || 'Couleur';
+    const base = $('#cpBase');
+    if (!base.children.length) BASE_COLORS.forEach((c) => base.appendChild(swatchButton(c, (x) => applyPickedColor(x))));
+    renderSaved();
+    renderPickerState(currentColor(key), true);
+    colorPicker.hidden = false;
+    // Le panneau Couleurs se cache pour laisser voir la pièce, puis revient avec « OK ».
+    cpReopenPanel = !colorsPanel.hidden || cpReopenPanel;
+    colorsPanel.hidden = true;
+  }
+  let cpReopenPanel = false;
+  function closeColorPicker(reopen = true) {
+    if (colorPicker.hidden && !cpKey) return;
+    colorPicker.hidden = true;
+    cpKey = null;
+    if (cpReopenPanel && reopen && !screens.room.hidden) colorsPanel.hidden = false;
+    cpReopenPanel = false;
+  }
+  $('#cpOk').addEventListener('click', () => closeColorPicker());
+  $('#cpSave').addEventListener('click', () => {
+    if (!cpKey) return;
+    const c = currentColor(cpKey).toLowerCase();
+    const list = [c, ...savedColors().filter((x) => x !== c)].slice(0, SAVED_MAX);
+    state.profile.savedColors = list;
+    saveProfile();
+    renderSaved();
+    toast('Couleur gardée en mémoire 🎨');
+  });
+  $('#cpCustomBtn').addEventListener('click', () => {
+    const panel = $('#cpCustom');
+    panel.hidden = !panel.hidden;
+    $('#cpCustomBtn').setAttribute('aria-expanded', !panel.hidden);
+    // Les curseurs partent toujours de la couleur actuelle.
+    if (!panel.hidden) renderPickerState(currentColor(cpKey), true);
+  });
+  for (const id of ['#cpH', '#cpS', '#cpL']) {
+    $(id).addEventListener('input', () => {
+      applyPickedColor(hslToHex(+$('#cpH').value, +$('#cpS').value, +$('#cpL').value), true);
+    });
+  }
+  $('#cpHex').addEventListener('input', () => {
+    let v = $('#cpHex').value.trim();
+    if (!v.startsWith('#')) v = '#' + v;
+    if (validHex(v)) applyPickedColor(v);
+  });
+  $('#cpHex').addEventListener('blur', () => { if (cpKey) $('#cpHex').value = currentColor(cpKey); });
 
   $('#bgReset').addEventListener('click', () => {
     const before = snapshot();
@@ -1267,6 +1432,7 @@
         return;
       }
       pipetteKey = key;
+      closeColorPicker(false);
       stageArea.classList.add('pipette');
       // Le panneau des couleurs se cache le temps de viser, puis revient.
       reopenColors = !colorsPanel.hidden;
@@ -1475,6 +1641,7 @@
   };
   function showScreen(name) {
     for (const [key, el] of Object.entries(screens)) el.hidden = key !== name;
+    if (name !== 'room' && !colorPicker.hidden) closeColorPicker(false);
     if (name === 'room') fitStage();
     // On retient l'écran (et la pièce) pour y revenir après une actualisation.
     if (name !== 'start') store(PLACE_KEY, JSON.stringify({ screen: name, roomId: state.roomId }));
@@ -1972,7 +2139,7 @@
     if (open && !layersPanel.hidden) closeLayers();
   }
   $('#btnColors').addEventListener('click', () => setColorsPanel(colorsPanel.hidden));
-  $('#colorsClose').addEventListener('click', () => setColorsPanel(false));
+  $('#colorsClose').addEventListener('click', () => { setColorsPanel(false); closeColorPicker(false); });
 
   $('#roomName').addEventListener('input', (e) => {
     state.roomName = e.target.value.trim() || 'Sans nom';
@@ -3083,6 +3250,14 @@
   // ---------------------------------------------------------------------------
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
+    {
+      id: 'n-2026-10-20c', date: Date.UTC(2026, 9, 20, 9, 30), title: 'Nouvelle palette de couleurs 🎨',
+      items: [
+        'Touche une couleur dans 🎨 Couleurs : une palette s\'ouvre en bas de l\'écran, et la pièce change en direct.',
+        'Garde jusqu\'à 8 couleurs en mémoire avec « ＋ Garder cette couleur » (appui long sur une couleur pour la retirer).',
+        '« 🎚️ Personnaliser » : les curseurs partent de la couleur actuelle, pour l\'ajuster facilement.',
+      ],
+    },
     {
       id: 'n-2026-10-20b', date: Date.UTC(2026, 9, 20, 9), title: 'Des couleurs pour tes étages 🎨',
       items: [
