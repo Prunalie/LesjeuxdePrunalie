@@ -17,7 +17,7 @@ Coche une case (`- [x]`) quand c'est fait.
 
 ## Fait ✅
 
-- [x] **Concours du jour** : un thème par jour, on publie sa pièce, vote le lendemain, résultats et récompense le surlendemain. Thèmes et récompense réglables dans l'Atelier.
+- [x] **Concours du jour** : un thème par jour, on publie sa pièce, vote le lendemain jusqu'à 20 h, gagnant dévoilé et récompensé à 20 h. Thèmes et récompense réglables dans l'Atelier.
 - [x] Palette de couleurs : 8 couleurs en mémoire, curseurs placés sur la couleur actuelle.
 - [x] Couleurs des murs et du sol des étages.
 - [x] **Nouveautés** : fenêtre « Quoi de neuf ? » à la connexion et menu ✨ Nouveautés (l'administratrice peut en écrire).

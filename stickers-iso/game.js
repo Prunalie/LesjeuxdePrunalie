@@ -1780,7 +1780,6 @@
     goHome();
     if (gained) toast(`+${gained} 🪙 : tes points du jour ! Va les dépenser dans la boutique.`);
     showNewsPopup();
-    claimContestRewards();
   }
 
   function saveProfile() {
@@ -2945,12 +2944,15 @@
   const collectible = () => [...state.images.values()].filter((img) => state.envelopes.some((e) => e.id === img.envelope));
 
   function renderContestTile() {
-    $('#homeContestSub').textContent = `Thème du jour : ${themeOf(today())}`;
+    $('#homeContestSub').textContent = votingOver()
+      ? `Gagnant dévoilé ! Thème du jour : ${themeOf(today())}`
+      : `Thème du jour : ${themeOf(today())} · votes jusqu'à 20 h`;
   }
 
   function goHome() {
     renderPoints();
     renderContestTile();
+    if (state.profile) claimContestRewards();
     const all = collectible();
     const got = all.filter((img) => owned(img.id) > 0).length;
     const envs = state.envelopes.filter((env) => stickersOf(env.id).length).length;
@@ -3275,8 +3277,8 @@
       id: 'n-2026-10-20d', date: Date.UTC(2026, 9, 20, 9, 45), title: 'Concours du jour 🏆',
       items: [
         'Chaque jour, un nouveau thème ! Décore une pièce et publie-la depuis 🏆 Concours du jour.',
-        'Le lendemain, tout le monde vote pour sa pièce préférée ❤️ (une voix par joueur, pas pour soi).',
-        'Le surlendemain, résultats : le gagnant reçoit des pièces 🪙 automatiquement.',
+        'Le lendemain, tout le monde vote pour sa pièce préférée ❤️ jusqu\'à 20 h (une voix par joueur, pas pour soi).',
+        'À 20 h, on dévoile le gagnant : il reçoit des pièces 🪙 automatiquement.',
       ],
     },
     {
@@ -3422,9 +3424,15 @@
 
   // ---------------------------------------------------------------------------
   // Concours du jour : un thème par jour. Jour J : chacun publie une de ses pièces.
-  // Jour J+1 : tout le monde vote. Jour J+2 : résultats, le gagnant reçoit des pièces.
+  // Jour J+1 : tout le monde vote jusqu'à 20 h ; à 20 h, on dévoile le gagnant, qui reçoit des pièces.
   // ---------------------------------------------------------------------------
   const CONTEST_REWARD = 200;
+  const VOTE_END_HOUR = 20;
+  const votingOver = () => new Date().getHours() >= VOTE_END_HOUR;
+  // Heure de fin des votes du concours d'un jour : le lendemain à 20 h.
+  const voteEnd = (day) => { const { y, m, dd } = parseDay(day); return new Date(y, m - 1, dd + 1, VOTE_END_HOUR).getTime(); };
+  // Dernier concours dont le gagnant est dévoilé.
+  const lastRevealedDay = () => shiftDay(today(), votingOver() ? -1 : -2);
   const DEFAULT_THEMES = [
     'Chambre cosy', 'Cuisine gourmande', 'Jardin fleuri', 'Salle de bain zen', 'Bibliothèque', 'Pâtisserie',
     'Chambre d\'enfant', 'Café', 'Atelier d\'artiste', 'Plage', 'Forêt enchantée', 'Halloween',
@@ -3454,7 +3462,8 @@
   async function loadContestDay(day) {
     const docs = await db.listContest(day);
     const entries = docs.filter((d) => d.kind === 'entry');
-    const votes = docs.filter((d) => d.kind === 'vote');
+    // Les votes arrivés après 20 h ne comptent pas.
+    const votes = docs.filter((d) => d.kind === 'vote' && (!d.created || d.created <= voteEnd(day)));
     const count = {};
     for (const v of votes) {
       if (v.entry === v.voter) continue;
@@ -3467,9 +3476,15 @@
   }
 
   // À la connexion : récompense des concours terminés (résultats le surlendemain).
-  async function claimContestRewards() {
+  // Un seul calcul à la fois (sinon la récompense pourrait être donnée deux fois).
+  let claiming = null;
+  function claimContestRewards() {
+    if (!claiming) claiming = doClaimContestRewards().finally(() => { claiming = null; });
+    return claiming;
+  }
+  async function doClaimContestRewards() {
     if (!state.profile) return;
-    const last = shiftDay(today(), -2);
+    const last = lastRevealedDay();
     let from = state.profile.contestChecked ? shiftDay(state.profile.contestChecked, 1) : shiftDay(today(), -8);
     if (from < shiftDay(today(), -8)) from = shiftDay(today(), -8);
     if (from > last) return;
@@ -3503,9 +3518,10 @@
     $('#ctBody').innerHTML = '<p class="muted">Chargement…</p>';
     try {
       const [t, v, r] = await Promise.all([
-        loadContestDay(today()), loadContestDay(shiftDay(today(), -1)), loadContestDay(shiftDay(today(), -2)),
+        loadContestDay(today()), loadContestDay(shiftDay(today(), -1)), loadContestDay(lastRevealedDay()),
       ]);
       contestData = { today: t, vote: v, results: r };
+      claimContestRewards();
     } catch (e) {
       console.warn('Concours indisponible', e);
       $('#ctBody').innerHTML = '<p class="muted">Impossible de charger le concours. Vérifie ta connexion.</p>';
@@ -3564,7 +3580,7 @@
     // 1. Thème du jour : publier une pièce
     const t = contestData.today;
     const c1 = section('ct-today', `Thème du jour : ${themeOf(t.day)}`,
-      `Décore une pièce sur ce thème et publie-la avant minuit. Demain, tout le monde votera. Le gagnant reçoit ${contestReward()} 🪙.`);
+      `Décore une pièce sur ce thème et publie-la avant minuit. Demain, tout le monde vote jusqu'à 20 h, puis on dévoile le gagnant : il reçoit ${contestReward()} 🪙.`);
     const mine = t.entries.find((e) => e.owner === me);
     if (mine) {
       const box = document.createElement('div');
@@ -3595,8 +3611,10 @@
     // 2. Vote pour le thème d'hier
     const v = contestData.vote;
     const myVote = v.votes.find((x) => x.voter === me);
+    const open = !votingOver();
+    if (open) {
     const c2 = section('ct-vote', `Vote : ${themeOf(v.day)}`,
-      v.entries.length ? 'Choisis ta pièce préférée parmi celles d\'hier (pas la tienne). Tu peux changer d\'avis jusqu\'à minuit.' : 'Personne n\'a participé hier : rien à voter aujourd\'hui.');
+      v.entries.length ? 'Choisis ta pièce préférée parmi celles d\'hier (pas la tienne). Tu peux changer d\'avis jusqu\'à 20 h : le gagnant sera dévoilé à 20 h !' : 'Personne n\'a participé hier : rien à voter aujourd\'hui.');
     if (v.entries.length) {
       const grid = document.createElement('div');
       grid.className = 'ct-grid';
@@ -3621,10 +3639,11 @@
       }
       c2.appendChild(grid);
     }
+    }
 
-    // 3. Résultats d'avant-hier
+    // 3. Résultats du dernier concours dévoilé (à 20 h le lendemain)
     const r = contestData.results;
-    const c3 = section('ct-results', `Résultats : ${themeOf(r.day)}`,
+    const c3 = section('ct-results', `${r.day === shiftDay(today(), -1) ? 'Résultats de ce soir' : 'Derniers résultats'} : ${themeOf(r.day)}`,
       r.entries.length ? (r.winners.length ? `Bravo ! ${r.winners.length > 1 ? 'Les gagnants reçoivent' : 'Le gagnant reçoit'} ${contestReward()} 🪙.` : 'Aucun vote : pas de gagnant cette fois.') : 'Pas de participation ce jour-là.');
     if (r.entries.length) {
       const grid = document.createElement('div');
@@ -3636,6 +3655,11 @@
   }
 
   async function castVote(day, entry) {
+    if (votingOver()) {
+      toast('Les votes sont clos depuis 20 h : le gagnant est dévoilé !');
+      openContest();
+      return;
+    }
     const vote = { id: `cv-${day}-${state.player.key}`, kind: 'vote', contestDay: day, voter: state.player.key, entry: entry.owner, created: Date.now() };
     try {
       await db.putContest(vote);
