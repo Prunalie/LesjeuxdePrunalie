@@ -23,7 +23,7 @@
   const DEFAULT_PRICE = 50;            // prix d'une nouvelle enveloppe
   const MULTI_BUY = 5;                 // nombre d'enveloppes du bouton « ×5 »
   const STAR_PRICE = 1000;
-  const PROPOSAL_REWARD = 100;         // pièces proposées par défaut quand un sticker est accepté
+  const PROPOSAL_REWARD = 30;          // pièces proposées par défaut quand un sticker est accepté
   const MAX_PENDING = 30;              // propositions en attente par joueur (par défaut, réglable dans l'atelier)
   const STAMPS_PER_STAR = 10;          // tampons à réunir sur la carte pour gagner une étoile
   const RARITIES = {
