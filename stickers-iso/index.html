@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ma petite pièce</title>
-  <link rel="stylesheet" href="style.css?v=202610201400">
+  <link rel="stylesheet" href="style.css?v=202610201500">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -105,34 +105,6 @@
       <button id="btnBack" class="btn btn-ghost" title="Retour à mes pièces">←<span class="label-long">&nbsp;Mes pièces</span></button>
       <input id="roomName" class="room-name-input" type="text" maxlength="40" aria-label="Nom de la pièce">
       <span id="saveStatus" class="save-status"></span>
-        <div class="menu-wrap">
-          <button id="btnMenu" class="btn btn-ghost btn-menu" aria-expanded="false" aria-controls="roomMenu" title="Options de la pièce">⋯</button>
-          <div id="roomMenu" class="room-menu">
-            <button id="btnColors" class="btn menu-colors-toggle" aria-expanded="false" aria-controls="menuColors">🎨 Couleurs</button>
-            <div id="menuColors" class="menu-colors" hidden>
-            <div class="color-row">
-              <label class="color-pick" title="Couleur du mur gauche">Mur G <input type="color" id="colorWallLeft"></label>
-              <button class="pipette-btn" data-color="wallLeft" title="Pipette : prendre la couleur du mur gauche ailleurs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.6 3.9a2.2 2.2 0 0 1 3.1 3.1l-2.4 2.4 1 1-1.5 1.5-1-1-7.6 7.6H6.6v-3.6l7.6-7.6-1-1 1.5-1.5 1 1z M6.6 17.4 4 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
-            </div>
-            <div class="color-row">
-              <label class="color-pick" title="Couleur du mur droit">Mur D <input type="color" id="colorWallRight"></label>
-              <button class="pipette-btn" data-color="wallRight" title="Pipette : prendre la couleur du mur droit ailleurs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.6 3.9a2.2 2.2 0 0 1 3.1 3.1l-2.4 2.4 1 1-1.5 1.5-1-1-7.6 7.6H6.6v-3.6l7.6-7.6-1-1 1.5-1.5 1 1z M6.6 17.4 4 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
-            </div>
-            <div class="color-row">
-              <label class="color-pick" title="Couleur du sol">Sol <input type="color" id="colorFloor"></label>
-              <button class="pipette-btn" data-color="floor" title="Pipette : prendre la couleur du sol ailleurs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.6 3.9a2.2 2.2 0 0 1 3.1 3.1l-2.4 2.4 1 1-1.5 1.5-1-1-7.6 7.6H6.6v-3.6l7.6-7.6-1-1 1.5-1.5 1 1z M6.6 17.4 4 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
-            </div>
-            <div class="color-row">
-              <label class="color-pick" title="Couleur du fond autour de la pièce">Fond <input type="color" id="colorBackground"></label>
-              <button class="pipette-btn" data-color="background" title="Pipette : prendre la couleur du fond ailleurs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.6 3.9a2.2 2.2 0 0 1 3.1 3.1l-2.4 2.4 1 1-1.5 1.5-1-1-7.6 7.6H6.6v-3.6l7.6-7.6-1-1 1.5-1.5 1 1z M6.6 17.4 4 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
-              <button id="bgReset" class="pipette-btn bg-reset" title="Remettre le fond par défaut" hidden>↺</button>
-            </div>
-            </div>
-            <button id="btnShape" class="btn">🏗️ Aménager</button>
-            <button id="btnExport" class="btn">📷 Exporter</button>
-            <button id="btnClear" class="btn">🧹 Tout vider</button>
-          </div>
-        </div>
     </div>
   </header>
 
@@ -168,7 +140,37 @@
           <button id="btnRedo" title="Rétablir (Ctrl+Maj+Z)" disabled>↷</button>
         </div>
         <button id="btnLayers" class="layers-btn" aria-controls="layersPanel" title="Objets posés : sélectionner, verrouiller">☰<span class="label-long">&nbsp;Objets</span></button>
+        <div class="room-tools" role="group" aria-label="Pièce">
+          <button id="btnColors" aria-controls="colorsPanel" aria-expanded="false" title="Couleurs des murs, du sol et du fond">🎨<span class="label-long">&nbsp;Couleurs</span></button>
+          <button id="btnShape" title="Aménager : jardin, taille, étages">🏗️<span class="label-long">&nbsp;Aménager</span></button>
+          <button id="btnExport" title="Exporter la pièce en image">📷<span class="label-long">&nbsp;Exporter</span></button>
+          <button id="btnClear" title="Retirer tous les stickers de la pièce">🧹<span class="label-long">&nbsp;Tout vider</span></button>
+        </div>
       </div>
+
+      <aside id="colorsPanel" class="colors-panel" hidden aria-label="Couleurs">
+        <div class="layers-head">
+          <h2>Couleurs</h2>
+          <button id="colorsClose" class="layers-close" title="Fermer">✕</button>
+        </div>
+        <div class="color-row">
+          <label class="color-pick" title="Couleur du mur gauche">Mur G <input type="color" id="colorWallLeft"></label>
+          <button class="pipette-btn" data-color="wallLeft" title="Pipette : prendre la couleur du mur gauche ailleurs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.6 3.9a2.2 2.2 0 0 1 3.1 3.1l-2.4 2.4 1 1-1.5 1.5-1-1-7.6 7.6H6.6v-3.6l7.6-7.6-1-1 1.5-1.5 1 1z M6.6 17.4 4 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
+        </div>
+        <div class="color-row">
+          <label class="color-pick" title="Couleur du mur droit">Mur D <input type="color" id="colorWallRight"></label>
+          <button class="pipette-btn" data-color="wallRight" title="Pipette : prendre la couleur du mur droit ailleurs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.6 3.9a2.2 2.2 0 0 1 3.1 3.1l-2.4 2.4 1 1-1.5 1.5-1-1-7.6 7.6H6.6v-3.6l7.6-7.6-1-1 1.5-1.5 1 1z M6.6 17.4 4 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
+        </div>
+        <div class="color-row">
+          <label class="color-pick" title="Couleur du sol">Sol <input type="color" id="colorFloor"></label>
+          <button class="pipette-btn" data-color="floor" title="Pipette : prendre la couleur du sol ailleurs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.6 3.9a2.2 2.2 0 0 1 3.1 3.1l-2.4 2.4 1 1-1.5 1.5-1-1-7.6 7.6H6.6v-3.6l7.6-7.6-1-1 1.5-1.5 1 1z M6.6 17.4 4 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
+        </div>
+        <div class="color-row">
+          <label class="color-pick" title="Couleur du fond autour de la pièce">Fond <input type="color" id="colorBackground"></label>
+          <button class="pipette-btn" data-color="background" title="Pipette : prendre la couleur du fond ailleurs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.6 3.9a2.2 2.2 0 0 1 3.1 3.1l-2.4 2.4 1 1-1.5 1.5-1-1-7.6 7.6H6.6v-3.6l7.6-7.6-1-1 1.5-1.5 1 1z M6.6 17.4 4 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
+          <button id="bgReset" class="pipette-btn bg-reset" title="Remettre le fond par défaut" hidden>↺</button>
+        </div>
+      </aside>
 
       <aside id="layersPanel" class="layers-panel" hidden aria-label="Objets posés">
         <div class="layers-head">
@@ -588,7 +590,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610201400"></script>
-  <script src="game.js?v=202610201400"></script>
+  <script src="firebase-config.js?v=202610201500"></script>
+  <script src="game.js?v=202610201500"></script>
 </body>
 </html>

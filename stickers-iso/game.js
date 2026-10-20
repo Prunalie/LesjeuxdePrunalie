@@ -877,6 +877,7 @@
 
   function openLayers() {
     layersPanel.hidden = false;
+    if (!colorsPanel.hidden) setColorsPanel(false);
     renderLayers();
   }
   function closeLayers() {
@@ -1237,13 +1238,18 @@
       }
       pipetteKey = key;
       stageArea.classList.add('pipette');
+      // Le panneau des couleurs se cache le temps de viser, puis revient.
+      reopenColors = !colorsPanel.hidden;
+      colorsPanel.hidden = true;
       toast(`Appuie dans la pièce et glisse la loupe sur la couleur voulue pour ${PIPETTE_NAMES[key]}, puis relâche.`);
     });
   });
 
+  let reopenColors = false;
   function stopPipette() {
     pipetteKey = null;
     stageArea.classList.remove('pipette');
+    if (reopenColors) { reopenColors = false; colorsPanel.hidden = false; }
   }
 
   // En mode pipette, appuyer dans la pièce affiche une loupe au-dessus du doigt :
@@ -1876,7 +1882,6 @@
   }
 
   $('#btnShape').addEventListener('click', () => {
-    roomMenu.classList.remove('open');
     renderShapeDialog();
     shapeDialog.hidden = false;
   });
@@ -1912,7 +1917,6 @@
     else tabLib.textContent = bars.lib ? '‹' : '› Stickers';
     tabLib.title = bars.lib ? 'Cacher les stickers' : 'Afficher les stickers';
     tabLib.setAttribute('aria-expanded', bars.lib);
-    if (!bars.top) roomMenu.classList.remove('open');
   }
   $('#btnLibSize').addEventListener('click', () => toggleBar('big'));
   function toggleBar(name) {
@@ -1924,30 +1928,15 @@
   tabLib.addEventListener('click', () => toggleBar('lib'));
   mqSmall.addEventListener('change', applyBars);
 
-  const roomMenu = $('#roomMenu');
-  const btnMenu = $('#btnMenu');
-  btnMenu.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const open = !roomMenu.classList.contains('open');
-    roomMenu.classList.toggle('open', open);
-    btnMenu.setAttribute('aria-expanded', open);
-  });
-  document.addEventListener('pointerdown', (e) => {
-    if (roomMenu.classList.contains('open') && !e.target.closest('#roomMenu, #btnMenu')) {
-      roomMenu.classList.remove('open');
-      btnMenu.setAttribute('aria-expanded', 'false');
-    }
-  });
-  roomMenu.addEventListener('click', (e) => {
-    const b = e.target.closest('button');
-    if (b && b.id !== 'btnColors') roomMenu.classList.remove('open');
-  });
-  // « Couleurs » déplie les réglages de couleur dans le menu.
-  $('#btnColors').addEventListener('click', () => {
-    const panel = $('#menuColors');
-    panel.hidden = !panel.hidden;
-    $('#btnColors').setAttribute('aria-expanded', !panel.hidden);
-  });
+  // Panneau « Couleurs » (bouton 🎨 à côté des flèches).
+  const colorsPanel = $('#colorsPanel');
+  function setColorsPanel(open) {
+    colorsPanel.hidden = !open;
+    $('#btnColors').setAttribute('aria-expanded', open);
+    if (open && !layersPanel.hidden) closeLayers();
+  }
+  $('#btnColors').addEventListener('click', () => setColorsPanel(colorsPanel.hidden));
+  $('#colorsClose').addEventListener('click', () => setColorsPanel(false));
 
   $('#roomName').addEventListener('input', (e) => {
     state.roomName = e.target.value.trim() || 'Sans nom';

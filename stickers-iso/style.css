@@ -1505,27 +1505,44 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
 .unlock-field { display: flex; flex-direction: column; gap: 3px; font-size: .78rem; }
 .unlock-field .field { width: 80px; }
 
-/* Menu « ⋯ » de la pièce (téléphone et ordinateur) : Couleurs, Aménager, Exporter, Tout vider */
-.screen-room .topbar { position: relative; }
-.screen-room .btn-menu { display: inline-flex; font-size: 1.2rem; line-height: 1; padding: 4px 12px; height: 34px; align-items: center; }
-.menu-wrap { position: relative; flex-shrink: 0; }
-#roomMenu.room-menu {
-  display: none;
-  position: absolute; top: calc(100% + 6px); right: 0; left: auto;
-  z-index: 50;
-  flex-direction: column; align-items: stretch;
-  width: min(260px, calc(100vw - 16px));
-  padding: 10px; gap: 8px;
+/* Boutons de la pièce sous les flèches : Couleurs, Aménager, Exporter, Tout vider */
+.stage-tools { display: grid; grid-template-columns: auto auto 1fr; justify-content: start; align-items: center; gap: 6px; }
+.room-tools {
+  grid-column: 1 / -1; justify-self: start;
+  display: flex;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 2px 6px rgba(0,0,0,.08);
+  overflow: hidden;
+}
+.room-tools button {
+  display: inline-flex; align-items: center;
+  height: 36px; padding: 0 12px;
+  border: none; background: transparent; color: var(--ink);
+  font: inherit; font-size: .9rem; white-space: nowrap; cursor: pointer;
+}
+.room-tools button + button { border-left: 1px solid var(--line); }
+.room-tools button:hover { color: var(--accent); }
+.room-tools button[aria-expanded="true"] { background: var(--hover); }
+@media (max-width: 720px) {
+  .room-tools .label-long { display: none; }
+  .room-tools button { width: 44px; padding: 0; justify-content: center; font-size: 1.05rem; }
+}
+/* Panneau des couleurs, au même endroit que « Objets posés » */
+.colors-panel {
+  position: absolute; z-index: 25;
+  left: 8px; top: 100px;
+  width: 250px;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px;
   background: var(--panel);
   border: 1px solid var(--line); border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  box-shadow: 0 10px 28px rgba(0,0,0,.16);
 }
-#roomMenu.room-menu.open { display: flex; }
-#roomMenu .btn { justify-content: flex-start; padding: 9px 12px; font-size: .95rem; }
-#roomMenu .menu-colors-toggle[aria-expanded="true"] { border-color: var(--accent); }
-#roomMenu .menu-colors { display: flex; flex-direction: column; gap: 8px; padding: 8px; border-radius: 10px; background: var(--surface); }
-#roomMenu .menu-colors[hidden] { display: none; }
-#roomMenu .color-row { display: flex; gap: 6px; align-items: center; }
-#roomMenu .color-pick { flex: 1; display: flex; justify-content: space-between; align-items: center; font-size: .95rem; color: var(--ink); }
-#roomMenu .color-pick input { width: 44px; height: 32px; }
-#roomMenu .pipette-btn { width: 36px; height: 34px; border-color: var(--line); background: var(--panel); }
+.colors-panel[hidden] { display: none; }
+.colors-panel .color-row { display: flex; gap: 6px; align-items: center; }
+.colors-panel .color-pick { flex: 1; display: flex; justify-content: space-between; align-items: center; font-size: .95rem; color: var(--ink); }
+.colors-panel .color-pick input { width: 44px; height: 32px; }
+.colors-panel .pipette-btn { width: 36px; height: 34px; border-color: var(--line); background: var(--surface); }
+.layers-panel { top: 100px; }
+@media (min-width: 721px) { .layers-panel, .colors-panel { left: 14px; top: 104px; } }
