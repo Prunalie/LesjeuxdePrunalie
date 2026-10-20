@@ -177,6 +177,10 @@
         listNews: () => all(rooms.where('type', '==', 'news')),
         putNews: ({ id, ...n }) => rooms.doc(id).set(clean({ ...n, type: 'news' })),
         deleteNews: (id) => rooms.doc(id).delete(),
+        // Concours du jour : participations et votes d'un jour donné (champ contestDay)
+        listContest: (day) => all(rooms.where('contestDay', '==', day)),
+        putContest: ({ id, ...c }) => rooms.doc(id).set(clean({ ...c, type: 'contest' })),
+        deleteContest: (id) => rooms.doc(id).delete(),
       };
     } catch (e) {
       console.warn('Firebase indisponible', e);
@@ -189,10 +193,10 @@
     const open = () => {
       if (!dbPromise) {
         dbPromise = new Promise((resolve, reject) => {
-          const req = indexedDB.open('ma-petite-piece', 6);
+          const req = indexedDB.open('ma-petite-piece', 7);
           req.onupgradeneeded = () => {
             const d = req.result;
-            for (const name of ['images', 'rooms', 'players', 'envelopes', 'mails', 'settings', 'news']) {
+            for (const name of ['images', 'rooms', 'players', 'envelopes', 'mails', 'settings', 'news', 'contest']) {
               if (!d.objectStoreNames.contains(name)) d.createObjectStore(name, { keyPath: 'id' });
             }
           };
@@ -238,6 +242,9 @@
       listNews: () => getAll('news'),
       putNews: (n) => run('news', 'readwrite', (s) => s.put(n)),
       deleteNews: (id) => run('news', 'readwrite', (s) => s.delete(id)),
+      listContest: async (day) => (await getAll('contest')).filter((c) => c.contestDay === day),
+      putContest: (c) => run('contest', 'readwrite', (s) => s.put(c)),
+      deleteContest: (id) => run('contest', 'readwrite', (s) => s.delete(id)),
     };
   })();
 
@@ -1571,7 +1578,8 @@
   });
 
   // Dessine la pièce et ses stickers dans un canvas (export et miniatures).
-  async function renderScene(K, background) {
+  // data (facultatif) : une autre pièce { colors, shape, stickers } à dessiner que celle ouverte.
+  async function renderScene(K, background, data = null) {
     const cv = document.createElement('canvas');
     cv.width = Math.round(STAGE_W * K);
     cv.height = Math.round(STAGE_H * K);
@@ -1582,7 +1590,9 @@
       ctx.fillRect(0, 0, STAGE_W, STAGE_H);
     }
 
-    const svgText = new XMLSerializer().serializeToString(room);
+    const svgText = data
+      ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${STAGE_W} ${STAGE_H}" width="${STAGE_W}" height="${STAGE_H}">${roomSvg({ ...DEFAULT_COLORS, ...(data.colors || {}) }, data.shape)}</svg>`
+      : new XMLSerializer().serializeToString(room);
     const svgUrl = URL.createObjectURL(new Blob([svgText], { type: 'image/svg+xml' }));
     try {
       ctx.drawImage(await loadImageEl(svgUrl), 0, 0, STAGE_W, STAGE_H);
@@ -1590,7 +1600,7 @@
       URL.revokeObjectURL(svgUrl);
     }
 
-    for (const s of state.stickers) {
+    for (const s of data ? (data.stickers || []) : state.stickers) {
       const img = state.images.get(s.imageId);
       if (!img) continue;
       const el = await loadImageEl(img.url);
@@ -1638,6 +1648,7 @@
     coffre: $('#screenCoffre'),
     atelier: $('#screenAtelier'),
     news: $('#screenNews'),
+    contest: $('#screenContest'),
   };
   function showScreen(name) {
     for (const [key, el] of Object.entries(screens)) el.hidden = key !== name;
@@ -1769,6 +1780,7 @@
     goHome();
     if (gained) toast(`+${gained} 🪙 : tes points du jour ! Va les dépenser dans la boutique.`);
     showNewsPopup();
+    claimContestRewards();
   }
 
   function saveProfile() {
@@ -2658,6 +2670,9 @@
   });
 
   function renderDailySetting() {
+    $('#contestReward').value = contestReward();
+    $('#contestThemes').value = (Array.isArray(state.settings.contestThemes) && state.settings.contestThemes.length ? state.settings.contestThemes : DEFAULT_THEMES).join('\n');
+    $('#contestToday').textContent = `Thème du jour : « ${themeOf(today())} » · demain : « ${themeOf(shiftDay(today(), 1))} ».`;
     for (const key of Object.keys(UNLOCKS)) $(`#unlock_${key}`).value = unlockCost(key);
     $('#pendingInput').value = maxPending();
     $('#pendingCurrent').textContent = `Actuellement : ${maxPending()} en attente au plus. Les propositions déjà regardées ne comptent pas.`;
@@ -2673,6 +2688,7 @@
     $('#dailyForm').hidden = detail;
     $('#pendingForm').hidden = detail;
     $('#unlockForm').hidden = detail;
+    $('#contestForm').hidden = detail;
     $('#atelierDetailBar').hidden = !detail;
     const listEl = $('#atelierList');
     listEl.innerHTML = '';
@@ -2928,8 +2944,13 @@
   // Stickers du catalogue rangés dans une enveloppe qui existe encore.
   const collectible = () => [...state.images.values()].filter((img) => state.envelopes.some((e) => e.id === img.envelope));
 
+  function renderContestTile() {
+    $('#homeContestSub').textContent = `Thème du jour : ${themeOf(today())}`;
+  }
+
   function goHome() {
     renderPoints();
+    renderContestTile();
     const all = collectible();
     const got = all.filter((img) => owned(img.id) > 0).length;
     const envs = state.envelopes.filter((env) => stickersOf(env.id).length).length;
@@ -3251,6 +3272,14 @@
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
     {
+      id: 'n-2026-10-20d', date: Date.UTC(2026, 9, 20, 9, 45), title: 'Concours du jour 🏆',
+      items: [
+        'Chaque jour, un nouveau thème ! Décore une pièce et publie-la depuis 🏆 Concours du jour.',
+        'Le lendemain, tout le monde vote pour sa pièce préférée ❤️ (une voix par joueur, pas pour soi).',
+        'Le surlendemain, résultats : le gagnant reçoit des pièces 🪙 automatiquement.',
+      ],
+    },
+    {
       id: 'n-2026-10-20c', date: Date.UTC(2026, 9, 20, 9, 30), title: 'Nouvelle palette de couleurs 🎨',
       items: [
         'Touche une couleur dans 🎨 Couleurs : une palette s\'ouvre en bas de l\'écran, et la pièce change en direct.',
@@ -3389,6 +3418,305 @@
       console.warn('Nouveauté impossible', err);
       toast('La nouveauté n\'a pas pu être publiée. Vérifie ta connexion.');
     }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Concours du jour : un thème par jour. Jour J : chacun publie une de ses pièces.
+  // Jour J+1 : tout le monde vote. Jour J+2 : résultats, le gagnant reçoit des pièces.
+  // ---------------------------------------------------------------------------
+  const CONTEST_REWARD = 200;
+  const DEFAULT_THEMES = [
+    'Chambre cosy', 'Cuisine gourmande', 'Jardin fleuri', 'Salle de bain zen', 'Bibliothèque', 'Pâtisserie',
+    'Chambre d\'enfant', 'Café', 'Atelier d\'artiste', 'Plage', 'Forêt enchantée', 'Halloween',
+    'Noël', 'Printemps', 'Fête d\'anniversaire', 'Salon douillet', 'Magasin de jouets', 'Serre tropicale',
+    'Pique-nique', 'Château', 'Sous la mer', 'Espace', 'Fleuriste', 'Boulangerie',
+    'Tout en rose', 'Tout en vert', 'Petit déjeuner', 'Soirée cinéma', 'Animaux', 'Rêve',
+  ];
+  const contestReward = () => Math.max(0, Math.round(Number(state.settings.contestReward ?? CONTEST_REWARD)));
+  const contestThemes = () => {
+    const list = Array.isArray(state.settings.contestThemes) ? state.settings.contestThemes.filter(Boolean) : [];
+    return list.length ? list : DEFAULT_THEMES;
+  };
+  const parseDay = (d) => { const [y, m, dd] = d.split('-').map(Number); return { y, m, dd }; };
+  function shiftDay(day, n) {
+    const { y, m, dd } = parseDay(day);
+    return new Date(y, m - 1, dd + n).toLocaleDateString('fr-CA');
+  }
+  function themeOf(day) {
+    const { y, m, dd } = parseDay(day);
+    const idx = Math.round((Date.UTC(y, m - 1, dd) - Date.UTC(2026, 0, 1)) / 86400000);
+    const list = contestThemes();
+    return list[((idx % list.length) + list.length) % list.length];
+  }
+  const dayLabel = (day) => { const { y, m, dd } = parseDay(day); return new Date(y, m - 1, dd).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); };
+
+  // Participations et votes d'un jour, avec le classement.
+  async function loadContestDay(day) {
+    const docs = await db.listContest(day);
+    const entries = docs.filter((d) => d.kind === 'entry');
+    const votes = docs.filter((d) => d.kind === 'vote');
+    const count = {};
+    for (const v of votes) {
+      if (v.entry === v.voter) continue;
+      if (!entries.some((e) => e.owner === v.entry)) continue;
+      count[v.entry] = (count[v.entry] || 0) + 1;
+    }
+    const best = Math.max(0, ...Object.values(count));
+    const winners = best > 0 ? entries.filter((e) => count[e.owner] === best).map((e) => e.owner) : [];
+    return { day, entries, votes, count, winners };
+  }
+
+  // À la connexion : récompense des concours terminés (résultats le surlendemain).
+  async function claimContestRewards() {
+    if (!state.profile) return;
+    const last = shiftDay(today(), -2);
+    let from = state.profile.contestChecked ? shiftDay(state.profile.contestChecked, 1) : shiftDay(today(), -8);
+    if (from < shiftDay(today(), -8)) from = shiftDay(today(), -8);
+    if (from > last) return;
+    let won = 0;
+    const themes = [];
+    try {
+      for (let d = from; d <= last; d = shiftDay(d, 1)) {
+        const res = await loadContestDay(d);
+        if (res.winners.includes(state.player.key)) {
+          won += contestReward();
+          themes.push(themeOf(d));
+        }
+      }
+    } catch (e) {
+      console.warn('Résultats du concours indisponibles', e);
+      return;
+    }
+    state.profile.contestChecked = last;
+    if (won) {
+      state.profile.points = (state.profile.points || 0) + won;
+      state.profile.contestWins = (state.profile.contestWins || 0) + themes.length;
+      setTimeout(() => toast(`🏆 Tu as gagné le concours « ${themes.join(' », « ')} » ! +${won} 🪙`), 1500);
+    }
+    saveProfile();
+  }
+
+  let contestData = { today: null, vote: null, results: null };
+  async function openContest() {
+    showScreen('contest');
+    renderPoints();
+    $('#ctBody').innerHTML = '<p class="muted">Chargement…</p>';
+    try {
+      const [t, v, r] = await Promise.all([
+        loadContestDay(today()), loadContestDay(shiftDay(today(), -1)), loadContestDay(shiftDay(today(), -2)),
+      ]);
+      contestData = { today: t, vote: v, results: r };
+    } catch (e) {
+      console.warn('Concours indisponible', e);
+      $('#ctBody').innerHTML = '<p class="muted">Impossible de charger le concours. Vérifie ta connexion.</p>';
+      return;
+    }
+    renderContest();
+  }
+  $('#ctBack').addEventListener('click', goHome);
+
+  function entryCard(e, opts = {}) {
+    const card = document.createElement('article');
+    card.className = 'ct-entry' + (opts.mine ? ' mine' : '') + (opts.voted ? ' voted' : '') + (opts.winner ? ' winner' : '');
+    card.innerHTML = '<button class="ct-img" title="Agrandir"><img alt=""></button><div class="ct-meta"><strong></strong><span class="muted"></span></div><div class="ct-actions"></div>';
+    card.querySelector('img').src = e.image;
+    card.querySelector('strong').textContent = (opts.winner ? '🏆 ' : '') + (e.ownerName || e.owner);
+    card.querySelector('.muted').textContent = e.roomName || '';
+    card.querySelector('.ct-img').addEventListener('click', () => {
+      $('#ctViewImg').src = e.image;
+      $('#ctViewTitle').textContent = `${e.ownerName || e.owner}${e.roomName ? ' · ' + e.roomName : ''}`;
+      $('#ctView').hidden = false;
+    });
+    if (opts.count != null) {
+      const c = document.createElement('span');
+      c.className = 'ct-count';
+      c.textContent = `❤️ ${opts.count}`;
+      card.querySelector('.ct-meta').appendChild(c);
+    }
+    if (state.isAdmin && opts.canModerate) {
+      const del = document.createElement('button');
+      del.className = 'btn btn-ghost ct-small';
+      del.textContent = 'Retirer';
+      del.addEventListener('click', async () => {
+        if (!(await askConfirm(`Retirer la participation de ${e.ownerName || e.owner} ?`, 'Retirer'))) return;
+        await db.deleteContest(e.id).catch(() => toast('La participation n\'a pas pu être retirée.'));
+        openContest();
+      });
+      card.querySelector('.ct-actions').appendChild(del);
+    }
+    return card;
+  }
+
+  function renderContest() {
+    const body = $('#ctBody');
+    body.innerHTML = '';
+    const me = state.player.key;
+    const section = (cls, title, sub) => {
+      const sec = document.createElement('section');
+      sec.className = 'ct-section ' + cls;
+      sec.innerHTML = '<div class="ct-head"><h2></h2><p class="muted"></p></div><div class="ct-content"></div>';
+      sec.querySelector('h2').textContent = title;
+      sec.querySelector('p').textContent = sub;
+      body.appendChild(sec);
+      return sec.querySelector('.ct-content');
+    };
+
+    // 1. Thème du jour : publier une pièce
+    const t = contestData.today;
+    const c1 = section('ct-today', `Thème du jour : ${themeOf(t.day)}`,
+      `Décore une pièce sur ce thème et publie-la avant minuit. Demain, tout le monde votera. Le gagnant reçoit ${contestReward()} 🪙.`);
+    const mine = t.entries.find((e) => e.owner === me);
+    if (mine) {
+      const box = document.createElement('div');
+      box.className = 'ct-mine';
+      box.appendChild(entryCard(mine, { mine: true }));
+      const p = document.createElement('p');
+      p.className = 'muted';
+      p.textContent = 'Ta participation est publiée ✓ Tu peux la remplacer jusqu\'à minuit.';
+      box.appendChild(p);
+      c1.appendChild(box);
+    }
+    const pub = document.createElement('button');
+    pub.className = 'btn btn-primary';
+    pub.textContent = mine ? '🔄 Publier une autre pièce' : '📤 Publier une de mes pièces';
+    pub.addEventListener('click', openContestPick);
+    c1.appendChild(pub);
+    const nb = document.createElement('p');
+    nb.className = 'muted ct-small-text';
+    nb.textContent = t.entries.length ? `${plural(t.entries.length, 'participation')} aujourd'hui.` : 'Personne n\'a encore participé aujourd\'hui : sois la première ou le premier !';
+    c1.appendChild(nb);
+    if (state.isAdmin && t.entries.length) {
+      const grid = document.createElement('div');
+      grid.className = 'ct-grid';
+      t.entries.forEach((e) => grid.appendChild(entryCard(e, { canModerate: true })));
+      c1.appendChild(grid);
+    }
+
+    // 2. Vote pour le thème d'hier
+    const v = contestData.vote;
+    const myVote = v.votes.find((x) => x.voter === me);
+    const c2 = section('ct-vote', `Vote : ${themeOf(v.day)}`,
+      v.entries.length ? 'Choisis ta pièce préférée parmi celles d\'hier (pas la tienne). Tu peux changer d\'avis jusqu\'à minuit.' : 'Personne n\'a participé hier : rien à voter aujourd\'hui.');
+    if (v.entries.length) {
+      const grid = document.createElement('div');
+      grid.className = 'ct-grid';
+      for (const e of v.entries) {
+        const own = e.owner === me;
+        const voted = myVote && myVote.entry === e.owner;
+        const card = entryCard(e, { mine: own, voted, canModerate: true });
+        const act = card.querySelector('.ct-actions');
+        if (own) {
+          const tag = document.createElement('span');
+          tag.className = 'muted ct-small-text';
+          tag.textContent = 'Ta pièce';
+          act.prepend(tag);
+        } else {
+          const b = document.createElement('button');
+          b.className = 'btn ' + (voted ? 'btn-primary' : '');
+          b.textContent = voted ? '❤️ Mon vote' : '🤍 Voter';
+          b.addEventListener('click', () => castVote(v.day, e));
+          act.prepend(b);
+        }
+        grid.appendChild(card);
+      }
+      c2.appendChild(grid);
+    }
+
+    // 3. Résultats d'avant-hier
+    const r = contestData.results;
+    const c3 = section('ct-results', `Résultats : ${themeOf(r.day)}`,
+      r.entries.length ? (r.winners.length ? `Bravo ! ${r.winners.length > 1 ? 'Les gagnants reçoivent' : 'Le gagnant reçoit'} ${contestReward()} 🪙.` : 'Aucun vote : pas de gagnant cette fois.') : 'Pas de participation ce jour-là.');
+    if (r.entries.length) {
+      const grid = document.createElement('div');
+      grid.className = 'ct-grid';
+      [...r.entries].sort((a, b) => (r.count[b.owner] || 0) - (r.count[a.owner] || 0))
+        .forEach((e) => grid.appendChild(entryCard(e, { winner: r.winners.includes(e.owner), count: r.count[e.owner] || 0, mine: e.owner === me })));
+      c3.appendChild(grid);
+    }
+  }
+
+  async function castVote(day, entry) {
+    const vote = { id: `cv-${day}-${state.player.key}`, kind: 'vote', contestDay: day, voter: state.player.key, entry: entry.owner, created: Date.now() };
+    try {
+      await db.putContest(vote);
+      const v = contestData.vote;
+      v.votes = [...v.votes.filter((x) => x.voter !== state.player.key), vote];
+      toast(`Vote enregistré pour ${entry.ownerName || entry.owner} ❤️`);
+      renderContest();
+    } catch (e) {
+      console.warn('Vote impossible', e);
+      toast('Le vote n\'a pas pu être enregistré. Vérifie ta connexion.');
+    }
+  }
+
+  // Choisir une pièce à publier.
+  const ctPick = $('#ctPick');
+  function openContestPick() {
+    const list = $('#ctPickList');
+    list.innerHTML = '';
+    if (!state.rooms.length) {
+      list.innerHTML = '<p class="muted">Tu n\'as pas encore de pièce. Crée-en une dans « Mes pièces ».</p>';
+    }
+    const rooms = [...state.rooms].sort((a, b) => (b.updated || 0) - (a.updated || 0));
+    for (const r of rooms) {
+      const b = document.createElement('button');
+      b.className = 'ct-pick-item';
+      b.innerHTML = r.thumb ? '<img alt="">' : `<svg viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg">${roomSvg(r.colors, r.shape)}</svg>`;
+      if (r.thumb) b.querySelector('img').src = r.thumb;
+      const name = document.createElement('span');
+      name.textContent = r.name;
+      b.appendChild(name);
+      b.addEventListener('click', () => publishRoom(r));
+      list.appendChild(b);
+    }
+    $('#ctPickTheme').textContent = `Thème du jour : ${themeOf(today())}`;
+    ctPick.hidden = false;
+  }
+  $('#ctPickClose').addEventListener('click', () => { ctPick.hidden = true; });
+
+  async function publishRoom(r) {
+    if (!(await askConfirm(`Publier « ${r.name} » pour le thème « ${themeOf(today())} » ?`, 'Publier'))) return;
+    ctPick.hidden = true;
+    try {
+      const data = { colors: r.colors, shape: r.shape, stickers: (r.stickers || []).filter((st) => state.images.has(st.imageId)) };
+      const bg = (r.colors && r.colors.background) || (normShape(r.shape).kind === 'garden' ? GARDEN_COLORS.background : DEFAULT_BACKGROUND);
+      const cv = await renderScene(0.7, bg, data);
+      let image = cv.toDataURL('image/webp', 0.85);
+      if (!image.startsWith('data:image/webp')) image = cv.toDataURL('image/jpeg', 0.85);
+      const day = today();
+      await db.putContest({
+        id: `ct-${day}-${state.player.key}`, kind: 'entry', contestDay: day,
+        owner: state.player.key, ownerName: state.player.name, roomName: r.name, image, created: Date.now(),
+      });
+      toast('Ta pièce est publiée 🏆 Demain, tout le monde votera !');
+      openContest();
+    } catch (e) {
+      console.warn('Publication impossible', e);
+      toast('La pièce n\'a pas pu être publiée. Vérifie ta connexion.');
+    }
+  }
+  $('#ctViewClose').addEventListener('click', () => { $('#ctView').hidden = true; });
+  $('#ctView').addEventListener('click', (e) => { if (e.target.id === 'ctView') $('#ctView').hidden = true; });
+  $('#homeContest').addEventListener('click', openContest);
+
+  // Réglages du concours (Atelier).
+  $('#contestForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const reward = Math.round(Number($('#contestReward').value));
+    if (!(reward >= 0) || reward > 100000) { toast('Indique une récompense entre 0 et 100 000 pièces.'); return; }
+    const themes = $('#contestThemes').value.split('\n').map((x) => x.trim()).filter(Boolean);
+    const before = { ...state.settings };
+    state.settings.contestReward = reward;
+    state.settings.contestThemes = themes;
+    try {
+      await db.putSettings(state.settings);
+      toast(`C'est enregistré : ${themes.length ? plural(themes.length, 'thème') : 'thèmes par défaut'}, ${reward} 🪙 pour le gagnant. Thème du jour : « ${themeOf(today())} ».`);
+    } catch (err) {
+      state.settings = before;
+      console.warn('Réglage impossible', err);
+      toast('Le réglage n\'a pas pu être enregistré. Vérifie ta connexion.');
+    }
+    renderDailySetting();
   });
 
   // ---------------------------------------------------------------------------
@@ -3961,6 +4289,7 @@
     else if (place.screen === 'creations') openCreations();
     else if (place.screen === 'mail') openMail();
     else if (place.screen === 'news') openNews();
+    else if (place.screen === 'contest') openContest();
     else if (place.screen === 'coffre') openCoffre();
     else if (place.screen === 'players') openPlayers();
   }

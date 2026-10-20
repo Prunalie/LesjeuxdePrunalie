@@ -5,7 +5,6 @@ Coche une case (`- [x]`) quand c'est fait.
 
 ## À faire
 
-- [ ] **Concours du jour** : chaque jour un thème, chaque joueur propose une décoration de pièce. Le lendemain, tout le monde vote pour la plus belle, et un nouveau thème commence. Le gagnant gagne des pièces 🪙.
 - [ ] **Boîte à idées pour les joueurs** : un espace où les joueurs envoient leurs idées pour le jeu, que l'administratrice lit de son côté.
 
 ## Peut-être plus tard
@@ -18,6 +17,9 @@ Coche une case (`- [x]`) quand c'est fait.
 
 ## Fait ✅
 
+- [x] **Concours du jour** : un thème par jour, on publie sa pièce, vote le lendemain, résultats et récompense le surlendemain. Thèmes et récompense réglables dans l'Atelier.
+- [x] Palette de couleurs : 8 couleurs en mémoire, curseurs placés sur la couleur actuelle.
+- [x] Couleurs des murs et du sol des étages.
 - [x] **Nouveautés** : fenêtre « Quoi de neuf ? » à la connexion et menu ✨ Nouveautés (l'administratrice peut en écrire).
 - [x] **Aménager les pièces** (à débloquer avec des étoiles) : jardin, taille sur mesure, étages au fond de la pièce. Prix réglables dans l'Atelier.
 - [x] Nombre d'étoiles affiché à côté des pièces.

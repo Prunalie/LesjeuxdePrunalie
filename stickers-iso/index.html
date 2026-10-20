@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Ma petite pièce</title>
-  <link rel="stylesheet" href="style.css?v=202610201030">
+  <link rel="stylesheet" href="style.css?v=202610201110">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -61,6 +61,11 @@
           <span id="mailBadge" class="mail-badge" hidden></span>
           <span class="home-label">Boîte aux lettres</span>
           <span class="home-sub" id="homeMailSub"></span>
+        </button>
+        <button id="homeContest" class="home-tile tile-contest">
+          <span class="home-icon" aria-hidden="true">🏆</span>
+          <span class="home-label">Concours du jour</span>
+          <span class="home-sub" id="homeContestSub"></span>
         </button>
         <button id="homeNews" class="home-tile tile-news">
           <span class="home-icon" aria-hidden="true">✨</span>
@@ -345,6 +350,20 @@
     </div>
   </section>
 
+  <!-- Concours du jour -->
+  <section id="screenContest" class="screen screen-contest" hidden>
+    <header class="topbar">
+      <div class="room-title">
+        <button id="ctBack" class="btn btn-ghost" title="Menu principal">←<span class="label-long">&nbsp;Menu</span></button>
+        <h1>Concours 🏆</h1>
+      </div>
+      <div class="topbar-actions"><span class="points-pill"></span></div>
+    </header>
+    <div class="rooms-body">
+      <div id="ctBody" class="ct-body"></div>
+    </div>
+  </section>
+
   <!-- Nouveautés -->
   <section id="screenNews" class="screen screen-news" hidden>
     <header class="topbar">
@@ -480,6 +499,15 @@
           <button class="btn btn-primary" type="submit">Enregistrer</button>
         </div>
       </form>
+      <form id="contestForm" class="daily-form atelier-daily contest-form" novalidate>
+        <div>
+          <h2>Concours du jour 🏆</h2>
+          <p id="contestToday" class="muted"></p>
+        </div>
+        <label class="unlock-field"><span class="muted">Récompense du gagnant 🪙</span><input id="contestReward" class="field" type="number" min="0" max="100000" step="10" inputmode="numeric"></label>
+        <label class="contest-themes"><span class="muted">Thèmes, un par ligne (ils reviennent à tour de rôle, un par jour)</span><textarea id="contestThemes" class="field" rows="6"></textarea></label>
+        <button class="btn btn-primary" type="submit">Enregistrer</button>
+      </form>
     </div>
   </section>
 
@@ -517,6 +545,23 @@
       <label class="cp-slider"><span>Teinte</span><input id="cpH" type="range" min="0" max="360" step="1"></label>
       <label class="cp-slider"><span>Saturation</span><input id="cpS" type="range" min="0" max="100" step="1"></label>
       <label class="cp-slider"><span>Luminosité</span><input id="cpL" type="range" min="0" max="100" step="1"></label>
+    </div>
+  </div>
+
+  <div id="ctPick" class="modal" hidden>
+    <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="ctPickTitle">
+      <h2 id="ctPickTitle" class="modal-title">Quelle pièce publier ?</h2>
+      <p id="ctPickTheme" class="muted"></p>
+      <div id="ctPickList" class="ct-pick-list"></div>
+      <div class="modal-actions"><button id="ctPickClose" class="btn">Annuler</button></div>
+    </div>
+  </div>
+
+  <div id="ctView" class="modal ct-view" hidden>
+    <div class="modal-box modal-wide" role="dialog" aria-modal="true">
+      <h2 id="ctViewTitle" class="modal-title"></h2>
+      <img id="ctViewImg" alt="">
+      <div class="modal-actions"><button id="ctViewClose" class="btn btn-primary">Fermer</button></div>
     </div>
   </div>
 
@@ -669,7 +714,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610201030"></script>
-  <script src="game.js?v=202610201030"></script>
+  <script src="firebase-config.js?v=202610201110"></script>
+  <script src="game.js?v=202610201110"></script>
 </body>
 </html>
