@@ -173,6 +173,10 @@
         },
         putSettings: (st) => rooms.doc('settings').set(clean({ ...st, type: 'settings' })),
         putMail: ({ id, ...m }) => rooms.doc(id).set(clean({ ...m, type: 'mail' })),
+        // Nouveautés écrites par l'administratrice (type « news »)
+        listNews: () => all(rooms.where('type', '==', 'news')),
+        putNews: ({ id, ...n }) => rooms.doc(id).set(clean({ ...n, type: 'news' })),
+        deleteNews: (id) => rooms.doc(id).delete(),
       };
     } catch (e) {
       console.warn('Firebase indisponible', e);
@@ -185,10 +189,10 @@
     const open = () => {
       if (!dbPromise) {
         dbPromise = new Promise((resolve, reject) => {
-          const req = indexedDB.open('ma-petite-piece', 5);
+          const req = indexedDB.open('ma-petite-piece', 6);
           req.onupgradeneeded = () => {
             const d = req.result;
-            for (const name of ['images', 'rooms', 'players', 'envelopes', 'mails', 'settings']) {
+            for (const name of ['images', 'rooms', 'players', 'envelopes', 'mails', 'settings', 'news']) {
               if (!d.objectStoreNames.contains(name)) d.createObjectStore(name, { keyPath: 'id' });
             }
           };
@@ -231,6 +235,9 @@
       getSettings: async () => (await run('settings', 'readonly', (s) => s.get('settings'))) || null,
       putSettings: (st) => run('settings', 'readwrite', (s) => s.put({ ...st, id: 'settings' })),
       putMail: (m) => run('mails', 'readwrite', (s) => s.put(m)),
+      listNews: () => getAll('news'),
+      putNews: (n) => run('news', 'readwrite', (s) => s.put(n)),
+      deleteNews: (id) => run('news', 'readwrite', (s) => s.delete(id)),
     };
   })();
 
@@ -1441,6 +1448,7 @@
     mail: $('#screenMail'),
     coffre: $('#screenCoffre'),
     atelier: $('#screenAtelier'),
+    news: $('#screenNews'),
   };
   function showScreen(name) {
     for (const [key, el] of Object.entries(screens)) el.hidden = key !== name;
@@ -1523,10 +1531,12 @@
     let gained = 0;
     try {
       if (state.isAdmin) await withFallback(migrateOldAdmin);
-      const [images, rooms, envelopes, profile, mails, mine, settings] = await withFallback((d) => Promise.all([
+      const [images, rooms, envelopes, profile, mails, mine, settings, news] = await withFallback((d) => Promise.all([
         d.listCatalog(), d.listRooms(state.player.key), d.listEnvelopes(), d.getPlayer(playerDocId(state.player.key)),
         d.listMail(state.player.key), d.listMyProposals(state.player.key), d.getSettings(),
+        d.listNews().catch(() => []),
       ]));
+      setNews(news);
       state.settings = { dailyPoints: DAILY_POINTS, ...(settings || {}) };
       state.mails = mails;
       state.myProposals = mine;
@@ -1535,6 +1545,8 @@
       state.envelopes = envelopes.sort((a, b) => (a.created || 0) - (b.created || 0));
       state.profile = profile || {
         id: playerDocId(state.player.key), points: 0, lastDaily: '', inventory: {},
+        // Un nouveau joueur n'a pas besoin de l'historique des mises à jour.
+        newsSeen: Math.max(Date.now(), ...state.news.map((n) => n.date || 0)),
       };
       state.profile.pseudo = name;
       state.profile.key = state.player.key;
@@ -1566,6 +1578,7 @@
     renderPoints();
     goHome();
     if (gained) toast(`+${gained} 🪙 : tes points du jour ! Va les dépenser dans la boutique.`);
+    showNewsPopup();
   }
 
   function saveProfile() {
@@ -3042,6 +3055,139 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Nouveautés : la liste des mises à jour du jeu, et une fenêtre à la connexion
+  // pour prévenir les joueurs de ce qui a changé depuis leur dernière visite.
+  // ---------------------------------------------------------------------------
+  // Mises à jour écrites dans le code (date = jour de la mise en ligne).
+  const BUILTIN_NEWS = [
+    {
+      id: 'n-2026-10-20', date: Date.UTC(2026, 9, 19, 22), title: 'Aménage tes pièces 🏗️',
+      items: [
+        'Nouveau bouton 🏗️ Aménager dans tes pièces : transforme une pièce en jardin 🌳, choisis sa taille 📐 et ajoute des étages au fond 🏢. Chaque option se débloque avec des étoiles 🌟.',
+        'Tes étoiles 🌟 s\'affichent maintenant à côté de tes pièces 🪙.',
+        'Dans la Collection, le bouton « 🌟 Utiliser une étoile » te laisse choisir un sticker de la page ouverte.',
+        'Dans une pièce : les boutons 🎨 Couleurs et 🏗️ Aménager sont sous les flèches, 📷 Exporter et 🧹 Tout vider en haut.',
+        'Le bouton ⤢ agrandit la fenêtre de tes stickers.',
+      ],
+    },
+    {
+      id: 'n-2026-10-19', date: Date.UTC(2026, 9, 18, 22), title: 'Propose tes dessins ✏️',
+      items: [
+        'Quand ton sticker proposé est accepté, tu reçois des pièces et ton sticker en 1 exemplaire dans ta boîte aux lettres 📬.',
+        'Tu peux avoir jusqu\'à 30 propositions en attente.',
+        'Des cadeaux peuvent arriver dans ta boîte aux lettres : pièces et stickers 🎁.',
+      ],
+    },
+  ];
+  state.news = [...BUILTIN_NEWS];
+  function setNews(fromDb) {
+    state.news = [...BUILTIN_NEWS, ...(fromDb || [])].sort((a, b) => (b.date || 0) - (a.date || 0));
+  }
+  const unseenNews = () => {
+    const seen = (state.profile && state.profile.newsSeen) || 0;
+    return state.news.filter((n) => (n.date || 0) > seen);
+  };
+  function markNewsSeen() {
+    const latest = Math.max(0, ...state.news.map((n) => n.date || 0));
+    if (state.profile && latest > (state.profile.newsSeen || 0)) {
+      state.profile.newsSeen = latest;
+      saveProfile();
+    }
+    renderNewsBadge();
+  }
+  function renderNewsBadge() {
+    const n = unseenNews().length;
+    $('#newsBadge').hidden = !n;
+    $('#newsBadge').textContent = n;
+    $('#homeNewsSub').textContent = n ? `${plural(n, 'nouveauté')} à découvrir !` : 'Les dernières mises à jour';
+  }
+
+  // Une nouveauté (titre, date, liste ou texte) dans un élément.
+  function newsCard(n, withDelete) {
+    const el = document.createElement('article');
+    el.className = 'news-item';
+    el.innerHTML = '<div class="mail-head"><h3></h3><time></time></div><ul class="news-points"></ul><p class="mail-text"></p>';
+    el.querySelector('h3').textContent = n.title;
+    el.querySelector('time').textContent = n.date ? new Date(n.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+    const ul = el.querySelector('ul');
+    for (const it of n.items || []) {
+      const li = document.createElement('li');
+      li.textContent = it;
+      ul.appendChild(li);
+    }
+    ul.hidden = !(n.items || []).length;
+    el.querySelector('.mail-text').textContent = n.text || '';
+    el.querySelector('.mail-text').hidden = !n.text;
+    if (withDelete && !n.id.startsWith('n-')) {
+      const del = document.createElement('button');
+      del.className = 'btn btn-ghost news-del';
+      del.textContent = 'Supprimer';
+      del.addEventListener('click', async () => {
+        if (!(await askConfirm(`Supprimer la nouveauté « ${n.title} » ?`, 'Supprimer'))) return;
+        state.news = state.news.filter((x) => x.id !== n.id);
+        db.deleteNews(n.id).catch(() => toast('La nouveauté n\'a pas pu être supprimée.'));
+        renderNews();
+      });
+      el.appendChild(del);
+    }
+    return el;
+  }
+
+  // Fenêtre à la connexion : ce qui est nouveau depuis la dernière visite.
+  const newsDialog = $('#newsDialog');
+  function showNewsPopup() {
+    const list = unseenNews();
+    renderNewsBadge();
+    if (!list.length) return;
+    const body = $('#newsDialogList');
+    body.innerHTML = '';
+    list.slice(0, 3).forEach((n) => body.appendChild(newsCard(n, false)));
+    $('#newsDialogMore').hidden = list.length <= 3;
+    newsDialog.hidden = false;
+  }
+  $('#newsDialogOk').addEventListener('click', () => { newsDialog.hidden = true; markNewsSeen(); });
+  $('#newsDialogAll').addEventListener('click', () => { newsDialog.hidden = true; openNews(); });
+
+  function openNews() {
+    renderNews();
+    showScreen('news');
+    markNewsSeen();
+  }
+  function renderNews() {
+    renderPoints();
+    $('#newsForm').hidden = !state.isAdmin;
+    const list = $('#newsList');
+    list.innerHTML = '';
+    $('#newsEmpty').hidden = state.news.length > 0;
+    for (const n of state.news) list.appendChild(newsCard(n, state.isAdmin));
+  }
+  $('#homeNews').addEventListener('click', openNews);
+  $('#newsBack').addEventListener('click', goHome);
+
+  // L'administratrice écrit une nouveauté : les joueurs la verront à leur prochaine connexion.
+  $('#newsForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = $('#newsTitle').value.trim();
+    const lines = $('#newsText').value.split('\n').map((l) => l.replace(/^[-•*]\s*/, '').trim()).filter(Boolean);
+    if (!title || !lines.length) { toast('Écris un titre et au moins une ligne.'); return; }
+    const n = { id: uid(), date: Date.now(), title, items: lines };
+    try {
+      await db.putNews(n);
+      state.news.unshift(n);
+      $('#newsTitle').value = '';
+      $('#newsText').value = '';
+      // L'administratrice l'a déjà vue.
+      state.profile.newsSeen = n.date;
+      saveProfile();
+      toast('Nouveauté publiée : les joueurs la verront à leur prochaine connexion ✨');
+      renderNews();
+    } catch (err) {
+      console.warn('Nouveauté impossible', err);
+      toast('La nouveauté n\'a pas pu être publiée. Vérifie ta connexion.');
+    }
+  });
+
+  // ---------------------------------------------------------------------------
   // Boîte aux lettres
   // ---------------------------------------------------------------------------
   // Stickers offerts dans un message (un id par exemplaire).
@@ -3610,6 +3756,7 @@
     else if (place.screen === 'atelier') openAtelier();
     else if (place.screen === 'creations') openCreations();
     else if (place.screen === 'mail') openMail();
+    else if (place.screen === 'news') openNews();
     else if (place.screen === 'coffre') openCoffre();
     else if (place.screen === 'players') openPlayers();
   }

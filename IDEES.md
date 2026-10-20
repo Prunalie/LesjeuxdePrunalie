@@ -18,6 +18,7 @@ Coche une case (`- [x]`) quand c'est fait.
 
 ## Fait ✅
 
+- [x] **Nouveautés** : fenêtre « Quoi de neuf ? » à la connexion et menu ✨ Nouveautés (l'administratrice peut en écrire).
 - [x] **Aménager les pièces** (à débloquer avec des étoiles) : jardin, taille sur mesure, étages au fond de la pièce. Prix réglables dans l'Atelier.
 - [x] Nombre d'étoiles affiché à côté des pièces.
 - [x] **Étoile depuis une collection** : bouton « 🌟 Utiliser une étoile » dans le classeur (et « 🌟 Étoile » dans l'aperçu d'une enveloppe), qui ne propose que les stickers de cette enveloppe.
