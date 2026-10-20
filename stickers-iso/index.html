@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610201530">
+  <link rel="stylesheet" href="style.css?v=202610201540">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -21,7 +21,7 @@
       <h1>Ma petite pièce</h1>
       <p class="start-sub">Collectionne des stickers et décore tes pièces.</p>
       <label for="pseudoInput" class="field-label">Ton pseudo</label>
-      <input id="pseudoInput" class="field" type="text" maxlength="24" autocomplete="nickname" placeholder="Ex. Prunalie">
+      <input id="pseudoInput" class="field" type="text" maxlength="24" autocomplete="nickname">
       <p id="pseudoError" class="field-error" hidden>Choisis un pseudo d'au moins 2 lettres.</p>
       <button id="startBtn" class="btn btn-primary btn-big" type="submit">Jouer</button>
       <p class="hint">Pas de mot de passe : reprends le même pseudo sur tous tes appareils pour retrouver tes pièces.</p>
@@ -745,7 +745,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610201530"></script>
-  <script src="game.js?v=202610201530"></script>
+  <script src="firebase-config.js?v=202610201540"></script>
+  <script src="game.js?v=202610201540"></script>
 </body>
 </html>
