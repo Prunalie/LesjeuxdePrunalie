@@ -1939,7 +1939,14 @@
     }
   });
   roomMenu.addEventListener('click', (e) => {
-    if (e.target.closest('button')) roomMenu.classList.remove('open');
+    const b = e.target.closest('button');
+    if (b && b.id !== 'btnColors') roomMenu.classList.remove('open');
+  });
+  // « Couleurs » déplie les réglages de couleur dans le menu.
+  $('#btnColors').addEventListener('click', () => {
+    const panel = $('#menuColors');
+    panel.hidden = !panel.hidden;
+    $('#btnColors').setAttribute('aria-expanded', !panel.hidden);
   });
 
   $('#roomName').addEventListener('input', (e) => {
