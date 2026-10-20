@@ -1794,3 +1794,21 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .card-sub { color: #6b4f4a; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card-sub { color: var(--muted); } }
 :root[data-theme="dark"] .card-sub { color: var(--muted); }
+
+/* Pièce du concours */
+.top-publish { flex-shrink: 0; }
+.contest-banner {
+  position: absolute; z-index: 19; left: 50%; bottom: 10px; transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  padding: 6px 14px; border-radius: 999px;
+  background: #fff3cc; color: var(--ink);
+  border: 2.5px solid var(--chunk); box-shadow: 0 3px 0 var(--chunk);
+  font-size: .82rem; font-weight: 800; text-align: center;
+}
+@media (max-width: 720px) {
+  .top-publish { height: 34px; padding: 0 10px; }
+  .top-publish .label-long { display: inline; }
+  .contest-banner { font-size: .72rem; padding: 4px 10px; bottom: 6px; }
+}
+.contest-banner.away { display: none; }
+.room-tools .tool-publish { background: #fff3cc; font-weight: 800; }

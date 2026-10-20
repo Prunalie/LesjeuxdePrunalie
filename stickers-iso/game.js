@@ -279,6 +279,7 @@
       stickers: state.stickers,
       colors: state.colors,
       shape: state.shape,
+      ...(currentRoom() && currentRoom().contestDay ? { contestDay: currentRoom().contestDay } : {}),
       thumb,
       updated: Date.now(),
     };
@@ -618,10 +619,18 @@
   }
 
   // Exemplaires : chaque sticker obtenu se pose une seule fois, toutes pièces confondues.
+  // La pièce du concours est à part : on y a tous ses exemplaires, sans toucher aux vraies pièces.
   const owned = (id) => (state.profile && state.profile.inventory[id]) || 0;
+  const realRooms = () => state.rooms.filter((r) => !r.contestDay);
+  const currentRoom = () => state.rooms.find((r) => r.id === state.roomId);
+  const inContestRoom = () => !!(currentRoom() && currentRoom().contestDay);
   function usedCount(id) {
     let n = 0;
-    for (const r of state.rooms) {
+    if (inContestRoom()) {
+      for (const st of state.stickers) if (st.imageId === id) n++;
+      return n;
+    }
+    for (const r of realRooms()) {
       const list = r.id === state.roomId ? state.stickers : (r.stickers || []);
       for (const st of list) if (st.imageId === id) n++;
     }
@@ -806,6 +815,8 @@
     for (const el of layer.children) el.classList.toggle('selected', el.dataset.id === id);
     layer.classList.toggle('focus', !!state.focusId);
     toolbar.hidden = !id;
+    // Le bandeau du concours laisse la place à la barre d'outils du sticker.
+    document.getElementById('contestBanner').classList.toggle('away', !!id);
     renderLayers();
   }
 
@@ -1744,6 +1755,10 @@
       state.myProposals = mine;
       images.sort((a, b) => (a.created || 0) - (b.created || 0)).forEach(addImageToLibrary);
       state.rooms = rooms;
+      // Les pièces de concours des jours passés ne servent plus.
+      const oldest = shiftDay(today(), -1);
+      for (const r of rooms.filter((x) => x.contestDay && x.contestDay < oldest)) db.deleteRoom(r.id).catch(() => {});
+      state.rooms = rooms.filter((x) => !x.contestDay || x.contestDay >= oldest);
       state.envelopes = envelopes.sort((a, b) => (a.created || 0) - (b.created || 0));
       state.profile = profile || {
         id: playerDocId(state.player.key), points: 0, lastDaily: '', inventory: {},
@@ -1821,7 +1836,7 @@
   function renderRoomList() {
     const grid = $('#roomGrid');
     grid.innerHTML = '';
-    const rooms = [...state.rooms].sort((a, b) => (b.updated || 0) - (a.updated || 0));
+    const rooms = realRooms().sort((a, b) => (b.updated || 0) - (a.updated || 0));
     $('#roomCount').textContent = rooms.length
       ? `${rooms.length} pièce${rooms.length > 1 ? 's' : ''}`
       : 'Aucune pièce pour l\'instant';
@@ -1865,8 +1880,8 @@
   }
 
   function nextRoomName() {
-    const names = new Set(state.rooms.map((r) => r.name));
-    let i = state.rooms.length + 1;
+    const names = new Set(realRooms().map((r) => r.name));
+    let i = realRooms().length + 1;
     while (names.has(`Pièce ${i}`)) i++;
     return `Pièce ${i}`;
   }
@@ -1943,6 +1958,14 @@
     resetHistory();
     layersPanel.hidden = true;
     $('#roomName').value = r.name;
+    // Pièce du concours : bouton « Publier », et retour vers le concours.
+    screens.room.classList.toggle('contest-mode', !!r.contestDay);
+    $('#btnContestPublish').hidden = !r.contestDay;
+    $('#btnContestPublish2').hidden = !r.contestDay;
+    $('#btnBack').title = r.contestDay ? 'Retour au concours' : 'Retour à mes pièces';
+    $('#btnBack .label-long').innerHTML = r.contestDay ? '&nbsp;Concours' : '&nbsp;Mes pièces';
+    $('#contestBanner').hidden = !r.contestDay;
+    if (r.contestDay) $('#contestBannerText').textContent = `Pièce du concours · thème « ${themeOf(r.contestDay)} » · tous tes stickers sont disponibles ici`;
     setSaveStatus('Sauvegardé ✓');
     syncColorInputs();
     drawRoom();
@@ -2162,8 +2185,10 @@
 
   $('#btnBack').addEventListener('click', async () => {
     select(null);
+    const contest = inContestRoom();
     await saveRoom();
     state.roomId = null;
+    if (contest) { openContest(); return; }
     renderRoomList();
     showScreen('rooms');
   });
@@ -2958,7 +2983,8 @@
     const all = collectible();
     const got = all.filter((img) => owned(img.id) > 0).length;
     const envs = state.envelopes.filter((env) => stickersOf(env.id).length).length;
-    $('#homeRoomsSub').textContent = state.rooms.length ? plural(state.rooms.length, 'pièce') : 'Crée ta première pièce';
+    const nRooms = realRooms().length;
+    $('#homeRoomsSub').textContent = nRooms ? plural(nRooms, 'pièce') : 'Crée ta première pièce';
     const stars = state.profile.stars || 0;
     if (stars) $('#homeShopSub').innerHTML = `${STAR_SVG(15)} ${plural(stars, 'étoile')} à utiliser !`;
     else $('#homeShopSub').textContent = envs ? `${plural(envs, 'enveloppe')} en vente` : 'Bientôt des enveloppes';
@@ -3286,7 +3312,7 @@
     {
       id: 'n-2026-10-20d', date: Date.UTC(2026, 9, 20, 9, 45), title: 'Concours du jour 🏆',
       items: [
-        'Chaque jour, un nouveau thème ! Décore une pièce et publie-la depuis 🏆 Concours du jour.',
+        'Chaque jour, un nouveau thème ! Dans 🏆 Concours du jour, crée ta pièce du concours : tu y as tous tes stickers, même ceux déjà posés ailleurs, sans rien enlever à tes pièces. Puis appuie sur 🏆 Publier.',
         'Le lendemain, tout le monde vote pour sa pièce préférée ❤️ jusqu\'à 20 h (une voix par joueur, pas pour soi).',
         'À 20 h, on dévoile le gagnant : il reçoit des pièces 🪙 automatiquement.',
       ],
@@ -3599,15 +3625,20 @@
       box.appendChild(entryCard(mine, { mine: true }));
       const p = document.createElement('p');
       p.className = 'muted';
-      p.textContent = 'Ta participation est publiée ✓ Tu peux la remplacer jusqu\'à minuit.';
+      p.textContent = 'Ta participation est publiée ✓ Tu peux encore modifier ta pièce et la republier jusqu\'à minuit.';
       box.appendChild(p);
       c1.appendChild(box);
     }
+    const myRoom = state.rooms.find((r) => r.contestDay === t.day);
     const pub = document.createElement('button');
     pub.className = 'btn btn-primary';
-    pub.textContent = mine ? '🔄 Publier une autre pièce' : '📤 Publier une de mes pièces';
-    pub.addEventListener('click', openContestPick);
+    pub.textContent = myRoom ? '🎨 Continuer ma pièce du concours' : '🎨 Créer ma pièce du concours';
+    pub.addEventListener('click', openContestRoom);
     c1.appendChild(pub);
+    const help = document.createElement('p');
+    help.className = 'muted ct-small-text';
+    help.textContent = 'Une pièce rien que pour ce thème : tu y as tous tes stickers, même ceux déjà posés dans tes pièces, sans rien leur enlever. Quand elle te plaît, appuie sur « 🏆 Publier ».';
+    c1.appendChild(help);
     const nb = document.createElement('p');
     nb.className = 'muted ct-small-text';
     nb.textContent = t.entries.length ? `${plural(t.entries.length, 'participation')} aujourd'hui.` : 'Personne n\'a encore participé aujourd\'hui : sois la première ou le premier !';
@@ -3684,52 +3715,54 @@
     }
   }
 
-  // Choisir une pièce à publier.
-  const ctPick = $('#ctPick');
-  function openContestPick() {
-    const list = $('#ctPickList');
-    list.innerHTML = '';
-    if (!state.rooms.length) {
-      list.innerHTML = '<p class="muted">Tu n\'as pas encore de pièce. Crée-en une dans « Mes pièces ».</p>';
+  // Pièce du concours : une pièce à part, créée pour le thème du jour.
+  async function openContestRoom() {
+    const day = today();
+    let r = state.rooms.find((x) => x.contestDay === day);
+    if (!r) {
+      r = {
+        id: uid(), owner: state.player.key, name: `Concours · ${themeOf(day)}`, contestDay: day,
+        stickers: [], colors: { ...DEFAULT_COLORS }, thumb: '', updated: Date.now(),
+      };
+      state.rooms.push(r);
+      try {
+        await db.putRoom(r);
+      } catch (e) {
+        console.warn('Création impossible', e);
+        toast('La pièce du concours n\'a pas pu être créée. Vérifie ta connexion.');
+      }
     }
-    const rooms = [...state.rooms].sort((a, b) => (b.updated || 0) - (a.updated || 0));
-    for (const r of rooms) {
-      const b = document.createElement('button');
-      b.className = 'ct-pick-item';
-      b.innerHTML = r.thumb ? '<img alt="">' : `<svg viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg">${roomSvg(r.colors, r.shape)}</svg>`;
-      if (r.thumb) b.querySelector('img').src = r.thumb;
-      const name = document.createElement('span');
-      name.textContent = r.name;
-      b.appendChild(name);
-      b.addEventListener('click', () => publishRoom(r));
-      list.appendChild(b);
-    }
-    $('#ctPickTheme').textContent = `Thème du jour : ${themeOf(today())}`;
-    ctPick.hidden = false;
+    openRoom(r.id);
   }
-  $('#ctPickClose').addEventListener('click', () => { ctPick.hidden = true; });
 
-  async function publishRoom(r) {
-    if (!(await askConfirm(`Publier « ${r.name} » pour le thème « ${themeOf(today())} » ?`, 'Publier'))) return;
-    ctPick.hidden = true;
+  // Publier la pièce du concours ouverte (image de la pièce telle qu'elle est).
+  async function publishContestRoom() {
+    const r = currentRoom();
+    if (!r || !r.contestDay) return;
+    if (r.contestDay !== today()) {
+      toast('Ce concours est terminé : publie plutôt une pièce pour le thème du jour.');
+      return;
+    }
+    if (!state.stickers.length && !(await askConfirm('Ta pièce est vide. La publier quand même ?', 'Publier'))) return;
+    if (!(await askConfirm(`Publier ta pièce pour le thème « ${themeOf(r.contestDay)} » ? Tu pourras la modifier et la republier jusqu'à minuit.`, 'Publier'))) return;
+    select(null);
     try {
-      const data = { colors: r.colors, shape: r.shape, stickers: (r.stickers || []).filter((st) => state.images.has(st.imageId)) };
-      const bg = (r.colors && r.colors.background) || (normShape(r.shape).kind === 'garden' ? GARDEN_COLORS.background : DEFAULT_BACKGROUND);
-      const cv = await renderScene(0.7, bg, data);
+      const cv = await renderScene(0.7, state.colors.background || (state.shape.kind === 'garden' ? GARDEN_COLORS.background : DEFAULT_BACKGROUND));
       let image = cv.toDataURL('image/webp', 0.85);
       if (!image.startsWith('data:image/webp')) image = cv.toDataURL('image/jpeg', 0.85);
-      const day = today();
       await db.putContest({
-        id: `ct-${day}-${state.player.key}`, kind: 'entry', contestDay: day,
-        owner: state.player.key, ownerName: state.player.name, roomName: r.name, image, created: Date.now(),
+        id: `ct-${r.contestDay}-${state.player.key}`, kind: 'entry', contestDay: r.contestDay,
+        owner: state.player.key, ownerName: state.player.name, roomName: state.roomName, image, created: Date.now(),
       });
-      toast('Ta pièce est publiée 🏆 Demain, tout le monde votera !');
-      openContest();
+      await saveRoom();
+      toast('Ta pièce est publiée 🏆 Demain, tout le monde votera jusqu\'à 20 h !');
     } catch (e) {
       console.warn('Publication impossible', e);
       toast('La pièce n\'a pas pu être publiée. Vérifie ta connexion.');
     }
   }
+  $('#btnContestPublish').addEventListener('click', publishContestRoom);
+  $('#btnContestPublish2').addEventListener('click', publishContestRoom);
   $('#ctViewClose').addEventListener('click', () => { $('#ctView').hidden = true; });
   $('#ctView').addEventListener('click', (e) => { if (e.target.id === 'ctView') $('#ctView').hidden = true; });
   $('#homeContest').addEventListener('click', openContest);

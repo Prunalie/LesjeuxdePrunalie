@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610201300">
+  <link rel="stylesheet" href="style.css?v=202610201410">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -152,6 +152,7 @@
       <button id="btnBack" class="btn btn-ghost" title="Retour à mes pièces">←<span class="label-long">&nbsp;Mes pièces</span></button>
       <input id="roomName" class="room-name-input" type="text" maxlength="40" aria-label="Nom de la pièce">
       <span id="saveStatus" class="save-status"></span>
+      <button id="btnContestPublish" class="btn btn-primary top-publish" hidden title="Publier cette pièce au concours du jour">🏆<span class="label-long">&nbsp;Publier</span></button>
       <button id="btnExport" class="btn btn-ghost top-icon" title="Exporter la pièce en image">📷<span class="label-long">&nbsp;Exporter</span></button>
       <button id="btnClear" class="btn btn-ghost top-icon" title="Retirer tous les stickers de la pièce">🧹<span class="label-long">&nbsp;Tout vider</span></button>
     </div>
@@ -183,6 +184,7 @@
       <button id="tabTop" class="bar-tab tab-top" aria-controls="roomTopbar"></button>
       <button id="tabLib" class="bar-tab tab-lib" aria-controls="roomLibrary"></button>
 
+      <div id="contestBanner" class="contest-banner" hidden><span id="contestBannerText"></span></div>
       <div class="stage-tools">
         <div class="undo-ctrl" role="group" aria-label="Historique">
           <button id="btnUndo" title="Annuler (Ctrl+Z)" disabled>↶</button>
@@ -192,6 +194,7 @@
         <div class="room-tools" role="group" aria-label="Pièce">
           <button id="btnColors" aria-controls="colorsPanel" aria-expanded="false" title="Couleurs des murs, du sol et du fond">🎨<span class="label-long">&nbsp;Couleurs</span></button>
           <button id="btnShape" title="Aménager : jardin, taille, étages">🏗️<span class="label-long">&nbsp;Aménager</span></button>
+          <button id="btnContestPublish2" class="tool-publish" hidden title="Publier cette pièce au concours du jour">🏆<span class="label-long">&nbsp;Publier</span></button>
         </div>
       </div>
 
@@ -584,15 +587,6 @@
     </div>
   </div>
 
-  <div id="ctPick" class="modal" hidden>
-    <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="ctPickTitle">
-      <h2 id="ctPickTitle" class="modal-title">Quelle pièce publier ?</h2>
-      <p id="ctPickTheme" class="muted"></p>
-      <div id="ctPickList" class="ct-pick-list"></div>
-      <div class="modal-actions"><button id="ctPickClose" class="btn">Annuler</button></div>
-    </div>
-  </div>
-
   <div id="ctView" class="modal ct-view" hidden>
     <div class="modal-box modal-wide" role="dialog" aria-modal="true">
       <h2 id="ctViewTitle" class="modal-title"></h2>
@@ -750,7 +744,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610201300"></script>
-  <script src="game.js?v=202610201300"></script>
+  <script src="firebase-config.js?v=202610201410"></script>
+  <script src="game.js?v=202610201410"></script>
 </body>
 </html>
