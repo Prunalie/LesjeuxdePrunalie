@@ -2866,7 +2866,7 @@
         grid.appendChild(cell);
       }
 
-      const fileIn = sec.querySelector('input[type="file"]');
+      const fileIn = sec.querySelector('.atelier-add input[type="file"]');
       fileIn.addEventListener('change', async () => {
         const addBtn = sec.querySelector('.atelier-add');
         addBtn.classList.add('busy');
