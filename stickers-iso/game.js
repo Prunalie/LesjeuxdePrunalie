@@ -1474,6 +1474,7 @@
   }
 
   function saveProfile() {
+    renderPoints();
     return db.putPlayer(state.profile).catch((e) => {
       console.warn('Profil non sauvegardé', e);
       toast('Tes points n\'ont pas pu être enregistrés. Vérifie ta connexion.');
@@ -1482,9 +1483,13 @@
 
   function renderPoints() {
     const pts = (state.profile && state.profile.points) || 0;
-    document.querySelectorAll('.points-pill').forEach((el) => {
-      el.textContent = `${pts} 🪙`;
-      el.title = `${pts} points`;
+    const stars = (state.profile && state.profile.stars) || 0;
+    // Pièces et étoiles dans la même bulle.
+    document.querySelectorAll('.points-pill:not(#collectionTotal)').forEach((el) => {
+      el.innerHTML = '<span></span><span class="pill-sep" aria-hidden="true"></span><span></span>';
+      el.firstChild.textContent = `${pts} 🪙`;
+      el.lastChild.textContent = `${stars} 🌟`;
+      el.title = `${pts} pièces · ${stars} étoile${stars > 1 ? 's' : ''} (une étoile = le sticker de ton choix)`;
     });
   }
 

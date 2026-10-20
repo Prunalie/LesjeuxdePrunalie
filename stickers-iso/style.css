@@ -1480,3 +1480,5 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
   .screen-room.lib-big .library-actions .btn { height: 34px; }
 }
 .binder-star { margin-left: auto; }
+.pill-sep { width: 1px; align-self: stretch; margin: 0 7px; background: var(--line); }
+@media (max-width: 720px) { .pill-sep { margin: 0 5px; } }
