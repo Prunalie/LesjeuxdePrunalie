@@ -3984,7 +3984,11 @@
           const sel = document.createElement('select');
           sel.className = 'coffre-select';
           sel.setAttribute('aria-label', 'Enveloppe');
-          for (const env of state.envelopes) if (env.id !== exclude) sel.add(new Option(env.name || 'Enveloppe', env.id));
+          const list = state.envelopes.filter((env) => env.id !== exclude);
+          for (const env of list) sel.add(new Option(env.name || 'Enveloppe', env.id));
+          // Par défaut : la dernière enveloppe créée.
+          const newest = list.reduce((best, env) => (!best || (env.created || 0) >= (best.created || 0) ? env : best), null);
+          if (newest) sel.value = newest.id;
           actions.appendChild(sel);
           return sel;
         };
