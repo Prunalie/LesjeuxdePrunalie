@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610201830">
+  <link rel="stylesheet" href="style.css?v=202610210900">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -545,6 +545,7 @@
           <p id="contestToday" class="muted"></p>
         </div>
         <label class="unlock-field"><span class="muted">Récompense du gagnant 🪙</span><input id="contestReward" class="field" type="number" min="0" max="100000" step="10" inputmode="numeric"></label>
+        <label class="vote-maint"><input id="voteMaintenance" type="checkbox"> <span>🛠️ Vote en maintenance (les joueurs ne peuvent pas voter)</span></label>
         <label class="contest-themes"><span class="muted">Thèmes, un par ligne (ils reviennent à tour de rôle, un par jour)</span><textarea id="contestThemes" class="field" rows="6"></textarea></label>
         <button class="btn btn-primary" type="submit">Enregistrer</button>
       </form>
@@ -745,7 +746,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610201830"></script>
-  <script src="game.js?v=202610201830"></script>
+  <script src="firebase-config.js?v=202610210900"></script>
+  <script src="game.js?v=202610210900"></script>
 </body>
 </html>

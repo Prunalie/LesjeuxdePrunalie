@@ -1905,3 +1905,7 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 
 /* Atelier : couleurs de l'enveloppe et du petit rond */
 .env-swatch { width: 100%; height: 40px; border-radius: 10px; }
+
+.vote-maint { display: flex; align-items: center; gap: 8px; font-size: .9rem; font-weight: 700; cursor: pointer; }
+.vote-maint input { width: 20px; height: 20px; accent-color: var(--accent); }
+.ct-maintenance { border: 2px dashed var(--chunk); }

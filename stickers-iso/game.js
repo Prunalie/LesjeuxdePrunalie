@@ -2769,6 +2769,7 @@
 
   function renderDailySetting() {
     $('#contestReward').value = contestReward();
+    $('#voteMaintenance').checked = voteMaintenance();
     $('#contestThemes').value = (Array.isArray(state.settings.contestThemes) && state.settings.contestThemes.length ? state.settings.contestThemes : DEFAULT_THEMES).join('\n');
     $('#contestToday').textContent = `Thème du jour : « ${themeOf(today())} » · demain : « ${themeOf(shiftDay(today(), 1))} ».`;
     for (const key of Object.keys(UNLOCKS)) $(`#unlock_${key}`).value = unlockCost(key);
@@ -3059,7 +3060,7 @@
 
   function renderContestTile() {
     $('#homeContestTheme').textContent = themeOf(today());
-    $('#homeContestChip').textContent = votingOver() ? 'Gagnant dévoilé !' : 'votes jusqu\'à 20 h';
+    $('#homeContestChip').textContent = voteMaintenance() ? 'vote en maintenance' : (votingOver() ? 'Gagnant dévoilé !' : 'votes jusqu\'à 20 h');
   }
 
   function goHome() {
@@ -3552,6 +3553,8 @@
   const CONTEST_REWARD = 200;
   const VOTE_END_HOUR = 20;
   const votingOver = () => new Date().getHours() >= VOTE_END_HOUR;
+  // Vote en maintenance (réglable dans l'atelier ; activé tant que l'administratrice ne l'a pas rouvert).
+  const voteMaintenance = () => state.settings.voteMaintenance !== false;
   // Heure de fin des votes du concours d'un jour : le lendemain à 20 h.
   const voteEnd = (day) => { const { y, m, dd } = parseDay(day); return new Date(y, m - 1, dd + 1, VOTE_END_HOUR).getTime(); };
   // Dernier concours dont le gagnant est dévoilé.
@@ -3740,7 +3743,9 @@
     const v = contestData.vote;
     const myVote = v.votes.find((x) => x.voter === me);
     const open = !votingOver();
-    if (open) {
+    if (voteMaintenance()) {
+      section('ct-vote ct-maintenance', '🛠️ Vote en maintenance', 'Le vote est momentanément fermé pour maintenance. Tu peux toujours créer et publier ta pièce du concours : le vote reviendra bientôt !');
+    } else if (open) {
     const c2 = section('ct-vote', `Vote : ${themeOf(v.day)}`,
       v.entries.length ? 'Choisis ta pièce préférée parmi celles d\'hier (pas la tienne). Tu peux changer d\'avis jusqu\'à 20 h : le gagnant sera dévoilé à 20 h !' : 'Personne n\'a participé hier : rien à voter aujourd\'hui.');
     if (v.entries.length) {
@@ -3783,6 +3788,11 @@
   }
 
   async function castVote(day, entry) {
+    if (voteMaintenance()) {
+      toast('🛠️ Le vote est en maintenance pour le moment.');
+      openContest();
+      return;
+    }
     if (votingOver()) {
       toast('Les votes sont clos depuis 20 h : le gagnant est dévoilé !');
       openContest();
@@ -3862,6 +3872,7 @@
     const before = { ...state.settings };
     state.settings.contestReward = reward;
     state.settings.contestThemes = themes;
+    state.settings.voteMaintenance = $('#voteMaintenance').checked;
     try {
       await db.putSettings(state.settings);
       toast(`C'est enregistré : ${themes.length ? plural(themes.length, 'thème') : 'thèmes par défaut'}, ${reward} 🪙 pour le gagnant. Thème du jour : « ${themeOf(today())} ».`);
