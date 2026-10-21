@@ -3766,7 +3766,7 @@
       c1.appendChild(box);
     }
     const myRoom = state.rooms.find((r) => r.contestDay === t.day);
-    if (myRoom) {
+    if (myRoom && !(blankContestRoom(myRoom) && !mine)) {
       // Brouillon : la pièce du concours en cours, enregistrée, à reprendre plus tard.
       const card = document.createElement('div');
       card.className = 'ct-draft';
@@ -4029,10 +4029,23 @@
   }
 
   // Pièce du concours : une pièce à part, créée pour le thème du jour.
+  // Pièce du concours jamais commencée : vide, jamais publiée, couleurs et forme d'origine.
+  function blankContestRoom(r) {
+    if (!r || (r.stickers || []).length || r.publishedAt) return false;
+    const c = { ...DEFAULT_COLORS, ...(r.colors || {}) };
+    const sameColors = Object.keys(c).every((k) => c[k] === DEFAULT_COLORS[k]);
+    return sameColors && JSON.stringify(normShape(r.shape)) === JSON.stringify(normShape(null));
+  }
+
   async function openContestRoom() {
     const day = today();
     const existing = state.rooms.find((x) => x.contestDay === day);
-    if (existing) { openRoom(existing.id); return; }
+    if (existing && !blankContestRoom(existing)) { openRoom(existing.id); return; }
+    if (existing) {
+      // Pièce restée vide : on repart du choix (de zéro ou d'une de mes pièces).
+      state.rooms = state.rooms.filter((x) => x.id !== existing.id);
+      db.deleteRoom(existing.id).catch(() => {});
+    }
     const from = await pickContestStart();
     if (from === null) return;
     const r = {
