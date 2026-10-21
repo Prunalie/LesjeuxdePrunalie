@@ -2025,3 +2025,10 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
   .ac-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .home-card.is-maint::after { font-size: 9px; padding: 1px 5px; right: 6px; top: 6px; }
 }
+
+/* Atelier : ranger les stickers acceptés */
+.atelier-add-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.atelier-unfiled-n { font-weight: 800; color: #b03a5b; }
+.unfiled-grid { max-height: 50vh; overflow-y: auto; }
+.unfiled-pick.picked .env-item-img { outline: 3px solid var(--accent); outline-offset: 1px; }
+.unfiled-author { font-size: .7rem; }

@@ -2792,7 +2792,10 @@
         </div>
         <p class="atelier-count muted"></p>
         <div class="atelier-grid"></div>
-        <label class="btn atelier-add">＋ Ajouter des stickers<input type="file" accept="image/*" multiple hidden></label>`;
+        <div class="atelier-add-row">
+          <label class="btn atelier-add">＋ Ajouter des stickers<input type="file" accept="image/*" multiple hidden></label>
+          <button type="button" class="btn atelier-unfiled">📥 Stickers à ranger <span class="atelier-unfiled-n"></span></button>
+        </div>`;
       sec.querySelector('.atelier-art').appendChild(envelopeArt(env));
       const fName = sec.querySelector('[data-f="name"]');
       const fPrice = sec.querySelector('[data-f="price"]');
@@ -2888,6 +2891,14 @@
         renderAtelier();
       });
 
+      // Stickers acceptés (proposés par les joueurs) pas encore rangés : les ajouter ici.
+      const unfiledBtn = sec.querySelector('.atelier-unfiled');
+      const nUnfiled = unfiledProposals().length;
+      unfiledBtn.querySelector('.atelier-unfiled-n').textContent = nUnfiled ? `(${nUnfiled})` : '';
+      unfiledBtn.disabled = !nUnfiled;
+      unfiledBtn.title = nUnfiled ? 'Choisir des stickers acceptés à ranger dans cette enveloppe' : 'Aucun sticker à ranger pour l\'instant';
+      unfiledBtn.addEventListener('click', () => openUnfiledPicker(env));
+
       sec.querySelector('.atelier-del').addEventListener('click', async () => {
         const n = stickersOf(env.id).length;
         const msg = n
@@ -2928,7 +2939,7 @@
       const sub = (list.length ? plural(list.length, 'sticker') : 'Vide : pas dans la boutique')
         + ` · ${env.price ?? DEFAULT_PRICE} 🪙`
         + (hits.length ? ` · contient « ${hits.slice(0, 2).map((h) => h.name).join(' », « ')} »${hits.length > 2 ? '…' : ''}` : '');
-      tile(envelopeArt(env), env.name || 'Enveloppe', sub, () => { atelierOpen = env.id; renderAtelier(); }, list.length ? '' : 'empty');
+      tile(envelopeArt(env), env.name || 'Enveloppe', sub, async () => { atelierOpen = env.id; renderAtelier(); await refreshCoffreCount(); if (atelierOpen === env.id) renderAtelier(); }, list.length ? '' : 'empty');
     }
     const arch = archivedStickers();
     const archHits = q ? arch.filter((img) => normalizeText(img.name).includes(q)) : arch;
@@ -4585,6 +4596,90 @@
     }
     renderCoffre();
   }
+
+  // ---- Depuis l'atelier : ranger des stickers acceptés dans l'enveloppe ouverte ----
+  const unfiledProposals = () => (state.proposals || []).filter((p) => coffreStatus(p) === 'unfiled');
+  const unfiledDialog = $('#unfiledDialog');
+  let unfiledEnv = null;
+  let unfiledPick = new Set();
+  function openUnfiledPicker(env) {
+    unfiledEnv = env;
+    unfiledPick = new Set();
+    $('#unfiledTitle').textContent = `Ranger dans « ${env.name || 'Enveloppe'} »`;
+    const grid = $('#unfiledGrid');
+    grid.innerHTML = '';
+    for (const p of unfiledProposals().sort((a, b) => (b.created || 0) - (a.created || 0))) {
+      const cell = document.createElement('button');
+      cell.type = 'button';
+      cell.className = 'env-item star-pick unfiled-pick';
+      cell.innerHTML = '<div class="env-item-img"><img alt=""><span class="env-owned unfiled-check" hidden>✓</span></div><span class="env-item-name"></span><span class="unfiled-author muted"></span>';
+      cell.querySelector('img').src = p.data;
+      cell.querySelector('.env-item-name').textContent = p.name;
+      cell.querySelector('.unfiled-author').textContent = `par ${p.ownerName || p.owner}`;
+      cell.addEventListener('click', () => {
+        if (unfiledPick.has(p.id)) unfiledPick.delete(p.id); else unfiledPick.add(p.id);
+        cell.classList.toggle('picked', unfiledPick.has(p.id));
+        cell.querySelector('.unfiled-check').hidden = !unfiledPick.has(p.id);
+        renderUnfiledButton();
+      });
+      grid.appendChild(cell);
+    }
+    renderUnfiledButton();
+    unfiledDialog.hidden = false;
+  }
+  function renderUnfiledButton() {
+    const n = unfiledPick.size;
+    $('#unfiledAdd').disabled = !n;
+    $('#unfiledAdd').textContent = n ? `Ajouter ${plural(n, 'sticker')}` : 'Choisis des stickers';
+    $('#unfiledAll').textContent = unfiledPick.size === unfiledProposals().length ? 'Tout désélectionner' : 'Tout sélectionner';
+  }
+  $('#unfiledAll').addEventListener('click', () => {
+    const all = unfiledProposals();
+    const selectAll = unfiledPick.size !== all.length;
+    unfiledPick = new Set(selectAll ? all.map((p) => p.id) : []);
+    document.querySelectorAll('#unfiledGrid .unfiled-pick').forEach((cell, i) => {
+      cell.classList.toggle('picked', selectAll);
+      cell.querySelector('.unfiled-check').hidden = !selectAll;
+    });
+    renderUnfiledButton();
+  });
+  $('#unfiledClose').addEventListener('click', () => { unfiledDialog.hidden = true; });
+  $('#unfiledAdd').addEventListener('click', async () => {
+    const env = unfiledEnv;
+    const list = unfiledProposals().filter((p) => unfiledPick.has(p.id));
+    if (!env || !list.length) return;
+    $('#unfiledAdd').disabled = true;
+    let ok = 0;
+    for (const p of list) {
+      try {
+        const rec = catalogOf(p);
+        if (rec) {
+          rec.envelope = env.id;
+          rec.archived = false;
+          rec.fromProposal = p.id;
+          await db.putImage(rec);
+        } else {
+          const nrec = {
+            id: uid(), catalog: true, envelope: env.id, rarity: 'common',
+            name: p.name, data: p.data, w: p.w, h: p.h, created: Date.now(),
+            author: p.ownerName || p.owner, fromProposal: p.id,
+          };
+          await db.putImage(nrec);
+          addImageToLibrary(nrec);
+        }
+        p.usedIn = env.id;
+        await db.putImage(p);
+        ok++;
+      } catch (e) {
+        console.warn('Rangement impossible', e);
+      }
+    }
+    unfiledDialog.hidden = true;
+    toast(ok === list.length
+      ? `${plural(ok, 'sticker')} rangé${ok > 1 ? 's' : ''} dans « ${env.name} ». Choisis leur rareté ci-dessous.`
+      : `${ok} sur ${list.length} rangé${ok > 1 ? 's' : ''} : vérifie ta connexion et réessaie pour les autres.`);
+    renderAtelier();
+  });
 
   // Change l'enveloppe d'un sticker proposé (ou le sort des archives). Les joueurs gardent leurs exemplaires.
   async function moveSticker(p, rec, envId) {

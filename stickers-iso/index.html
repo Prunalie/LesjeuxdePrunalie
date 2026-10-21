@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610211310">
+  <link rel="stylesheet" href="style.css?v=202610211400">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -636,6 +636,19 @@
     </div>
   </div>
 
+  <div id="unfiledDialog" class="modal" hidden>
+    <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="unfiledTitle">
+      <h2 id="unfiledTitle" class="modal-title"></h2>
+      <p class="muted">Les stickers acceptés qui ne sont dans aucune enveloppe. Touche ceux à ranger ici.</p>
+      <div id="unfiledGrid" class="env-grid env-grid-small unfiled-grid"></div>
+      <div class="modal-actions">
+        <button id="unfiledAll" class="btn btn-ghost"></button>
+        <button id="unfiledClose" class="btn">Annuler</button>
+        <button id="unfiledAdd" class="btn btn-primary"></button>
+      </div>
+    </div>
+  </div>
+
   <div id="ctView" class="modal ct-view" hidden>
     <div class="modal-box modal-wide" role="dialog" aria-modal="true">
       <h2 id="ctViewTitle" class="modal-title"></h2>
@@ -793,7 +806,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610211310"></script>
-  <script src="game.js?v=202610211310"></script>
+  <script src="firebase-config.js?v=202610211400"></script>
+  <script src="game.js?v=202610211400"></script>
 </body>
 </html>
