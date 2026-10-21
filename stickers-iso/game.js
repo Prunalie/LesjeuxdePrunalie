@@ -2769,7 +2769,7 @@
 
   function renderDailySetting() {
     $('#contestReward').value = contestReward();
-    $('#voteMaintenance').checked = voteMaintenance();
+    $('#voteMaintenance').checked = voteMaintenanceOn();
     $('#contestThemes').value = (Array.isArray(state.settings.contestThemes) && state.settings.contestThemes.length ? state.settings.contestThemes : DEFAULT_THEMES).join('\n');
     $('#contestToday').textContent = `Thème du jour : « ${themeOf(today())} » · demain : « ${themeOf(shiftDay(today(), 1))} ».`;
     for (const key of Object.keys(UNLOCKS)) $(`#unlock_${key}`).value = unlockCost(key);
@@ -3554,7 +3554,9 @@
   const VOTE_END_HOUR = 20;
   const votingOver = () => new Date().getHours() >= VOTE_END_HOUR;
   // Vote en maintenance (réglable dans l'atelier ; activé tant que l'administratrice ne l'a pas rouvert).
-  const voteMaintenance = () => state.settings.voteMaintenance !== false;
+  const voteMaintenanceOn = () => state.settings.voteMaintenance !== false;
+  // L'administratrice peut toujours voter, pour tester pendant la maintenance.
+  const voteMaintenance = () => voteMaintenanceOn() && !state.isAdmin;
   // Heure de fin des votes du concours d'un jour : le lendemain à 20 h.
   const voteEnd = (day) => { const { y, m, dd } = parseDay(day); return new Date(y, m - 1, dd + 1, VOTE_END_HOUR).getTime(); };
   // Dernier concours dont le gagnant est dévoilé.
@@ -3746,7 +3748,7 @@
     if (voteMaintenance()) {
       section('ct-vote ct-maintenance', '🛠️ Vote en maintenance', 'Le vote est momentanément fermé pour maintenance. Tu peux toujours créer et publier ta pièce du concours : le vote reviendra bientôt !');
     } else if (open) {
-    const c2 = section('ct-vote', `Vote : ${themeOf(v.day)}`,
+    const c2 = section('ct-vote', `Vote : ${themeOf(v.day)}${voteMaintenanceOn() ? ' · 🛠️ test administratrice (en maintenance pour les joueurs)' : ''}`,
       v.entries.length ? 'Choisis ta pièce préférée parmi celles d\'hier (pas la tienne). Tu peux changer d\'avis jusqu\'à 20 h : le gagnant sera dévoilé à 20 h !' : 'Personne n\'a participé hier : rien à voter aujourd\'hui.');
     if (v.entries.length) {
       const grid = document.createElement('div');
