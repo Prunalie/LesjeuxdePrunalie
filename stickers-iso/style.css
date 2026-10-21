@@ -2032,3 +2032,11 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .unfiled-grid { max-height: 50vh; overflow-y: auto; }
 .unfiled-pick.picked .env-item-img { outline: 3px solid var(--accent); outline-offset: 1px; }
 .unfiled-author { font-size: .7rem; }
+
+/* Messages : titre + texte long */
+.gift-textarea { resize: vertical; min-height: 110px; font: inherit; line-height: 1.4; }
+.gift-stickers { margin-bottom: 10px; }
+.gift-stickers summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
+.mail-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.mail-text.mail-long:not(.mail-open) { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.mail-more { margin-top: 4px; padding: 2px 8px; font-size: .8rem; }

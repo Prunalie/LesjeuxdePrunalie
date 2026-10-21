@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610211400">
+  <link rel="stylesheet" href="style.css?v=202610211500">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -519,6 +519,7 @@
       <div class="players-bar">
         <p id="playersCount" class="muted"></p>
         <input id="playersSearch" class="field players-search" type="search" placeholder="Chercher un pseudo" aria-label="Chercher un pseudo">
+        <button id="writeAll" class="btn" title="Écrire un message à tous les joueurs">✉️<span class="label-long">&nbsp;Écrire à tous</span></button>
         <button id="giftAll" class="btn" title="Offrir un cadeau à tous les joueurs">🎁<span class="label-long">&nbsp;Offrir à tous</span></button>
         <select id="playersSort" class="coffre-select" aria-label="Trier">
           <option value="recent">Dernière visite</option>
@@ -742,9 +743,13 @@
   <div id="giftDialog" class="modal" hidden>
     <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="giftTitle">
       <h2 id="giftTitle" class="modal-title">Offrir des stickers 🎁</h2>
-      <p class="muted star-sub">Touche un sticker pour l'ajouter au cadeau (touche encore pour en offrir plusieurs exemplaires).</p>
-      <div id="giftList" class="star-list gift-list"></div>
-      <label class="gift-field"><span>Message</span><input id="giftText" class="field" maxlength="300"></label>
+      <label class="gift-field"><span>Titre</span><input id="giftSubject" class="field" maxlength="80" placeholder="Un cadeau pour toi 🎁"></label>
+      <label class="gift-field"><span>Message</span><textarea id="giftText" class="field gift-textarea" maxlength="4000" rows="6"></textarea></label>
+      <details id="giftStickers" class="gift-stickers">
+        <summary>🎁 Joindre des stickers <span id="giftStickerN"></span></summary>
+        <p class="muted star-sub">Touche un sticker pour l'ajouter au cadeau (touche encore pour en offrir plusieurs exemplaires).</p>
+        <div id="giftList" class="star-list gift-list"></div>
+      </details>
       <label class="gift-field small"><span>Pièces en plus 🪙</span><input id="giftCoins" class="field" type="number" min="0" step="10" value="0"></label>
       <div class="modal-actions">
         <button id="giftCancel" class="btn">Annuler</button>
@@ -806,7 +811,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610211400"></script>
-  <script src="game.js?v=202610211400"></script>
+  <script src="firebase-config.js?v=202610211500"></script>
+  <script src="game.js?v=202610211500"></script>
 </body>
 </html>

@@ -4326,6 +4326,19 @@
       el.querySelector('h3').textContent = m.title;
       el.querySelector('time').textContent = m.created ? dateFmt.format(m.created) : '';
       el.querySelector('.mail-text').textContent = m.text;
+      if ((m.text || '').length > 280 || (m.text || '').split('\n').length > 5) {
+        const txt = el.querySelector('.mail-text');
+        txt.classList.add('mail-long');
+        const more = document.createElement('button');
+        more.type = 'button';
+        more.className = 'btn btn-ghost mail-more';
+        more.textContent = 'Lire la suite';
+        more.addEventListener('click', () => {
+          const open = txt.classList.toggle('mail-open');
+          more.textContent = open ? 'Réduire' : 'Lire la suite';
+        });
+        txt.after(more);
+      }
       // Cadeau : des pièces et/ou des stickers.
       const ids = giftIds(m);
       const counts = {};
@@ -4795,25 +4808,9 @@
       row.querySelector('.s-coll').textContent = total ? `${distinct}/${total}` : `${distinct}`;
       row.querySelector('.s-coll').title = `${copies} exemplaires en tout`;
       row.querySelector('.s-stars').textContent = `🌟 ${p.stars || 0}`;
-      row.querySelector('.player-write').addEventListener('click', () => writeToPlayer(p, key));
+      row.querySelector('.player-write').addEventListener('click', () => openGift([{ key, name: p.pseudo || key }], 'write'));
       row.querySelector('.player-gift').addEventListener('click', () => openGift([{ key, name: p.pseudo || key }]));
       body.appendChild(row);
-    }
-  }
-
-  async function writeToPlayer(p, key) {
-    const name = p.pseudo || key;
-    const text = await askText(`Message pour ${name} (il arrivera dans sa boîte aux lettres) :`, 'Suivant', '');
-    if (!text) return;
-    const gift = await askText(`Offrir des pièces avec ce message ? (0 = aucune)`, 'Envoyer', '0');
-    if (gift === null) return;
-    const reward = Math.max(0, Math.round(Number(gift) || 0));
-    try {
-      await sendMail(key, reward ? 'Un cadeau pour toi 🎁' : 'Message de l\'administratrice', text, reward);
-      toast(`Message envoyé à ${name}${reward ? ` avec ${reward} 🪙` : ''}.`);
-    } catch (e) {
-      console.warn('Message impossible', e);
-      toast('Le message n\'a pas pu être envoyé. Vérifie ta connexion.');
     }
   }
 
@@ -4821,14 +4818,21 @@
   const giftDialog = $('#giftDialog');
   let giftTargets = [];
   let giftPick = {};
+  let giftMode = 'gift';
+  const defaultSubject = () => (giftMode === 'gift' ? 'Un cadeau pour toi 🎁' : 'Un message pour toi ✉️');
 
-  function openGift(targets) {
+  // mode 'gift' : cadeau (stickers ouverts) ; 'write' : message (titre + texte long, cadeau facultatif).
+  function openGift(targets, mode = 'gift') {
     giftTargets = targets;
     giftPick = {};
-    $('#giftTitle').textContent = targets.length === 1
-      ? `Offrir à ${targets[0].name} 🎁`
-      : `Offrir à tous les joueurs (${targets.length}) 🎁`;
-    $('#giftText').value = 'Un petit cadeau pour toi !';
+    giftMode = mode;
+    const who = targets.length === 1 ? targets[0].name : `tous les joueurs (${targets.length})`;
+    $('#giftTitle').textContent = mode === 'gift' ? `Offrir à ${who} 🎁` : `Écrire à ${who} ✉️`;
+    $('#giftSubject').value = '';
+    $('#giftSubject').placeholder = defaultSubject();
+    $('#giftText').value = '';
+    $('#giftText').placeholder = mode === 'gift' ? 'Un petit cadeau pour toi !' : 'Écris ton message…';
+    $('#giftStickers').open = mode === 'gift';
     $('#giftCoins').value = '0';
     const body = $('#giftList');
     body.innerHTML = '';
@@ -4881,39 +4885,52 @@
     const n = Object.values(giftPick).reduce((a, b) => a + b, 0);
     const coins = giftCoins();
     const btn = $('#giftSend');
-    btn.disabled = !n && !coins;
+    const hasText = !!$('#giftText').value.trim();
+    $('#giftStickerN').textContent = n ? `(${n})` : '';
     const parts = [];
     if (n) parts.push(plural(n, 'sticker'));
     if (coins) parts.push(`${coins} 🪙`);
-    btn.textContent = parts.length ? `Envoyer ${parts.join(' + ')}` : 'Choisis un cadeau';
+    if (giftMode === 'gift') {
+      btn.disabled = !n && !coins;
+      btn.textContent = parts.length ? `Envoyer ${parts.join(' + ')}` : 'Choisis un cadeau';
+    } else {
+      btn.disabled = !hasText && !n && !coins;
+      btn.textContent = parts.length ? `Envoyer + ${parts.join(' + ')}` : 'Envoyer le message';
+    }
   }
   $('#giftCoins').addEventListener('input', renderGiftSend);
+  $('#giftText').addEventListener('input', renderGiftSend);
   $('#giftCancel').addEventListener('click', () => { giftDialog.hidden = true; });
   $('#giftSend').addEventListener('click', async () => {
     const ids = [];
     for (const [id, n] of Object.entries(giftPick)) for (let i = 0; i < n; i++) ids.push(id);
     const coins = giftCoins();
-    if (!ids.length && !coins) return;
-    const text = $('#giftText').value.trim() || 'Un petit cadeau pour toi !';
+    const typed = $('#giftText').value.trim();
+    if (!ids.length && !coins && !(giftMode === 'write' && typed)) return;
+    const text = typed || (ids.length || coins ? 'Un petit cadeau pour toi !' : '');
+    const title = $('#giftSubject').value.trim() || ((ids.length || coins) ? 'Un cadeau pour toi 🎁' : defaultSubject());
     const btn = $('#giftSend');
     btn.disabled = true;
     try {
-      for (const t of giftTargets) await sendMail(t.key, 'Un cadeau pour toi 🎁', text, coins, ids.length ? ids : null);
+      for (const t of giftTargets) await sendMail(t.key, title, text, coins, ids.length ? ids : null);
       giftDialog.hidden = true;
-      toast(giftTargets.length === 1 ? `Cadeau envoyé à ${giftTargets[0].name} !` : `Cadeau envoyé à ${plural(giftTargets.length, 'joueur')} !`);
+      const what = (ids.length || coins) ? 'Cadeau envoyé' : 'Message envoyé';
+      toast(giftTargets.length === 1 ? `${what} à ${giftTargets[0].name} !` : `${what} à ${plural(giftTargets.length, 'joueur')} !`);
     } catch (e) {
       console.warn('Cadeau impossible', e);
       toast('Le cadeau n\'a pas pu être envoyé. Vérifie ta connexion.');
       btn.disabled = false;
     }
   });
-  $('#giftAll').addEventListener('click', () => {
+  function allTargets() {
     const targets = players
       .map((p) => ({ key: playerKey(p), name: p.pseudo || playerKey(p) }))
       .filter((t) => t.key && !ADMIN_PSEUDOS.includes(t.key));
-    if (!targets.length) { toast('Aucun joueur pour l\'instant.'); return; }
-    openGift(targets);
-  });
+    if (!targets.length) toast('Aucun joueur pour l\'instant.');
+    return targets;
+  }
+  $('#giftAll').addEventListener('click', () => { const t = allTargets(); if (t.length) openGift(t); });
+  $('#writeAll').addEventListener('click', () => { const t = allTargets(); if (t.length) openGift(t, 'write'); });
 
   // ---------------------------------------------------------------------------
   // Démarrage
