@@ -1856,7 +1856,7 @@
     try {
       const fresh = await db.getPlayer(playerDocId(state.player.key));
       if (!fresh) return;
-      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily']) {
+      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay']) {
         if (fresh[k] !== undefined) state.profile[k] = fresh[k];
       }
       state.profile.inventory = state.profile.inventory || {};
@@ -2776,6 +2776,8 @@
   function renderDailySetting() {
     $('#contestReward').value = contestReward();
     $('#voteMaintenance').checked = voteMaintenanceOn();
+    $('#voteReward').value = voteReward();
+    $('#soloReward').value = soloReward();
     $('#contestThemes').value = (Array.isArray(state.settings.contestThemes) && state.settings.contestThemes.length ? state.settings.contestThemes : DEFAULT_THEMES).join('\n');
     $('#contestToday').textContent = `Thème du jour : « ${themeOf(today())} » · demain : « ${themeOf(shiftDay(today(), 1))} ».`;
     for (const key of Object.keys(UNLOCKS)) $(`#unlock_${key}`).value = unlockCost(key);
@@ -3396,6 +3398,14 @@
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
     {
+      id: 'n-2026-10-21a', date: Date.UTC(2026, 9, 21, 8, 0), title: 'Vote en duels ⚔️',
+      items: [
+        'Pour le concours, le vote se fait maintenant en duels : deux pièces s\'affichent, touche ta préférée. Jamais la tienne !',
+        'Termine tes duels du jour (10 au plus) et gagne des pièces 🪙 pour avoir voté.',
+        'À 20 h, la pièce qui a gagné le plus de duels (en %) remporte le concours.',
+      ],
+    },
+    {
       id: 'n-2026-10-20e', date: Date.UTC(2026, 9, 20, 11, 30), title: 'Nouveau look ✨',
       items: [
         'Le menu principal fait peau neuve : nouvelles couleurs, nouvelles icônes et une jolie police.',
@@ -3593,21 +3603,47 @@
   const dayLabel = (day) => { const { y, m, dd } = parseDay(day); return new Date(y, m - 1, dd).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); };
 
   // Participations et votes d'un jour, avec le classement.
+  // Votes en duels : on montre 2 pièces, on touche sa préférée. Classement au % de duels gagnés.
+  const DUELS_MAX = 10;                // duels par joueur et par jour
+  const VOTE_REWARD = 20;              // pièces pour avoir fini ses duels du jour
+  const voteReward = () => Math.max(0, Math.round(Number(state.settings.voteReward ?? VOTE_REWARD)));
+  // Gagnant d'office (une seule participation) : moitié de la récompense par défaut.
+  const soloReward = () => Math.max(0, Math.round(Number(state.settings.contestSoloReward ?? Math.round(contestReward() / 2))));
+
   async function loadContestDay(day) {
     const docs = await db.listContest(day);
     const entries = docs.filter((d) => d.kind === 'entry');
-    // Les votes arrivés après 20 h ne comptent pas.
-    const votes = docs.filter((d) => d.kind === 'vote' && (!d.created || d.created <= voteEnd(day)));
-    const count = {};
-    for (const v of votes) {
-      if (v.entry === v.voter) continue;
-      if (!entries.some((e) => e.owner === v.entry)) continue;
-      count[v.entry] = (count[v.entry] || 0) + 1;
+    const owners = new Set(entries.map((e) => e.owner));
+    const inTime = (d) => !d.created || d.created <= voteEnd(day);
+    // Les duels arrivés après 20 h ne comptent pas, ni ceux sur sa propre pièce.
+    const duels = docs.filter((d) => d.kind === 'duel' && inTime(d) && owners.has(d.a) && owners.has(d.b)
+      && d.a !== d.voter && d.b !== d.voter && (d.winner === d.a || d.winner === d.b));
+    // Anciens votes (avant les duels) : un vote = une victoire.
+    const votes = docs.filter((d) => d.kind === 'vote' && inTime(d) && d.entry !== d.voter && owners.has(d.entry));
+    const wins = {}, seen = {};
+    for (const d of duels) {
+      seen[d.a] = (seen[d.a] || 0) + 1;
+      seen[d.b] = (seen[d.b] || 0) + 1;
+      wins[d.winner] = (wins[d.winner] || 0) + 1;
     }
-    const best = Math.max(0, ...Object.values(count));
-    const winners = best > 0 ? entries.filter((e) => count[e.owner] === best).map((e) => e.owner) : [];
-    return { day, entries, votes, count, winners };
+    for (const v of votes) { wins[v.entry] = (wins[v.entry] || 0) + 1; seen[v.entry] = (seen[v.entry] || 0) + 1; }
+    const rate = (o) => (seen[o] ? (wins[o] || 0) / seen[o] : 0);
+    let winners = [];
+    let solo = false;
+    if (entries.length === 1) {
+      // Une seule participation : gagnante d'office.
+      winners = [entries[0].owner];
+      solo = true;
+    } else if (entries.length === 2 && !duels.length && !votes.length) {
+      // Deux pièces et personne n'a voté : égalité.
+      winners = entries.map((e) => e.owner);
+    } else {
+      const best = Math.max(0, ...entries.map((e) => rate(e.owner)));
+      if (best > 0) winners = entries.filter((e) => rate(e.owner) === best).map((e) => e.owner);
+    }
+    return { day, entries, duels, votes, wins, seen, rate, winners, solo };
   }
+  const rewardOf = (res) => (res.solo ? soloReward() : contestReward());
 
   // À la connexion : récompense des concours terminés (résultats le surlendemain).
   // Un seul calcul à la fois (sinon la récompense pourrait être donnée deux fois).
@@ -3628,7 +3664,7 @@
       for (let d = from; d <= last; d = shiftDay(d, 1)) {
         const res = await loadContestDay(d);
         if (res.winners.includes(state.player.key)) {
-          won += contestReward();
+          won += rewardOf(res);
           themes.push(themeOf(d));
         }
       }
@@ -3677,10 +3713,10 @@
       $('#ctViewTitle').textContent = `${e.ownerName || e.owner}${e.roomName ? ' · ' + e.roomName : ''}`;
       $('#ctView').hidden = false;
     });
-    if (opts.count != null) {
+    if (opts.score) {
       const c = document.createElement('span');
       c.className = 'ct-count';
-      c.textContent = `❤️ ${opts.count}`;
+      c.textContent = opts.score;
       card.querySelector('.ct-meta').appendChild(c);
     }
     if (state.isAdmin && opts.canModerate) {
@@ -3747,76 +3783,126 @@
       c1.appendChild(grid);
     }
 
-    // 2. Vote pour le thème d'hier
+    // 2. Vote en duels pour le thème d'hier
     const v = contestData.vote;
-    const myVote = v.votes.find((x) => x.voter === me);
-    const open = !votingOver();
     if (voteMaintenance()) {
       section('ct-vote ct-maintenance', '🛠️ Vote en maintenance', 'Le vote est momentanément fermé pour maintenance. Tu peux toujours créer et publier ta pièce du concours : le vote reviendra bientôt !');
-    } else if (open) {
-    const c2 = section('ct-vote', `Vote : ${themeOf(v.day)}${voteMaintenanceOn() ? ' · 🛠️ test administratrice (en maintenance pour les joueurs)' : ''}`,
-      v.entries.length ? 'Choisis ta pièce préférée parmi celles d\'hier (pas la tienne). Tu peux changer d\'avis jusqu\'à 20 h : le gagnant sera dévoilé à 20 h !' : 'Personne n\'a participé hier : rien à voter aujourd\'hui.');
-    if (v.entries.length) {
-      const grid = document.createElement('div');
-      grid.className = 'ct-grid';
-      for (const e of v.entries) {
-        const own = e.owner === me;
-        const voted = myVote && myVote.entry === e.owner;
-        const card = entryCard(e, { mine: own, voted, canModerate: true });
-        const act = card.querySelector('.ct-actions');
-        if (own) {
-          const tag = document.createElement('span');
-          tag.className = 'muted ct-small-text';
-          tag.textContent = 'Ta pièce';
-          act.prepend(tag);
-        } else {
-          const b = document.createElement('button');
-          b.className = 'btn ' + (voted ? 'btn-primary' : '');
-          b.textContent = voted ? '❤️ Mon vote' : '🤍 Voter';
-          b.addEventListener('click', () => castVote(v.day, e));
-          act.prepend(b);
-        }
-        grid.appendChild(card);
-      }
-      c2.appendChild(grid);
-    }
+    } else if (!votingOver()) {
+      const title = `Vote : ${themeOf(v.day)}${voteMaintenanceOn() ? ' · 🛠️ test admin (en maintenance pour les joueurs)' : ''}`;
+      const plan = duelPlan(v, me);
+      let sub;
+      if (!v.entries.length) sub = 'Personne n\'a participé hier : rien à voter aujourd\'hui.';
+      else if (v.entries.length === 1) sub = `Une seule participation hier : pas de vote aujourd'hui. ${v.entries[0].owner === me ? 'Tu gagnes' : `${v.entries[0].ownerName || v.entries[0].owner} gagne`} d'office à 20 h !`;
+      else if (!plan.total) sub = 'Tu as participé hier et il n\'y a qu\'une autre pièce : tu ne peux pas voter aujourd\'hui. Les autres joueurs départagent !';
+      else sub = `Touche ta pièce préférée dans chaque duel (jamais la tienne). ${plan.total > 1 ? `Termine tes ${plan.total} duels` : 'Fais ton duel'} pour gagner ${voteReward()} 🪙. Gagnant dévoilé à 20 h !`;
+      const c2 = section('ct-vote', title, sub);
+      if (plan.total) renderDuel(c2, v, plan);
     }
 
     // 3. Résultats du dernier concours dévoilé (à 20 h le lendemain)
     const r = contestData.results;
     const c3 = section('ct-results', `${r.day === shiftDay(today(), -1) ? 'Résultats de ce soir' : 'Derniers résultats'} : ${themeOf(r.day)}`,
-      r.entries.length ? (r.winners.length ? `Bravo ! ${r.winners.length > 1 ? 'Les gagnants reçoivent' : 'Le gagnant reçoit'} ${contestReward()} 🪙.` : 'Aucun vote : pas de gagnant cette fois.') : 'Pas de participation ce jour-là.');
+      !r.entries.length ? 'Pas de participation ce jour-là.'
+        : r.solo ? `Une seule participation : gagnante d'office, avec ${soloReward()} 🪙.`
+          : r.winners.length ? `Bravo ! ${r.winners.length > 1 ? 'Les gagnants reçoivent' : 'Le gagnant reçoit'} ${contestReward()} 🪙.` : 'Aucun vote : pas de gagnant cette fois.');
     if (r.entries.length) {
       const grid = document.createElement('div');
       grid.className = 'ct-grid';
-      [...r.entries].sort((a, b) => (r.count[b.owner] || 0) - (r.count[a.owner] || 0))
-        .forEach((e) => grid.appendChild(entryCard(e, { winner: r.winners.includes(e.owner), count: r.count[e.owner] || 0, mine: e.owner === me })));
+      [...r.entries].sort((a, b) => r.rate(b.owner) - r.rate(a.owner) || (r.wins[b.owner] || 0) - (r.wins[a.owner] || 0))
+        .forEach((e) => grid.appendChild(entryCard(e, {
+          winner: r.winners.includes(e.owner), mine: e.owner === me,
+          score: r.seen[e.owner] ? `⚔️ ${r.wins[e.owner] || 0}/${r.seen[e.owner]} · ${Math.round(r.rate(e.owner) * 100)} %` : null,
+        })));
       c3.appendChild(grid);
     }
   }
 
-  async function castVote(day, entry) {
-    if (voteMaintenance()) {
-      toast('🛠️ Le vote est en maintenance pour le moment.');
-      openContest();
+  // Les duels d'un joueur : toutes les paires de pièces (sans la sienne), 10 au plus.
+  function duelPlan(v, me) {
+    const others = v.entries.filter((e) => e.owner !== me).map((e) => e.owner);
+    const pairs = [];
+    for (let i = 0; i < others.length; i++) for (let j = i + 1; j < others.length; j++) pairs.push([others[i], others[j]].sort());
+    const mine = v.duels.filter((d) => d.voter === me);
+    const done = new Set(mine.map((d) => [d.a, d.b].sort().join('|')));
+    const total = Math.min(DUELS_MAX, pairs.length);
+    const left = pairs.filter((p) => !done.has(p.join('|')));
+    return { pairs, left, done: Math.min(mine.length, total), total };
+  }
+  // Prochain duel : les pièces les moins vues d'abord, pour que chacune passe autant de fois.
+  function nextDuel(v, plan) {
+    if (plan.done >= plan.total || !plan.left.length) return null;
+    const seen = {};
+    for (const d of v.duels) { seen[d.a] = (seen[d.a] || 0) + 1; seen[d.b] = (seen[d.b] || 0) + 1; }
+    const score = (p) => (seen[p[0]] || 0) + (seen[p[1]] || 0) + Math.random() * 0.5;
+    const best = [...plan.left].sort((x, y) => score(x) - score(y))[0];
+    return Math.random() < 0.5 ? best : [best[1], best[0]];
+  }
+
+  let duelCurrent = null;
+  function renderDuel(box, v, plan) {
+    const me = state.player.key;
+    const prog = document.createElement('p');
+    prog.className = 'duel-progress';
+    box.appendChild(prog);
+    if (plan.done >= plan.total) {
+      prog.textContent = plan.total > 1 ? `✓ Merci ! Tu as fait tes ${plan.total} duels du jour.` : '✓ Merci ! Tu as fait ton duel du jour.';
+      if ((state.profile.voteRewardDay || '') === v.day) prog.textContent += ` (+${voteReward()} 🪙 reçues)`;
       return;
     }
-    if (votingOver()) {
-      toast('Les votes sont clos depuis 20 h : le gagnant est dévoilé !');
-      openContest();
-      return;
+    prog.textContent = `Duel ${plan.done + 1} / ${plan.total}`;
+    if (!duelCurrent || duelCurrent.day !== v.day || !plan.left.some((p) => p.join('|') === [...duelCurrent.pair].sort().join('|'))) {
+      duelCurrent = { day: v.day, pair: nextDuel(v, plan) };
     }
-    const vote = { id: `cv-${day}-${state.player.key}`, kind: 'vote', contestDay: day, voter: state.player.key, entry: entry.owner, created: Date.now() };
+    const [a, b] = duelCurrent.pair;
+    const arena = document.createElement('div');
+    arena.className = 'duel-arena';
+    for (const owner of [a, b]) {
+      const e = v.entries.find((x) => x.owner === owner);
+      const btn = document.createElement('button');
+      btn.className = 'duel-pick';
+      // Pas de nom pendant le duel : on vote pour la pièce, pas pour la personne.
+      btn.innerHTML = '<img alt="Pièce du concours"><span class="duel-choose">❤️ Je préfère</span>';
+      btn.querySelector('img').src = e.image;
+      btn.addEventListener('click', () => castDuel(v, a, b, owner, btn));
+      arena.appendChild(btn);
+    }
+    const vs = document.createElement('span');
+    vs.className = 'duel-vs';
+    vs.textContent = 'VS';
+    arena.insertBefore(vs, arena.children[1]);
+    box.appendChild(arena);
+  }
+
+  async function castDuel(v, a, b, winner, btn) {
+    if (voteMaintenance()) { toast('🛠️ Le vote est en maintenance pour le moment.'); openContest(); return; }
+    if (votingOver()) { toast('Les votes sont clos depuis 20 h : le gagnant est dévoilé !'); openContest(); return; }
+    const me = state.player.key;
+    const [x, y] = [a, b].sort();
+    const duel = { id: `cd-${v.day}-${me}-${x}-${y}`, kind: 'duel', contestDay: v.day, voter: me, a: x, b: y, winner, created: Date.now() };
+    document.querySelectorAll('.duel-pick').forEach((el) => { el.disabled = true; });
+    btn.classList.add('chosen');
     try {
-      await db.putContest(vote);
-      const v = contestData.vote;
-      v.votes = [...v.votes.filter((x) => x.voter !== state.player.key), vote];
-      toast(`Vote enregistré pour ${entry.ownerName || entry.owner} ❤️`);
-      renderContest();
+      await db.putContest(duel);
     } catch (e) {
-      console.warn('Vote impossible', e);
+      console.warn('Duel impossible', e);
       toast('Le vote n\'a pas pu être enregistré. Vérifie ta connexion.');
+      renderContest();
+      return;
     }
+    v.duels = [...v.duels.filter((d) => d.id !== duel.id), duel];
+    duelCurrent = null;
+    const plan = duelPlan(v, me);
+    // Récompense une fois les duels du jour terminés.
+    if (plan.done >= plan.total && state.profile.voteRewardDay !== v.day) {
+      await refreshProfile();
+      if (state.profile.voteRewardDay !== v.day) {
+        state.profile.voteRewardDay = v.day;
+        state.profile.points = (state.profile.points || 0) + voteReward();
+        saveProfile();
+        toast(`Merci d'avoir voté ! +${voteReward()} 🪙`);
+      }
+    }
+    setTimeout(renderContest, 250);
   }
 
   // Pièce du concours : une pièce à part, créée pour le thème du jour.
@@ -3881,6 +3967,9 @@
     state.settings.contestReward = reward;
     state.settings.contestThemes = themes;
     state.settings.voteMaintenance = $('#voteMaintenance').checked;
+    const vr = Math.round(Number($('#voteReward').value)), sr = Math.round(Number($('#soloReward').value));
+    if (vr >= 0) state.settings.voteReward = vr;
+    if (sr >= 0) state.settings.contestSoloReward = sr;
     try {
       await db.putSettings(state.settings);
       toast(`C'est enregistré : ${themes.length ? plural(themes.length, 'thème') : 'thèmes par défaut'}, ${reward} 🪙 pour le gagnant. Thème du jour : « ${themeOf(today())} ».`);
