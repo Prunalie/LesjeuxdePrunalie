@@ -3398,7 +3398,7 @@
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
     {
-      id: 'n-2026-10-21a', date: Date.UTC(2026, 9, 21, 8, 0), title: 'Vote en duels ⚔️',
+      id: 'n-2026-10-21a', date: Date.UTC(2026, 9, 21, 6, 30), title: 'Vote en duels ⚔️',
       items: [
         'Pour le concours, le vote se fait maintenant en duels : deux pièces s\'affichent, touche ta préférée. Jamais la tienne !',
         'Termine tes duels du jour (10 au plus) et gagne des pièces 🪙 pour avoir voté.',
