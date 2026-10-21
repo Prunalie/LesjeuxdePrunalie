@@ -3620,6 +3620,11 @@
       && d.a !== d.voter && d.b !== d.voter && (d.winner === d.a || d.winner === d.b));
     // Anciens votes (avant les duels) : un vote = une victoire.
     const votes = docs.filter((d) => d.kind === 'vote' && inTime(d) && d.entry !== d.voter && owners.has(d.entry));
+    return scoreContest(day, entries, duels, votes);
+  }
+
+  // Classement : % de duels gagnés (et les règles pour 1 ou 2 participations).
+  function scoreContest(day, entries, duels, votes) {
     const wins = {}, seen = {};
     for (const d of duels) {
       seen[d.a] = (seen[d.a] || 0) + 1;
@@ -3803,6 +3808,8 @@
         b.textContent = finished ? `✓ Duels terminés (${plan.total}/${plan.total})` : `⚔️ Voter${plan.done ? ` · ${plan.done}/${plan.total}` : ''}`;
         b.addEventListener('click', () => openDuelView(v));
         c2.appendChild(b);
+        // Admin : classement provisoire, pour faire des simulations.
+        if (state.isAdmin) c2.appendChild(provisionalRanking(v));
         // Admin : effacer ses duels du jour pour retester le vote.
         if (state.isAdmin && plan.done) {
           const r = document.createElement('button');
@@ -3811,6 +3818,8 @@
           r.addEventListener('click', () => resetMyDuels(v));
           c2.appendChild(r);
         }
+      } else if (state.isAdmin && v.entries.length) {
+        c2.appendChild(provisionalRanking(v));
       }
     }
 
@@ -3851,6 +3860,32 @@
     const score = (p) => (seen[p[0]] || 0) + (seen[p[1]] || 0) + Math.random() * 0.5;
     const best = [...plan.left].sort((x, y) => score(x) - score(y))[0];
     return Math.random() < 0.5 ? best : [best[1], best[0]];
+  }
+
+  function provisionalRanking(v) {
+    const res = scoreContest(v.day, v.entries, v.duels, v.votes);
+    const box = document.createElement('div');
+    box.className = 'ct-provisional';
+    const h = document.createElement('p');
+    h.className = 'ct-prov-title';
+    h.textContent = `🔮 Classement provisoire (visible seulement par toi) · ${plural(v.duels.length, 'duel')} joué${v.duels.length > 1 ? 's' : ''}`;
+    box.appendChild(h);
+    const ol = document.createElement('ol');
+    [...v.entries].sort((a, b) => res.rate(b.owner) - res.rate(a.owner) || (res.wins[b.owner] || 0) - (res.wins[a.owner] || 0)).forEach((e) => {
+      const li = document.createElement('li');
+      const win = res.winners.includes(e.owner);
+      li.textContent = `${win ? '🏆 ' : ''}${e.ownerName || e.owner} — ${res.seen[e.owner] ? `${res.wins[e.owner] || 0}/${res.seen[e.owner]} duels gagnés · ${Math.round(res.rate(e.owner) * 100)} %` : 'pas encore vue en duel'}`;
+      if (win) li.className = 'win';
+      ol.appendChild(li);
+    });
+    box.appendChild(ol);
+    const p = document.createElement('p');
+    p.className = 'muted ct-small-text';
+    p.textContent = res.winners.length
+      ? `Si le vote s'arrêtait maintenant : ${res.winners.map((o) => (v.entries.find((e) => e.owner === o) || {}).ownerName || o).join(', ')} gagnerai${res.winners.length > 1 ? 'ent' : 't'}${res.solo ? ' (gagnant d\'office)' : ''}.`
+      : 'Pas encore de gagnant : aucune pièce n\'a gagné de duel.';
+    box.appendChild(p);
+    return box;
   }
 
   async function resetMyDuels(v) {

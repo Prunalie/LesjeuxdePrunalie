@@ -1967,3 +1967,9 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
   .duel-body { gap: 8px; }
   .duel-body .duel-progress { font-size: 1rem; }
 }
+
+/* Classement provisoire (admin) */
+.ct-provisional { width: 100%; padding: 10px 14px; border: 2px dashed var(--chunk); border-radius: 14px; background: var(--surface); }
+.ct-prov-title { margin: 0 0 6px; font-weight: 800; font-size: .9rem; }
+.ct-provisional ol { margin: 0 0 6px; padding-left: 22px; font-size: .9rem; line-height: 1.5; }
+.ct-provisional li.win { font-weight: 800; }
