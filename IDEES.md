@@ -5,6 +5,10 @@ Coche une case (`- [x]`) quand c'est fait.
 
 ## À faire
 
+- [ ] **Historique de mes pièces de concours** : retrouver toutes les pièces que j'ai publiées aux concours passés (thème, date, résultat).
+- [ ] **Troc** : échanger des stickers entre joueurs.
+- [ ] **Mini-jeux pour gagner des pièces** (par exemple un Memory avec les stickers).
+- [ ] **Voter pour le thème suivant** du concours.
 - [ ] **Boîte à idées pour les joueurs** : un espace où les joueurs envoient leurs idées pour le jeu, que l'administratrice lit de son côté.
 
 ## Peut-être plus tard
