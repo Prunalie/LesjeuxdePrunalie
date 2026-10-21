@@ -1933,3 +1933,37 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
   .duel-vs { font-size: 1rem; }
   .duel-choose { font-size: .75rem; }
 }
+
+/* Page de vote en grand */
+.duel-view {
+  position: fixed; inset: 0; z-index: 3000;
+  display: flex; align-items: stretch; justify-content: center;
+  background: var(--bg);
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+}
+.duel-view[hidden] { display: none; }
+.duel-box { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 14px; }
+.duel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.duel-head h2 { margin: 0; font-size: 1.6rem; }
+.duel-head p { margin: 4px 0 0; font-size: .92rem; }
+.duel-body { display: flex; flex-direction: column; gap: 12px; flex: 1; }
+.duel-body .duel-progress { font-size: 1.15rem; text-align: center; }
+.duel-body .duel-progress.done { margin-top: 30px; font-size: 1.3rem; }
+.duel-end { text-align: center; }
+.duel-body .duel-arena { flex: 1; align-items: center; }
+.duel-body .duel-pick img { border-radius: 14px; }
+.duel-body .duel-choose { font-size: 1rem; padding: 4px 0; }
+.vote-open { align-self: flex-start; }
+@media (max-width: 720px) {
+  .duel-view { padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .duel-head h2 { font-size: 1.25rem; }
+  .duel-head p { font-size: .82rem; }
+  .duel-head .btn { padding: 6px 10px; font-size: .85rem; flex-shrink: 0; }
+  .duel-body .duel-arena { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .duel-body .duel-pick img { max-height: 27vh; object-fit: contain; }
+  .duel-body { gap: 8px; }
+  .duel-body .duel-progress { font-size: 1rem; }
+}

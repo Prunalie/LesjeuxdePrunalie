@@ -3796,7 +3796,14 @@
       else if (!plan.total) sub = 'Tu as participé hier et il n\'y a qu\'une autre pièce : tu ne peux pas voter aujourd\'hui. Les autres joueurs départagent !';
       else sub = `Touche ta pièce préférée dans chaque duel (jamais la tienne). ${plan.total > 1 ? `Termine tes ${plan.total} duels` : 'Fais ton duel'} pour gagner ${voteReward()} 🪙. Gagnant dévoilé à 20 h !`;
       const c2 = section('ct-vote', title, sub);
-      if (plan.total) renderDuel(c2, v, plan);
+      if (plan.total) {
+        const finished = plan.done >= plan.total;
+        const b = document.createElement('button');
+        b.className = 'btn ' + (finished ? '' : 'btn-primary') + ' vote-open';
+        b.textContent = finished ? `✓ Duels terminés (${plan.total}/${plan.total})` : `⚔️ Voter${plan.done ? ` · ${plan.done}/${plan.total}` : ''}`;
+        b.addEventListener('click', () => openDuelView(v));
+        c2.appendChild(b);
+      }
     }
 
     // 3. Résultats du dernier concours dévoilé (à 20 h le lendemain)
@@ -3838,6 +3845,31 @@
     return Math.random() < 0.5 ? best : [best[1], best[0]];
   }
 
+  // Page de vote en grand : un duel à la fois.
+  const duelView = $('#duelView');
+  let duelDay = null;
+  function openDuelView(v) {
+    duelDay = v;
+    renderDuelView();
+    duelView.hidden = false;
+  }
+  function closeDuelView() {
+    duelView.hidden = true;
+    duelDay = null;
+    renderContest();
+  }
+  $('#duelClose').addEventListener('click', closeDuelView);
+  function renderDuelView() {
+    const v = duelDay;
+    if (!v) return;
+    const plan = duelPlan(v, state.player.key);
+    $('#duelTitle').textContent = `Vote : ${themeOf(v.day)}`;
+    $('#duelSub').textContent = `Touche la pièce que tu préfères (jamais la tienne). ${plan.total > 1 ? `Termine tes ${plan.total} duels` : 'Fais ton duel'} pour gagner ${voteReward()} 🪙. Gagnant dévoilé à 20 h !`;
+    const box = $('#duelBody');
+    box.innerHTML = '';
+    renderDuel(box, v, plan);
+  }
+
   let duelCurrent = null;
   function renderDuel(box, v, plan) {
     const me = state.player.key;
@@ -3847,9 +3879,16 @@
     if (plan.done >= plan.total) {
       prog.textContent = plan.total > 1 ? `✓ Merci ! Tu as fait tes ${plan.total} duels du jour.` : '✓ Merci ! Tu as fait ton duel du jour.';
       if ((state.profile.voteRewardDay || '') === v.day) prog.textContent += ` (+${voteReward()} 🪙 reçues)`;
+      prog.classList.add('done');
+      const end = document.createElement('p');
+      end.className = 'muted duel-end';
+      end.textContent = 'Reviens à 20 h pour découvrir la pièce gagnante 🏆';
+      box.appendChild(end);
+      $('#duelClose').textContent = 'Retour au concours';
       return;
     }
     prog.textContent = `Duel ${plan.done + 1} / ${plan.total}`;
+    $('#duelClose').textContent = 'Plus tard';
     if (!duelCurrent || duelCurrent.day !== v.day || !plan.left.some((p) => p.join('|') === [...duelCurrent.pair].sort().join('|'))) {
       duelCurrent = { day: v.day, pair: nextDuel(v, plan) };
     }
@@ -3874,8 +3913,8 @@
   }
 
   async function castDuel(v, a, b, winner, btn) {
-    if (voteMaintenance()) { toast('🛠️ Le vote est en maintenance pour le moment.'); openContest(); return; }
-    if (votingOver()) { toast('Les votes sont clos depuis 20 h : le gagnant est dévoilé !'); openContest(); return; }
+    if (voteMaintenance()) { toast('🛠️ Le vote est en maintenance pour le moment.'); duelView.hidden = true; openContest(); return; }
+    if (votingOver()) { toast('Les votes sont clos depuis 20 h : le gagnant est dévoilé !'); duelView.hidden = true; openContest(); return; }
     const me = state.player.key;
     const [x, y] = [a, b].sort();
     const duel = { id: `cd-${v.day}-${me}-${x}-${y}`, kind: 'duel', contestDay: v.day, voter: me, a: x, b: y, winner, created: Date.now() };
@@ -3886,7 +3925,7 @@
     } catch (e) {
       console.warn('Duel impossible', e);
       toast('Le vote n\'a pas pu être enregistré. Vérifie ta connexion.');
-      renderContest();
+      renderDuelView();
       return;
     }
     v.duels = [...v.duels.filter((d) => d.id !== duel.id), duel];
@@ -3902,7 +3941,7 @@
         toast(`Merci d'avoir voté ! +${voteReward()} 🪙`);
       }
     }
-    setTimeout(renderContest, 250);
+    setTimeout(renderDuelView, 250);
   }
 
   // Pièce du concours : une pièce à part, créée pour le thème du jour.

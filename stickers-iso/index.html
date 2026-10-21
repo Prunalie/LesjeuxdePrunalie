@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610211030">
+  <link rel="stylesheet" href="style.css?v=202610211110">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -593,6 +593,20 @@
     </div>
   </div>
 
+  <!-- Vote en grand : un duel à la fois -->
+  <div id="duelView" class="duel-view" hidden role="dialog" aria-modal="true" aria-labelledby="duelTitle">
+    <div class="duel-box">
+      <div class="duel-head">
+        <div>
+          <h2 id="duelTitle"></h2>
+          <p id="duelSub" class="muted"></p>
+        </div>
+        <button id="duelClose" class="btn">Plus tard</button>
+      </div>
+      <div id="duelBody" class="duel-body"></div>
+    </div>
+  </div>
+
   <div id="ctView" class="modal ct-view" hidden>
     <div class="modal-box modal-wide" role="dialog" aria-modal="true">
       <h2 id="ctViewTitle" class="modal-title"></h2>
@@ -750,7 +764,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610211030"></script>
-  <script src="game.js?v=202610211030"></script>
+  <script src="firebase-config.js?v=202610211110"></script>
+  <script src="game.js?v=202610211110"></script>
 </body>
 </html>
