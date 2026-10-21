@@ -338,6 +338,7 @@
       colors: state.colors,
       shape: state.shape,
       ...(currentRoom() && currentRoom().contestDay ? { contestDay: currentRoom().contestDay } : {}),
+      ...(currentRoom() && currentRoom().publishedAt ? { publishedAt: currentRoom().publishedAt } : {}),
       thumb,
       updated: Date.now(),
     };
@@ -2078,6 +2079,7 @@
     screens.room.classList.toggle('contest-mode', !!r.contestDay);
     $('#btnContestPublish').hidden = !r.contestDay;
     $('#btnContestPublish2').hidden = !r.contestDay;
+    $('#btnContestDraft').hidden = !r.contestDay;
     $('#btnBack').title = r.contestDay ? 'Retour au concours' : 'Retour à mes pièces';
     $('#btnBack .label-long').innerHTML = r.contestDay ? '&nbsp;Concours' : '&nbsp;Mes pièces';
     $('#contestBanner').hidden = !r.contestDay;
@@ -3379,6 +3381,13 @@
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
     {
+      id: 'n-2026-10-21c', date: Date.UTC(2026, 9, 21, 11, 0), title: 'Concours : brouillon 📝',
+      items: [
+        'Dans ta pièce du concours, le bouton « 💾 Brouillon » enregistre ta pièce : reviens la finir plus tard, jusqu\'à minuit.',
+        'Sur l\'écran du concours, ton brouillon s\'affiche avec « ✏️ Reprendre » ou « 🗑️ Recommencer ».',
+      ],
+    },
+    {
       id: 'n-2026-10-21b', date: Date.UTC(2026, 9, 21, 9, 0), title: 'Concours : pars d\'une de tes pièces 📋',
       items: [
         'En créant ta pièce du concours, tu peux partir de zéro ou d\'une copie d\'une de tes pièces. Ta pièce d\'origine ne change pas.',
@@ -3757,14 +3766,43 @@
       c1.appendChild(box);
     }
     const myRoom = state.rooms.find((r) => r.contestDay === t.day);
-    const pub = document.createElement('button');
-    pub.className = 'btn btn-primary';
-    pub.textContent = myRoom ? '🎨 Continuer ma pièce du concours' : '🎨 Créer ma pièce du concours';
-    pub.addEventListener('click', openContestRoom);
-    c1.appendChild(pub);
+    if (myRoom) {
+      // Brouillon : la pièce du concours en cours, enregistrée, à reprendre plus tard.
+      const card = document.createElement('div');
+      card.className = 'ct-draft';
+      const pending = !mine || !myRoom.publishedAt || (myRoom.updated || 0) - myRoom.publishedAt > 3000;
+      const hour = (ts) => new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      card.innerHTML = `<button type="button" class="ct-draft-open">${myRoom.thumb ? '<img class="room-thumb" alt="">'
+        : `<svg class="room-thumb" viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg">${roomSvg(myRoom.colors, myRoom.shape)}</svg>`}</button>
+        <div class="ct-draft-info"><p class="ct-draft-title"></p><p class="muted ct-small-text ct-draft-sub"></p>
+        <div class="ct-draft-actions"><button type="button" class="btn btn-primary ct-draft-go">✏️ Reprendre</button>
+        <button type="button" class="btn btn-ghost ct-draft-reset">🗑️ Recommencer</button></div></div>`;
+      if (myRoom.thumb) card.querySelector('img').src = myRoom.thumb;
+      card.querySelector('.ct-draft-title').textContent = mine ? (pending ? '📝 Modifications pas encore publiées' : '✅ Pièce publiée, à jour') : '📝 Mon brouillon';
+      card.querySelector('.ct-draft-sub').textContent = `Enregistré à ${hour(myRoom.updated || Date.now())} · ${plural((myRoom.stickers || []).length, 'sticker')}`
+        + (pending ? ' · appuie sur « 🏆 Publier » dans la pièce quand elle est prête.' : '');
+      card.querySelector('.ct-draft-open').addEventListener('click', openContestRoom);
+      card.querySelector('.ct-draft-go').addEventListener('click', openContestRoom);
+      card.querySelector('.ct-draft-reset').addEventListener('click', async () => {
+        const msg = mine
+          ? 'Effacer ton brouillon et repartir d\'une autre pièce ? Ta participation déjà publiée reste en place tant que tu n\'en publies pas une nouvelle.'
+          : 'Effacer ton brouillon et repartir de zéro ou d\'une autre pièce ?';
+        if (!(await askConfirm(msg, 'Recommencer'))) return;
+        state.rooms = state.rooms.filter((x) => x.id !== myRoom.id);
+        db.deleteRoom(myRoom.id).catch(() => {});
+        openContestRoom();
+      });
+      c1.appendChild(card);
+    } else {
+      const pub = document.createElement('button');
+      pub.className = 'btn btn-primary';
+      pub.textContent = '🎨 Créer ma pièce du concours';
+      pub.addEventListener('click', openContestRoom);
+      c1.appendChild(pub);
+    }
     const help = document.createElement('p');
     help.className = 'muted ct-small-text';
-    help.textContent = 'Une pièce rien que pour ce thème, vide ou copiée d\'une de tes pièces : tu y as tous tes stickers, même ceux déjà posés dans tes pièces, sans rien leur enlever. Quand elle te plaît, appuie sur « 🏆 Publier ».';
+    help.textContent = 'Une pièce rien que pour ce thème, vide ou copiée d\'une de tes pièces : tu y as tous tes stickers, même ceux déjà posés dans tes pièces, sans rien leur enlever. Elle s\'enregistre toute seule (bouton « 💾 Brouillon » pour revenir plus tard) ; quand elle te plaît, appuie sur « 🏆 Publier ».';
     c1.appendChild(help);
     const nb = document.createElement('p');
     nb.className = 'muted ct-small-text';
@@ -4064,6 +4102,9 @@
         id: `ct-${r.contestDay}-${state.player.key}`, kind: 'entry', contestDay: r.contestDay,
         owner: state.player.key, ownerName: state.player.name, roomName: state.roomName, image, created: Date.now(),
       });
+      const cur = currentRoom();
+      if (cur) cur.publishedAt = Date.now();
+      savePending = true;
       await saveRoom();
       toast('Ta pièce est publiée 🏆 Demain, tout le monde votera jusqu\'à 20 h !');
     } catch (e) {
@@ -4072,6 +4113,16 @@
     }
   }
   $('#btnContestPublish').addEventListener('click', publishContestRoom);
+  // Brouillon : on enregistre tout de suite et on revient au concours.
+  $('#btnContestDraft').addEventListener('click', async () => {
+    if (!inContestRoom()) return;
+    select(null);
+    savePending = true;
+    await saveRoom();
+    state.roomId = null;
+    toast('Brouillon enregistré 📝 Reviens le finir quand tu veux, jusqu\'à minuit.');
+    openContest();
+  });
   $('#btnContestPublish2').addEventListener('click', publishContestRoom);
   $('#ctViewClose').addEventListener('click', () => { $('#ctView').hidden = true; });
   $('#ctView').addEventListener('click', (e) => { if (e.target.id === 'ctView') $('#ctView').hidden = true; });

@@ -2056,3 +2056,13 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .ct-start-room .room-thumb { width: 100%; aspect-ratio: 1000 / 760; object-fit: contain; border-radius: 10px; }
 .ct-start-name { font-weight: 700; font-size: .85rem; }
 @media (max-width: 600px) { .ct-start-rooms { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Concours : brouillon */
+.room-tools .tool-draft { font-weight: 700; }
+.ct-draft { display: flex; gap: 12px; align-items: center; width: 100%; max-width: 520px; padding: 10px; margin-bottom: 8px; border: 2px dashed var(--chunk); border-radius: 16px; background: var(--surface); }
+.ct-draft-open { flex: 0 0 130px; padding: 0; border: 0; background: none; cursor: pointer; }
+.ct-draft-open .room-thumb { width: 100%; aspect-ratio: 1000 / 760; object-fit: contain; border-radius: 10px; display: block; }
+.ct-draft-info { flex: 1; min-width: 0; }
+.ct-draft-title { margin: 0 0 2px; font-weight: 800; }
+.ct-draft-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+@media (max-width: 480px) { .ct-draft-open { flex-basis: 96px; } }
