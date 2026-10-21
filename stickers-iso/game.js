@@ -3803,6 +3803,14 @@
         b.textContent = finished ? `✓ Duels terminés (${plan.total}/${plan.total})` : `⚔️ Voter${plan.done ? ` · ${plan.done}/${plan.total}` : ''}`;
         b.addEventListener('click', () => openDuelView(v));
         c2.appendChild(b);
+        // Admin : effacer ses duels du jour pour retester le vote.
+        if (state.isAdmin && plan.done) {
+          const r = document.createElement('button');
+          r.className = 'btn btn-ghost vote-open';
+          r.textContent = '🔁 Recommencer mes votes (test admin)';
+          r.addEventListener('click', () => resetMyDuels(v));
+          c2.appendChild(r);
+        }
       }
     }
 
@@ -3843,6 +3851,24 @@
     const score = (p) => (seen[p[0]] || 0) + (seen[p[1]] || 0) + Math.random() * 0.5;
     const best = [...plan.left].sort((x, y) => score(x) - score(y))[0];
     return Math.random() < 0.5 ? best : [best[1], best[0]];
+  }
+
+  async function resetMyDuels(v) {
+    if (!(await askConfirm('Effacer tes duels du jour pour refaire le vote ? (test admin)', 'Recommencer'))) return;
+    const me = state.player.key;
+    const mine = v.duels.filter((d) => d.voter === me);
+    try {
+      await Promise.all(mine.map((d) => db.deleteContest(d.id)));
+    } catch (e) {
+      console.warn('Effacement impossible', e);
+      toast('Les votes n\'ont pas pu être effacés. Vérifie ta connexion.');
+      return;
+    }
+    v.duels = v.duels.filter((d) => d.voter !== me);
+    if (state.profile.voteRewardDay === v.day) { state.profile.voteRewardDay = ''; saveProfile(); }
+    duelCurrent = null;
+    toast('Tes votes du jour sont effacés : tu peux recommencer 🔁');
+    renderContest();
   }
 
   // Page de vote en grand : un duel à la fois.
