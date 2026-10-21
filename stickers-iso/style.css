@@ -2074,3 +2074,13 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 /* Supprimer un joueur */
 .btn.btn-danger { background: #d9534f; border-color: #a83a36; color: #fff; }
 .player-delete:hover { background: #fde4e2; }
+
+/* Atelier : ordre des enveloppes */
+.atelier-order { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-width: 640px; }
+.atelier-order-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 2px solid var(--line, #e8d5c8); border-radius: 14px; background: var(--surface); }
+.atelier-order-row.empty { opacity: .7; border-style: dashed; }
+.atelier-order-n { flex: 0 0 auto; min-width: 22px; font-weight: 800; color: var(--muted); text-align: center; }
+.atelier-order-row .atelier-tile-art { flex-basis: 48px; }
+.atelier-order-row .atelier-tile-art .env { width: 48px; }
+.atelier-order-btns { display: flex; gap: 4px; }
+.atelier-order-btns .btn { min-width: 38px; padding: 0 8px; }

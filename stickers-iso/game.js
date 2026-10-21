@@ -1857,7 +1857,7 @@
       const oldest = shiftDay(today(), -1);
       for (const r of rooms.filter((x) => x.contestDay && x.contestDay < oldest)) db.deleteRoom(r.id).catch(() => {});
       state.rooms = rooms.filter((x) => !x.contestDay || x.contestDay >= oldest);
-      state.envelopes = envelopes.sort((a, b) => (a.created || 0) - (b.created || 0));
+      state.envelopes = sortEnvelopes(envelopes);
       isNew = !profile && !state.isAdmin;
       state.profile = profile || {
         id: playerDocId(state.player.key), points: 0, lastDaily: '', inventory: {},
@@ -2364,6 +2364,11 @@
   // Boutique : acheter et ouvrir des enveloppes
   // ---------------------------------------------------------------------------
   const stickersOf = (envId) => [...state.images.values()].filter((img) => img.envelope === envId);
+  // Ordre des enveloppes (Atelier et boutique) : champ « order », sinon date de création.
+  function sortEnvelopes(list) {
+    const key = (e) => (Number.isFinite(e.order) ? e.order : Infinity);
+    return list.sort((a, b) => key(a) - key(b) || (a.created || 0) - (b.created || 0));
+  }
   const envelopeExists = (id) => !!id && state.envelopes.some((e) => e.id === id);
   // Stickers retirés de leur enveloppe : on peut les y remettre depuis l'atelier.
   const archivedStickers = () => [...state.images.values()].filter((img) => img.catalog && img.archived && !envelopeExists(img.envelope));
@@ -2788,6 +2793,8 @@
       color: ENVELOPE_COLORS[state.envelopes.length % ENVELOPE_COLORS.length],
       created: Date.now(),
     };
+    // Rangée à la fin (après celles déjà ordonnées).
+    if (state.envelopes.some((e) => Number.isFinite(e.order))) env.order = state.envelopes.length;
     state.envelopes.push(env);
     db.putEnvelope(env).catch(() => toast('L\'enveloppe n\'a pas pu être enregistrée.'));
     atelierOpen = env.id;
@@ -2813,7 +2820,12 @@
     listEl.innerHTML = '';
     if (!detail) {
       $('#atelierEmpty').hidden = state.envelopes.length > 0;
-      renderAtelierTiles(listEl);
+      $('#atelierSearch').hidden = atelierReorder;
+      $('#atelierOrder').textContent = atelierReorder ? '✓ Terminé' : '↕️ Ordre de la boutique';
+      $('#atelierOrder').classList.toggle('btn-primary', atelierReorder);
+      $('#atelierOrder').hidden = state.envelopes.length < 2;
+      if (atelierReorder) renderAtelierOrder(listEl);
+      else renderAtelierTiles(listEl);
       return;
     }
     $('#atelierEmpty').hidden = true;
@@ -2962,6 +2974,50 @@
       listEl.appendChild(sec);
     }
   }
+
+  // Ranger les enveloppes : l'ordre ici est celui de la boutique (et du classeur).
+  let atelierReorder = false;
+  function renderAtelierOrder(listEl) {
+    const help = document.createElement('p');
+    help.className = 'muted';
+    help.textContent = 'Monte ou descends les enveloppes : c\'est l\'ordre dans lequel les joueurs les voient dans la boutique. Les enveloppes vides n\'y apparaissent pas.';
+    listEl.appendChild(help);
+    const ol = document.createElement('ol');
+    ol.className = 'atelier-order';
+    const n = state.envelopes.length;
+    state.envelopes.forEach((env, i) => {
+      const li = document.createElement('li');
+      li.className = 'atelier-order-row' + (stickersOf(env.id).length ? '' : ' empty');
+      li.innerHTML = `<span class="atelier-order-n">${i + 1}</span><div class="atelier-tile-art"></div>
+        <div class="atelier-tile-text"><strong></strong><span class="muted"></span></div>
+        <div class="atelier-order-btns">
+          <button type="button" class="btn" data-to="0" title="Tout en haut" ${i ? '' : 'disabled'}>⤒</button>
+          <button type="button" class="btn" data-to="${i - 1}" title="Monter" ${i ? '' : 'disabled'}>▲</button>
+          <button type="button" class="btn" data-to="${i + 1}" title="Descendre" ${i < n - 1 ? '' : 'disabled'}>▼</button>
+        </div>`;
+      li.querySelector('.atelier-tile-art').appendChild(envelopeArt(env));
+      li.querySelector('strong').textContent = env.name || 'Enveloppe';
+      const count = stickersOf(env.id).length;
+      li.querySelector('.muted').textContent = count ? plural(count, 'sticker') : 'Vide : pas dans la boutique';
+      li.querySelectorAll('[data-to]').forEach((b) => b.addEventListener('click', () => moveEnvelope(i, Number(b.dataset.to))));
+      ol.appendChild(li);
+    });
+    listEl.appendChild(ol);
+  }
+  function moveEnvelope(from, to) {
+    const list = state.envelopes;
+    if (to < 0 || to >= list.length || to === from) return;
+    const [env] = list.splice(from, 1);
+    list.splice(to, 0, env);
+    // On renumérote et on n'enregistre que celles qui ont changé de place.
+    list.forEach((e, i) => {
+      if (e.order === i) return;
+      e.order = i;
+      db.putEnvelope(e).catch(() => toast('L\'ordre n\'a pas pu être enregistré. Vérifie ta connexion.'));
+    });
+    renderAtelier();
+  }
+  $('#atelierOrder').addEventListener('click', () => { atelierReorder = !atelierReorder; renderAtelier(); });
 
   // Liste des enveloppes en tuiles (avec recherche par nom d'enveloppe ou de sticker).
   function renderAtelierTiles(listEl) {
