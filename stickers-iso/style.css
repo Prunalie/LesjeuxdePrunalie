@@ -2070,3 +2070,7 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 /* Bienvenue (premier passage) */
 .welcome-list { list-style: none; margin: 8px 0 4px; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: .92rem; line-height: 1.4; }
 #welcomeDialog .modal-actions .btn { white-space: nowrap; }
+
+/* Supprimer un joueur */
+.btn.btn-danger { background: #d9534f; border-color: #a83a36; color: #fff; }
+.player-delete:hover { background: #fde4e2; }

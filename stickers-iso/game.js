@@ -122,8 +122,9 @@
   const toastEl = $('#toast');
 
   // Renvoie true/false, ou le texte saisi (null si annulé) quand `value` est fourni.
-  function askDialog(message, okLabel, value) {
+  function askDialog(message, okLabel, value, danger = false) {
     return new Promise((resolve) => {
+      $('#confirmOk').classList.toggle('btn-danger', danger);
       const withInput = value !== undefined;
       const input = $('#confirmInput');
       $('#confirmText').textContent = message;
@@ -135,6 +136,7 @@
       if (withInput) { input.focus(); input.select(); } else ok.focus();
       const done = (v) => {
         confirmDialog.hidden = true;
+        ok.classList.remove('btn-danger');
         ok.onclick = cancel.onclick = input.onkeydown = null;
         resolve(v);
       };
@@ -188,7 +190,8 @@
         listCatalog: () => all(images.where('catalog', '==', true)),
         putImage: ({ id, url, ...rec }) => images.doc(id).set(clean(rec)),
         deleteImage: (id) => images.doc(id).delete(),
-        listRooms: (owner) => byOwner(rooms, owner),
+        // Les participations au concours ont aussi un « owner » : ce ne sont pas des pièces.
+        listRooms: async (owner) => (await byOwner(rooms, owner)).filter((r) => r.type !== 'contest'),
         putRoom: ({ id, ...room }) => rooms.doc(id).set(clean(room)),
         deleteRoom: (id) => rooms.doc(id).delete(),
         getPlayer: async (id) => {
@@ -212,6 +215,7 @@
         },
         putSettings: (st) => rooms.doc('settings').set(clean({ ...st, type: 'settings' })),
         putMail: ({ id, ...m }) => rooms.doc(id).set(clean({ ...m, type: 'mail' })),
+        deleteMail: (id) => rooms.doc(id).delete(),
         // On ne touche qu'au champ « lu » (sinon une vieille copie pourrait effacer « récupéré »).
         markMailRead: (id) => rooms.doc(id).set({ read: true }, { merge: true }),
         // Récupérer un cadeau une seule fois, même avec le jeu ouvert sur deux appareils.
@@ -288,6 +292,7 @@
       getSettings: async () => (await run('settings', 'readonly', (s) => s.get('settings'))) || null,
       putSettings: (st) => run('settings', 'readwrite', (s) => s.put({ ...st, id: 'settings' })),
       putMail: (m) => run('mails', 'readwrite', (s) => s.put(m)),
+      deleteMail: (id) => run('mails', 'readwrite', (s) => s.delete(id)),
       markMailRead: async (id) => {
         const m = await run('mails', 'readonly', (s) => s.get(id));
         if (m && !m.read) await run('mails', 'readwrite', (s) => s.put({ ...m, read: true }));
@@ -5008,6 +5013,7 @@
         <div class="player-actions">
           <button class="btn player-gift" title="Offrir des stickers">🎁<span class="label-long">&nbsp;Offrir</span></button>
           <button class="btn player-write" title="Envoyer un message dans sa boîte aux lettres">✉️<span class="label-long">&nbsp;Écrire</span></button>
+          ${ADMIN_PSEUDOS.includes(key) ? '' : '<button class="btn player-delete" title="Supprimer le compte de ce joueur">🗑️</button>'}
         </div>`;
       row.querySelector('.player-name').textContent = ADMIN_PSEUDOS.includes(key) ? `${ADMIN_DISPLAY_NAME} 🛡️` : (p.pseudo || key);
       row.querySelector('.player-seen').textContent = `Vu ${relDays(lastSeen)}` + (p.firstSeen ? ` · depuis le ${dateFmt.format(p.firstSeen).replace(/ à .*/, '')}` : '');
@@ -5017,7 +5023,37 @@
       row.querySelector('.s-stars').textContent = `🌟 ${p.stars || 0}`;
       row.querySelector('.player-write').addEventListener('click', () => openGift([{ key, name: p.pseudo || key }], 'write'));
       row.querySelector('.player-gift').addEventListener('click', () => openGift([{ key, name: p.pseudo || key }]));
+      const del = row.querySelector('.player-delete');
+      if (del) del.addEventListener('click', () => deletePlayerAccount(p, key));
       body.appendChild(row);
+    }
+  }
+
+  // Supprimer le compte d'un joueur : avertissement, puis il faut retaper son pseudo.
+  async function deletePlayerAccount(p, key) {
+    if (ADMIN_PSEUDOS.includes(key)) return;
+    const name = p.pseudo || key;
+    const ok = await askDialog(`⚠️ Attention : supprimer le compte de « ${name} » efface définitivement ses pièces décorées, ses stickers, ses pièces 🪙, ses étoiles, ses messages et ses propositions en attente. Ses stickers déjà acceptés restent dans le jeu. Impossible de revenir en arrière.`, 'Continuer', undefined, true);
+    if (!ok) return;
+    const typed = await askDialog(`Dernière vérification : écris le pseudo « ${name} » pour confirmer la suppression.`, 'Supprimer définitivement', '', true);
+    if (typed === null) return;
+    if (normalizePseudo(typed) !== key) { toast('Le pseudo ne correspond pas : rien n\'a été supprimé.'); return; }
+    try {
+      const [rooms, mails, props, ...days] = await Promise.all([
+        db.listRooms(key), db.listMail(key), db.listMyProposals(key),
+        db.listContest(today()), db.listContest(shiftDay(today(), -1)),
+      ]);
+      for (const r of rooms.filter((x) => x.owner === key)) await db.deleteRoom(r.id);
+      for (const m of mails) await db.deleteMail(m.id);
+      for (const pr of props.filter((x) => x.status !== 'accepted')) await db.deleteImage(pr.id);
+      for (const c of days.flat().filter((x) => x.kind === 'entry' && x.owner === key)) await db.deleteContest(c.id);
+      await db.deletePlayer(playerDocId(key));
+      players = players.filter((x) => playerKey(x) !== key);
+      renderPlayers();
+      toast(`Le compte de ${name} a été supprimé.`);
+    } catch (e) {
+      console.warn('Suppression impossible', e);
+      toast('La suppression n\'a pas pu aller jusqu\'au bout. Vérifie ta connexion et réessaie.');
     }
   }
 
