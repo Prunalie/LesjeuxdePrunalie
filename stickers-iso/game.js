@@ -69,6 +69,7 @@
   // ---------------------------------------------------------------------------
   const SETTINGS = [
     { group: 'Pièces et étoiles', key: 'dailyPoints', label: 'Pièces gagnées chaque jour', unit: '🪙', def: () => DAILY_POINTS, max: 100000, step: 10 },
+    { group: 'Pièces et étoiles', key: 'welcomeGift', label: 'Cadeau de bienvenue (nouveau joueur)', unit: '🪙', def: () => 1000, max: 1000000, step: 50 },
     { group: 'Pièces et étoiles', key: 'starPrice', label: 'Prix d\'une étoile', unit: '🪙', def: () => STAR_PRICE, min: 1, max: 1000000, step: 50 },
     { group: 'Pièces et étoiles', key: 'stampsPerStar', label: 'Tampons pour gagner une étoile', unit: 'tampons', def: () => STAMPS_PER_STAR, min: 1, max: 100, step: 1 },
     { group: 'Boutique', key: 'defaultEnvPrice', label: 'Prix d\'une nouvelle enveloppe', unit: '🪙', def: () => DEFAULT_PRICE, max: 100000, step: 10 },
@@ -1833,6 +1834,7 @@
     $('#homeAdmin').hidden = !state.isAdmin;
     state.images = new Map();
     let gained = 0;
+    let isNew = false;
     try {
       if (state.isAdmin) await withFallback(migrateOldAdmin);
       const [images, rooms, envelopes, profile, mails, mine, settings, news] = await withFallback((d) => Promise.all([
@@ -1851,6 +1853,7 @@
       for (const r of rooms.filter((x) => x.contestDay && x.contestDay < oldest)) db.deleteRoom(r.id).catch(() => {});
       state.rooms = rooms.filter((x) => !x.contestDay || x.contestDay >= oldest);
       state.envelopes = envelopes.sort((a, b) => (a.created || 0) - (b.created || 0));
+      isNew = !profile && !state.isAdmin;
       state.profile = profile || {
         id: playerDocId(state.player.key), points: 0, lastDaily: '', inventory: {},
         // Un nouveau joueur n'a pas besoin de l'historique des mises à jour.
@@ -1885,9 +1888,47 @@
     }
     renderPoints();
     goHome();
+    if (isNew) {
+      // Premier passage : un message de bienvenue (pas les nouveautés) et un cadeau dans la boîte aux lettres.
+      await sendWelcome();
+      showWelcome(gained);
+      renderNewsBadge();
+      return;
+    }
     if (gained) toast(`+${gained} 🪙 : tes points du jour ! Va les dépenser dans la boutique.`);
     showNewsPopup();
   }
+
+  async function sendWelcome() {
+    const gift = setting('welcomeGift');
+    const m = {
+      id: `welcome-${state.player.key}`, to: state.player.key,
+      title: 'Bienvenue dans Ma petite pièce 🏠',
+      text: `Coucou ${state.player.name} !\n\nTrès contente de te voir ici. Voici ${gift ? `${gift} 🪙 pour bien démarrer : ` : ''}va ouvrir des enveloppes dans la boutique, colle tes stickers dans tes pièces et amuse-toi bien !\n\nÀ bientôt,\nAdmin`,
+      reward: gift, read: false, claimed: false, created: Date.now(),
+    };
+    try {
+      await db.putMail(m);
+      if (!state.mails.some((x) => x.id === m.id)) state.mails.push(m);
+    } catch (e) { console.warn('Message de bienvenue impossible', e); }
+    renderMailBadge();
+  }
+  function showWelcome(gained) {
+    const gift = setting('welcomeGift');
+    $('#welcomeTitle').textContent = `Bienvenue, ${state.player.name} ! 🏠`;
+    const list = $('#welcomeList');
+    list.innerHTML = '';
+    [
+      gained ? `🪙 Tu as reçu ${gained} pièces : tu en gagnes chaque jour en revenant jouer.` : '🪙 Tu gagnes des pièces chaque jour en revenant jouer.',
+      '🛍️ Dans la boutique, achète des enveloppes pour gagner des stickers.',
+      '🏠 Dans « Mes pièces », colle tes stickers pour décorer tes pièces.',
+      '🏆 Chaque jour, un thème pour le concours : décore, publie, puis vote le lendemain.',
+      gift ? `💌 Un cadeau de ${gift} 🪙 t'attend dans ta boîte aux lettres !` : '💌 Un petit mot t\'attend dans ta boîte aux lettres.',
+    ].forEach((t) => { const li = document.createElement('li'); li.textContent = t; list.appendChild(li); });
+    $('#welcomeDialog').hidden = false;
+  }
+  $('#welcomeOk').addEventListener('click', () => { $('#welcomeDialog').hidden = true; });
+  $('#welcomeMail').addEventListener('click', () => { $('#welcomeDialog').hidden = true; openMail(); });
 
   // Relit le profil enregistré (pièces, stickers, étoiles) : utile si le jeu est
   // ouvert sur plusieurs appareils, pour ne pas écraser ce qui a changé ailleurs.
@@ -4492,7 +4533,7 @@
       el.querySelector('h3').textContent = m.title;
       el.querySelector('time').textContent = m.created ? dateFmt.format(m.created) : '';
       el.querySelector('.mail-text').textContent = m.text;
-      if ((m.text || '').length > 280 || (m.text || '').split('\n').length > 5) {
+      if ((m.text || '').length > 400 || (m.text || '').split('\n').length > 8) {
         const txt = el.querySelector('.mail-text');
         txt.classList.add('mail-long');
         const more = document.createElement('button');

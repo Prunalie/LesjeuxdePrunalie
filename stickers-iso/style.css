@@ -2038,7 +2038,7 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .gift-stickers { margin-bottom: 10px; }
 .gift-stickers summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
 .mail-text { white-space: pre-wrap; overflow-wrap: anywhere; }
-.mail-text.mail-long:not(.mail-open) { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.mail-text.mail-long:not(.mail-open) { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
 .mail-more { margin-top: 4px; padding: 2px 8px; font-size: .8rem; }
 
 /* Admin concours : qui a voté */
@@ -2066,3 +2066,7 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .ct-draft-title { margin: 0 0 2px; font-weight: 800; }
 .ct-draft-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 @media (max-width: 480px) { .ct-draft-open { flex-basis: 96px; } }
+
+/* Bienvenue (premier passage) */
+.welcome-list { list-style: none; margin: 8px 0 4px; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: .92rem; line-height: 1.4; }
+#welcomeDialog .modal-actions .btn { white-space: nowrap; }
