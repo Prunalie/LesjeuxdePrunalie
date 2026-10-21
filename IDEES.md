@@ -9,6 +9,7 @@ Coche une case (`- [x]`) quand c'est fait.
 - [ ] **Troc** : échanger des stickers entre joueurs.
 - [ ] **Mini-jeux pour gagner des pièces** (par exemple un Memory avec les stickers).
 - [ ] **Voter pour le thème suivant** du concours.
+- [ ] **Ma maison** : avoir sa maison à décorer (plusieurs pièces réunies), et pouvoir aller visiter la maison des autres joueurs.
 - [ ] **Boîte à idées pour les joueurs** : un espace où les joueurs envoient leurs idées pour le jeu, que l'administratrice lit de son côté.
 
 ## Peut-être plus tard
