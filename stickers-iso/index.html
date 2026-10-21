@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610211600">
+  <link rel="stylesheet" href="style.css?v=202610211700">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -650,6 +650,19 @@
     </div>
   </div>
 
+  <div id="ctStartDialog" class="modal" hidden>
+    <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="ctStartTitle">
+      <h2 id="ctStartTitle" class="modal-title">Ta pièce du concours 🎨</h2>
+      <p class="muted">Pars d'une pièce vide, ou d'une copie d'une de tes pièces (ta pièce d'origine ne change pas).</p>
+      <button id="ctStartEmpty" class="btn btn-primary ct-start-empty">✨ Partir de zéro</button>
+      <p class="ct-start-label">📋 Ou partir d'une de mes pièces :</p>
+      <div id="ctStartRooms" class="ct-start-rooms"></div>
+      <div class="modal-actions">
+        <button id="ctStartCancel" class="btn">Annuler</button>
+      </div>
+    </div>
+  </div>
+
   <div id="ctView" class="modal ct-view" hidden>
     <div class="modal-box modal-wide" role="dialog" aria-modal="true">
       <h2 id="ctViewTitle" class="modal-title"></h2>
@@ -811,7 +824,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610211600"></script>
-  <script src="game.js?v=202610211600"></script>
+  <script src="firebase-config.js?v=202610211700"></script>
+  <script src="game.js?v=202610211700"></script>
 </body>
 </html>

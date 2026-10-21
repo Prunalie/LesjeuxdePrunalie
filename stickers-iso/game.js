@@ -3758,7 +3758,7 @@
     c1.appendChild(pub);
     const help = document.createElement('p');
     help.className = 'muted ct-small-text';
-    help.textContent = 'Une pièce rien que pour ce thème : tu y as tous tes stickers, même ceux déjà posés dans tes pièces, sans rien leur enlever. Quand elle te plaît, appuie sur « 🏆 Publier ».';
+    help.textContent = 'Une pièce rien que pour ce thème, vide ou copiée d\'une de tes pièces : tu y as tous tes stickers, même ceux déjà posés dans tes pièces, sans rien leur enlever. Quand elle te plaît, appuie sur « 🏆 Publier ».';
     c1.appendChild(help);
     const nb = document.createElement('p');
     nb.className = 'muted ct-small-text';
@@ -3987,21 +3987,56 @@
   // Pièce du concours : une pièce à part, créée pour le thème du jour.
   async function openContestRoom() {
     const day = today();
-    let r = state.rooms.find((x) => x.contestDay === day);
-    if (!r) {
-      r = {
-        id: uid(), owner: state.player.key, name: `Concours · ${themeOf(day)}`, contestDay: day,
-        stickers: [], colors: { ...DEFAULT_COLORS }, thumb: '', updated: Date.now(),
-      };
-      state.rooms.push(r);
-      try {
-        await db.putRoom(r);
-      } catch (e) {
-        console.warn('Création impossible', e);
-        toast('La pièce du concours n\'a pas pu être créée. Vérifie ta connexion.');
-      }
+    const existing = state.rooms.find((x) => x.contestDay === day);
+    if (existing) { openRoom(existing.id); return; }
+    const from = await pickContestStart();
+    if (from === null) return;
+    const r = {
+      id: uid(), owner: state.player.key, name: `Concours · ${themeOf(day)}`, contestDay: day,
+      stickers: [], colors: { ...DEFAULT_COLORS }, thumb: '', updated: Date.now(),
+    };
+    // Copie d'une pièce existante : mêmes stickers, couleurs et aménagement (l'originale ne bouge pas).
+    if (from) {
+      r.stickers = (from.stickers || []).map((st) => ({ ...JSON.parse(JSON.stringify(st)), id: uid() }));
+      r.colors = { ...DEFAULT_COLORS, ...(from.colors || {}) };
+      if (from.shape) r.shape = JSON.parse(JSON.stringify(from.shape));
+      r.thumb = from.thumb || '';
+    }
+    state.rooms.push(r);
+    try {
+      await db.putRoom(r);
+    } catch (e) {
+      console.warn('Création impossible', e);
+      toast('La pièce du concours n\'a pas pu être créée. Vérifie ta connexion.');
     }
     openRoom(r.id);
+  }
+
+  // Choix de départ : '' = de zéro, une pièce = copie, null = annulé.
+  function pickContestStart() {
+    const rooms = realRooms().slice().sort((a, b) => (b.updated || 0) - (a.updated || 0));
+    if (!rooms.length) return Promise.resolve('');
+    return new Promise((resolve) => {
+      const dlg = $('#ctStartDialog');
+      const list = $('#ctStartRooms');
+      list.innerHTML = '';
+      const done = (v) => { dlg.hidden = true; resolve(v); };
+      for (const r of rooms) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'ct-start-room';
+        b.innerHTML = (r.thumb ? '<img class="room-thumb" alt="">'
+          : `<svg class="room-thumb" viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg">${roomSvg(r.colors, r.shape)}</svg>`)
+          + '<span class="ct-start-name"></span>';
+        if (r.thumb) b.querySelector('img').src = r.thumb;
+        b.querySelector('.ct-start-name').textContent = r.name;
+        b.addEventListener('click', () => done(r));
+        list.appendChild(b);
+      }
+      $('#ctStartEmpty').onclick = () => done('');
+      $('#ctStartCancel').onclick = () => done(null);
+      dlg.hidden = false;
+    });
   }
 
   // Publier la pièce du concours ouverte (image de la pièce telle qu'elle est).
