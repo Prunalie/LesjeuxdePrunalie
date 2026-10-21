@@ -1973,3 +1973,55 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .ct-prov-title { margin: 0 0 6px; font-weight: 800; font-size: .9rem; }
 .ct-provisional ol { margin: 0 0 6px; padding-left: 22px; font-size: .9rem; line-height: 1.5; }
 .ct-provisional li.win { font-weight: 800; }
+
+/* Écrans d'administration */
+.admin-intro { max-width: 900px; margin: 0 auto 14px; font-size: .9rem; }
+.settings-form { max-width: 900px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 14px; }
+.settings-group { margin: 0; padding: 12px 14px; border: 3px solid var(--chunk); border-radius: 18px; background: var(--panel); box-shadow: 0 4px 0 var(--chunk); }
+.settings-group legend { padding: 0 8px; font-family: var(--font-title); font-weight: 600; font-size: 1.05rem; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.settings-row:last-child { border-bottom: none; }
+.settings-label { font-weight: 700; font-size: .9rem; }
+.settings-input { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.settings-input .field { width: 100px; padding: 6px 8px; text-align: right; }
+.settings-unit { min-width: 64px; font-size: .8rem; color: var(--muted); font-weight: 700; }
+.admin-cols { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; align-items: start; }
+.admin-card-box { padding: 14px 16px; border: 3px solid var(--chunk); border-radius: 18px; background: var(--panel); box-shadow: 0 4px 0 var(--chunk); display: flex; flex-direction: column; gap: 10px; }
+.admin-card-box h2 { margin: 0; font-size: 1.15rem; }
+.admin-card-box > p { margin: 0; font-size: .88rem; }
+.admin-card-box:first-child { grid-row: span 2; }
+.admin-card-box textarea { font: inherit; resize: vertical; }
+.admin-card-box > .btn { align-self: flex-start; }
+.ac-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); margin-top: 10px; }
+.maint-list { max-width: 700px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+.maint-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 3px solid var(--chunk); border-radius: 16px; background: var(--panel); box-shadow: 0 3px 0 var(--chunk); cursor: pointer; }
+.maint-row.all { border-style: dashed; }
+.maint-row.on { background: #ffe0e6; }
+.maint-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.maint-text .muted { font-size: .8rem; }
+.switch { position: relative; flex-shrink: 0; width: 52px; height: 30px; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch .slider { position: absolute; inset: 0; border-radius: 999px; background: #d9cbc2; border: 2.5px solid var(--chunk); transition: background .15s; }
+.switch .slider::before { content: ''; position: absolute; left: 3px; top: 50%; width: 19px; height: 19px; margin-top: -9.5px; border-radius: 50%; background: #fff; border: 2px solid var(--chunk); transition: transform .15s; }
+.switch input:checked + .slider { background: #f0658a; }
+.switch input:checked + .slider::before { transform: translateX(21px); }
+.switch input:focus-visible + .slider { outline: 3px solid var(--chunk); outline-offset: 2px; }
+/* Tuiles en maintenance (accueil) */
+.home-card.is-maint, .home-icon-btn.is-maint { opacity: .6; }
+.home-card.is-maint::after { content: '🛠️ maintenance'; position: absolute; right: 10px; top: 10px; z-index: 2; padding: 2px 8px; border-radius: 999px; border: 2px solid var(--chunk); background: #fff3cc; font-size: 11px; font-weight: 800; color: var(--ink); }
+.home-icon-btn.is-maint::after { content: '🛠️'; position: absolute; left: -6px; bottom: -6px; font-size: 14px; }
+/* Écran « jeu en maintenance » */
+.maint-screen { position: fixed; inset: 0; z-index: 3400; display: grid; place-items: center; padding: 20px; background: var(--bg); }
+.maint-screen[hidden] { display: none; }
+.maint-card { max-width: 380px; text-align: center; padding: 26px 22px; border: 3px solid var(--chunk); border-radius: 26px; background: var(--panel); box-shadow: 0 6px 0 var(--chunk); }
+.maint-icon { font-size: 54px; }
+.maint-card h2 { margin: 6px 0; }
+@media (max-width: 720px) {
+  .settings-form { grid-template-columns: 1fr; }
+  .settings-input .field { width: 84px; }
+  .settings-unit { min-width: 52px; font-size: .72rem; }
+  .admin-cols { grid-template-columns: 1fr; }
+  .admin-card-box:first-child { grid-row: auto; }
+  .ac-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-card.is-maint::after { font-size: 9px; padding: 1px 5px; right: 6px; top: 6px; }
+}

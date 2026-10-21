@@ -23,7 +23,7 @@
   const DAILY_POINTS = 100;            // points gagnés une fois par jour (par défaut ; réglable dans l'atelier)
   const DEFAULT_PRICE = 50;            // prix d'une nouvelle enveloppe
   const MULTI_BUY = 5;                 // nombre d'enveloppes du bouton « ×5 »
-  const STAR_PRICE = 1000;
+  const STAR_PRICE = 1000;              // valeurs par défaut : réglables dans « Paramétrage »
   const PROPOSAL_REWARD = 30;          // pièces proposées par défaut quand un sticker est accepté
   const MAX_PENDING = 30;              // propositions en attente par joueur (par défaut, réglable dans l'atelier)
   const STAMPS_PER_STAR = 10;          // tampons à réunir sur la carte pour gagner une étoile
@@ -62,6 +62,43 @@
     selectedId: null,
     scale: 1,
   };
+
+  // ---------------------------------------------------------------------------
+  // Paramètres réglables par l'administratrice (écran « Paramétrage »).
+  // Chaque valeur est enregistrée dans le document « settings » ; sinon, valeur par défaut.
+  // ---------------------------------------------------------------------------
+  const SETTINGS = [
+    { group: 'Pièces et étoiles', key: 'dailyPoints', label: 'Pièces gagnées chaque jour', unit: '🪙', def: () => DAILY_POINTS, max: 100000, step: 10 },
+    { group: 'Pièces et étoiles', key: 'starPrice', label: 'Prix d\'une étoile', unit: '🪙', def: () => STAR_PRICE, min: 1, max: 1000000, step: 50 },
+    { group: 'Pièces et étoiles', key: 'stampsPerStar', label: 'Tampons pour gagner une étoile', unit: 'tampons', def: () => STAMPS_PER_STAR, min: 1, max: 100, step: 1 },
+    { group: 'Boutique', key: 'defaultEnvPrice', label: 'Prix d\'une nouvelle enveloppe', unit: '🪙', def: () => DEFAULT_PRICE, max: 100000, step: 10 },
+    { group: 'Boutique', key: 'multiBuy', label: 'Enveloppes du bouton « ×… »', unit: 'enveloppes', def: () => MULTI_BUY, min: 2, max: 50, step: 1 },
+    { group: 'Revente des stickers', key: 'sell_common', label: 'Revente d\'un commun', unit: '🪙', def: () => RARITIES.common.sell, max: 100000, step: 5 },
+    { group: 'Revente des stickers', key: 'sell_rare', label: 'Revente d\'un rare', unit: '🪙', def: () => RARITIES.rare.sell, max: 100000, step: 5 },
+    { group: 'Revente des stickers', key: 'sell_epic', label: 'Revente d\'un très rare', unit: '🪙', def: () => RARITIES.epic.sell, max: 100000, step: 5 },
+    { group: 'Propositions de stickers', key: 'proposalReward', label: 'Pièces proposées quand je valide', unit: '🪙', def: () => PROPOSAL_REWARD, max: 100000, step: 10 },
+    { group: 'Propositions de stickers', key: 'maxPending', label: 'Propositions en attente par joueur', unit: 'au plus', def: () => MAX_PENDING, min: 1, max: 1000, step: 1 },
+    { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_garden', label: '🌳 Jardin', unit: '🌟', def: () => 2, max: 100, step: 1 },
+    { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_size', label: '📐 Taille sur mesure', unit: '🌟', def: () => 1, max: 100, step: 1 },
+    { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_levels', label: '🏢 Étages', unit: '🌟', def: () => 2, max: 100, step: 1 },
+    { group: 'Concours', key: 'contestReward', label: 'Récompense du gagnant', unit: '🪙', def: () => 200, max: 100000, step: 10 },
+    { group: 'Concours', key: 'contestSoloReward', label: 'Gagnant d\'office (une seule pièce)', unit: '🪙', def: () => Math.round(setting('contestReward') / 2), max: 100000, step: 10 },
+    { group: 'Concours', key: 'voteReward', label: 'Pour avoir fini ses duels', unit: '🪙', def: () => 20, max: 100000, step: 5 },
+    { group: 'Concours', key: 'duelsMax', label: 'Duels par joueur et par jour', unit: 'au plus', def: () => 10, min: 1, max: 100, step: 1 },
+  ];
+  const SETTING_BY_KEY = Object.fromEntries(SETTINGS.map((x) => [x.key, x]));
+  function setting(key) {
+    const def = SETTING_BY_KEY[key];
+    const raw = state.settings[key];
+    const n = Math.round(Number(raw));
+    if (raw === undefined || raw === null || raw === '' || !Number.isFinite(n)) return def.def();
+    return Math.max(def.min ?? 0, n);
+  }
+  const starPrice = () => setting('starPrice');
+  const stampsPerStar = () => setting('stampsPerStar');
+  const multiBuy = () => setting('multiBuy');
+  const proposalReward = () => setting('proposalReward');
+
 
   const $ = (sel) => document.querySelector(sel);
   const stageArea = $('#stageArea');
@@ -1704,6 +1741,9 @@
     atelier: $('#screenAtelier'),
     news: $('#screenNews'),
     contest: $('#screenContest'),
+    settings: $('#screenSettings'),
+    adminContest: $('#screenAdminContest'),
+    maintenance: $('#screenMaintenance'),
   };
   function showScreen(name) {
     for (const [key, el] of Object.entries(screens)) el.hidden = key !== name;
@@ -1756,7 +1796,7 @@
     }
   });
 
-  const dailyPoints = () => Math.max(0, Math.round(Number(state.settings.dailyPoints) || 0));
+  const dailyPoints = () => setting('dailyPoints');
   const playerDocId = (key) => 'player-' + key.replace(/\//g, '_');
   const today = () => new Date().toLocaleDateString('fr-CA'); // AAAA-MM-JJ, heure locale
 
@@ -2021,6 +2061,7 @@
   function openRoom(id) {
     const r = state.rooms.find((x) => x.id === id);
     if (!r) return;
+    if (maintBlocked(r.contestDay ? 'contest' : 'rooms')) return;
     state.roomId = r.id;
     state.roomName = r.name;
     view.zoom = 1; view.x = 0; view.y = 0;
@@ -2056,7 +2097,7 @@
     size: { label: 'Taille sur mesure', cost: 1, desc: 'Choisis la largeur, la profondeur et la hauteur des murs.' },
     levels: { label: 'Étages', cost: 2, desc: 'Ajoute jusqu\'à 3 niveaux surélevés au fond de la pièce.' },
   };
-  const unlockCost = (key) => Math.max(0, Math.round(Number(state.settings['unlock_' + key] ?? UNLOCKS[key].cost)));
+  const unlockCost = (key) => setting('unlock_' + key);
   const isUnlocked = (key) => state.isAdmin || !!(state.profile.unlocks && state.profile.unlocks[key]);
   const shapeDialog = $('#shapeDialog');
 
@@ -2281,6 +2322,7 @@
   let shopReturnRoom = null; // pièce à rouvrir en quittant la boutique
 
   async function openShop(fromRoom) {
+    if (maintBlocked('shop')) return;
     if (fromRoom && state.roomId) {
       select(null);
       await saveRoom();
@@ -2346,10 +2388,10 @@
       card.querySelector('.shop-art').addEventListener('click', () => showEnvelope(env));
       buy.addEventListener('click', () => buyEnvelope(env));
       const buy5 = card.querySelector('.shop-buy5');
-      buy5.textContent = `×${MULTI_BUY} · ${price * MULTI_BUY} 🪙`;
-      buy5.title = `Acheter ${MULTI_BUY} enveloppes « ${env.name} » d'un coup`;
-      buy5.disabled = state.profile.points < price * MULTI_BUY;
-      buy5.addEventListener('click', () => buyEnvelopes(env, MULTI_BUY));
+      buy5.textContent = `×${multiBuy()} · ${price * multiBuy()} 🪙`;
+      buy5.title = `Acheter ${multiBuy()} enveloppes « ${env.name} » d'un coup`;
+      buy5.disabled = state.profile.points < price * multiBuy();
+      buy5.addEventListener('click', () => buyEnvelopes(env, multiBuy()));
       grid.appendChild(card);
     }
   }
@@ -2387,9 +2429,9 @@
     buy.disabled = state.profile.points < price;
     buy.onclick = () => { envDialog.hidden = true; buyEnvelope(env); };
     const buy5 = $('#envBuy5');
-    buy5.textContent = `×${MULTI_BUY} · ${price * MULTI_BUY} 🪙`;
-    buy5.disabled = state.profile.points < price * MULTI_BUY;
-    buy5.onclick = () => { envDialog.hidden = true; buyEnvelopes(env, MULTI_BUY); };
+    buy5.textContent = `×${multiBuy()} · ${price * multiBuy()} 🪙`;
+    buy5.disabled = state.profile.points < price * multiBuy();
+    buy5.onclick = () => { envDialog.hidden = true; buyEnvelopes(env, multiBuy()); };
     const starBtn = $('#envStar');
     starBtn.hidden = (state.profile.stars || 0) < 1;
     starBtn.onclick = () => { envDialog.hidden = true; openStarPicker(env, () => renderShop()); };
@@ -2504,7 +2546,7 @@
     stamp.classList.toggle('won', starsWon > 0);
     stamp.textContent = starsWon
       ? `+${results.length} tampons · carte complète ! Tu gagnes ${starsWon > 1 ? `${starsWon} étoiles` : 'une étoile'} 🌟`
-      : `+${results.length} tampons · ${state.profile.stamps}/${STAMPS_PER_STAR}`;
+      : `+${results.length} tampons · ${state.profile.stamps}/${stampsPerStar()}`;
     const price = (env.price ?? DEFAULT_PRICE) * results.length;
     const again = $('#multiAgain');
     again.textContent = `Encore ×${results.length} · ${price} 🪙`;
@@ -2521,8 +2563,8 @@
   // Chaque carte complète devient une étoile ; les tampons en trop restent sur la carte suivante.
   function convertStamps() {
     let won = 0;
-    while ((state.profile.stamps || 0) >= STAMPS_PER_STAR) {
-      state.profile.stamps -= STAMPS_PER_STAR;
+    while ((state.profile.stamps || 0) >= stampsPerStar()) {
+      state.profile.stamps -= stampsPerStar();
       state.profile.stars = (state.profile.stars || 0) + 1;
       won++;
     }
@@ -2534,32 +2576,32 @@
     const stars = state.profile.stars || 0;
     const grid = $('#stampGrid');
     grid.innerHTML = '';
-    for (let i = 0; i < STAMPS_PER_STAR; i++) {
+    for (let i = 0; i < stampsPerStar(); i++) {
       const cell = document.createElement('span');
-      const last = i === STAMPS_PER_STAR - 1;
+      const last = i === stampsPerStar() - 1;
       cell.className = 'stamp' + (i < n ? ' on' : '') + (last ? ' reward' : '');
       // Chaque tampon est un peu de travers, comme un vrai coup de tampon.
       cell.style.setProperty('--tilt', `${((i * 47) % 30) - 15}deg`);
       cell.textContent = i < n ? '★' : (last ? '🌟' : i + 1);
       grid.appendChild(cell);
     }
-    $('#stampText').textContent = `${n}/${STAMPS_PER_STAR} tampons · encore ${STAMPS_PER_STAR - n} enveloppe${STAMPS_PER_STAR - n > 1 ? 's' : ''} pour gagner une étoile`;
+    $('#stampText').textContent = `${n}/${stampsPerStar()} tampons · encore ${stampsPerStar() - n} enveloppe${stampsPerStar() - n > 1 ? 's' : ''} pour gagner une étoile`;
     $('#starCount').textContent = `🌟 ×${stars}`;
     const use = $('#btnUseStar');
     use.disabled = stars < 1 || !collectible().length;
     use.textContent = stars ? 'Utiliser une étoile' : 'Pas encore d\'étoile';
     const buy = $('#btnBuyStar');
-    buy.textContent = `Acheter une étoile · ${STAR_PRICE} 🪙`;
-    buy.disabled = state.profile.points < STAR_PRICE;
-    buy.title = buy.disabled ? `Il te manque ${STAR_PRICE - state.profile.points} 🪙` : '';
+    buy.textContent = `Acheter une étoile · ${starPrice()} 🪙`;
+    buy.disabled = state.profile.points < starPrice();
+    buy.title = buy.disabled ? `Il te manque ${starPrice() - state.profile.points} 🪙` : '';
   }
 
   // Une étoile peut aussi s'acheter avec des pièces.
   $('#btnBuyStar').addEventListener('click', async () => {
-    if (state.profile.points < STAR_PRICE) return;
-    if (!(await askConfirm(`Acheter une étoile 🌟 pour ${STAR_PRICE} 🪙 ?`, 'Acheter'))) return;
-    if (state.profile.points < STAR_PRICE) return;
-    state.profile.points -= STAR_PRICE;
+    if (state.profile.points < starPrice()) return;
+    if (!(await askConfirm(`Acheter une étoile 🌟 pour ${starPrice()} 🪙 ?`, 'Acheter'))) return;
+    if (state.profile.points < starPrice()) return;
+    state.profile.points -= starPrice();
     state.profile.stars = (state.profile.stars || 0) + 1;
     saveProfile();
     renderPoints();
@@ -2656,7 +2698,7 @@
     stampEl.classList.toggle('won', !!opts.starWon);
     stampEl.textContent = opts.starWon
       ? `Carte complète ! Tu gagnes une étoile 🌟`
-      : `+1 tampon · ${state.profile.stamps}/${STAMPS_PER_STAR}`;
+      : `+1 tampon · ${state.profile.stamps}/${stampsPerStar()}`;
     const price = env.price ?? DEFAULT_PRICE;
     const again = $('#openAgain');
     again.hidden = !!opts.withStar;
@@ -2694,7 +2736,7 @@
     const name = await askText('Nom de la nouvelle enveloppe :', 'Créer', `Enveloppe ${state.envelopes.length + 1}`);
     if (!name) return;
     const env = {
-      id: uid(), name, price: DEFAULT_PRICE,
+      id: uid(), name, price: setting('defaultEnvPrice'),
       color: ENVELOPE_COLORS[state.envelopes.length % ENVELOPE_COLORS.length],
       created: Date.now(),
     };
@@ -2712,90 +2754,12 @@
     }, 500);
   }
 
-  $('#dailyForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const value = Math.round(Number($('#dailyInput').value));
-    if (!(value >= 0) || value > 100000) {
-      toast('Indique un nombre de pièces entre 0 et 100 000.');
-      return;
-    }
-    const before = state.settings.dailyPoints;
-    state.settings.dailyPoints = value;
-    try {
-      await db.putSettings(state.settings);
-      toast(`C'est enregistré : les joueurs gagneront ${value} 🪙 par jour, dès leur prochaine connexion du jour.`);
-    } catch (err) {
-      state.settings.dailyPoints = before;
-      console.warn('Réglage impossible', err);
-      toast('Le réglage n\'a pas pu être enregistré. Vérifie ta connexion.');
-    }
-    renderDailySetting();
-  });
-
-  // Prix des options d'aménagement, en étoiles.
-  $('#unlockForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const before = { ...state.settings };
-    for (const key of Object.keys(UNLOCKS)) {
-      const v = Math.round(Number($(`#unlock_${key}`).value));
-      if (!(v >= 0) || v > 100) { toast('Indique un nombre d\'étoiles entre 0 et 100.'); return; }
-      state.settings['unlock_' + key] = v;
-    }
-    try {
-      await db.putSettings(state.settings);
-      toast('C\'est enregistré : nouveaux prix des options d\'aménagement.');
-    } catch (err) {
-      state.settings = before;
-      console.warn('Réglage impossible', err);
-      toast('Le réglage n\'a pas pu être enregistré. Vérifie ta connexion.');
-    }
-    renderDailySetting();
-  });
-
-  const maxPending = () => Math.max(1, Math.round(Number(state.settings.maxPending) || MAX_PENDING));
-  $('#pendingForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const value = Math.round(Number($('#pendingInput').value));
-    if (!(value >= 1) || value > 1000) {
-      toast('Indique un nombre entre 1 et 1000.');
-      return;
-    }
-    const before = state.settings.maxPending;
-    state.settings.maxPending = value;
-    try {
-      await db.putSettings(state.settings);
-      toast(`C'est enregistré : chaque joueur peut avoir ${value} propositions en attente.`);
-    } catch (err) {
-      state.settings.maxPending = before;
-      console.warn('Réglage impossible', err);
-      toast('Le réglage n\'a pas pu être enregistré. Vérifie ta connexion.');
-    }
-    renderDailySetting();
-  });
-
-  function renderDailySetting() {
-    $('#contestReward').value = contestReward();
-    $('#voteMaintenance').checked = voteMaintenanceOn();
-    $('#voteReward').value = voteReward();
-    $('#soloReward').value = soloReward();
-    $('#contestThemes').value = (Array.isArray(state.settings.contestThemes) && state.settings.contestThemes.length ? state.settings.contestThemes : DEFAULT_THEMES).join('\n');
-    $('#contestToday').textContent = `Thème du jour : « ${themeOf(today())} » · demain : « ${themeOf(shiftDay(today(), 1))} ».`;
-    for (const key of Object.keys(UNLOCKS)) $(`#unlock_${key}`).value = unlockCost(key);
-    $('#pendingInput').value = maxPending();
-    $('#pendingCurrent').textContent = `Actuellement : ${maxPending()} en attente au plus. Les propositions déjà regardées ne comptent pas.`;
-    $('#dailyInput').value = dailyPoints();
-    $('#dailyCurrent').textContent = `Actuellement : ${dailyPoints()} 🪙 par jour.`;
-  }
+  const maxPending = () => setting('maxPending');
 
   function renderAtelier() {
-    renderDailySetting();
     if (atelierOpen === 'archives' ? !archivedStickers().length : atelierOpen && !state.envelopes.some((e) => e.id === atelierOpen)) atelierOpen = null;
     const detail = !!atelierOpen;
     $('#atelierHome').hidden = detail;
-    $('#dailyForm').hidden = detail;
-    $('#pendingForm').hidden = detail;
-    $('#unlockForm').hidden = detail;
-    $('#contestForm').hidden = detail;
     $('#atelierDetailBar').hidden = !detail;
     const listEl = $('#atelierList');
     listEl.innerHTML = '';
@@ -3092,10 +3056,13 @@
     $('#homeCoffre').hidden = !state.isAdmin;
     $('#homePlayers').hidden = !state.isAdmin;
     if (state.isAdmin) refreshCoffreCount();
+    renderMaintTiles();
     showScreen('home');
+    if (maintBlocked('all', true)) return;
   }
 
   function openRooms() {
+    if (maintBlocked('rooms')) return;
     renderRoomList();
     showScreen('rooms');
   }
@@ -3112,12 +3079,14 @@
   const binderPages = () => state.envelopes.filter((env) => stickersOf(env.id).length);
 
   function openCollection(page) {
+    if (maintBlocked('collection')) return;
     if (page !== undefined) binderPage = page;
     renderCollection();
     showScreen('collection');
   }
 
   function renderCollection() {
+    $('#collectionHint').textContent = `Touche un sticker obtenu pour voir sa fiche ou le vendre. Revente : commun ${setting('sell_common')} 🪙, rare ${setting('sell_rare')} 🪙, très rare ${setting('sell_epic')} 🪙.`;
     const pages = binderPages();
     const all = collectible();
     const got = all.filter((img) => owned(img.id) > 0).length;
@@ -3215,7 +3184,7 @@
   // ---------------------------------------------------------------------------
   // Vente : un exemplaire non posé rapporte des pièces selon sa rareté
   // ---------------------------------------------------------------------------
-  const sellPrice = (img) => RARITIES[img.rarity || 'common'].sell;
+  const sellPrice = (img) => setting('sell_' + (img.rarity || 'common'));
 
   function removeCopies(img, k) {
     const left = owned(img.id) - k;
@@ -3305,6 +3274,7 @@
   let draft = null; // image choisie, pas encore envoyée : { data, w, h }
 
   function openCreations() {
+    if (maintBlocked('creations')) return;
     renderCreations();
     showScreen('creations');
   }
@@ -3524,6 +3494,7 @@
   $('#newsDialogAll').addEventListener('click', () => { newsDialog.hidden = true; openNews(); });
 
   function openNews() {
+    if (maintBlocked('news')) return;
     renderNews();
     showScreen('news');
     markNewsSeen();
@@ -3570,7 +3541,7 @@
   const VOTE_END_HOUR = 20;
   const votingOver = () => new Date().getHours() >= VOTE_END_HOUR;
   // Vote en maintenance (réglable dans l'atelier ; activé tant que l'administratrice ne l'a pas rouvert).
-  const voteMaintenanceOn = () => state.settings.voteMaintenance !== false;
+  const voteMaintenanceOn = () => state.settings.voteMaintenance !== false || maintOn('contest');
   // L'administratrice peut toujours voter, pour tester pendant la maintenance.
   const voteMaintenance = () => voteMaintenanceOn() && !state.isAdmin;
   // Heure de fin des votes du concours d'un jour : le lendemain à 20 h.
@@ -3584,7 +3555,7 @@
     'Pique-nique', 'Château', 'Sous la mer', 'Espace', 'Fleuriste', 'Boulangerie',
     'Tout en rose', 'Tout en vert', 'Petit déjeuner', 'Soirée cinéma', 'Animaux', 'Rêve',
   ];
-  const contestReward = () => Math.max(0, Math.round(Number(state.settings.contestReward ?? CONTEST_REWARD)));
+  const contestReward = () => setting('contestReward');
   const contestThemes = () => {
     const list = Array.isArray(state.settings.contestThemes) ? state.settings.contestThemes.filter(Boolean) : [];
     return list.length ? list : DEFAULT_THEMES;
@@ -3606,9 +3577,9 @@
   // Votes en duels : on montre 2 pièces, on touche sa préférée. Classement au % de duels gagnés.
   const DUELS_MAX = 10;                // duels par joueur et par jour
   const VOTE_REWARD = 20;              // pièces pour avoir fini ses duels du jour
-  const voteReward = () => Math.max(0, Math.round(Number(state.settings.voteReward ?? VOTE_REWARD)));
+  const voteReward = () => setting('voteReward');
   // Gagnant d'office (une seule participation) : moitié de la récompense par défaut.
-  const soloReward = () => Math.max(0, Math.round(Number(state.settings.contestSoloReward ?? Math.round(contestReward() / 2))));
+  const soloReward = () => setting('contestSoloReward');
 
   async function loadContestDay(day) {
     const docs = await db.listContest(day);
@@ -3688,6 +3659,7 @@
 
   let contestData = { today: null, vote: null, results: null };
   async function openContest() {
+    if (maintBlocked('contest')) return;
     showScreen('contest');
     renderPoints();
     $('#ctBody').innerHTML = '<p class="muted">Chargement…</p>';
@@ -3731,7 +3703,7 @@
       del.addEventListener('click', async () => {
         if (!(await askConfirm(`Retirer la participation de ${e.ownerName || e.owner} ?`, 'Retirer'))) return;
         await db.deleteContest(e.id).catch(() => toast('La participation n\'a pas pu être retirée.'));
-        openContest();
+        if (!screens.adminContest.hidden) refreshAdminContest(); else openContest();
       });
       card.querySelector('.ct-actions').appendChild(del);
     }
@@ -3808,8 +3780,6 @@
         b.textContent = finished ? `✓ Duels terminés (${plan.total}/${plan.total})` : `⚔️ Voter${plan.done ? ` · ${plan.done}/${plan.total}` : ''}`;
         b.addEventListener('click', () => openDuelView(v));
         c2.appendChild(b);
-        // Admin : classement provisoire, pour faire des simulations.
-        if (state.isAdmin) c2.appendChild(provisionalRanking(v));
         // Admin : effacer ses duels du jour pour retester le vote.
         if (state.isAdmin && plan.done) {
           const r = document.createElement('button');
@@ -3818,8 +3788,6 @@
           r.addEventListener('click', () => resetMyDuels(v));
           c2.appendChild(r);
         }
-      } else if (state.isAdmin && v.entries.length) {
-        c2.appendChild(provisionalRanking(v));
       }
     }
 
@@ -3848,7 +3816,7 @@
     for (let i = 0; i < others.length; i++) for (let j = i + 1; j < others.length; j++) pairs.push([others[i], others[j]].sort());
     const mine = v.duels.filter((d) => d.voter === me);
     const done = new Set(mine.map((d) => [d.a, d.b].sort().join('|')));
-    const total = Math.min(DUELS_MAX, pairs.length);
+    const total = Math.min(setting('duelsMax'), pairs.length);
     const left = pairs.filter((p) => !done.has(p.join('|')));
     return { pairs, left, done: Math.min(mine.length, total), total };
   }
@@ -4057,29 +4025,240 @@
   $('#ctView').addEventListener('click', (e) => { if (e.target.id === 'ctView') $('#ctView').hidden = true; });
   $('#homeContest').addEventListener('click', openContest);
 
-  // Réglages du concours (Atelier).
-  $('#contestForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const reward = Math.round(Number($('#contestReward').value));
-    if (!(reward >= 0) || reward > 100000) { toast('Indique une récompense entre 0 et 100 000 pièces.'); return; }
-    const themes = $('#contestThemes').value.split('\n').map((x) => x.trim()).filter(Boolean);
-    const before = { ...state.settings };
-    state.settings.contestReward = reward;
-    state.settings.contestThemes = themes;
-    state.settings.voteMaintenance = $('#voteMaintenance').checked;
-    const vr = Math.round(Number($('#voteReward').value)), sr = Math.round(Number($('#soloReward').value));
-    if (vr >= 0) state.settings.voteReward = vr;
-    if (sr >= 0) state.settings.contestSoloReward = sr;
+  // ---------------------------------------------------------------------------
+  // Maintenance : l'administratrice ferme des menus pendant une mise à jour.
+  // ---------------------------------------------------------------------------
+  const MAINT_MENUS = [
+    { key: 'all', label: 'Tout le jeu', desc: 'Les joueurs voient un écran « Le jeu est en maintenance » et ne peuvent rien faire.' },
+    { key: 'rooms', label: '🏠 Mes pièces', desc: 'Les pièces et leur décoration.' },
+    { key: 'shop', label: '🛍️ Boutique', desc: 'Acheter des enveloppes et des étoiles.' },
+    { key: 'collection', label: '📒 Collection', desc: 'Le classeur et la vente des stickers.' },
+    { key: 'creations', label: '✏️ Proposer un sticker', desc: 'Envoyer des dessins.' },
+    { key: 'mail', label: '📬 Boîte aux lettres', desc: 'Lire les messages et récupérer les cadeaux.' },
+    { key: 'contest', label: '🏆 Concours (tout)', desc: 'Pièce du concours, publication et vote.' },
+    { key: 'vote', label: '⚔️ Vote du concours seulement', desc: 'On peut publier sa pièce, mais pas voter.' },
+    { key: 'news', label: '✨ Nouveautés', desc: 'La liste des mises à jour.' },
+  ];
+  const MAINT_LABEL = Object.fromEntries(MAINT_MENUS.map((m) => [m.key, m.label]));
+  function maintOn(key) {
+    const m = state.settings.maintenance || {};
+    if (key === 'vote') return state.settings.voteMaintenance !== false || !!m.contest || !!m.all;
+    return !!m[key] || (key !== 'all' && !!m.all);
+  }
+  // Bloque l'entrée d'un menu en maintenance (sauf pour l'administratrice).
+  function maintBlocked(key, silent = false) {
+    if (state.isAdmin || !maintOn(key)) return false;
+    if (key === 'all' || maintOn('all')) {
+      $('#maintScreen').hidden = false;
+      return true;
+    }
+    if (!silent) toast(`🛠️ « ${MAINT_LABEL[key].replace(/^\S+\s/, '')} » est en maintenance : reviens un peu plus tard !`);
+    return true;
+  }
+  $('#maintRetry').addEventListener('click', async () => {
+    await refreshSettings();
+    if (!maintOn('all')) { $('#maintScreen').hidden = true; goHome(); } else toast('Toujours en maintenance… encore un peu de patience !');
+  });
+  const TILE_MAINT = { homeRooms: 'rooms', homeShop: 'shop', homeCollection: 'collection', homeCreations: 'creations', homeMail: 'mail', homeContest: 'contest', homeNews: 'news' };
+  function renderMaintTiles() {
+    for (const [id, key] of Object.entries(TILE_MAINT)) {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('is-maint', maintOn(key));
+    }
+    const closed = MAINT_MENUS.filter((m) => m.key !== 'vote' && maintOn(m.key) && (m.key === 'all' || !maintOn('all'))).length;
+    const sub = $('#homeMaintenanceSub');
+    if (sub) sub.textContent = maintOn('all') ? '⚠️ Tout le jeu est fermé' : (closed ? `${plural(closed, 'menu')} fermé${closed > 1 ? 's' : ''}` : (maintOn('vote') ? 'Vote fermé' : 'Tout est ouvert'));
+  }
+
+  // Relit les réglages (maintenance, prix…) régulièrement : un joueur dans un menu
+  // qui passe en maintenance est ramené au menu principal.
+  async function refreshSettings() {
+    try {
+      const fresh = await db.getSettings();
+      if (fresh) state.settings = { ...state.settings, ...fresh };
+    } catch (e) { /* hors ligne */ }
+  }
+  const SCREEN_MAINT = { rooms: 'rooms', shop: 'shop', collection: 'collection', creations: 'creations', mail: 'mail', contest: 'contest', news: 'news' };
+  setInterval(async () => {
+    if (!state.profile || document.visibilityState !== 'visible') return;
+    await refreshSettings();
+    if (!screens.home.hidden) renderMaintTiles();
+    if (state.isAdmin) return;
+    if (maintOn('all')) { $('#maintScreen').hidden = false; return; }
+    $('#maintScreen').hidden = true;
+    const current = Object.keys(screens).find((k) => !screens[k].hidden);
+    let key = SCREEN_MAINT[current];
+    if (current === 'room') key = inContestRoom() ? 'contest' : 'rooms';
+    if (key && maintOn(key)) {
+      if (current === 'room') await saveRoom();
+      goHome();
+      toast(`🛠️ « ${MAINT_LABEL[key].replace(/^\S+\s/, '')} » vient de passer en maintenance : reviens un peu plus tard !`);
+    }
+  }, 60000);
+
+  async function saveSettings(msg) {
     try {
       await db.putSettings(state.settings);
-      toast(`C'est enregistré : ${themes.length ? plural(themes.length, 'thème') : 'thèmes par défaut'}, ${reward} 🪙 pour le gagnant. Thème du jour : « ${themeOf(today())} ».`);
-    } catch (err) {
-      state.settings = before;
-      console.warn('Réglage impossible', err);
+      if (msg) toast(msg);
+      return true;
+    } catch (e) {
+      console.warn('Réglage impossible', e);
       toast('Le réglage n\'a pas pu être enregistré. Vérifie ta connexion.');
+      return false;
     }
-    renderDailySetting();
+  }
+
+  function openMaintenance() {
+    if (!state.isAdmin) return;
+    renderMaintenance();
+    showScreen('maintenance');
+  }
+  function renderMaintenance() {
+    const list = $('#maintList');
+    list.innerHTML = '';
+    for (const m of MAINT_MENUS) {
+      const on = m.key === 'vote' ? state.settings.voteMaintenance !== false : !!(state.settings.maintenance || {})[m.key];
+      const row = document.createElement('label');
+      row.className = 'maint-row' + (m.key === 'all' ? ' all' : '') + (on ? ' on' : '');
+      row.innerHTML = '<span class="maint-text"><strong></strong><span class="muted"></span></span><span class="switch"><input type="checkbox"><span class="slider"></span></span>';
+      row.querySelector('strong').textContent = m.label;
+      row.querySelector('.muted').textContent = on ? `🛠️ En maintenance · ${m.desc}` : m.desc;
+      const input = row.querySelector('input');
+      input.checked = on;
+      input.addEventListener('change', async () => {
+        if (m.key === 'vote') state.settings.voteMaintenance = input.checked;
+        else state.settings.maintenance = { ...(state.settings.maintenance || {}), [m.key]: input.checked };
+        await saveSettings(input.checked ? `🛠️ « ${m.label} » est en maintenance.` : `✅ « ${m.label} » est rouvert.`);
+        renderMaintenance();
+      });
+      list.appendChild(row);
+    }
+  }
+  $('#homeMaintenance').addEventListener('click', openMaintenance);
+  $('#maintBack').addEventListener('click', goHome);
+
+  // ---------------------------------------------------------------------------
+  // Paramétrage : tous les chiffres du jeu
+  // ---------------------------------------------------------------------------
+  function openSettings() {
+    if (!state.isAdmin) return;
+    renderSettings();
+    showScreen('settings');
+  }
+  function renderSettings() {
+    const form = $('#settingsForm');
+    form.innerHTML = '';
+    let groupEl = null, groupName = null;
+    for (const def of SETTINGS) {
+      if (def.group !== groupName) {
+        groupName = def.group;
+        groupEl = document.createElement('fieldset');
+        groupEl.className = 'settings-group';
+        groupEl.innerHTML = '<legend></legend>';
+        groupEl.querySelector('legend').textContent = def.group;
+        form.appendChild(groupEl);
+      }
+      const row = document.createElement('label');
+      row.className = 'settings-row';
+      row.innerHTML = '<span class="settings-label"></span><span class="settings-input"><input class="field" type="number" inputmode="numeric"><span class="settings-unit"></span></span>';
+      row.querySelector('.settings-label').textContent = def.label;
+      row.querySelector('.settings-unit').textContent = def.unit || '';
+      const input = row.querySelector('input');
+      input.dataset.key = def.key;
+      input.min = def.min ?? 0;
+      input.max = def.max ?? 100000;
+      input.step = def.step ?? 1;
+      const raw = state.settings[def.key];
+      input.value = raw === undefined || raw === null || raw === '' ? '' : setting(def.key);
+      input.placeholder = String(def.def());
+      groupEl.appendChild(row);
+    }
+  }
+  $('#settingsSave').addEventListener('click', async () => {
+    const before = JSON.parse(JSON.stringify(state.settings));
+    for (const input of document.querySelectorAll('#settingsForm input[data-key]')) {
+      const def = SETTING_BY_KEY[input.dataset.key];
+      const v = input.value.trim();
+      if (v === '') { delete state.settings[def.key]; continue; }
+      const n = Math.round(Number(v));
+      if (!Number.isFinite(n) || n < (def.min ?? 0) || n > (def.max ?? 100000)) {
+        toast(`« ${def.label} » : indique un nombre entre ${def.min ?? 0} et ${def.max ?? 100000}.`);
+        state.settings = before;
+        input.focus();
+        return;
+      }
+      state.settings[def.key] = n;
+    }
+    if (!(await saveSettings('C\'est enregistré ✓ Les nouveaux chiffres s\'appliquent tout de suite.'))) state.settings = before;
+    renderSettings();
   });
+  $('#settingsForm').addEventListener('submit', (e) => e.preventDefault());
+  $('#homeSettings').addEventListener('click', openSettings);
+  $('#settingsBack').addEventListener('click', goHome);
+
+  // ---------------------------------------------------------------------------
+  // Concours (administratrice) : thèmes et résultats en direct
+  // ---------------------------------------------------------------------------
+  let acTimer = null;
+  async function openAdminContest() {
+    if (!state.isAdmin) return;
+    showScreen('adminContest');
+    $('#acThemes').value = (Array.isArray(state.settings.contestThemes) && state.settings.contestThemes.length ? state.settings.contestThemes : DEFAULT_THEMES).join('\n');
+    $('#acThemeToday').textContent = `Aujourd'hui : « ${themeOf(today())} » · demain : « ${themeOf(shiftDay(today(), 1))} » · après-demain : « ${themeOf(shiftDay(today(), 2))} ».`;
+    await refreshAdminContest();
+    clearInterval(acTimer);
+    // Mise à jour automatique pendant que l'écran est ouvert.
+    acTimer = setInterval(() => {
+      if (screens.adminContest.hidden) { clearInterval(acTimer); return; }
+      refreshAdminContest();
+    }, 15000);
+  }
+  async function refreshAdminContest() {
+    let v, t;
+    try {
+      [v, t] = await Promise.all([loadContestDay(shiftDay(today(), -1)), loadContestDay(today())]);
+    } catch (e) {
+      $('#acLive').innerHTML = '<p class="muted">Impossible de charger le concours. Vérifie ta connexion.</p>';
+      return;
+    }
+    const voters = new Set(v.duels.map((d) => d.voter)).size;
+    const state20 = votingOver() ? 'Vote terminé : résultat définitif.' : `Vote ouvert jusqu'à 20 h${voteMaintenanceOn() ? ' (🛠️ en maintenance pour les joueurs)' : ''}.`;
+    $('#acLiveInfo').textContent = `Thème d'hier : « ${themeOf(v.day)} » · ${plural(v.entries.length, 'participation')} · ${plural(voters, 'votant')} · ${plural(v.duels.length, 'duel')}. ${state20}`;
+    const live = $('#acLive');
+    live.innerHTML = '';
+    if (v.entries.length) {
+      const box = provisionalRanking(v);
+      box.querySelector('.ct-prov-title').textContent = '🏆 Classement actuel';
+      live.appendChild(box);
+      const grid = document.createElement('div');
+      grid.className = 'ct-grid ac-grid';
+      v.entries.forEach((e) => grid.appendChild(entryCard(e, { canModerate: true, winner: v.winners.includes(e.owner) })));
+      live.appendChild(grid);
+    } else {
+      live.innerHTML = '<p class="muted">Personne n\'a participé hier.</p>';
+    }
+    const td = $('#acToday');
+    td.innerHTML = '';
+    const p = document.createElement('p');
+    p.className = 'muted';
+    p.textContent = `Thème du jour : « ${themeOf(t.day)} » · ${plural(t.entries.length, 'participation')} pour l'instant.`;
+    td.appendChild(p);
+    if (t.entries.length) {
+      const grid = document.createElement('div');
+      grid.className = 'ct-grid ac-grid';
+      t.entries.forEach((e) => grid.appendChild(entryCard(e, { canModerate: true })));
+      td.appendChild(grid);
+    }
+    $('#acRefreshed').textContent = `Mis à jour à ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · actualisation automatique toutes les 15 s.`;
+  }
+  $('#acThemesSave').addEventListener('click', async () => {
+    const themes = $('#acThemes').value.split('\n').map((x) => x.trim()).filter(Boolean);
+    state.settings.contestThemes = themes;
+    await saveSettings(`Thèmes enregistrés ✓ ${themes.length ? plural(themes.length, 'thème') : 'Thèmes par défaut'} · aujourd'hui : « ${themeOf(today())} ».`);
+    $('#acThemeToday').textContent = `Aujourd'hui : « ${themeOf(today())} » · demain : « ${themeOf(shiftDay(today(), 1))} » · après-demain : « ${themeOf(shiftDay(today(), 2))} ».`;
+  });
+  $('#homeAdminContest').addEventListener('click', openAdminContest);
+  $('#adminContestBack').addEventListener('click', () => { clearInterval(acTimer); goHome(); });
 
   // ---------------------------------------------------------------------------
   // Boîte aux lettres
@@ -4099,6 +4278,7 @@
   }
 
   async function openMail() {
+    if (maintBlocked('mail')) return;
     renderMail();
     showScreen('mail');
     // On recharge les messages : ils ont pu changer sur un autre appareil.
@@ -4343,7 +4523,7 @@
   }
 
   async function acceptProposal(p) {
-    const answer = await askText(`Valider « ${p.name} » de ${p.ownerName || p.owner}. Combien de pièces lui offrir ?`, 'Valider', String(PROPOSAL_REWARD));
+    const answer = await askText(`Valider « ${p.name} » de ${p.ownerName || p.owner}. Combien de pièces lui offrir ?`, 'Valider', String(proposalReward()));
     if (answer === null) return;
     const reward = Math.max(0, Math.round(Number(answer) || 0));
     p.status = 'accepted';
@@ -4678,6 +4858,9 @@
     else if (place.screen === 'mail') openMail();
     else if (place.screen === 'news') openNews();
     else if (place.screen === 'contest') openContest();
+    else if (place.screen === 'settings') openSettings();
+    else if (place.screen === 'adminContest') openAdminContest();
+    else if (place.screen === 'maintenance') openMaintenance();
     else if (place.screen === 'coffre') openCoffre();
     else if (place.screen === 'players') openPlayers();
   }

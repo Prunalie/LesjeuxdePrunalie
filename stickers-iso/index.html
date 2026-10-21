@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610211200">
+  <link rel="stylesheet" href="style.css?v=202610211310">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -121,7 +121,19 @@
             </button>
             <button id="homeAtelier" class="mini home-card admin-card" hidden>
               <span class="tile-icon" style="background:#F6E8E3"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect x="13.5" y="12" width="5" height="17" rx="2" fill="#E8906B" stroke="#5A3E3A" stroke-width="2.4"/><rect x="6" y="4" width="20" height="9" rx="2.5" fill="#A9B4C2" stroke="#5A3E3A" stroke-width="2.4"/><path d="M6 8.5 H2.5" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/></svg></span>
-              <span class="small-text"><span class="card-title">Atelier</span><span class="card-sub">Créer les enveloppes</span></span>
+              <span class="small-text"><span class="card-title">Atelier enveloppes</span><span class="card-sub">Créer les enveloppes</span></span>
+            </button>
+            <button id="homeSettings" class="mini home-card admin-card">
+              <span class="tile-icon" style="background:#FFF3CC"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 9 H27 M5 16 H27 M5 23 H27" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/><circle cx="11" cy="9" r="3.4" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.4"/><circle cx="21" cy="16" r="3.4" fill="#F0658A" stroke="#5A3E3A" stroke-width="2.4"/><circle cx="14" cy="23" r="3.4" fill="#6CB4E0" stroke="#5A3E3A" stroke-width="2.4"/></svg></span>
+              <span class="small-text"><span class="card-title">Paramétrage</span><span class="card-sub">Prix, récompenses, chiffres</span></span>
+            </button>
+            <button id="homeAdminContest" class="mini home-card admin-card">
+              <span class="tile-icon" style="background:#FFF3CC"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><path d="M9 5 H23 V13 A7 7 0 0 1 9 13 Z" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M9 8 H4 C4 14 6 16 9 16 M23 8 H28 C28 14 26 16 23 16" fill="none" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/><rect x="14.5" y="19" width="3" height="5" fill="#5A3E3A"/><rect x="10" y="24" width="12" height="5" rx="1.5" fill="#B07AD8" stroke="#5A3E3A" stroke-width="2.4"/></svg></span>
+              <span class="small-text"><span class="card-title">Concours</span><span class="card-sub">Thèmes et résultats en direct</span></span>
+            </button>
+            <button id="homeMaintenance" class="mini home-card admin-card">
+              <span class="tile-icon" style="background:#FFE0E6"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><path d="M20.5 4.5 A7 7 0 0 0 13.5 13.5 L4.5 22.5 A3 3 0 0 0 9.5 27.5 L18.5 18.5 A7 7 0 0 0 27.5 11.5 L23 16 L18 14 L16 9 Z" fill="#A9B4C2" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/></svg></span>
+              <span class="small-text"><span class="card-title">Maintenance</span><span id="homeMaintenanceSub" class="card-sub">Tout est ouvert</span></span>
             </button>
           </div>
         </details>
@@ -314,7 +326,7 @@
     </header>
     <div class="rooms-body">
       <div class="collection-bar">
-        <p class="muted">Touche un sticker obtenu pour voir sa fiche ou le vendre. Revente : commun 10 🪙, rare 25 🪙, très rare 60 🪙.</p>
+        <p id="collectionHint" class="muted"></p>
       </div>
       <div class="binder">
         <div id="binderTabs" class="binder-tabs" role="tablist" aria-label="Pages du classeur"></div>
@@ -403,6 +415,75 @@
       <div id="ctBody" class="ct-body"></div>
     </div>
   </section>
+
+  <!-- Paramétrage (administratrice) -->
+  <section id="screenSettings" class="screen screen-settings" hidden>
+    <header class="topbar">
+      <div class="room-title">
+        <button id="settingsBack" class="btn btn-ghost" title="Menu principal">←<span class="label-long">&nbsp;Menu</span></button>
+        <h1>Paramétrage</h1>
+      </div>
+      <div class="topbar-actions"><button id="settingsSave" class="btn btn-primary">Enregistrer</button></div>
+    </header>
+    <div class="rooms-body">
+      <p class="admin-intro muted">Tous les chiffres du jeu. Laisse une case vide pour revenir à la valeur par défaut (indiquée en gris), puis appuie sur « Enregistrer ».</p>
+      <form id="settingsForm" class="settings-form" novalidate></form>
+    </div>
+  </section>
+
+  <!-- Concours (administratrice) -->
+  <section id="screenAdminContest" class="screen screen-admin-contest" hidden>
+    <header class="topbar">
+      <div class="room-title">
+        <button id="adminContestBack" class="btn btn-ghost" title="Menu principal">←<span class="label-long">&nbsp;Menu</span></button>
+        <h1>Concours 🏆</h1>
+      </div>
+    </header>
+    <div class="rooms-body">
+      <div class="admin-cols">
+        <section class="admin-card-box">
+          <h2>Résultats en direct</h2>
+          <p id="acLiveInfo" class="muted"></p>
+          <div id="acLive"></div>
+          <p id="acRefreshed" class="muted ct-small-text"></p>
+        </section>
+        <section class="admin-card-box">
+          <h2>Thèmes</h2>
+          <p id="acThemeToday" class="muted"></p>
+          <label class="contest-themes"><span class="muted">Un thème par ligne : ils reviennent à tour de rôle, un par jour.</span><textarea id="acThemes" class="field" rows="10"></textarea></label>
+          <button id="acThemesSave" class="btn btn-primary">Enregistrer les thèmes</button>
+        </section>
+        <section class="admin-card-box">
+          <h2>Participations d'aujourd'hui</h2>
+          <div id="acToday"></div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <!-- Maintenance (administratrice) -->
+  <section id="screenMaintenance" class="screen screen-maintenance" hidden>
+    <header class="topbar">
+      <div class="room-title">
+        <button id="maintBack" class="btn btn-ghost" title="Menu principal">←<span class="label-long">&nbsp;Menu</span></button>
+        <h1>Maintenance 🛠️</h1>
+      </div>
+    </header>
+    <div class="rooms-body">
+      <p class="admin-intro muted">Pendant une mise à jour, ferme les menus que les joueurs ne doivent pas toucher. Ils voient « en maintenance » et ne peuvent pas y entrer. Toi, tu gardes accès à tout pour tester. Chaque interrupteur s'enregistre tout de suite.</p>
+      <div id="maintList" class="maint-list"></div>
+    </div>
+  </section>
+
+  <!-- Jeu entier en maintenance (joueurs) -->
+  <div id="maintScreen" class="maint-screen" hidden>
+    <div class="maint-card">
+      <div class="maint-icon">🛠️</div>
+      <h2>Le jeu est en maintenance</h2>
+      <p class="muted">Une mise à jour est en cours. Reviens dans un petit moment !</p>
+      <button id="maintRetry" class="btn btn-primary">Réessayer</button>
+    </div>
+  </div>
 
   <!-- Nouveautés -->
   <section id="screenNews" class="screen screen-news" hidden>
@@ -501,58 +582,6 @@
       </div>
       <p id="atelierEmpty" class="empty" hidden>Aucune enveloppe pour l'instant.</p>
       <div id="atelierList" class="atelier-list"></div>
-      <form id="dailyForm" class="daily-form atelier-daily" novalidate>
-        <div>
-          <h2>Pièces du jour</h2>
-          <p id="dailyCurrent" class="muted"></p>
-        </div>
-        <label class="daily-field">
-          <span class="muted">Nombre de pièces gagnées une fois par jour</span>
-          <span class="daily-row">
-            <input id="dailyInput" class="field" type="number" min="0" max="100000" step="10" inputmode="numeric">
-            <button class="btn btn-primary" type="submit">Enregistrer</button>
-          </span>
-        </label>
-      </form>
-      <form id="pendingForm" class="daily-form atelier-daily" novalidate>
-        <div>
-          <h2>Propositions de stickers</h2>
-          <p id="pendingCurrent" class="muted"></p>
-        </div>
-        <label class="daily-field">
-          <span class="muted">Nombre maximum de propositions en attente par joueur</span>
-          <span class="daily-row">
-            <input id="pendingInput" class="field" type="number" min="0" max="1000" step="1" inputmode="numeric">
-            <button class="btn btn-primary" type="submit">Enregistrer</button>
-          </span>
-        </label>
-      </form>
-      <form id="unlockForm" class="daily-form atelier-daily" novalidate>
-        <div>
-          <h2>Options d'aménagement</h2>
-          <p class="muted">Prix en étoiles 🌟 pour débloquer chaque option (0 = gratuit).</p>
-        </div>
-        <div class="unlock-fields">
-          <label class="unlock-field"><span class="muted">🌳 Jardin</span><input id="unlock_garden" class="field" type="number" min="0" max="100" step="1" inputmode="numeric"></label>
-          <label class="unlock-field"><span class="muted">📐 Taille</span><input id="unlock_size" class="field" type="number" min="0" max="100" step="1" inputmode="numeric"></label>
-          <label class="unlock-field"><span class="muted">🏢 Étages</span><input id="unlock_levels" class="field" type="number" min="0" max="100" step="1" inputmode="numeric"></label>
-          <button class="btn btn-primary" type="submit">Enregistrer</button>
-        </div>
-      </form>
-      <form id="contestForm" class="daily-form atelier-daily contest-form" novalidate>
-        <div>
-          <h2>Concours du jour 🏆</h2>
-          <p id="contestToday" class="muted"></p>
-        </div>
-        <label class="unlock-field"><span class="muted">Récompense du gagnant 🪙</span><input id="contestReward" class="field" type="number" min="0" max="100000" step="10" inputmode="numeric"></label>
-        <div class="unlock-fields">
-          <label class="unlock-field"><span class="muted">Pour avoir voté 🪙</span><input id="voteReward" class="field" type="number" min="0" max="100000" step="5" inputmode="numeric"></label>
-          <label class="unlock-field"><span class="muted">Gagnant d'office 🪙</span><input id="soloReward" class="field" type="number" min="0" max="100000" step="10" inputmode="numeric"></label>
-        </div>
-        <label class="vote-maint"><input id="voteMaintenance" type="checkbox"> <span>🛠️ Vote en maintenance (les joueurs ne peuvent pas voter)</span></label>
-        <label class="contest-themes"><span class="muted">Thèmes, un par ligne (ils reviennent à tour de rôle, un par jour)</span><textarea id="contestThemes" class="field" rows="6"></textarea></label>
-        <button class="btn btn-primary" type="submit">Enregistrer</button>
-      </form>
     </div>
   </section>
 
@@ -764,7 +793,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610211200"></script>
-  <script src="game.js?v=202610211200"></script>
+  <script src="firebase-config.js?v=202610211310"></script>
+  <script src="game.js?v=202610211310"></script>
 </body>
 </html>
