@@ -2040,3 +2040,9 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .mail-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .mail-text.mail-long:not(.mail-open) { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .mail-more { margin-top: 4px; padding: 2px 8px; font-size: .8rem; }
+
+/* Admin concours : qui a voté */
+.ac-voters { margin-top: 10px; }
+.ac-voter summary { cursor: pointer; font-size: .9rem; padding: 3px 0; }
+.ac-voter ul { margin: 2px 0 6px; padding-left: 22px; font-size: .82rem; color: var(--muted); line-height: 1.5; }
+.ac-missing { margin: 6px 0 0; font-size: .82rem; }

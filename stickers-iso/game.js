@@ -4224,7 +4224,67 @@
       refreshAdminContest();
     }, 15000);
   }
+  // Qui a voté : chaque votant, ses duels faits et le détail de ses choix.
+  let acPlayers = null;
+  function acName(key, v) {
+    if (ADMIN_PSEUDOS.includes(key)) return ADMIN_DISPLAY_NAME;
+    const e = v.entries.find((x) => x.owner === key);
+    if (e && e.ownerName) return e.ownerName;
+    const p = (acPlayers || []).find((x) => playerKey(x) === key);
+    return (p && p.pseudo) || key;
+  }
+  function votersBox(v) {
+    const box = document.createElement('div');
+    box.className = 'ct-provisional ac-voters';
+    const byVoter = new Map();
+    for (const d of [...v.duels, ...v.votes]) {
+      if (!byVoter.has(d.voter)) byVoter.set(d.voter, []);
+      byVoter.get(d.voter).push(d);
+    }
+    const h = document.createElement('p');
+    h.className = 'ct-prov-title';
+    h.textContent = `🗳️ Qui a voté (${byVoter.size})`;
+    box.appendChild(h);
+    if (!byVoter.size) {
+      const p = document.createElement('p');
+      p.className = 'muted';
+      p.textContent = 'Personne n\'a encore voté.';
+      box.appendChild(p);
+    }
+    const timeFmt = (t) => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const rows = [...byVoter.entries()].sort((a, b) => Math.max(...b[1].map((d) => d.created || 0)) - Math.max(...a[1].map((d) => d.created || 0)));
+    for (const [voter, list] of rows) {
+      const plan = duelPlan(v, voter);
+      const duels = list.filter((d) => d.kind === 'duel').sort((a, b) => (a.created || 0) - (b.created || 0));
+      const last = Math.max(...list.map((d) => d.created || 0));
+      const det = document.createElement('details');
+      det.className = 'ac-voter';
+      const sum = document.createElement('summary');
+      const finished = plan.total && plan.done >= plan.total;
+      sum.textContent = `${finished ? '✅' : '⏳'} ${acName(voter, v)} — ${duels.length ? `${plan.done}/${plan.total} duels` : plural(list.length, 'vote')}${last ? ` · dernier vote à ${timeFmt(last)}` : ''}`;
+      det.appendChild(sum);
+      const ul = document.createElement('ul');
+      for (const d of list) {
+        const li = document.createElement('li');
+        li.textContent = d.kind === 'duel'
+          ? `${acName(d.a, v)} contre ${acName(d.b, v)} → ${acName(d.winner, v)}`
+          : `Vote pour ${acName(d.entry, v)}`;
+        ul.appendChild(li);
+      }
+      det.appendChild(ul);
+      box.appendChild(det);
+    }
+    const missing = v.entries.filter((e) => !byVoter.has(e.owner));
+    if (missing.length && v.entries.length > 2) {
+      const p = document.createElement('p');
+      p.className = 'muted ac-missing';
+      p.textContent = `Participants qui n'ont pas encore voté : ${missing.map((e) => acName(e.owner, v)).join(', ')}.`;
+      box.appendChild(p);
+    }
+    return box;
+  }
   async function refreshAdminContest() {
+    if (!acPlayers) db.listPlayers().then((l) => { acPlayers = l; }).catch(() => {});
     let v, t;
     try {
       [v, t] = await Promise.all([loadContestDay(shiftDay(today(), -1)), loadContestDay(today())]);
@@ -4241,6 +4301,7 @@
       const box = provisionalRanking(v);
       box.querySelector('.ct-prov-title').textContent = '🏆 Classement actuel';
       live.appendChild(box);
+      live.appendChild(votersBox(v));
       const grid = document.createElement('div');
       grid.className = 'ct-grid ac-grid';
       v.entries.forEach((e) => grid.appendChild(entryCard(e, { canModerate: true, winner: v.winners.includes(e.owner) })));
