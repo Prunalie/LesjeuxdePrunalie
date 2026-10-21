@@ -18,7 +18,8 @@
   const MIN_SIZE = 16;
 
   // Collection
-  const ADMIN_PSEUDOS = ['administratrice'];  // pseudos (en minuscules) qui ont accès à l'atelier
+  const ADMIN_PSEUDOS = ['administratrice'];
+  const ADMIN_DISPLAY_NAME = 'Admin';     // nom affiché dans le jeu pour ce compte  // pseudos (en minuscules) qui ont accès à l'atelier
   const DAILY_POINTS = 100;            // points gagnés une fois par jour (par défaut ; réglable dans l'atelier)
   const DEFAULT_PRICE = 50;            // prix d'une nouvelle enveloppe
   const MULTI_BUY = 5;                 // nombre d'enveloppes du bouton « ×5 »
@@ -1777,11 +1778,16 @@
   }
 
   async function login(name) {
-    state.player = { key: normalizePseudo(name), name };
-    state.isAdmin = ADMIN_PSEUDOS.includes(state.player.key);
-    remember(name);
-    $('#playerName').textContent = name;
-    $('#playerName2').textContent = name;
+    const key = normalizePseudo(name);
+    state.isAdmin = ADMIN_PSEUDOS.includes(key);
+    // Le compte d'administration s'affiche « Admin » partout dans le jeu : le pseudo de
+    // connexion n'apparaît jamais à l'écran (ni pré-rempli à l'accueil).
+    const display = state.isAdmin ? ADMIN_DISPLAY_NAME : name;
+    state.player = { key, name: display };
+    if (state.isAdmin) { store(PSEUDO_KEY, null); store(SESSION_KEY, name); } else remember(name);
+    $('#pseudoInput').value = state.isAdmin ? '' : $('#pseudoInput').value;
+    $('#playerName').textContent = display;
+    $('#playerName2').textContent = display;
     $('#homeAtelier').hidden = !state.isAdmin;
     $('#homeAdmin').hidden = !state.isAdmin;
     state.images = new Map();
@@ -1809,7 +1815,7 @@
         // Un nouveau joueur n'a pas besoin de l'historique des mises à jour.
         newsSeen: Math.max(Date.now(), ...state.news.map((n) => n.date || 0)),
       };
-      state.profile.pseudo = name;
+      state.profile.pseudo = display;
       state.profile.key = state.player.key;
       state.profile.firstSeen = state.profile.firstSeen || Date.now();
       state.profile.lastSeen = Date.now();
@@ -4319,7 +4325,7 @@
           <button class="btn player-gift" title="Offrir des stickers">🎁<span class="label-long">&nbsp;Offrir</span></button>
           <button class="btn player-write" title="Envoyer un message dans sa boîte aux lettres">✉️<span class="label-long">&nbsp;Écrire</span></button>
         </div>`;
-      row.querySelector('.player-name').textContent = (p.pseudo || key) + (ADMIN_PSEUDOS.includes(key) ? ' · admin' : '');
+      row.querySelector('.player-name').textContent = ADMIN_PSEUDOS.includes(key) ? `${ADMIN_DISPLAY_NAME} 🛡️` : (p.pseudo || key);
       row.querySelector('.player-seen').textContent = `Vu ${relDays(lastSeen)}` + (p.firstSeen ? ` · depuis le ${dateFmt.format(p.firstSeen).replace(/ à .*/, '')}` : '');
       row.querySelector('.s-points').textContent = `${p.points || 0} 🪙`;
       row.querySelector('.s-coll').textContent = total ? `${distinct}/${total}` : `${distinct}`;
