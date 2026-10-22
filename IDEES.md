@@ -34,6 +34,7 @@ Coche une case (`- [x]`) quand c'est fait.
 - [x] **Remplacer l'image d'un sticker** : pouvoir réimporter une nouvelle image sur un sticker existant (pour améliorer son dessin) sans le perdre : les joueurs qui l'ont et les pièces où il est posé gardent le sticker, avec le nouveau dessin.
 - [x] Atelier réorganisé : liste des enveloppes, recherche, une enveloppe à la fois
 - [x] Offrir des stickers et des pièces aux joueurs
+- [x] **Enveloppes du jour** : 5 enveloppes au prix normal chaque jour, les autres plus chères (réglable dans Paramétrage)
 - [x] Message de bienvenue et cadeau de bienvenue (réglable dans Paramétrage) pour les nouveaux joueurs
 - [x] Messages aux joueurs avec un titre et un texte long (à un joueur ou à tous)
 - [x] Coffre : onglet « À ranger » et archives

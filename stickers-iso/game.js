@@ -73,6 +73,8 @@
     { group: 'Pièces et étoiles', key: 'starPrice', label: 'Prix d\'une étoile', unit: '🪙', def: () => STAR_PRICE, min: 1, max: 1000000, step: 50 },
     { group: 'Pièces et étoiles', key: 'stampsPerStar', label: 'Tampons pour gagner une étoile', unit: 'tampons', def: () => STAMPS_PER_STAR, min: 1, max: 100, step: 1 },
     { group: 'Boutique', key: 'defaultEnvPrice', label: 'Prix d\'une nouvelle enveloppe', unit: '🪙', def: () => DEFAULT_PRICE, max: 100000, step: 10 },
+    { group: 'Boutique', key: 'dailyEnvCount', label: 'Enveloppes du jour (prix normal, 0 = toutes)', unit: 'enveloppes', def: () => 5, max: 100, step: 1 },
+    { group: 'Boutique', key: 'offPricePct', label: 'Hausse du prix des autres enveloppes', unit: '%', def: () => 100, max: 1000, step: 10 },
     { group: 'Boutique', key: 'multiBuy', label: 'Enveloppes du bouton « ×… »', unit: 'enveloppes', def: () => MULTI_BUY, min: 2, max: 50, step: 1 },
     { group: 'Revente des stickers', key: 'sell_common', label: 'Revente d\'un commun', unit: '🪙', def: () => RARITIES.common.sell, max: 100000, step: 5 },
     { group: 'Revente des stickers', key: 'sell_rare', label: 'Revente d\'un rare', unit: '🪙', def: () => RARITIES.rare.sell, max: 100000, step: 5 },
@@ -2522,18 +2524,60 @@
     return el;
   }
 
+  // Enveloppes du jour : quelques-unes au prix normal (les mêmes pour tout le monde,
+  // tirées au sort chaque jour), les autres sont plus chères.
+  function seededRank(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995); h ^= h >>> 15;
+    return h >>> 0;
+  }
+  function dailyEnvelopeIds() {
+    const shop = state.envelopes.filter((env) => stickersOf(env.id).length);
+    const n = setting('dailyEnvCount');
+    if (!n || shop.length <= n) return new Set(shop.map((e) => e.id));
+    const day = today();
+    return new Set([...shop].sort((a, b) => seededRank(day + a.id) - seededRank(day + b.id)).slice(0, n).map((e) => e.id));
+  }
+  const isDailyEnvelope = (env) => dailyEnvelopeIds().has(env.id);
+  const basePrice = (env) => env.price ?? DEFAULT_PRICE;
+  function shopPrice(env) {
+    const base = basePrice(env);
+    if (isDailyEnvelope(env)) return base;
+    return Math.round(base * (1 + setting('offPricePct') / 100) / 5) * 5;
+  }
+
   function renderShop() {
     renderPoints();
     $('#shopDaily').textContent = `${dailyPoints()} 🪙`;
     renderStampCard();
     const grid = $('#shopGrid');
     grid.innerHTML = '';
-    const envs = state.envelopes.filter((env) => stickersOf(env.id).length);
-    $('#shopEmpty').hidden = envs.length > 0;
+    const all = state.envelopes.filter((env) => stickersOf(env.id).length);
+    $('#shopEmpty').hidden = all.length > 0;
+    const daily = dailyEnvelopeIds();
+    const featured = all.filter((env) => daily.has(env.id));
+    const others = all.filter((env) => !daily.has(env.id));
+    const heading = (title, sub) => {
+      const h = document.createElement('div');
+      h.className = 'shop-heading';
+      h.innerHTML = '<h2></h2><p class="muted"></p>';
+      h.querySelector('h2').textContent = title;
+      h.querySelector('p').textContent = sub;
+      grid.appendChild(h);
+    };
+    const envs = [];
+    if (others.length) {
+      heading('⭐ Les enveloppes du jour', 'Au prix normal aujourd\'hui · elles changent à minuit');
+      envs.push(...featured, null, ...others);
+    } else {
+      envs.push(...featured);
+    }
     for (const env of envs) {
+      if (!env) { heading('Les autres enveloppes', `Prix +${setting('offPricePct')} % aujourd'hui : guette-les dans les enveloppes du jour !`); continue; }
       const list = stickersOf(env.id);
       const got = list.filter((img) => owned(img.id) > 0).length;
-      const price = env.price ?? DEFAULT_PRICE;
+      const price = shopPrice(env);
       const card = document.createElement('article');
       card.className = 'shop-card';
       card.innerHTML = `
@@ -2546,6 +2590,8 @@
         </div>`;
       card.querySelector('.shop-art').appendChild(envelopeArt(env));
       card.querySelector('.shop-name').textContent = env.name || 'Enveloppe';
+      if (others.length && daily.has(env.id)) card.classList.add('shop-daily');
+      else if (others.length) card.classList.add('shop-other');
       card.querySelector('.bar span').style.width = `${(got / list.length) * 100}%`;
       card.querySelector('.txt').textContent = `${got}/${list.length} stickers`;
       const buy = card.querySelector('.shop-buy');
@@ -2589,7 +2635,7 @@
       cell.querySelector('.env-item-name').textContent = img.name;
       grid.appendChild(cell);
     }
-    const price = env.price ?? DEFAULT_PRICE;
+    const price = shopPrice(env);
     const buy = $('#envBuy');
     buy.textContent = `Acheter · ${price} 🪙`;
     buy.disabled = state.profile.points < price;
@@ -2620,7 +2666,7 @@
   async function buyEnvelope(env) {
     if (buying) return;
     const list = stickersOf(env.id);
-    const price = env.price ?? DEFAULT_PRICE;
+    const price = shopPrice(env);
     if (!list.length) return;
     if (state.profile.points < price) {
       toast(`Il te manque ${price - state.profile.points} 🪙 pour cette enveloppe.`);
@@ -2648,7 +2694,7 @@
   async function buyEnvelopes(env, n) {
     if (buying) return;
     const list = stickersOf(env.id);
-    const price = env.price ?? DEFAULT_PRICE;
+    const price = shopPrice(env);
     if (!list.length) return;
     const total = price * n;
     if (state.profile.points < total) {
@@ -2713,7 +2759,7 @@
     stamp.textContent = starsWon
       ? `+${results.length} tampons · carte complète ! Tu gagnes ${starsWon > 1 ? `${starsWon} étoiles` : 'une étoile'} 🌟`
       : `+${results.length} tampons · ${state.profile.stamps}/${stampsPerStar()}`;
-    const price = (env.price ?? DEFAULT_PRICE) * results.length;
+    const price = shopPrice(env) * results.length;
     const again = $('#multiAgain');
     again.textContent = `Encore ×${results.length} · ${price} 🪙`;
     again.disabled = state.profile.points < price;
@@ -2865,7 +2911,7 @@
     stampEl.textContent = opts.starWon
       ? `Carte complète ! Tu gagnes une étoile 🌟`
       : `+1 tampon · ${state.profile.stamps}/${stampsPerStar()}`;
-    const price = env.price ?? DEFAULT_PRICE;
+    const price = shopPrice(env);
     const again = $('#openAgain');
     again.hidden = !!opts.withStar;
     again.textContent = `Une autre · ${price} 🪙`;
@@ -3155,7 +3201,7 @@
       if (q && !normalizeText(env.name).includes(q) && !hits.length) continue;
       shown++;
       const sub = (list.length ? plural(list.length, 'sticker') : 'Vide : pas dans la boutique')
-        + ` · ${env.price ?? DEFAULT_PRICE} 🪙`
+        + ` · ${env.price ?? DEFAULT_PRICE} 🪙` + (list.length && isDailyEnvelope(env) && setting('dailyEnvCount') ? ' · ⭐ du jour' : '')
         + (hits.length ? ` · contient « ${hits.slice(0, 2).map((h) => h.name).join(' », « ')} »${hits.length > 2 ? '…' : ''}` : '');
       tile(envelopeArt(env), env.name || 'Enveloppe', sub, async () => { atelierOpen = env.id; renderAtelier(); await refreshCoffreCount(); if (atelierOpen === env.id) renderAtelier(); }, list.length ? '' : 'empty');
     }
@@ -3596,6 +3642,13 @@
   // ---------------------------------------------------------------------------
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
+    {
+      id: 'n-2026-10-22a', date: Date.UTC(2026, 9, 22, 8, 0), title: 'Les enveloppes du jour ⭐',
+      items: [
+        'Chaque jour, quelques enveloppes de la boutique sont au prix normal : ce sont les enveloppes du jour, les mêmes pour tout le monde.',
+        'Les autres restent en vente, mais plus chères. Reviens demain : la sélection change à minuit !',
+      ],
+    },
     {
       id: 'n-2026-10-21c', date: Date.UTC(2026, 9, 21, 11, 0), title: 'Concours : brouillon 📝',
       items: [

@@ -2100,3 +2100,10 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .cp-loupe[hidden] { display: none; }
 .cp-loupe canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
 .cp-loupe-cross { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; transform: translate(-50%, -50%); outline: 2px solid #fff; box-shadow: 0 0 0 3px rgba(0,0,0,.6); }
+
+/* Boutique : enveloppes du jour */
+.shop-heading { grid-column: 1 / -1; margin: 6px 0 -4px; }
+.shop-heading h2 { margin: 0; font-size: 1.15rem; }
+.shop-heading p { margin: 2px 0 0; font-size: .85rem; }
+.shop-card.shop-daily { border-color: #e6b422; box-shadow: 0 0 0 3px #fff3cc, 0 3px 0 var(--chunk); }
+.shop-card.shop-other .shop-buy { background: var(--surface); color: var(--ink); }
