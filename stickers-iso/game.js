@@ -227,6 +227,14 @@
         // On ne touche qu'au champ « lu » (sinon une vieille copie pourrait effacer « récupéré »).
         markMailRead: (id) => rooms.doc(id).set({ read: true }, { merge: true }),
         // Récupérer un cadeau une seule fois, même avec le jeu ouvert sur deux appareils.
+        // Crée le message seulement s'il n'existe pas déjà (pas de récompense en double).
+        createMail: ({ id, ...m }) => fs.runTransaction(async (tx) => {
+          const ref = rooms.doc(id);
+          const d = await tx.get(ref);
+          if (d.exists) return false;
+          tx.set(ref, clean({ ...m, type: 'mail' }));
+          return true;
+        }),
         claimMail: (id) => fs.runTransaction(async (tx) => {
           const ref = rooms.doc(id);
           const d = await tx.get(ref);
@@ -310,6 +318,11 @@
       markMailRead: async (id) => {
         const m = await run('mails', 'readonly', (s) => s.get(id));
         if (m && !m.read) await run('mails', 'readwrite', (s) => s.put({ ...m, read: true }));
+      },
+      createMail: async (m) => {
+        if (await run('mails', 'readonly', (s) => s.get(m.id))) return false;
+        await run('mails', 'readwrite', (s) => s.put(m));
+        return true;
       },
       claimMail: async (id) => {
         const m = await run('mails', 'readonly', (s) => s.get(id));
@@ -3723,6 +3736,13 @@
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
     {
+      id: 'n-2026-10-22b', date: Date.UTC(2026, 9, 22, 9, 0), title: 'Boîte aux lettres 💌',
+      items: [
+        'Tu gagnes le concours ? Un message de victoire arrive dans ta boîte aux lettres, avec ta récompense à récupérer.',
+        'Nouveau bouton « 📬 Tout lire et tout récupérer » pour ouvrir tous tes cadeaux d\'un coup.',
+      ],
+    },
+    {
       id: 'n-2026-10-22a', date: Date.UTC(2026, 9, 22, 8, 0), title: 'Les enveloppes du jour ⭐',
       items: [
         'Chaque jour, quelques enveloppes de la boutique sont au prix normal : ce sont les enveloppes du jour, les mêmes pour tout le monde.',
@@ -4009,25 +4029,47 @@
     let from = state.profile.contestChecked ? shiftDay(state.profile.contestChecked, 1) : shiftDay(today(), -8);
     if (from < shiftDay(today(), -8)) from = shiftDay(today(), -8);
     if (from > last) return;
-    let won = 0;
-    const themes = [];
+    const wins = [];
     try {
       for (let d = from; d <= last; d = shiftDay(d, 1)) {
         const res = await loadContestDay(d);
-        if (res.winners.includes(state.player.key)) {
-          won += rewardOf(res);
-          themes.push(themeOf(d));
-        }
+        if (res.winners.includes(state.player.key)) wins.push({ day: d, res });
       }
     } catch (e) {
       console.warn('Résultats du concours indisponibles', e);
       return;
     }
+    // Chaque victoire arrive dans la boîte aux lettres, avec la récompense à récupérer.
+    const me = state.player.key;
+    try {
+      for (const { day, res } of wins) {
+        const id = `contest-win-${day}-${me}`;
+        if (state.mails.some((m) => m.id === id)) continue;
+        const reward = rewardOf(res);
+        const entry = res.entries.find((e) => e.owner === me);
+        const room = entry && entry.roomName ? ` « ${entry.roomName} »` : '';
+        const when = dateFmt.format(new Date(`${day}T12:00:00`)).replace(/ à .*/, '');
+        let how;
+        if (res.solo) how = 'Tu étais la seule participation : tu gagnes d\'office !';
+        else if (res.winners.length > 1) how = `Égalité : tu partages la victoire avec ${res.winners.length - 1 > 1 ? `${res.winners.length - 1} autres joueurs` : 'un autre joueur'}.`;
+        else how = res.seen[me] ? `Ta pièce a gagné ${res.wins[me] || 0} duel${(res.wins[me] || 0) > 1 ? 's' : ''} sur ${res.seen[me]} (${Math.round(res.rate(me) * 100)} %).` : '';
+        const m = {
+          id, to: me, title: `🏆 Tu as gagné le concours « ${themeOf(day)} » !`,
+          text: `Bravo ! Ta pièce${room} a remporté le concours du ${when}, sur le thème « ${themeOf(day)} ». ${how}\n\nVoici ta récompense : ${reward} 🪙.`,
+          reward, read: false, claimed: false, created: Date.now(),
+        };
+        if (await db.createMail(m)) state.mails.push(m);
+      }
+    } catch (e) {
+      console.warn('Message de victoire impossible', e);
+      return; // on réessaiera à la prochaine connexion
+    }
     state.profile.contestChecked = last;
-    if (won) {
-      state.profile.points = (state.profile.points || 0) + won;
-      state.profile.contestWins = (state.profile.contestWins || 0) + themes.length;
-      setTimeout(() => toast(`🏆 Tu as gagné le concours « ${themes.join(' », « ')} » ! +${won} 🪙`), 1500);
+    if (wins.length) {
+      state.profile.contestWins = (state.profile.contestWins || 0) + wins.length;
+      const themes = wins.map((w) => themeOf(w.day));
+      renderMailBadge();
+      setTimeout(() => toast(`🏆 Tu as gagné le concours « ${themes.join(' », « ')} » ! Ta récompense t'attend dans ta boîte aux lettres 💌`), 1500);
     }
     saveProfile();
   }
