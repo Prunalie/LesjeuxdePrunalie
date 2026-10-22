@@ -2096,3 +2096,7 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .cp-pip-side { flex: 1; min-width: 0; }
 .cp-pip-hint { font-size: .78rem; }
 .cp-pip-colors { grid-template-columns: repeat(4, 1fr); }
+.cp-loupe { position: fixed; z-index: 3300; width: 120px; height: 120px; border-radius: 50%; overflow: hidden; border: 5px solid var(--line); box-shadow: 0 6px 18px rgba(0,0,0,.35), inset 0 0 0 1px rgba(0,0,0,.2); background: repeating-conic-gradient(#f3ece6 0 25%, #fff 0 50%) 0 0 / 16px 16px; pointer-events: none; }
+.cp-loupe[hidden] { display: none; }
+.cp-loupe canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
+.cp-loupe-cross { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; transform: translate(-50%, -50%); outline: 2px solid #fff; box-shadow: 0 0 0 3px rgba(0,0,0,.6); }

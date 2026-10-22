@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610221000">
+  <link rel="stylesheet" href="style.css?v=202610221030">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -614,6 +614,7 @@
       <div id="cpPipStrip" class="cp-pip-strip"></div>
       <div id="cpPipZoom" class="cp-pip-zoom" hidden>
         <canvas id="cpPipCanvas" class="cp-pip-canvas"></canvas>
+        <div id="cpLoupe" class="cp-loupe" hidden><canvas id="cpLoupeCanvas" width="120" height="120"></canvas><span class="cp-loupe-cross"></span></div>
         <div class="cp-pip-side">
           <span class="muted cp-pip-hint">Couleurs du sticker :</span>
           <div id="cpPipColors" class="cp-swatches cp-pip-colors"></div>
@@ -849,7 +850,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610221000"></script>
-  <script src="game.js?v=202610221000"></script>
+  <script src="firebase-config.js?v=202610221030"></script>
+  <script src="game.js?v=202610221030"></script>
 </body>
 </html>

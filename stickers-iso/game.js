@@ -1503,25 +1503,48 @@
     picked.forEach((c) => box.appendChild(swatchButton(rgbHex(c[0], c[1], c[2]), (x) => applyPickedColor(x))));
   }
   const rgbHex = (r, g, b) => '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join('');
-  function pipSample(e) {
+  // Loupe : agrandit les pixels autour du doigt (au-dessus, pour ne pas être caché par lui).
+  const LOUPE_PX = 15; // pixels visibles de chaque côté (la loupe fait 120 px)
+  function showLoupe(e, x, y, hex) {
+    const loupe = $('#cpLoupe');
+    const lc = $('#cpLoupeCanvas').getContext('2d');
+    lc.imageSmoothingEnabled = false;
+    lc.clearRect(0, 0, 120, 120);
+    const half = Math.floor(LOUPE_PX / 2);
+    lc.drawImage($('#cpPipCanvas'), x - half, y - half, LOUPE_PX, LOUPE_PX, 0, 0, 120, 120);
+    loupe.style.borderColor = hex || 'var(--line)';
+    const touch = e.pointerType !== 'mouse';
+    let top = e.clientY - (touch ? 150 : 140);
+    if (top < 4) top = e.clientY + (touch ? 40 : 20); // trop haut : on la met en dessous
+    loupe.style.left = `${Math.max(4, Math.min(window.innerWidth - 124, e.clientX - 60))}px`;
+    loupe.style.top = `${top}px`;
+    loupe.hidden = false;
+  }
+  const hideLoupe = () => { $('#cpLoupe').hidden = true; };
+  function pipSample(e, apply = true) {
     const cv = $('#cpPipCanvas');
     if (!pipCtx) return;
     const r = cv.getBoundingClientRect();
     const x = Math.floor((e.clientX - r.left) * cv.width / r.width);
     const y = Math.floor((e.clientY - r.top) * cv.height / r.height);
-    if (x < 0 || y < 0 || x >= cv.width || y >= cv.height) return;
+    if (x < 0 || y < 0 || x >= cv.width || y >= cv.height) { hideLoupe(); return; }
     let d;
     try { d = pipCtx.getImageData(x, y, 1, 1).data; } catch (err) { return; }
-    if (d[3] < 40) return; // fond transparent : on ignore
-    applyPickedColor(rgbHex(d[0], d[1], d[2]));
+    const hex = d[3] < 40 ? null : rgbHex(d[0], d[1], d[2]);
+    showLoupe(e, x, y, hex);
+    if (apply && hex) applyPickedColor(hex); // fond transparent : on ignore
   }
   {
+    // Hors de la palette (qui est décalée) pour se placer exactement au-dessus du doigt.
+    document.body.appendChild($('#cpLoupe'));
     const cv = $('#cpPipCanvas');
     let down = false;
     cv.addEventListener('pointerdown', (e) => { down = true; cv.setPointerCapture(e.pointerId); pipSample(e); e.preventDefault(); });
-    cv.addEventListener('pointermove', (e) => { if (down) pipSample(e); });
-    cv.addEventListener('pointerup', () => { down = false; });
-    cv.addEventListener('pointercancel', () => { down = false; });
+    // À la souris, la loupe suit le curseur même sans cliquer.
+    cv.addEventListener('pointermove', (e) => { if (down) pipSample(e); else if (e.pointerType === 'mouse') pipSample(e, false); });
+    cv.addEventListener('pointerup', (e) => { down = false; if (e.pointerType !== 'mouse') hideLoupe(); });
+    cv.addEventListener('pointercancel', () => { down = false; hideLoupe(); });
+    cv.addEventListener('pointerleave', () => { if (!down) hideLoupe(); });
   }
 
   // Palette pour une autre cible que la pièce (enveloppes de l'atelier…).
