@@ -206,6 +206,10 @@
         // Propositions de stickers des joueurs (dans la collection des stickers, proposal: true)
         listMyProposals: async (owner) => (await all(images.where('owner', '==', owner))).filter((r) => r.proposal),
         listProposals: () => all(images.where('proposal', '==', true)),
+        // Seulement celles en attente : bien plus léger que toutes les propositions (avec leurs images).
+        listPendingProposals: () => all(images.where('proposal', '==', true).where('status', '==', 'pending')),
+        // Change quelques champs sans renvoyer l'image.
+        updateImage: (id, fields) => images.doc(id).set(clean(fields), { merge: true }),
         // Boîte aux lettres : messages (type « mail ») adressés à un pseudo
         listMail: (to) => all(rooms.where('to', '==', to)),
         listPlayers: () => all(rooms.where('type', '==', 'player')),
@@ -287,6 +291,12 @@
       deleteEnvelope: (id) => run('envelopes', 'readwrite', (s) => s.delete(id)),
       listMyProposals: async (owner) => (await getAll('images')).filter((r) => r.proposal && r.owner === owner),
       listProposals: async () => (await getAll('images')).filter((r) => r.proposal),
+      listPendingProposals: async () => (await getAll('images')).filter((r) => r.proposal && r.status === 'pending'),
+      updateImage: async (id, fields) => {
+        const all = await getAll('images');
+        const cur = all.find((r) => r.id === id);
+        if (cur) await run('images', 'readwrite', (s) => s.put({ ...cur, ...fields }));
+      },
       listMail: async (to) => (await getAll('mails')).filter((m) => m.to === to),
       listPlayers: () => getAll('players'),
       getSettings: async () => (await run('settings', 'readonly', (s) => s.get('settings'))) || null,
@@ -2914,14 +2924,14 @@
         nameIn.value = img.name;
         nameIn.addEventListener('change', () => {
           img.name = nameIn.value.trim() || 'Sticker';
-          db.putImage(img).catch(() => toast('Le nom n\'a pas pu être enregistré.'));
+          db.updateImage(img.id, { name: img.name }).catch(() => toast('Le nom n\'a pas pu être enregistré.'));
         });
         const sel = cell.querySelector('.atelier-rarity');
         sel.value = img.rarity || 'common';
         sel.addEventListener('change', () => {
           img.rarity = sel.value;
           cell.dataset.rarity = img.rarity;
-          db.putImage(img).catch(() => toast('La rareté n\'a pas pu être enregistrée.'));
+          db.updateImage(img.id, { rarity: img.rarity }).catch(() => toast('La rareté n\'a pas pu être enregistrée.'));
         });
         cell.querySelector('.atelier-item-dl').addEventListener('click', () => downloadImage(img.url, img.name));
         const imgIn = cell.querySelector('.atelier-item-img input');
@@ -3092,7 +3102,7 @@
     img.envelope = env.id;
     img.archived = false;
     try {
-      await db.putImage(img);
+      await db.updateImage(img.id, { envelope: env.id, archived: false });
       toast(`« ${img.name} » est maintenant dans l'enveloppe « ${env.name} ».`);
     } catch (e) {
       console.warn('Déplacement impossible', e);
@@ -4672,9 +4682,20 @@
   // ---------------------------------------------------------------------------
   // Coffre (administratrice) : valider les propositions et les ranger en enveloppe
   // ---------------------------------------------------------------------------
+  // Toutes les propositions (avec leurs images) ne sont chargées qu'une fois par session :
+  // ensuite, on ne recharge que celles en attente (les acceptées ne changent que par ici).
+  let proposalsLoaded = false;
   async function refreshCoffreCount() {
     try {
-      state.proposals = await db.listProposals();
+      if (!proposalsLoaded) {
+        state.proposals = await db.listProposals();
+        proposalsLoaded = true;
+      } else {
+        const fresh = await db.listPendingProposals();
+        const keep = state.proposals.filter((p) => p.status !== 'pending');
+        const known = new Set(keep.map((p) => p.id));
+        state.proposals = keep.concat(fresh.filter((p) => !known.has(p.id)));
+      }
     } catch (e) {
       return;
     }
@@ -4700,7 +4721,7 @@
     img.envelope = null;
     img.archived = true;
     try {
-      await db.putImage(img);
+      await db.updateImage(img.id, { envelope: null, archived: true });
     } catch (e) {
       console.warn('Archivage impossible', e);
       toast('Le sticker n\'a pas pu être archivé. Vérifie ta connexion.');
@@ -4829,7 +4850,7 @@
     try {
       await db.putImage(rec);
       addImageToLibrary(rec);
-      await db.putImage(p);
+      await db.updateImage(p.id, { status: 'accepted', reward });
       await sendMail(p.owner, 'Sticker accepté 🎉',
         `Ton sticker « ${p.name} » a été accepté ! Voici ${reward ? `${reward} 🪙 et ` : ''}ton sticker en 1 exemplaire pour te remercier. Il pourra bientôt apparaître dans une enveloppe.`,
         reward, rec.id);
@@ -4847,7 +4868,7 @@
     if (answer === null) return;
     p.status = 'refused';
     try {
-      await db.putImage(p);
+      await db.updateImage(p.id, { status: 'refused' });
       await sendMail(p.owner, 'Proposition non retenue', `« ${p.name} » : ${answer}`);
       toast(`« ${p.name} » refusé. ${p.ownerName || p.owner} a reçu un message.`);
     } catch (e) {
@@ -4869,7 +4890,7 @@
       await db.putImage(rec);
       addImageToLibrary(rec);
       p.usedIn = env.id;
-      await db.putImage(p);
+      await db.updateImage(p.id, { usedIn: p.usedIn });
       toast(`« ${p.name} » ajouté à l'enveloppe « ${env.name} ». Tu peux choisir sa rareté dans l'atelier.`);
     } catch (e) {
       console.warn('Ajout impossible', e);
@@ -4938,7 +4959,7 @@
           rec.envelope = env.id;
           rec.archived = false;
           rec.fromProposal = p.id;
-          await db.putImage(rec);
+          await db.updateImage(rec.id, { envelope: env.id, archived: false, fromProposal: p.id });
         } else {
           const nrec = {
             id: uid(), catalog: true, envelope: env.id, rarity: 'common',
@@ -4949,7 +4970,7 @@
           addImageToLibrary(nrec);
         }
         p.usedIn = env.id;
-        await db.putImage(p);
+        await db.updateImage(p.id, { usedIn: p.usedIn });
         ok++;
       } catch (e) {
         console.warn('Rangement impossible', e);
@@ -4970,9 +4991,9 @@
     rec.archived = false;
     rec.fromProposal = p.id;
     try {
-      await db.putImage(rec);
+      await db.updateImage(rec.id, { envelope: env.id, archived: false, fromProposal: p.id });
       p.usedIn = env.id;
-      await db.putImage(p);
+      await db.updateImage(p.id, { usedIn: p.usedIn });
       toast(`« ${rec.name} » est maintenant dans l'enveloppe « ${env.name} ».`);
     } catch (e) {
       console.warn('Déplacement impossible', e);
