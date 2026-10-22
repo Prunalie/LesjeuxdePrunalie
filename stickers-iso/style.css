@@ -2116,3 +2116,4 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .daily-pick .daily-mark { font-size: 1.5rem; color: var(--muted); }
 .daily-pick.on { border-color: #e6b422; }
 .daily-pick.mine { background: #fff3cc; border-color: #e6b422; box-shadow: 0 0 0 2px #e6b422; }
+.settings-check input[type="checkbox"] { width: 24px; height: 24px; accent-color: var(--accent); cursor: pointer; }

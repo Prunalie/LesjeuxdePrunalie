@@ -80,6 +80,7 @@
     { group: 'Revente des stickers', key: 'sell_rare', label: 'Revente d\'un rare', unit: '🪙', def: () => RARITIES.rare.sell, max: 100000, step: 5 },
     { group: 'Revente des stickers', key: 'sell_epic', label: 'Revente d\'un très rare', unit: '🪙', def: () => RARITIES.epic.sell, max: 100000, step: 5 },
     { group: 'Propositions de stickers', key: 'proposalReward', label: 'Pièces proposées quand je valide', unit: '🪙', def: () => PROPOSAL_REWARD, max: 100000, step: 10 },
+    { group: 'Propositions de stickers', key: 'proposalGiveSticker', type: 'bool', label: 'Offrir aussi le sticker (1 exemplaire) au joueur qui l\'a proposé', def: () => true },
     { group: 'Propositions de stickers', key: 'maxPending', label: 'Propositions en attente par joueur', unit: 'au plus', def: () => MAX_PENDING, min: 1, max: 1000, step: 1 },
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_garden', label: '🌳 Jardin', unit: '🌟', def: () => 2, max: 100, step: 1 },
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_size', label: '📐 Taille sur mesure', unit: '🌟', def: () => 1, max: 100, step: 1 },
@@ -93,6 +94,7 @@
   function setting(key) {
     const def = SETTING_BY_KEY[key];
     const raw = state.settings[key];
+    if (def.type === 'bool') return raw === undefined || raw === null ? def.def() : !!raw;
     const n = Math.round(Number(raw));
     if (raw === undefined || raw === null || raw === '' || !Number.isFinite(n)) return def.def();
     return Math.max(def.min ?? 0, n);
@@ -4623,6 +4625,16 @@
       }
       const row = document.createElement('label');
       row.className = 'settings-row';
+      if (def.type === 'bool') {
+        row.classList.add('settings-check');
+        row.innerHTML = '<span class="settings-label"></span><span class="settings-input"><input type="checkbox"></span>';
+        row.querySelector('.settings-label').textContent = def.label;
+        const cb = row.querySelector('input');
+        cb.dataset.key = def.key;
+        cb.checked = setting(def.key);
+        groupEl.appendChild(row);
+        continue;
+      }
       row.innerHTML = '<span class="settings-label"></span><span class="settings-input"><input class="field" type="number" inputmode="numeric"><span class="settings-unit"></span></span>';
       row.querySelector('.settings-label').textContent = def.label;
       row.querySelector('.settings-unit').textContent = def.unit || '';
@@ -4641,6 +4653,7 @@
     const before = JSON.parse(JSON.stringify(state.settings));
     for (const input of document.querySelectorAll('#settingsForm input[data-key]')) {
       const def = SETTING_BY_KEY[input.dataset.key];
+      if (def.type === 'bool') { state.settings[def.key] = input.checked; continue; }
       const v = input.value.trim();
       if (v === '') { delete state.settings[def.key]; continue; }
       const n = Math.round(Number(v));
@@ -5071,7 +5084,8 @@
   }
 
   async function acceptProposal(p) {
-    const answer = await askText(`Valider « ${p.name} » de ${p.ownerName || p.owner}. Combien de pièces lui offrir ?`, 'Valider', String(proposalReward()));
+    const give = setting('proposalGiveSticker');
+    const answer = await askText(`Valider « ${p.name} » de ${p.ownerName || p.owner}. Combien de pièces lui offrir ?${give ? ' (Il recevra aussi le sticker en 1 exemplaire.)' : ''}`, 'Valider', String(proposalReward()));
     if (answer === null) return;
     const reward = Math.max(0, Math.round(Number(answer) || 0));
     p.status = 'accepted';
@@ -5086,9 +5100,12 @@
       await db.putImage(rec);
       addImageToLibrary(rec);
       await db.updateImage(p.id, { status: 'accepted', reward });
+      const thanks = give
+        ? `Voici ${reward ? `${reward} 🪙 et ` : ''}ton sticker en 1 exemplaire pour te remercier.`
+        : (reward ? `Voici ${reward} 🪙 pour te remercier.` : 'Merci beaucoup !');
       await sendMail(p.owner, 'Sticker accepté 🎉',
-        `Ton sticker « ${p.name} » a été accepté ! Voici ${reward ? `${reward} 🪙 et ` : ''}ton sticker en 1 exemplaire pour te remercier. Il pourra bientôt apparaître dans une enveloppe.`,
-        reward, rec.id);
+        `Ton sticker « ${p.name} » a été accepté ! ${thanks} Il pourra bientôt apparaître dans une enveloppe.`,
+        reward, give ? rec.id : null);
       toast(`« ${p.name} » validé. ${p.ownerName || p.owner} a reçu un message.`);
     } catch (e) {
       console.warn('Validation impossible', e);
