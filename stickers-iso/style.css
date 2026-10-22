@@ -2107,3 +2107,12 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .shop-heading p { margin: 2px 0 0; font-size: .85rem; }
 .shop-card.shop-daily { border-color: #e6b422; box-shadow: 0 0 0 3px #fff3cc, 0 3px 0 var(--chunk); }
 .shop-card.shop-other .shop-buy { background: var(--surface); color: var(--ink); }
+
+/* Atelier : choisir les enveloppes du jour */
+.atelier-daily-head { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.atelier-daily-tabs { display: flex; gap: 6px; }
+.atelier-daily-info { margin: 0; font-weight: 700; }
+.atelier-daily-head .atelier-daily-random { align-self: flex-start; }
+.daily-pick .daily-mark { font-size: 1.5rem; color: var(--muted); }
+.daily-pick.on { border-color: #e6b422; }
+.daily-pick.mine { background: #fff3cc; border-color: #e6b422; box-shadow: 0 0 0 2px #e6b422; }

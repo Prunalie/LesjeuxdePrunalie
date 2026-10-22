@@ -2532,12 +2532,21 @@
     h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995); h ^= h >>> 15;
     return h >>> 0;
   }
-  function dailyEnvelopeIds() {
+  // Choix de l'administratrice pour un jour donné (sinon tirage au sort, le même pour tous).
+  const dailyPicks = (day) => {
+    const all = state.settings.dailyEnvPicks;
+    return (all && Array.isArray(all[day]) ? all[day] : []);
+  };
+  function dailyEnvelopeIds(day = today()) {
     const shop = state.envelopes.filter((env) => stickersOf(env.id).length);
     const n = setting('dailyEnvCount');
     if (!n || shop.length <= n) return new Set(shop.map((e) => e.id));
-    const day = today();
-    return new Set([...shop].sort((a, b) => seededRank(day + a.id) - seededRank(day + b.id)).slice(0, n).map((e) => e.id));
+    const chosen = dailyPicks(day).filter((id) => shop.some((e) => e.id === id)).slice(0, n);
+    // S'il en manque (aucun choix, ou moins de n), on complète au hasard.
+    const rest = shop.filter((e) => !chosen.includes(e.id))
+      .sort((a, b) => seededRank(day + a.id) - seededRank(day + b.id))
+      .slice(0, n - chosen.length).map((e) => e.id);
+    return new Set([...chosen, ...rest]);
   }
   const isDailyEnvelope = (env) => dailyEnvelopeIds().has(env.id);
   const basePrice = (env) => env.price ?? DEFAULT_PRICE;
@@ -2930,6 +2939,8 @@
   function openAtelier() {
     if (!state.isAdmin) return;
     atelierOpen = null;
+    atelierDaily = false;
+    atelierReorder = false;
     $('#atelierSearch').value = '';
     renderAtelier();
     refreshCoffreCount();
@@ -2979,11 +2990,15 @@
     listEl.innerHTML = '';
     if (!detail) {
       $('#atelierEmpty').hidden = state.envelopes.length > 0;
-      $('#atelierSearch').hidden = atelierReorder;
+      $('#atelierSearch').hidden = atelierReorder || atelierDaily;
       $('#atelierOrder').textContent = atelierReorder ? '✓ Terminé' : '↕️ Ordre de la boutique';
       $('#atelierOrder').classList.toggle('btn-primary', atelierReorder);
-      $('#atelierOrder').hidden = state.envelopes.length < 2;
+      $('#atelierOrder').hidden = state.envelopes.length < 2 || atelierDaily;
+      $('#atelierDaily').textContent = atelierDaily ? '✓ Terminé' : '⭐ Enveloppes du jour';
+      $('#atelierDaily').classList.toggle('btn-primary', atelierDaily);
+      $('#atelierDaily').hidden = atelierReorder;
       if (atelierReorder) renderAtelierOrder(listEl);
+      else if (atelierDaily) renderAtelierDaily(listEl);
       else renderAtelierTiles(listEl);
       return;
     }
@@ -3178,6 +3193,69 @@
     renderAtelier();
   }
   $('#atelierOrder').addEventListener('click', () => { atelierReorder = !atelierReorder; renderAtelier(); });
+
+  // Choisir les enveloppes du jour (aujourd'hui ou demain) ; sinon, tirage au sort.
+  let atelierDaily = false;
+  let dailyDayOffset = 0;
+  function renderAtelierDaily(listEl) {
+    const n = setting('dailyEnvCount');
+    const day = shiftDay(today(), dailyDayOffset);
+    const shop = state.envelopes.filter((env) => stickersOf(env.id).length);
+    const head = document.createElement('div');
+    head.className = 'atelier-daily-head';
+    if (!n) {
+      head.innerHTML = '<p class="muted">Les enveloppes du jour sont désactivées (Paramétrage → Boutique → 0) : toutes sont au prix normal.</p>';
+      listEl.appendChild(head);
+      return;
+    }
+    const picks = dailyPicks(day).filter((id) => shop.some((e) => e.id === id));
+    const current = dailyEnvelopeIds(day);
+    head.innerHTML = `<div class="atelier-daily-tabs">
+        <button type="button" class="btn ${dailyDayOffset === 0 ? 'btn-primary' : ''}" data-off="0">Aujourd'hui</button>
+        <button type="button" class="btn ${dailyDayOffset === 1 ? 'btn-primary' : ''}" data-off="1">Demain</button>
+      </div>
+      <p class="atelier-daily-info"></p>
+      <button type="button" class="btn btn-ghost atelier-daily-random">🎲 Revenir au tirage au sort</button>`;
+    head.querySelector('.atelier-daily-info').textContent = picks.length
+      ? `Ton choix : ${picks.length}/${n}${picks.length < n ? ` (les ${n - picks.length} autres sont tirées au sort)` : ''}. Touche une enveloppe pour l'ajouter ou la retirer.`
+      : `Tirage au sort en ce moment. Touche une enveloppe pour choisir toi-même (jusqu'à ${n}).`;
+    head.querySelector('.atelier-daily-random').hidden = !picks.length;
+    head.querySelectorAll('[data-off]').forEach((b) => b.addEventListener('click', () => { dailyDayOffset = Number(b.dataset.off); renderAtelier(); }));
+    head.querySelector('.atelier-daily-random').addEventListener('click', () => setDailyPicks(day, []));
+    listEl.appendChild(head);
+    const grid = document.createElement('div');
+    grid.className = 'atelier-tiles';
+    for (const env of shop) {
+      const mine = picks.includes(env.id);
+      const on = current.has(env.id);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'atelier-tile daily-pick' + (on ? ' on' : '') + (mine ? ' mine' : '');
+      b.innerHTML = '<div class="atelier-tile-art"></div><div class="atelier-tile-text"><strong></strong><span class="muted"></span></div><span class="daily-mark"></span>';
+      b.querySelector('.atelier-tile-art').appendChild(envelopeArt(env));
+      b.querySelector('strong').textContent = env.name || 'Enveloppe';
+      b.querySelector('.muted').textContent = `${env.price ?? DEFAULT_PRICE} 🪙` + (mine ? ' · choisie par toi' : on ? ' · tirée au sort' : '');
+      b.querySelector('.daily-mark').textContent = on ? '⭐' : '☆';
+      b.addEventListener('click', () => {
+        if (mine) { setDailyPicks(day, picks.filter((id) => id !== env.id)); return; }
+        if (picks.length >= n) { toast(`Tu as déjà choisi ${n} enveloppes : retires-en une d'abord.`); return; }
+        setDailyPicks(day, [...picks, env.id]);
+      });
+      grid.appendChild(b);
+    }
+    listEl.appendChild(grid);
+    if (!shop.length) listEl.insertAdjacentHTML('beforeend', '<p class="muted">Aucune enveloppe avec des stickers pour l\'instant.</p>');
+  }
+  async function setDailyPicks(day, ids) {
+    const all = { ...(state.settings.dailyEnvPicks || {}) };
+    // On ne garde que les jours à venir (aujourd'hui et après).
+    for (const d of Object.keys(all)) if (d < today()) delete all[d];
+    if (ids.length) all[day] = ids; else delete all[day];
+    state.settings.dailyEnvPicks = all;
+    renderAtelier();
+    await saveSettings();
+  }
+  $('#atelierDaily').addEventListener('click', () => { atelierDaily = !atelierDaily; dailyDayOffset = 0; renderAtelier(); });
 
   // Liste des enveloppes en tuiles (avec recherche par nom d'enveloppe ou de sticker).
   function renderAtelierTiles(listEl) {
