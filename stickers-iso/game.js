@@ -4837,6 +4837,11 @@
 
   function renderMail() {
     renderPoints();
+    const gifts = state.mails.filter((m) => hasGift(m) && !m.claimed).length;
+    const unread = state.mails.filter((m) => !m.read).length;
+    const all = $('#mailAll');
+    all.hidden = !gifts && !unread;
+    all.textContent = gifts ? `📬 Tout lire et tout récupérer (${gifts} cadeau${gifts > 1 ? 'x' : ''})` : '📬 Tout marquer comme lu';
     const list = $('#mailList');
     list.innerHTML = '';
     const mails = [...state.mails].sort((a, b) => (b.created || 0) - (a.created || 0));
@@ -4919,6 +4924,42 @@
       list.appendChild(el);
     }
   }
+
+  // Tout lire et récupérer tous les cadeaux en une fois.
+  let claimingAll = false;
+  $('#mailAll').addEventListener('click', async () => {
+    if (claimingAll) return;
+    claimingAll = true;
+    const btn = $('#mailAll');
+    btn.disabled = true;
+    for (const m of state.mails) {
+      if (!m.read) { m.read = true; db.markMailRead(m.id).catch(() => {}); }
+    }
+    let coins = 0, stickers = 0, done = 0, failed = 0;
+    try {
+      await refreshProfile();
+      for (const m of state.mails.filter((x) => hasGift(x) && !x.claimed)) {
+        let ok;
+        try { ok = await db.claimMail(m.id); } catch (e) { failed++; continue; }
+        m.claimed = true;
+        if (!ok) continue; // déjà récupéré ailleurs
+        done++;
+        if (m.reward) { state.profile.points += m.reward; coins += m.reward; }
+        for (const id of giftIds(m)) { state.profile.inventory[id] = (state.profile.inventory[id] || 0) + 1; stickers++; }
+      }
+      if (done) saveProfile();
+    } finally {
+      claimingAll = false;
+      btn.disabled = false;
+    }
+    const parts = [];
+    if (coins) parts.push(`+${coins} 🪙`);
+    if (stickers) parts.push(plural(stickers, 'sticker'));
+    if (failed) toast('Certains cadeaux n\'ont pas pu être récupérés. Vérifie ta connexion et réessaie.');
+    else toast(parts.length ? `Tout est récupéré : ${parts.join(' et ')} !` : 'Tous tes messages sont lus ✓');
+    renderMail();
+    renderMailBadge();
+  });
 
   // stickers : un id, ou une liste d'ids (un par exemplaire offert).
   function sendMail(to, title, text, reward = 0, stickers = null) {
