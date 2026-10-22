@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610220900">
+  <link rel="stylesheet" href="style.css?v=202610221000">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -609,6 +609,17 @@
       </div>
       <button id="cpOk" class="btn btn-primary">OK</button>
     </div>
+    <div id="cpPipette" class="cp-section" hidden>
+      <h3>💧 Pipette : touche un sticker, puis l'endroit dont tu veux la couleur</h3>
+      <div id="cpPipStrip" class="cp-pip-strip"></div>
+      <div id="cpPipZoom" class="cp-pip-zoom" hidden>
+        <canvas id="cpPipCanvas" class="cp-pip-canvas"></canvas>
+        <div class="cp-pip-side">
+          <span class="muted cp-pip-hint">Couleurs du sticker :</span>
+          <div id="cpPipColors" class="cp-swatches cp-pip-colors"></div>
+        </div>
+      </div>
+    </div>
     <div class="cp-section">
       <div class="cp-section-head"><h3>Mes couleurs</h3><button id="cpSave" class="btn btn-ghost cp-small">＋ Garder cette couleur</button></div>
       <div id="cpSaved" class="cp-swatches"></div>
@@ -838,7 +849,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610220900"></script>
-  <script src="game.js?v=202610220900"></script>
+  <script src="firebase-config.js?v=202610221000"></script>
+  <script src="game.js?v=202610221000"></script>
 </body>
 </html>

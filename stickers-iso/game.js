@@ -1446,10 +1446,89 @@
     renderPickerState(cpCurrent(), false);
   }
 
+  // Pipette : on choisit un sticker puis on touche l'endroit dont on veut la couleur.
+  function setupPipette(stickers) {
+    const box = $('#cpPipette');
+    const list = stickers.filter((img) => img && img.url);
+    box.hidden = !list.length;
+    $('#cpPipZoom').hidden = true;
+    const strip = $('#cpPipStrip');
+    strip.innerHTML = '';
+    for (const img of list) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'cp-pip-thumb';
+      b.title = img.name || 'Sticker';
+      b.innerHTML = '<img alt="">';
+      b.querySelector('img').src = img.url;
+      b.addEventListener('click', () => {
+        strip.querySelectorAll('.cp-pip-thumb').forEach((x) => x.classList.toggle('active', x === b));
+        showPipSticker(img);
+      });
+      strip.appendChild(b);
+    }
+  }
+  let pipCtx = null;
+  async function showPipSticker(img) {
+    const el = new Image();
+    el.src = img.url;
+    try { await el.decode(); } catch (e) { toast('Image impossible à lire.'); return; }
+    const cv = $('#cpPipCanvas');
+    const max = 260;
+    const k = Math.min(1, max / Math.max(el.naturalWidth, el.naturalHeight));
+    cv.width = Math.max(1, Math.round(el.naturalWidth * k));
+    cv.height = Math.max(1, Math.round(el.naturalHeight * k));
+    pipCtx = cv.getContext('2d', { willReadFrequently: true });
+    pipCtx.clearRect(0, 0, cv.width, cv.height);
+    pipCtx.drawImage(el, 0, 0, cv.width, cv.height);
+    $('#cpPipZoom').hidden = false;
+    // Couleurs principales du sticker, proposées en un geste.
+    const box = $('#cpPipColors');
+    box.innerHTML = '';
+    let data;
+    try { data = pipCtx.getImageData(0, 0, cv.width, cv.height).data; } catch (e) { return; }
+    const counts = new Map();
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] < 200) continue;
+      const q = ((data[i] >> 4) << 8) | ((data[i + 1] >> 4) << 4) | (data[i + 2] >> 4);
+      counts.set(q, (counts.get(q) || 0) + 1);
+    }
+    const picked = [];
+    for (const [q] of [...counts.entries()].sort((a, b) => b[1] - a[1])) {
+      const rgb = [(q >> 8) & 15, (q >> 4) & 15, q & 15].map((v) => v * 16 + 8);
+      if (picked.some((c) => Math.abs(c[0] - rgb[0]) + Math.abs(c[1] - rgb[1]) + Math.abs(c[2] - rgb[2]) < 60)) continue;
+      picked.push(rgb);
+      if (picked.length >= 8) break;
+    }
+    picked.forEach((c) => box.appendChild(swatchButton(rgbHex(c[0], c[1], c[2]), (x) => applyPickedColor(x))));
+  }
+  const rgbHex = (r, g, b) => '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join('');
+  function pipSample(e) {
+    const cv = $('#cpPipCanvas');
+    if (!pipCtx) return;
+    const r = cv.getBoundingClientRect();
+    const x = Math.floor((e.clientX - r.left) * cv.width / r.width);
+    const y = Math.floor((e.clientY - r.top) * cv.height / r.height);
+    if (x < 0 || y < 0 || x >= cv.width || y >= cv.height) return;
+    let d;
+    try { d = pipCtx.getImageData(x, y, 1, 1).data; } catch (err) { return; }
+    if (d[3] < 40) return; // fond transparent : on ignore
+    applyPickedColor(rgbHex(d[0], d[1], d[2]));
+  }
+  {
+    const cv = $('#cpPipCanvas');
+    let down = false;
+    cv.addEventListener('pointerdown', (e) => { down = true; cv.setPointerCapture(e.pointerId); pipSample(e); e.preventDefault(); });
+    cv.addEventListener('pointermove', (e) => { if (down) pipSample(e); });
+    cv.addEventListener('pointerup', () => { down = false; });
+    cv.addEventListener('pointercancel', () => { down = false; });
+  }
+
   // Palette pour une autre cible que la pièce (enveloppes de l'atelier…).
   function openColorPickerFor(target) {
     cpTarget = target;
     cpKey = 'custom';
+    setupPipette(target.stickers || []);
     $('#cpTitle').textContent = target.label;
     const base = $('#cpBase');
     if (!base.children.length) BASE_COLORS.forEach((c) => base.appendChild(swatchButton(c, (x) => applyPickedColor(x))));
@@ -1461,6 +1540,7 @@
   function openColorPicker(key) {
     cpTarget = null;
     cpKey = key;
+    setupPipette([]);
     $('#cpTitle').textContent = CP_LABELS[key] || 'Couleur';
     const base = $('#cpBase');
     if (!base.children.length) BASE_COLORS.forEach((c) => base.appendChild(swatchButton(c, (x) => applyPickedColor(x))));
@@ -2890,6 +2970,7 @@
       // Même palette que pour les pièces : couleurs en mémoire, couleurs de base, curseurs.
       const pickFor = (field, label) => () => openColorPickerFor({
         label: `${label} · ${env.name || 'Enveloppe'}`,
+        stickers: stickersOf(env.id),
         get: () => (field === 'seal' ? env.seal || DEFAULT_SEAL : env.color || ENVELOPE_COLORS[0]),
         set: (hex) => {
           env[field] = hex;
