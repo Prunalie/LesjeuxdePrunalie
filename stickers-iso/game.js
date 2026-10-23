@@ -3278,10 +3278,26 @@
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'atelier-tile daily-pick' + (on ? ' on' : '') + (mine ? ' mine' : '');
-      b.innerHTML = '<div class="atelier-tile-art"></div><div class="atelier-tile-text"><strong></strong><span class="muted"></span></div><span class="daily-mark"></span>';
+      b.innerHTML = '<div class="atelier-tile-art"></div><div class="atelier-tile-text"><strong></strong><span class="muted"></span><div class="daily-strip"></div></div><span class="daily-mark"></span>';
       b.querySelector('.atelier-tile-art').appendChild(envelopeArt(env));
       b.querySelector('strong').textContent = env.name || 'Enveloppe';
-      b.querySelector('.muted').textContent = `${env.price ?? DEFAULT_PRICE} 🪙` + (mine ? ' · choisie par toi' : on ? ' · tirée au sort' : '');
+      const content = stickersOf(env.id);
+      b.querySelector('.muted').textContent = `${env.price ?? DEFAULT_PRICE} 🪙 · ${plural(content.length, 'sticker')}` + (mine ? ' · choisie par toi' : on ? ' · tirée au sort' : '');
+      // Contenu de la collection : tous les stickers, les plus rares d'abord.
+      const rank = { epic: 0, rare: 1, common: 2 };
+      const strip = b.querySelector('.daily-strip');
+      for (const img of [...content].sort((x, y) => rank[x.rarity || 'common'] - rank[y.rarity || 'common'])) {
+        const t = document.createElement('span');
+        t.className = 'daily-thumb';
+        t.dataset.rarity = img.rarity || 'common';
+        t.title = `${img.name} · ${RARITIES[img.rarity || 'common'].label || img.rarity || 'commun'}`;
+        const im = document.createElement('img');
+        im.alt = img.name || '';
+        im.loading = 'lazy';
+        im.src = img.url;
+        t.appendChild(im);
+        strip.appendChild(t);
+      }
       b.querySelector('.daily-mark').textContent = on ? '⭐' : '☆';
       b.addEventListener('click', () => {
         if (mine) { setDailyPicks(day, picks.filter((id) => id !== env.id)); return; }

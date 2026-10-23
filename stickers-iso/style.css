@@ -2145,3 +2145,11 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .ac-theme-day { font-weight: 700; }
 .ac-theme-select { width: 100%; }
 @media (max-width: 480px) { .ac-theme-row { grid-template-columns: 1fr; gap: 3px; } }
+
+/* Choix des enveloppes du jour : contenu de chaque collection */
+.daily-pick .atelier-tile-text { gap: 6px; }
+.daily-strip { display: flex; flex-wrap: wrap; gap: 4px; }
+.daily-thumb { width: 38px; height: 38px; padding: 2px; border-radius: 8px; border: 2px solid var(--r, var(--line)); background: repeating-conic-gradient(#f3ece6 0 25%, #fff 0 50%) 0 0 / 10px 10px; }
+.daily-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.daily-pick { align-items: flex-start; }
+.daily-pick .atelier-tile-art { margin-top: 4px; }
