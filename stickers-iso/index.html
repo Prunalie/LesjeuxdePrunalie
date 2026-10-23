@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610231200">
+  <link rel="stylesheet" href="style.css?v=202610231300">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -290,27 +290,15 @@
         <button id="shopBack" class="btn btn-ghost" title="Retour">←<span class="label-long">&nbsp;Retour</span></button>
         <h1>Boutique</h1>
       </div>
-      <div class="topbar-actions"><span class="points-pill"></span></div>
+      <div class="topbar-actions">
+        <button id="shopStamps" class="btn stamps-btn" title="Ma carte de tampons et mes étoiles" aria-haspopup="dialog">⭐<span id="shopStampsText"></span></button>
+        <span class="points-pill"></span>
+      </div>
     </header>
     <div class="rooms-body">
       <p class="shop-intro">Chaque enveloppe contient <strong>un</strong> sticker tiré au sort. Touche une enveloppe pour voir ce qu'elle peut contenir. Tu gagnes <strong id="shopDaily">100 🪙</strong> chaque jour.</p>
       <div id="shopGrid" class="shop-grid"></div>
       <p id="shopEmpty" class="empty" hidden>Aucune enveloppe en vente pour l'instant. Reviens bientôt&nbsp;!</p>
-      <section class="stamp-card" aria-label="Carte de tampons">
-        <div class="stamp-head">
-          <div>
-            <h2>Carte de tampons</h2>
-            <p id="stampText" class="muted"></p>
-          </div>
-          <div class="stamp-stars">
-            <span id="starCount" class="star-pill"></span>
-            <button id="btnBuyStar" class="btn"></button>
-            <button id="btnUseStar" class="btn btn-primary"></button>
-          </div>
-        </div>
-        <div id="stampGrid" class="stamp-grid"></div>
-        <p class="stamp-help muted">1 enveloppe achetée = 1 tampon. 10 tampons = 1 étoile 🌟 (ou achète-la pour 1000 🪙), qui permet de choisir le sticker que tu veux dans n'importe quelle enveloppe.</p>
-      </section>
     </div>
   </section>
 
@@ -800,6 +788,27 @@
     </div>
   </div>
 
+  <div id="stampDialog" class="modal" hidden>
+    <div class="modal-box modal-wide stamp-dialog-box" role="dialog" aria-modal="true" aria-label="Carte de tampons">
+      <section class="stamp-card in-dialog" aria-label="Carte de tampons">
+        <div class="stamp-head">
+          <div>
+            <h2>Carte de tampons</h2>
+            <p id="stampText" class="muted"></p>
+          </div>
+          <div class="stamp-stars">
+            <span id="starCount" class="star-pill"></span>
+            <button id="btnBuyStar" class="btn"></button>
+            <button id="btnUseStar" class="btn btn-primary"></button>
+          </div>
+        </div>
+        <div id="stampGrid" class="stamp-grid"></div>
+        <p class="stamp-help muted">1 enveloppe achetée = 1 tampon. 10 tampons = 1 étoile 🌟 (ou achète-la pour 1000 🪙), qui permet de choisir le sticker que tu veux dans n'importe quelle enveloppe.</p>
+      </section>
+      <div class="modal-actions"><button id="stampClose" class="btn">Fermer</button></div>
+    </div>
+  </div>
+
   <div id="starDialog" class="modal" hidden>
     <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="starTitle">
       <h2 id="starTitle" class="modal-title">Choisis ton sticker 🌟</h2>
@@ -853,7 +862,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610231200"></script>
-  <script src="game.js?v=202610231200"></script>
+  <script src="firebase-config.js?v=202610231300"></script>
+  <script src="game.js?v=202610231300"></script>
 </body>
 </html>

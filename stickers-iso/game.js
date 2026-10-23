@@ -2835,6 +2835,8 @@
     }
     $('#stampText').textContent = `${n}/${stampsPerStar()} tampons · encore ${stampsPerStar() - n} enveloppe${stampsPerStar() - n > 1 ? 's' : ''} pour gagner une étoile`;
     $('#starCount').textContent = `🌟 ×${stars}`;
+    // Bouton de la barre du haut : tampons en cours (et étoiles disponibles).
+    $('#shopStampsText').textContent = ` ${n}/${stampsPerStar()}`;
     const use = $('#btnUseStar');
     use.disabled = stars < 1 || !collectible().length;
     use.textContent = stars ? 'Utiliser une étoile' : 'Pas encore d\'étoile';
@@ -2895,7 +2897,10 @@
     }
     starDialog.hidden = false;
   }
-  $('#btnUseStar').addEventListener('click', () => openStarPicker());
+  $('#btnUseStar').addEventListener('click', () => { $('#stampDialog').hidden = true; openStarPicker(); });
+  $('#shopStamps').addEventListener('click', () => { renderStampCard(); $('#stampDialog').hidden = false; });
+  $('#stampClose').addEventListener('click', () => { $('#stampDialog').hidden = true; });
+  $('#stampDialog').addEventListener('click', (e) => { if (e.target.id === 'stampDialog') $('#stampDialog').hidden = true; });
   $('#starClose').addEventListener('click', () => { starDialog.hidden = true; });
 
   async function useStar(env, img) {
