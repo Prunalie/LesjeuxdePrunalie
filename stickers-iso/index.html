@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610231630">
+  <link rel="stylesheet" href="style.css?v=202610231710">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -208,6 +208,7 @@
         <div class="room-tools" role="group" aria-label="Pièce">
           <button id="btnColors" aria-controls="colorsPanel" aria-expanded="false" title="Couleurs des murs, du sol et du fond">🎨<span class="label-long">&nbsp;Couleurs</span></button>
           <button id="btnShape" title="Aménager : jardin, taille, étages">🏗️<span class="label-long">&nbsp;Aménager</span></button>
+          <button id="btnExport2" class="tool-export" title="Exporter la pièce en image">📷<span class="label-long">&nbsp;Exporter</span></button>
           <button id="btnContestDraft" class="tool-draft" hidden title="Enregistrer en brouillon et revenir plus tard">💾<span class="label-long">&nbsp;Brouillon</span></button>
           <button id="btnContestPublish2" class="tool-publish" hidden title="Publier cette pièce au concours du jour">🏆<span class="label-long">&nbsp;Publier</span></button>
         </div>
@@ -717,6 +718,7 @@
       <img id="exportImg" class="export-img" alt="Ta pièce décorée">
       <p class="hint">Clic droit (ou appui long) sur l'image → « Enregistrer l'image ».</p>
       <div class="modal-actions">
+        <button id="exportShare" class="btn btn-primary" hidden>📤 Enregistrer</button>
         <a id="exportLink" class="btn" download="ma-petite-piece.png">Télécharger</a>
         <button id="exportClose" class="btn btn-primary">Fermer</button>
       </div>
@@ -864,7 +866,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610231630"></script>
-  <script src="game.js?v=202610231630"></script>
+  <script src="firebase-config.js?v=202610231710"></script>
+  <script src="game.js?v=202610231710"></script>
 </body>
 </html>

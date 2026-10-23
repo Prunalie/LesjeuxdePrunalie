@@ -1833,7 +1833,8 @@
     for (const s of data ? (data.stickers || []) : state.stickers) {
       const img = state.images.get(s.imageId);
       if (!img) continue;
-      const el = await loadImageEl(img.url);
+      let el;
+      try { el = await loadImageEl(img.url); } catch (e) { console.warn('Sticker illisible, ignoré', img.name); continue; }
       ctx.save();
       ctx.translate(s.x, s.y);
       ctx.rotate(s.rot * Math.PI / 180);
@@ -1847,19 +1848,45 @@
     return cv;
   }
 
-  $('#btnExport').addEventListener('click', async () => {
-    // export en haute définition
-    const cv = await renderScene(2, state.colors.background || getComputedStyle(document.body).backgroundColor);
-    cv.toBlob((blob) => {
-      // On affiche l'image (enregistrable par clic droit / appui long) avec un lien
-      // de téléchargement, qui ne marche pas partout (pages intégrées).
+  let exportBlob = null;
+  async function exportRoom() {
+    try {
+      select(null);
+      // Export en haute définition ; si le téléphone n'a pas assez de mémoire, on réessaie en plus petit.
+      let blob = null;
+      for (const k of [2, 1.2]) {
+        try {
+          const cv = await renderScene(k, state.colors.background || getComputedStyle(document.body).backgroundColor);
+          blob = await new Promise((resolve) => cv.toBlob(resolve, 'image/png'));
+        } catch (e) { console.warn('Export à l\'échelle', k, e); }
+        if (blob) break;
+      }
+      if (!blob) throw new Error('image vide');
+      exportBlob = blob;
+      // On affiche l'image (enregistrable par appui long) avec un lien de téléchargement,
+      // qui ne marche pas partout (pages intégrées) : le bouton Partager prend le relais.
       const url = URL.createObjectURL(blob);
       const prev = exportImg.src;
       exportImg.src = url;
       exportLink.href = url;
+      const file = new File([blob], 'ma-petite-piece.png', { type: 'image/png' });
+      $('#exportShare').hidden = !(navigator.canShare && navigator.canShare({ files: [file] }));
       exportDialog.hidden = false;
       if (prev.startsWith('blob:')) URL.revokeObjectURL(prev);
-    }, 'image/png');
+    } catch (e) {
+      console.warn('Export impossible', e);
+      toast('La pièce n\'a pas pu être exportée. Réessaie, ou fais une capture d\'écran.');
+    }
+  }
+  $('#btnExport').addEventListener('click', exportRoom);
+  $('#btnExport2').addEventListener('click', exportRoom);
+  $('#exportShare').addEventListener('click', async () => {
+    if (!exportBlob) return;
+    try {
+      await navigator.share({ files: [new File([exportBlob], 'ma-petite-piece.png', { type: 'image/png' })], title: 'Ma petite pièce' });
+    } catch (e) {
+      if (e && e.name !== 'AbortError') toast('Le partage n\'a pas marché : appuie longuement sur l\'image pour l\'enregistrer.');
+    }
   });
 
   // ---------------------------------------------------------------------------

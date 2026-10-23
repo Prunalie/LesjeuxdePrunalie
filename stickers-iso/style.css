@@ -2156,3 +2156,7 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .shop-more { grid-column: 1 / -1; display: flex; justify-content: center; margin: 4px 0; }
 .coffre-bar { max-width: 1100px; margin: 0 auto 10px; display: flex; justify-content: flex-end; }
 .coffre-bar:has(#coffreAcceptAll[hidden]) { display: none; }
+
+/* Exporter : dans les outils quand la barre du haut est repliée (cas des téléphones) */
+.room-tools .tool-export { display: none; }
+.screen-room.hide-top .room-tools .tool-export { display: inline-flex; }
