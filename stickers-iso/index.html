@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610231300">
+  <link rel="stylesheet" href="style.css?v=202610231420">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -440,7 +440,8 @@
         </section>
         <section class="admin-card-box">
           <h2>Thèmes</h2>
-          <p id="acThemeToday" class="muted"></p>
+          <p class="muted">Choisis le thème des prochains jours dans la liste. Sinon, ils tournent tout seuls.</p>
+          <div id="acThemePick" class="ac-theme-pick"></div>
           <label class="contest-themes"><span class="muted">Un thème par ligne : ils reviennent à tour de rôle, un par jour.</span><textarea id="acThemes" class="field" rows="10"></textarea></label>
           <button id="acThemesSave" class="btn btn-primary">Enregistrer les thèmes</button>
         </section>
@@ -862,7 +863,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610231300"></script>
-  <script src="game.js?v=202610231300"></script>
+  <script src="firebase-config.js?v=202610231420"></script>
+  <script src="game.js?v=202610231420"></script>
 </body>
 </html>

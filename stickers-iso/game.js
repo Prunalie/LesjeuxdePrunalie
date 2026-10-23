@@ -4017,7 +4017,12 @@
     const { y, m, dd } = parseDay(day);
     return new Date(y, m - 1, dd + n).toLocaleDateString('fr-CA');
   }
+  // Thème choisi à la main par l'administratrice pour ce jour (sinon la rotation de la liste).
   function themeOf(day) {
+    const o = state.settings.contestThemeOverrides && state.settings.contestThemeOverrides[day];
+    return typeof o === 'string' && o.trim() ? o : autoThemeOf(day);
+  }
+  function autoThemeOf(day) {
     const { y, m, dd } = parseDay(day);
     const idx = Math.round((Date.UTC(y, m - 1, dd) - Date.UTC(2026, 0, 1)) / 86400000);
     const list = contestThemes();
@@ -4775,12 +4780,56 @@
   // ---------------------------------------------------------------------------
   // Concours (administratrice) : thèmes et résultats en direct
   // ---------------------------------------------------------------------------
+  // Choisir le thème des prochains jours parmi la liste (ou laisser la rotation automatique).
+  function renderThemePick() {
+    const box = $('#acThemePick');
+    box.innerHTML = '';
+    const overrides = state.settings.contestThemeOverrides || {};
+    const labels = ['Aujourd\'hui', 'Demain', 'Après-demain'];
+    labels.forEach((label, i) => {
+      const day = shiftDay(today(), i);
+      const auto = autoThemeOf(day);
+      const row = document.createElement('label');
+      row.className = 'ac-theme-row';
+      row.innerHTML = '<span class="ac-theme-day"></span><select class="field ac-theme-select"></select>';
+      row.querySelector('.ac-theme-day').textContent = label;
+      const sel = row.querySelector('select');
+      sel.add(new Option(`🎲 Automatique : « ${auto} »`, ''));
+      const list = contestThemes().slice();
+      if (overrides[day] && !list.includes(overrides[day])) list.unshift(overrides[day]);
+      for (const t of list) sel.add(new Option(t, t));
+      sel.value = overrides[day] || '';
+      sel.addEventListener('change', () => setThemeOverride(day, sel.value, label));
+      box.appendChild(row);
+    });
+  }
+  async function setThemeOverride(day, theme, label) {
+    if (day === today() && theme !== (state.settings.contestThemeOverrides || {})[day]) {
+      try {
+        const t = await loadContestDay(day);
+        if (t.entries.length && !(await askConfirm(`${t.entries.length === 1 ? '1 joueur a déjà publié sa pièce' : `${t.entries.length} joueurs ont déjà publié leur pièce`} pour le thème du jour. Changer le thème maintenant peut les surprendre. Continuer ?`, 'Changer'))) {
+          renderThemePick();
+          return;
+        }
+      } catch (e) { /* hors ligne : on laisse faire */ }
+    }
+    const all = { ...(state.settings.contestThemeOverrides || {}) };
+    // On garde les derniers jours (les résultats d'un concours passé affichent encore son thème).
+    const oldest = shiftDay(today(), -10);
+    for (const d of Object.keys(all)) if (d < oldest) delete all[d];
+    if (theme) all[day] = theme; else delete all[day];
+    state.settings.contestThemeOverrides = all;
+    renderThemePick();
+    renderContestTile();
+    await saveSettings(theme ? `${label} : thème « ${theme} » ✓` : `${label} : thème automatique ✓`);
+  }
+
   let acTimer = null;
   async function openAdminContest() {
     if (!state.isAdmin) return;
     showScreen('adminContest');
     $('#acThemes').value = (Array.isArray(state.settings.contestThemes) && state.settings.contestThemes.length ? state.settings.contestThemes : DEFAULT_THEMES).join('\n');
-    $('#acThemeToday').textContent = `Aujourd'hui : « ${themeOf(today())} » · demain : « ${themeOf(shiftDay(today(), 1))} » · après-demain : « ${themeOf(shiftDay(today(), 2))} ».`;
+    renderThemePick();
     await refreshAdminContest();
     clearInterval(acTimer);
     // Mise à jour automatique pendant que l'écran est ouvert.
@@ -4892,7 +4941,7 @@
     const themes = $('#acThemes').value.split('\n').map((x) => x.trim()).filter(Boolean);
     state.settings.contestThemes = themes;
     await saveSettings(`Thèmes enregistrés ✓ ${themes.length ? plural(themes.length, 'thème') : 'Thèmes par défaut'} · aujourd'hui : « ${themeOf(today())} ».`);
-    $('#acThemeToday').textContent = `Aujourd'hui : « ${themeOf(today())} » · demain : « ${themeOf(shiftDay(today(), 1))} » · après-demain : « ${themeOf(shiftDay(today(), 2))} ».`;
+    renderThemePick();
   });
   $('#homeAdminContest').addEventListener('click', openAdminContest);
   $('#adminContestBack').addEventListener('click', () => { clearInterval(acTimer); goHome(); });

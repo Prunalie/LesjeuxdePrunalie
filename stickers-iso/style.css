@@ -2138,3 +2138,10 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .stamp-dialog-box { max-height: calc(100vh - 32px); overflow-y: auto; }
 .stamps-btn { white-space: nowrap; font-weight: 800; }
 @media (max-width: 720px) { .stamps-btn { padding: 0 10px; } }
+
+/* Admin concours : choisir le thème des prochains jours */
+.ac-theme-pick { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 14px; }
+.ac-theme-row { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 10px; }
+.ac-theme-day { font-weight: 700; }
+.ac-theme-select { width: 100%; }
+@media (max-width: 480px) { .ac-theme-row { grid-template-columns: 1fr; gap: 3px; } }
