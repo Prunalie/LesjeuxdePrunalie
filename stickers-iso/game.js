@@ -75,7 +75,7 @@
     { group: 'Boutique', key: 'defaultEnvPrice', label: 'Prix d\'une nouvelle enveloppe', unit: '🪙', def: () => DEFAULT_PRICE, max: 100000, step: 10 },
     { group: 'Boutique', key: 'dailyEnvCount', label: 'Enveloppes du jour (prix normal, 0 = toutes)', unit: 'enveloppes', def: () => 5, max: 100, step: 1 },
     { group: 'Boutique', key: 'offPricePct', label: 'Hausse du prix des autres enveloppes', unit: '%', def: () => 100, max: 1000, step: 10 },
-    { group: 'Boutique', key: 'packDiscountPct', label: 'Réduction sur le paquet de plusieurs enveloppes (« ×5 »)', unit: '% moins cher', def: () => 0, max: 90, step: 5 },
+    { group: 'Boutique', key: 'packDiscountPct', label: 'Réduction sur le paquet « ×5 » (enveloppes du jour seulement)', unit: '% moins cher', def: () => 0, max: 90, step: 5 },
     { group: 'Boutique', key: 'multiBuy', label: 'Enveloppes du bouton « ×… »', unit: 'enveloppes', def: () => MULTI_BUY, min: 2, max: 50, step: 1 },
     { group: 'Revente des stickers', key: 'sell_common', label: 'Revente d\'un commun', unit: '🪙', def: () => RARITIES.common.sell, max: 100000, step: 5 },
     { group: 'Revente des stickers', key: 'sell_rare', label: 'Revente d\'un rare', unit: '🪙', def: () => RARITIES.rare.sell, max: 100000, step: 5 },
@@ -2572,10 +2572,15 @@
     return Math.round(base * (1 + setting('offPricePct') / 100) / 5) * 5;
   }
 
+  // La réduction du paquet ne vaut que pour les enveloppes du jour (si la sélection du jour est active).
+  const packDiscount = (env) => {
+    const daily = setting('dailyEnvCount');
+    return !daily || isDailyEnvelope(env) ? setting('packDiscountPct') : 0;
+  };
   // Prix d'un paquet de n enveloppes : n fois le prix, moins la réduction du paquet.
   function packPrice(env, n) {
     const full = shopPrice(env) * n;
-    return Math.round(full * (1 - setting('packDiscountPct') / 100));
+    return Math.round(full * (1 - packDiscount(env) / 100));
   }
 
   function renderShop() {
@@ -2631,7 +2636,7 @@
       card.querySelector('.shop-art').addEventListener('click', () => showEnvelope(env));
       buy.addEventListener('click', () => buyEnvelope(env));
       const buy5 = card.querySelector('.shop-buy5');
-      buy5.textContent = `×${multiBuy()} · ${packPrice(env, multiBuy())} 🪙${setting('packDiscountPct') ? ` · −${setting('packDiscountPct')} %` : ''}`;
+      buy5.textContent = `×${multiBuy()} · ${packPrice(env, multiBuy())} 🪙${packDiscount(env) ? ` · −${packDiscount(env)} %` : ''}`;
       buy5.title = `Acheter ${multiBuy()} enveloppes « ${env.name} » d'un coup`;
       buy5.disabled = state.profile.points < packPrice(env, multiBuy());
       buy5.addEventListener('click', () => buyEnvelopes(env, multiBuy()));
@@ -2672,7 +2677,7 @@
     buy.disabled = state.profile.points < price;
     buy.onclick = () => { envDialog.hidden = true; buyEnvelope(env); };
     const buy5 = $('#envBuy5');
-    buy5.textContent = `×${multiBuy()} · ${packPrice(env, multiBuy())} 🪙${setting('packDiscountPct') ? ` · −${setting('packDiscountPct')} %` : ''}`;
+    buy5.textContent = `×${multiBuy()} · ${packPrice(env, multiBuy())} 🪙${packDiscount(env) ? ` · −${packDiscount(env)} %` : ''}`;
     buy5.disabled = state.profile.points < packPrice(env, multiBuy());
     buy5.onclick = () => { envDialog.hidden = true; buyEnvelopes(env, multiBuy()); };
     const starBtn = $('#envStar');
