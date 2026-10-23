@@ -2311,6 +2311,7 @@
     size: { label: 'Taille sur mesure', cost: 1, desc: 'Choisis la largeur, la profondeur et la hauteur des murs.' },
     levels: { label: 'Étages', cost: 2, desc: 'Ajoute jusqu\'à 3 niveaux surélevés au fond de la pièce. Un escalier gratuit 🪜 est offert.' },
   };
+  const UNLOCK_ICONS = { garden: '🌳', size: '📐', levels: '🏢' };
   const unlockCost = (key) => setting('unlock_' + key);
   const isUnlocked = (key) => state.isAdmin || !!(state.profile.unlocks && state.profile.unlocks[key]);
   const shapeDialog = $('#shapeDialog');
@@ -5647,6 +5648,10 @@
         return b.lastSeen - a.lastSeen;
       });
 
+    // Options d'aménagement débloquées : total par option (l'administratrice les a toutes, on ne la compte pas).
+    const real = players.filter((p) => !ADMIN_PSEUDOS.includes(playerKey(p)));
+    $('#playersUnlocks').textContent = `Options débloquées : ${Object.keys(UNLOCKS).map((k) =>
+      `${UNLOCK_ICONS[k]} ${UNLOCKS[k].label} ${real.filter((p) => p.unlocks && p.unlocks[k]).length}/${real.length}`).join(' · ')}`;
     const active7 = players.filter((p) => (p.lastSeen || 0) > Date.now() - 7 * 86400000).length;
     $('#playersCount').textContent = `${plural(players.length, 'joueur')} · ${active7} venu${active7 > 1 ? 's' : ''} ces 7 derniers jours`;
     const body = $('#playersList');
@@ -5666,6 +5671,7 @@
           <div><dt>Collection</dt><dd class="s-coll"></dd></div>
           <div><dt>Étoiles</dt><dd class="s-stars"></dd></div>
         </dl>
+        <div class="player-unlocks"></div>
         <div class="player-actions">
           <button class="btn player-gift" title="Offrir des stickers">🎁<span class="label-long">&nbsp;Offrir</span></button>
           <button class="btn player-write" title="Envoyer un message dans sa boîte aux lettres">✉️<span class="label-long">&nbsp;Écrire</span></button>
@@ -5677,6 +5683,21 @@
       row.querySelector('.s-coll').textContent = total ? `${distinct}/${total}` : `${distinct}`;
       row.querySelector('.s-coll').title = `${copies} exemplaires en tout`;
       row.querySelector('.s-stars').textContent = `🌟 ${p.stars || 0}`;
+      // Options d'aménagement débloquées par ce joueur.
+      const ul = row.querySelector('.player-unlocks');
+      if (ADMIN_PSEUDOS.includes(key)) {
+        ul.textContent = 'Toutes les options (administratrice)';
+        ul.classList.add('muted');
+      } else {
+        const got = Object.keys(UNLOCKS).filter((k) => p.unlocks && p.unlocks[k]);
+        if (!got.length) { ul.textContent = 'Aucune option débloquée'; ul.classList.add('muted'); }
+        for (const k of got) {
+          const chip = document.createElement('span');
+          chip.className = 'unlock-chip';
+          chip.textContent = `${UNLOCK_ICONS[k]} ${UNLOCKS[k].label}`;
+          ul.appendChild(chip);
+        }
+      }
       row.querySelector('.player-write').addEventListener('click', () => openGift([{ key, name: p.pseudo || key }], 'write'));
       row.querySelector('.player-gift').addEventListener('click', () => openGift([{ key, name: p.pseudo || key }]));
       const del = row.querySelector('.player-delete');

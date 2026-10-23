@@ -2160,3 +2160,9 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 /* Exporter : dans les outils quand la barre du haut est repliée (cas des téléphones) */
 .room-tools .tool-export { display: none; }
 .screen-room.hide-top .room-tools .tool-export { display: inline-flex; }
+
+/* Liste des joueurs : options d'aménagement débloquées */
+.players-unlocks { max-width: 1100px; margin: 0 auto 10px; font-size: .85rem; }
+.player-row { flex-wrap: wrap; }
+.player-unlocks { order: 5; flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 6px; font-size: .8rem; }
+.unlock-chip { padding: 2px 10px; border-radius: 999px; background: #fff3cc; border: 1.5px solid #e6b422; font-weight: 700; white-space: nowrap; }
