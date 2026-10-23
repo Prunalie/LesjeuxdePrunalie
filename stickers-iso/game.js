@@ -2033,10 +2033,10 @@
       state.profile.unlocks = state.profile.unlocks || {};
       // Étages déjà débloqués avant l'escalier offert : on le leur donne une fois.
       if (state.profile.unlocks.levels && !state.isAdmin) {
-        const st = grantStairs();
+        const st = await sendStairsGift();
         if (st) {
           saveProfile();
-          setTimeout(() => toast(`Un escalier gratuit 🪜 a été ajouté à tes stickers : c'est le cadeau des étages !`), 4000);
+          setTimeout(() => toast(`Un escalier gratuit 🪜 t'attend dans ta boîte aux lettres 💌 : c'est le cadeau des étages !`), 4000);
         }
       }
       // Cartes déjà assez remplies (par ex. si le nombre de tampons requis a baissé).
@@ -2309,7 +2309,7 @@
   const UNLOCKS = {
     garden: { label: 'Jardin', cost: 2, desc: 'Transforme une pièce en jardin : haies, pelouse et ciel.' },
     size: { label: 'Taille sur mesure', cost: 1, desc: 'Choisis la largeur, la profondeur et la hauteur des murs.' },
-    levels: { label: 'Étages', cost: 2, desc: 'Ajoute jusqu\'à 3 niveaux surélevés au fond de la pièce. Un escalier gratuit 🪜 est offert.' },
+    levels: { label: 'Étages', cost: 2, desc: 'Ajoute jusqu\'à 3 niveaux surélevés au fond de la pièce. Un escalier gratuit 🪜 t\'est envoyé par message.' },
   };
   const UNLOCK_ICONS = { garden: '🌳', size: '📐', levels: '🏢' };
   const unlockCost = (key) => setting('unlock_' + key);
@@ -2322,12 +2322,24 @@
     const env = (img) => state.envelopes.find((e) => e.id === img.envelope);
     return list.find((img) => env(img) && normalizeText(env(img).name).startsWith('meuble')) || list[0] || null;
   }
-  // Un seul escalier offert par joueur (drapeau stairsGift).
-  function grantStairs() {
+  // Un seul escalier offert par joueur : un message avec le cadeau à récupérer dans la boîte aux lettres.
+  async function sendStairsGift() {
     const st = stairsSticker();
     if (!st || state.profile.stairsGift) return null;
-    state.profile.inventory[st.id] = (state.profile.inventory[st.id] || 0) + 1;
+    const m = {
+      id: `stairs-gift-${state.player.key}`, to: state.player.key,
+      title: 'Ton escalier gratuit 🪜',
+      text: `Avec les étages, voici un escalier gratuit (de la collection Meuble) pour monter au premier niveau de tes pièces ! Récupère-le et pose-le où tu veux.`,
+      reward: 0, stickers: [st.id], read: false, claimed: false, created: Date.now(),
+    };
+    try {
+      if (await db.createMail(m)) state.mails.push(m);
+    } catch (e) {
+      console.warn('Message de l\'escalier impossible', e);
+      return null; // on réessaiera à la prochaine connexion
+    }
     state.profile.stairsGift = true;
+    renderMailBadge();
     return st;
   }
 
@@ -2341,10 +2353,9 @@
     if (!(await askConfirm(`Débloquer « ${u.label} » pour ${cost} 🌟 ? ${u.desc} Ce sera valable pour toutes tes pièces.`, 'Débloquer'))) return;
     state.profile.stars = stars - cost;
     state.profile.unlocks = { ...(state.profile.unlocks || {}), [key]: true };
-    const stairs = key === 'levels' ? grantStairs() : null;
+    const stairs = key === 'levels' ? await sendStairsGift() : null;
     saveProfile();
-    toast(`« ${u.label} » est débloqué 🎉${stairs ? ` Un escalier gratuit 🪜 (« ${stairs.name} ») a été ajouté à tes stickers.` : ''}`);
-    if (stairs) renderLibrary();
+    toast(`« ${u.label} » est débloqué 🎉${stairs ? ' Un escalier gratuit 🪜 t\'attend dans ta boîte aux lettres 💌' : ''}`);
     renderShapeDialog();
   }
 
@@ -3880,8 +3891,8 @@
     {
       id: 'n-2026-10-23a', date: Date.UTC(2026, 9, 23, 9, 30), title: 'Un escalier offert 🪜',
       items: [
-        'Quand tu débloques les étages, tu reçois un escalier gratuit (de la collection Meuble) pour monter au premier niveau.',
-        'Si tu avais déjà débloqué les étages, ton escalier t\'attend déjà dans tes stickers !',
+        'Quand tu débloques les étages, un message avec un escalier gratuit (de la collection Meuble) arrive dans ta boîte aux lettres, pour monter au premier niveau.',
+        'Si tu avais déjà débloqué les étages, ton escalier t\'attend dans ta boîte aux lettres !',
       ],
     },
     {
