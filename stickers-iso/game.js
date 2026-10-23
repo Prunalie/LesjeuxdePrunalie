@@ -5214,6 +5214,7 @@
     renderCoffre();
   }
   $('#homeCoffre').addEventListener('click', openCoffre);
+  $('#coffreAcceptAll').addEventListener('click', acceptAllProposals);
   $('#coffreBack').addEventListener('click', goHome);
   $('#atelierCoffre').addEventListener('click', openCoffre);
 
@@ -5235,6 +5236,10 @@
       .filter((p) => coffreStatus(p) === coffreFilter)
       .sort((a, b) => (b.created || 0) - (a.created || 0));
     $('#coffreEmpty').hidden = items.length > 0;
+    const all = $('#coffreAcceptAll');
+    all.hidden = coffreFilter !== 'pending' || !items.length;
+    all.disabled = false;
+    all.textContent = `✓ Tout valider (${items.length})`;
     for (const p of items) {
       const card = document.createElement('article');
       card.className = 'coffre-card';
@@ -5313,14 +5318,12 @@
     }
   }
 
-  async function acceptProposal(p) {
+  // Valide une proposition : sticker au catalogue, pièces (et sticker si le réglage est coché) par message.
+  async function doAccept(p, reward) {
     const give = setting('proposalGiveSticker');
-    const answer = await askText(`Valider « ${p.name} » de ${p.ownerName || p.owner}. Combien de pièces lui offrir ?${give ? ' (Il recevra aussi le sticker en 1 exemplaire.)' : ''}`, 'Valider', String(proposalReward()));
-    if (answer === null) return;
-    const reward = Math.max(0, Math.round(Number(answer) || 0));
+    const before = { status: p.status, reward: p.reward };
     p.status = 'accepted';
     p.reward = reward;
-    // Le sticker entre au catalogue (pas encore dans une enveloppe) : le joueur en reçoit 1 exemplaire.
     const rec = catalogOf(p) || {
       id: uid(), catalog: true, envelope: null, archived: false, rarity: 'common',
       name: p.name, data: p.data, w: p.w, h: p.h, created: Date.now(),
@@ -5336,11 +5339,46 @@
       await sendMail(p.owner, 'Sticker accepté 🎉',
         `Ton sticker « ${p.name} » a été accepté ! ${thanks} Il pourra bientôt apparaître dans une enveloppe.`,
         reward, give ? rec.id : null);
-      toast(`« ${p.name} » validé. ${p.ownerName || p.owner} a reçu un message.`);
+      return true;
     } catch (e) {
       console.warn('Validation impossible', e);
-      toast('La validation n\'a pas pu être enregistrée. Vérifie ta connexion.');
+      Object.assign(p, before);
+      return false;
     }
+  }
+
+  async function acceptProposal(p) {
+    const give = setting('proposalGiveSticker');
+    const answer = await askText(`Valider « ${p.name} » de ${p.ownerName || p.owner}. Combien de pièces lui offrir ?${give ? ' (Il recevra aussi le sticker en 1 exemplaire.)' : ''}`, 'Valider', String(proposalReward()));
+    if (answer === null) return;
+    const reward = Math.max(0, Math.round(Number(answer) || 0));
+    if (await doAccept(p, reward)) toast(`« ${p.name} » validé. ${p.ownerName || p.owner} a reçu un message.`);
+    else toast('La validation n\'a pas pu être enregistrée. Vérifie ta connexion.');
+    renderCoffre();
+  }
+
+  // Tout valider d'un coup : même récompense pour tous, un message par joueur.
+  let acceptingAll = false;
+  async function acceptAllProposals() {
+    if (acceptingAll) return;
+    const list = state.proposals.filter((p) => p.status === 'pending');
+    if (!list.length) return;
+    const give = setting('proposalGiveSticker');
+    const answer = await askText(`Valider les ${list.length} propositions en attente. Combien de pièces offrir à chaque joueur ?${give ? ' (Chacun recevra aussi son sticker en 1 exemplaire.)' : ''}`, `Tout valider (${list.length})`, String(proposalReward()));
+    if (answer === null) return;
+    const reward = Math.max(0, Math.round(Number(answer) || 0));
+    acceptingAll = true;
+    const btn = $('#coffreAcceptAll');
+    let ok = 0;
+    for (const p of list) {
+      if (btn) { btn.disabled = true; btn.textContent = `Validation… ${ok}/${list.length}`; }
+      if (await doAccept(p, reward)) ok++;
+      else break; // problème de connexion : on s'arrête, le reste reste à valider
+    }
+    acceptingAll = false;
+    toast(ok === list.length
+      ? `${plural(ok, 'proposition')} validée${ok > 1 ? 's' : ''} ✓ Chaque joueur a reçu son message.`
+      : `${plural(ok, 'proposition')} validée${ok > 1 ? 's' : ''} sur ${list.length} : la connexion a coupé, réessaie pour les autres.`);
     renderCoffre();
   }
 
