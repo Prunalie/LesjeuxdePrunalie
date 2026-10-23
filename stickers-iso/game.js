@@ -2031,6 +2031,14 @@
       state.profile.stamps = state.profile.stamps || 0;
       state.profile.stars = state.profile.stars || 0;
       state.profile.unlocks = state.profile.unlocks || {};
+      // Étages déjà débloqués avant l'escalier offert : on le leur donne une fois.
+      if (state.profile.unlocks.levels && !state.isAdmin) {
+        const st = grantStairs();
+        if (st) {
+          saveProfile();
+          setTimeout(() => toast(`Un escalier gratuit 🪜 a été ajouté à tes stickers : c'est le cadeau des étages !`), 4000);
+        }
+      }
       // Cartes déjà assez remplies (par ex. si le nombre de tampons requis a baissé).
       if (convertStamps()) {
         saveProfile();
@@ -2101,7 +2109,7 @@
     try {
       const fresh = await db.getPlayer(playerDocId(state.player.key));
       if (!fresh) return;
-      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay']) {
+      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'stairsGift']) {
         if (fresh[k] !== undefined) state.profile[k] = fresh[k];
       }
       state.profile.inventory = state.profile.inventory || {};
@@ -2301,11 +2309,26 @@
   const UNLOCKS = {
     garden: { label: 'Jardin', cost: 2, desc: 'Transforme une pièce en jardin : haies, pelouse et ciel.' },
     size: { label: 'Taille sur mesure', cost: 1, desc: 'Choisis la largeur, la profondeur et la hauteur des murs.' },
-    levels: { label: 'Étages', cost: 2, desc: 'Ajoute jusqu\'à 3 niveaux surélevés au fond de la pièce.' },
+    levels: { label: 'Étages', cost: 2, desc: 'Ajoute jusqu\'à 3 niveaux surélevés au fond de la pièce. Un escalier gratuit 🪜 est offert.' },
   };
   const unlockCost = (key) => setting('unlock_' + key);
   const isUnlocked = (key) => state.isAdmin || !!(state.profile.unlocks && state.profile.unlocks[key]);
   const shapeDialog = $('#shapeDialog');
+
+  // L'escalier offert avec les étages : l'objet « Escalier » de la collection Meuble(s).
+  function stairsSticker() {
+    const list = [...state.images.values()].filter((img) => img.catalog && normalizeText(img.name) === 'escalier');
+    const env = (img) => state.envelopes.find((e) => e.id === img.envelope);
+    return list.find((img) => env(img) && normalizeText(env(img).name).startsWith('meuble')) || list[0] || null;
+  }
+  // Un seul escalier offert par joueur (drapeau stairsGift).
+  function grantStairs() {
+    const st = stairsSticker();
+    if (!st || state.profile.stairsGift) return null;
+    state.profile.inventory[st.id] = (state.profile.inventory[st.id] || 0) + 1;
+    state.profile.stairsGift = true;
+    return st;
+  }
 
   async function unlock(key) {
     const u = UNLOCKS[key], cost = unlockCost(key);
@@ -2317,8 +2340,10 @@
     if (!(await askConfirm(`Débloquer « ${u.label} » pour ${cost} 🌟 ? ${u.desc} Ce sera valable pour toutes tes pièces.`, 'Débloquer'))) return;
     state.profile.stars = stars - cost;
     state.profile.unlocks = { ...(state.profile.unlocks || {}), [key]: true };
+    const stairs = key === 'levels' ? grantStairs() : null;
     saveProfile();
-    toast(`« ${u.label} » est débloqué 🎉`);
+    toast(`« ${u.label} » est débloqué 🎉${stairs ? ` Un escalier gratuit 🪜 (« ${stairs.name} ») a été ajouté à tes stickers.` : ''}`);
+    if (stairs) renderLibrary();
     renderShapeDialog();
   }
 
@@ -3851,6 +3876,13 @@
   // ---------------------------------------------------------------------------
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
+    {
+      id: 'n-2026-10-23a', date: Date.UTC(2026, 9, 23, 9, 30), title: 'Un escalier offert 🪜',
+      items: [
+        'Quand tu débloques les étages, tu reçois un escalier gratuit (de la collection Meuble) pour monter au premier niveau.',
+        'Si tu avais déjà débloqué les étages, ton escalier t\'attend déjà dans tes stickers !',
+      ],
+    },
     {
       id: 'n-2026-10-22b', date: Date.UTC(2026, 9, 22, 9, 0), title: 'Boîte aux lettres 💌',
       items: [
