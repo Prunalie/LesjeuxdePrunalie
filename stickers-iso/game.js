@@ -2505,8 +2505,10 @@
   const archivedStickers = () => [...state.images.values()].filter((img) => img.catalog && img.archived && !envelopeExists(img.envelope));
   let shopReturnRoom = null; // pièce à rouvrir en quittant la boutique
 
+  let shopShowOthers = false; // « autres enveloppes » : cachées à chaque ouverture de la boutique
   async function openShop(fromRoom) {
     if (maintBlocked('shop')) return;
+    shopShowOthers = false;
     if (fromRoom && state.roomId) {
       select(null);
       await saveRoom();
@@ -2605,11 +2607,25 @@
     const envs = [];
     if (others.length) {
       heading('⭐ Les enveloppes du jour', 'Au prix normal aujourd\'hui · elles changent à minuit');
-      envs.push(...featured, null, ...others);
+      envs.push(...featured, 'toggle');
+      if (shopShowOthers) envs.push(null, ...others);
     } else {
       envs.push(...featured);
     }
     for (const env of envs) {
+      if (env === 'toggle') {
+        // Les autres enveloppes restent cachées tant qu'on n'appuie pas sur ce bouton.
+        const row = document.createElement('div');
+        row.className = 'shop-more';
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn';
+        b.textContent = shopShowOthers ? '▲ Masquer les autres enveloppes' : `▼ Voir les autres enveloppes (${others.length})`;
+        b.addEventListener('click', () => { shopShowOthers = !shopShowOthers; renderShop(); });
+        row.appendChild(b);
+        grid.appendChild(row);
+        continue;
+      }
       if (!env) { heading('Les autres enveloppes', `Prix +${setting('offPricePct')} % aujourd'hui : guette-les dans les enveloppes du jour !`); continue; }
       const list = stickersOf(env.id);
       const got = list.filter((img) => owned(img.id) > 0).length;

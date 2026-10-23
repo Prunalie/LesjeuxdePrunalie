@@ -2153,3 +2153,4 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .daily-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .daily-pick { align-items: flex-start; }
 .daily-pick .atelier-tile-art { margin-top: 4px; }
+.shop-more { grid-column: 1 / -1; display: flex; justify-content: center; margin: 4px 0; }
