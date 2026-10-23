@@ -3212,14 +3212,29 @@
   // Choisir les enveloppes du jour (aujourd'hui ou demain) ; sinon, tirage au sort.
   let atelierDaily = false;
   let dailyDayOffset = 0;
+  const shopCount = () => state.envelopes.filter((env) => stickersOf(env.id).length).length;
   function renderAtelierDaily(listEl) {
     const n = setting('dailyEnvCount');
     const day = shiftDay(today(), dailyDayOffset);
     const shop = state.envelopes.filter((env) => stickersOf(env.id).length);
     const head = document.createElement('div');
     head.className = 'atelier-daily-head';
+    // Nombre d'enveloppes du jour mises à disposition (0 = toutes au prix normal).
+    const count = document.createElement('div');
+    count.className = 'atelier-daily-count';
+    count.innerHTML = `<span>Enveloppes du jour à mettre à disposition</span>
+      <div class="atelier-daily-stepper"><button type="button" class="btn" data-d="-1" ${n <= 0 ? 'disabled' : ''} aria-label="Une de moins">−</button>
+      <strong></strong><button type="button" class="btn" data-d="1" ${n >= shopCount() ? 'disabled' : ''} aria-label="Une de plus">＋</button></div>`;
+    count.querySelector('strong').textContent = n ? String(n) : 'Toutes';
+    count.querySelectorAll('[data-d]').forEach((b) => b.addEventListener('click', async () => {
+      const next = Math.max(0, Math.min(shopCount(), n + Number(b.dataset.d)));
+      state.settings.dailyEnvCount = next;
+      renderAtelier();
+      await saveSettings();
+    }));
+    listEl.appendChild(count);
     if (!n) {
-      head.innerHTML = '<p class="muted">Les enveloppes du jour sont désactivées (Paramétrage → Boutique → 0) : toutes sont au prix normal.</p>';
+      head.innerHTML = '<p class="muted">Toutes les enveloppes sont au prix normal. Ajoute-en avec « ＋ » pour n\'en mettre que quelques-unes à disposition chaque jour.</p>';
       listEl.appendChild(head);
       return;
     }

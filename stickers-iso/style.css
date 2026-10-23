@@ -2119,3 +2119,7 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .settings-check input[type="checkbox"] { width: 24px; height: 24px; accent-color: var(--accent); cursor: pointer; }
 .mail-bar { max-width: 1100px; margin: 0 auto 10px; display: flex; justify-content: flex-end; }
 .mail-bar:has(#mailAll[hidden]) { display: none; }
+.atelier-daily-count { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; max-width: 640px; margin-bottom: 10px; padding: 8px 12px; border: 2px solid var(--line, #e8d5c8); border-radius: 14px; background: var(--surface); font-weight: 700; }
+.atelier-daily-stepper { display: flex; align-items: center; gap: 10px; }
+.atelier-daily-stepper strong { min-width: 3.2em; text-align: center; font-size: 1.1rem; }
+.atelier-daily-stepper .btn { min-width: 40px; }
