@@ -35,18 +35,6 @@
   };
   const ENVELOPE_COLORS = ['#e8a0ad', '#9cc5e0', '#b8d8a8', '#f2c879', '#c3a6e0'];
 
-  // Texte clair sur une couleur trop foncée (contraste comparé au texte sombre du jeu).
-  function isDarkColor(hex) {
-    const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex || '');
-    if (!m) return false;
-    let h = m[1];
-    if (h.length === 3) h = h.split('').map((c) => c + c).join('');
-    const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
-    const L = 0.2126 * lin(parseInt(h.slice(0, 2), 16)) + 0.7152 * lin(parseInt(h.slice(2, 4), 16)) + 0.0722 * lin(parseInt(h.slice(4, 6), 16));
-    const LDARK = 0.03; // ≈ #3b2f2f
-    return (1.05) / (L + 0.05) > (L + 0.05) / (LDARK + 0.05);
-  }
-
   const DEFAULT_COLORS = {
     wallLeft: '#f4d9c6',
     wallRight: '#ecc8b4',
@@ -3537,7 +3525,7 @@
       const list = stickersOf(p.id);
       const done = list.every((img) => owned(img.id) > 0);
       const tab = document.createElement('button');
-      tab.className = 'binder-tab' + (i === binderPage ? ' active' : '') + (isDarkColor(p.color || ENVELOPE_COLORS[0]) ? ' dark' : '');
+      tab.className = 'binder-tab' + (i === binderPage ? ' active' : '');
       tab.setAttribute('role', 'tab');
       tab.setAttribute('aria-selected', i === binderPage);
       tab.style.setProperty('--tab', p.color || ENVELOPE_COLORS[0]);

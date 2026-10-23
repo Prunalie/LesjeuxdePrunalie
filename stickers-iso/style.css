@@ -864,9 +864,10 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
   border: none;
   border-radius: 10px 10px 0 0;
   background: var(--tab);
-  color: #3b2f2f;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,.5);
   font: inherit; font-size: .85rem; font-weight: 700;
-  opacity: .6;
+  opacity: .8;
   cursor: pointer;
   transform: translateY(3px);
   transition: opacity .15s, transform .15s;
@@ -2131,5 +2132,3 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 @keyframes voteTodoPulse { 50% { box-shadow: 0 0 0 8px rgba(240,101,138,.15), 0 4px 0 var(--chunk); } }
 @media (prefers-reduced-motion: reduce) { #homeContest.vote-todo { animation: none; } }
 @media (max-width: 720px) { .vote-todo-badge { font-size: .72rem; padding: 2px 8px; } }
-.binder-tab.dark { color: #fff; }
-.binder-tab.dark:not(.active) { opacity: .8; }
