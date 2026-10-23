@@ -4785,9 +4785,9 @@
     const box = $('#acThemePick');
     box.innerHTML = '';
     const overrides = state.settings.contestThemeOverrides || {};
-    const labels = ['Aujourd\'hui', 'Demain', 'Après-demain'];
+    const labels = ['Hier', 'Aujourd\'hui', 'Demain', 'Après-demain'];
     labels.forEach((label, i) => {
-      const day = shiftDay(today(), i);
+      const day = shiftDay(today(), i - 1);
       const auto = autoThemeOf(day);
       const row = document.createElement('label');
       row.className = 'ac-theme-row';
@@ -4939,6 +4939,14 @@
   }
   $('#acThemesSave').addEventListener('click', async () => {
     const themes = $('#acThemes').value.split('\n').map((x) => x.trim()).filter(Boolean);
+    // Modifier la liste décale la rotation : on fige d'abord les jours déjà joués et aujourd'hui,
+    // pour que seuls les jours à venir suivent la nouvelle liste.
+    const frozen = { ...(state.settings.contestThemeOverrides || {}) };
+    for (let i = -10; i <= 0; i++) {
+      const day = shiftDay(today(), i);
+      if (!frozen[day]) frozen[day] = themeOf(day);
+    }
+    state.settings.contestThemeOverrides = frozen;
     state.settings.contestThemes = themes;
     await saveSettings(`Thèmes enregistrés ✓ ${themes.length ? plural(themes.length, 'thème') : 'Thèmes par défaut'} · aujourd'hui : « ${themeOf(today())} ».`);
     renderThemePick();
