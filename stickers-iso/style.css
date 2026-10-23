@@ -2131,3 +2131,5 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 @keyframes voteTodoPulse { 50% { box-shadow: 0 0 0 8px rgba(240,101,138,.15), 0 4px 0 var(--chunk); } }
 @media (prefers-reduced-motion: reduce) { #homeContest.vote-todo { animation: none; } }
 @media (max-width: 720px) { .vote-todo-badge { font-size: .72rem; padding: 2px 8px; } }
+.binder-tab.dark { color: #fff; }
+.binder-tab.dark:not(.active) { opacity: .8; }
