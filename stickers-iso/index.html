@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610231030">
+  <link rel="stylesheet" href="style.css?v=202610231100">
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -81,6 +81,7 @@
               <span class="tile-icon big" style="background:#FFF3CC"><svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><path d="M9 5 H23 V13 A7 7 0 0 1 9 13 Z" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M9 8 H4 C4 14 6 16 9 16 M23 8 H28 C28 14 26 16 23 16" fill="none" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/><rect x="14.5" y="19" width="3" height="5" fill="#5A3E3A"/><rect x="10" y="24" width="12" height="5" rx="1.5" fill="#B07AD8" stroke="#5A3E3A" stroke-width="2.4"/></svg></span>
               <span>
                 <span class="card-title big">Concours du jour</span>
+                <span id="homeContestTodo" class="vote-todo-badge" hidden></span>
                 <span id="homeContestSub" class="card-sub big">Thème du jour : <span id="homeContestTheme" class="theme-name"></span></span>
                 <span class="chip"><svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="#FFF8EF" stroke="#5A3E3A" stroke-width="2.2"/><path d="M10 5.5 V10 L13 12" fill="none" stroke="#5A3E3A" stroke-width="2.2" stroke-linecap="round"/></svg><span id="homeContestChip">votes jusqu'à 20 h</span></span>
               </span>
@@ -852,7 +853,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610231030"></script>
-  <script src="game.js?v=202610231030"></script>
+  <script src="firebase-config.js?v=202610231100"></script>
+  <script src="game.js?v=202610231100"></script>
 </body>
 </html>

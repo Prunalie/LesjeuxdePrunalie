@@ -3425,14 +3425,39 @@
   // Stickers du catalogue rangés dans une enveloppe qui existe encore.
   const collectible = () => [...state.images.values()].filter((img) => state.envelopes.some((e) => e.id === img.envelope));
 
+  // Duels restant à voter pour le concours d'hier (mis en valeur sur la tuile du menu).
+  let homeVote = { day: null, at: 0, left: 0 };
   function renderContestTile() {
     $('#homeContestTheme').textContent = themeOf(today());
-    $('#homeContestChip').textContent = voteMaintenance() ? 'vote en maintenance' : (votingOver() ? 'Gagnant dévoilé !' : 'votes jusqu\'à 20 h');
+    const tile = $('#homeContest');
+    const yesterday = shiftDay(today(), -1);
+    const left = !voteMaintenance() && !votingOver() && homeVote.day === yesterday ? homeVote.left : 0;
+    tile.classList.toggle('vote-todo', left > 0);
+    $('#homeContestTodo').hidden = !left;
+    $('#homeContestTodo').textContent = left ? `⚔️ ${plural(left, 'duel')} à voter` : '';
+    $('#homeContestChip').textContent = voteMaintenance() ? 'vote en maintenance'
+      : (votingOver() ? 'Gagnant dévoilé !'
+        : (left ? `+${voteReward()} 🪙 · jusqu'à 20 h` : 'votes jusqu\'à 20 h'));
+  }
+  function setHomeVote(v) {
+    const plan = duelPlan(v, state.player.key);
+    homeVote = { day: v.day, at: Date.now(), left: plan.total ? Math.max(0, plan.total - plan.done) : 0 };
+    if (!screens.home.hidden) renderContestTile();
+  }
+  // Recharge le concours d'hier pour savoir s'il reste des duels à voter (au plus toutes les 5 minutes).
+  async function refreshHomeVote() {
+    if (!state.profile || !state.player || voteMaintenance() || votingOver()) return;
+    const day = shiftDay(today(), -1);
+    if (homeVote.day === day && Date.now() - homeVote.at < 300000) return;
+    try {
+      setHomeVote(await loadContestDay(day));
+    } catch (e) { /* hors ligne : on ne dit rien */ }
   }
 
   function goHome() {
     renderPoints();
     renderContestTile();
+    refreshHomeVote();
     if (state.profile) claimContestRewards();
     const all = collectible();
     const got = all.filter((img) => owned(img.id) > 0).length;
@@ -4432,6 +4457,7 @@
     }
     v.duels = [...v.duels.filter((d) => d.id !== duel.id), duel];
     duelCurrent = null;
+    setHomeVote(v);
     const plan = duelPlan(v, me);
     // Récompense une fois les duels du jour terminés.
     if (plan.done >= plan.total && state.profile.voteRewardDay !== v.day) {
