@@ -2183,7 +2183,7 @@
   $('#prefsClose').addEventListener('click', () => { prefsDialog.hidden = true; });
   prefsDialog.addEventListener('click', (e) => { if (e.target === prefsDialog) prefsDialog.hidden = true; });
 
-  // Changer de pseudo (se déconnecter) : le bouton d'avant, maintenant dans les paramètres.
+  // Se déconnecter : le bouton d'avant, maintenant dans les paramètres.
   $('#btnLogout').addEventListener('click', () => {
     prefsDialog.hidden = true;
     store(SESSION_KEY, null);
@@ -3930,7 +3930,7 @@
       items: [
         'Le bouton en haut à droite du menu ouvre maintenant les Paramètres.',
         'Tu peux choisir ton thème : ☀️ clair, 🌙 sombre, ou 🌓 automatique (comme ton téléphone).',
-        'Tu y retrouves aussi « Changer de pseudo » pour te déconnecter.',
+        'Tu y retrouves aussi « Se déconnecter ».',
       ],
     },
     {
