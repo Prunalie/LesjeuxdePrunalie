@@ -2150,7 +2150,42 @@
     });
   }
 
-  $('#btnChangePseudo').addEventListener('click', () => {
+  // Thème clair / sombre : « auto » suit l'appareil ; le choix est gardé sur cet appareil.
+  const THEME_KEY = 'ma-petite-piece:theme';
+  function applyTheme(mode) {
+    const root = document.documentElement;
+    if (mode === 'light' || mode === 'dark') root.dataset.theme = mode; else delete root.dataset.theme;
+  }
+  const themeMode = () => { const t = read(THEME_KEY); return t === 'light' || t === 'dark' ? t : 'auto'; };
+  applyTheme(themeMode());
+
+  const prefsDialog = $('#prefsDialog');
+  function renderPrefs() {
+    const mode = themeMode();
+    document.querySelectorAll('.theme-choice').forEach((b) => {
+      const on = b.dataset.themeMode === mode;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on);
+    });
+    const device = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'sombre' : 'clair';
+    $('#themeHint').textContent = mode === 'auto'
+      ? `Automatique : le jeu suit ton appareil (en ce moment : ${device}).`
+      : `Le jeu reste ${mode === 'dark' ? 'sombre' : 'clair'}, quel que soit ton appareil.`;
+    $('#prefsName').textContent = state.player ? state.player.name : '';
+  }
+  document.querySelectorAll('.theme-choice').forEach((b) => b.addEventListener('click', () => {
+    const mode = b.dataset.themeMode;
+    store(THEME_KEY, mode === 'auto' ? null : mode);
+    applyTheme(mode);
+    renderPrefs();
+  }));
+  $('#btnPrefs').addEventListener('click', () => { renderPrefs(); prefsDialog.hidden = false; });
+  $('#prefsClose').addEventListener('click', () => { prefsDialog.hidden = true; });
+  prefsDialog.addEventListener('click', (e) => { if (e.target === prefsDialog) prefsDialog.hidden = true; });
+
+  // Changer de pseudo (se déconnecter) : le bouton d'avant, maintenant dans les paramètres.
+  $('#btnLogout').addEventListener('click', () => {
+    prefsDialog.hidden = true;
     store(SESSION_KEY, null);
     store(PLACE_KEY, null);
     state.player = null;
@@ -3890,6 +3925,14 @@
   // ---------------------------------------------------------------------------
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
+    {
+      id: 'n-2026-10-24a', date: Date.UTC(2026, 9, 24, 9, 0), title: 'Menu Paramètres ⚙️',
+      items: [
+        'Le bouton en haut à droite du menu ouvre maintenant les Paramètres.',
+        'Tu peux choisir ton thème : ☀️ clair, 🌙 sombre, ou 🌓 automatique (comme ton téléphone).',
+        'Tu y retrouves aussi « Changer de pseudo » pour te déconnecter.',
+      ],
+    },
     {
       id: 'n-2026-10-23a', date: Date.UTC(2026, 9, 23, 9, 30), title: 'Un escalier offert 🪜',
       items: [

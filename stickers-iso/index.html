@@ -7,7 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610240900">
+  <link rel="stylesheet" href="style.css?v=202610241030">
+  <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
@@ -45,9 +46,9 @@
           <span id="newsBadge" class="mail-badge" hidden></span>
           <span id="homeNewsSub" class="sr-only"></span>
         </button>
-        <button id="btnChangePseudo" class="mini home-pseudo-btn" title="Changer de pseudo">
-          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4.5" fill="#B07AD8" stroke="#5A3E3A" stroke-width="2.2"/><path d="M3.5 21 C4 15 8 13.5 12 13.5 C16 13.5 20 15 20.5 21 Z" fill="#B07AD8" stroke="#5A3E3A" stroke-width="2.2" stroke-linejoin="round"/></svg>
-          <span class="label-long">Changer de pseudo</span>
+        <button id="btnPrefs" class="mini home-pseudo-btn" title="Paramètres" aria-haspopup="dialog">
+          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8 L14.1 4.9 L17 4.4 L17.9 7.2 L20.6 8.4 L19.9 11.3 L21.4 13.9 L19.2 15.9 L19.1 18.9 L16.2 19.3 L14.3 21.6 L12 20.2 L9.7 21.6 L7.8 19.3 L4.9 18.9 L4.8 15.9 L2.6 13.9 L4.1 11.3 L3.4 8.4 L6.1 7.2 L7 4.4 L9.9 4.9 Z" fill="#B07AD8" stroke="#5A3E3A" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.2" fill="#FFF8EF" stroke="#5A3E3A" stroke-width="2"/></svg>
+          <span class="label-long">Paramètres</span>
         </button>
       </div>
     </header>
@@ -680,6 +681,27 @@
     </div>
   </div>
 
+  <div id="prefsDialog" class="modal" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="prefsTitle">
+      <h2 id="prefsTitle" class="modal-title">Paramètres ⚙️</h2>
+      <section class="prefs-section">
+        <h3>Apparence</h3>
+        <div class="theme-choices" role="group" aria-label="Thème">
+          <button type="button" class="btn theme-choice" data-theme-mode="auto">🌓<span>Auto</span></button>
+          <button type="button" class="btn theme-choice" data-theme-mode="light">☀️<span>Clair</span></button>
+          <button type="button" class="btn theme-choice" data-theme-mode="dark">🌙<span>Sombre</span></button>
+        </div>
+        <p id="themeHint" class="muted prefs-hint"></p>
+      </section>
+      <section class="prefs-section">
+        <h3>Compte</h3>
+        <p class="muted prefs-hint">Tu joues en tant que <strong id="prefsName"></strong>.</p>
+        <button id="btnLogout" class="btn" type="button">🚪 Changer de pseudo</button>
+      </section>
+      <div class="modal-actions"><button id="prefsClose" class="btn btn-primary">Fermer</button></div>
+    </div>
+  </div>
+
   <div id="welcomeDialog" class="modal" hidden>
     <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
       <h2 id="welcomeTitle" class="modal-title">Bienvenue ! 🏠</h2>
@@ -867,7 +889,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610240900"></script>
-  <script src="game.js?v=202610240900"></script>
+  <script src="firebase-config.js?v=202610241030"></script>
+  <script src="game.js?v=202610241030"></script>
 </body>
 </html>
