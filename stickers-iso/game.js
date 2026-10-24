@@ -583,6 +583,7 @@
   // Zoom dans la pièce : `zoom` multiplie l'échelle qui fait tenir la pièce à
   // l'écran, (x, y) décale la vue en pixels.
   const ZOOM_MAX = 5;
+  const PAN_MARGIN = 40; // marge (en px de scène) au-delà des bords de la pièce
   const view = { zoom: 1, x: 0, y: 0 };
 
   function applyView() {
@@ -592,13 +593,14 @@
     if (view.zoom <= 1.001) {
       view.zoom = 1; view.x = 0; view.y = 0;
     } else {
-      // Le centre de la pièce reste toujours dans la zone visible.
+      // On peut amener n'importe quel point de la pièce (bords compris, avec un peu de marge)
+      // au milieu de l'écran : on peut donc se déplacer partout, même zoomé à fond.
       const a = stageArea.getBoundingClientRect();
       const sc = stageScaler.getBoundingClientRect();
       const offX = sc.left - a.left, offY = sc.top - a.top;
-      const w = STAGE_W * state.scale, h = STAGE_H * state.scale;
-      view.x = clamp(view.x, -offX - w / 2, a.width - offX - w / 2);
-      view.y = clamp(view.y, -offY - h / 2, a.height - offY - h / 2);
+      const s = state.scale, m = PAN_MARGIN;
+      view.x = clamp(view.x, a.width / 2 - offX - (STAGE_W + m) * s, a.width / 2 - offX + m * s);
+      view.y = clamp(view.y, a.height / 2 - offY - (STAGE_H + m) * s, a.height / 2 - offY + m * s);
     }
     stage.style.transform = `translate(${view.x}px, ${view.y}px) scale(${state.scale})`;
     // Les poignées gardent la même taille à l'écran, quel que soit le zoom.
