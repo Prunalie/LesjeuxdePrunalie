@@ -1571,6 +1571,7 @@
   function openColorPickerFor(target) {
     cpTarget = target;
     cpKey = 'custom';
+    $('#cpEyedrop').hidden = true; // la pipette de la pièce ne sert que pour les couleurs de la pièce
     setupPipette(target.stickers || []);
     $('#cpTitle').textContent = target.label;
     const base = $('#cpBase');
@@ -1583,6 +1584,7 @@
   function openColorPicker(key) {
     cpTarget = null;
     cpKey = key;
+    $('#cpEyedrop').hidden = false;
     setupPipette([]);
     $('#cpTitle').textContent = CP_LABELS[key] || 'Couleur';
     const base = $('#cpBase');
@@ -1660,35 +1662,40 @@
     levelLeft: 'les murs de l\'étage (gauche)', levelRight: 'les murs de l\'étage (droite)', levelFloor: 'le sol de l\'étage',
   };
 
-  document.querySelectorAll('.pipette-btn[data-color]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const key = btn.dataset.color;
-      if (window.EyeDropper) {
-        try {
-          const { sRGBHex } = await new window.EyeDropper().open();
-          setColor(key, sRGBHex);
-        } catch (e) { /* annulé avec Échap */ }
-        return;
-      }
-      pipetteKey = key;
-      closeColorPicker(false);
-      stageArea.classList.add('pipette');
-      // Le panneau des couleurs se cache le temps de viser, puis revient.
-      reopenColors = !colorsPanel.hidden;
-      colorsPanel.hidden = true;
-      // Rappel qui reste affiché tant que la pipette est active (avec un bouton pour annuler).
-      $('#pipetteHintText').textContent = `💧 Pipette pour ${PIPETTE_NAMES[key]} : appuie dans la pièce, glisse la loupe sur la couleur voulue, puis relâche.`;
-      $('#pipetteHint').hidden = false;
-    });
-  });
+  // La pipette se lance depuis la palette (bouton « 💧 Pipette » à côté des couleurs gardées).
+  let pipetteReturn = null; // palette à rouvrir une fois la couleur prise
+  async function startPipette(key) {
+    if (window.EyeDropper) {
+      try {
+        const { sRGBHex } = await new window.EyeDropper().open();
+        applyPickedColor(sRGBHex);
+      } catch (e) { /* annulé avec Échap */ }
+      return;
+    }
+    pipetteReturn = { key, wasPanel: cpReopenPanel };
+    pipetteKey = key;
+    closeColorPicker(false);
+    stageArea.classList.add('pipette');
+    // Rappel qui reste affiché tant que la pipette est active (avec un bouton pour annuler).
+    $('#pipetteHintText').textContent = `💧 Pipette pour ${PIPETTE_NAMES[key]} : appuie dans la pièce, glisse la loupe sur la couleur voulue, puis relâche.`;
+    $('#pipetteHint').hidden = false;
+  }
+  $('#cpEyedrop').addEventListener('click', () => { if (cpKey && !cpTarget) startPipette(cpKey); });
 
-  let reopenColors = false;
-  // reopen=false : on garde le panneau caché (pendant la visée), il revient quand le doigt est relevé.
+  // La palette revient (avec la nouvelle couleur) quand la pipette a fini ou a été annulée.
+  function returnToPicker() {
+    const r = pipetteReturn;
+    pipetteReturn = null;
+    if (!r || screens.room.hidden) return;
+    openColorPicker(r.key);
+    cpReopenPanel = r.wasPanel;
+  }
+  // reopen=false : on est en pleine visée, la palette reviendra au relâchement.
   function stopPipette(reopen = true) {
     pipetteKey = null;
     stageArea.classList.remove('pipette');
     $('#pipetteHint').hidden = true;
-    if (reopen && reopenColors) { reopenColors = false; colorsPanel.hidden = false; }
+    if (reopen) returnToPicker();
   }
   $('#pipetteCancel').addEventListener('click', () => stopPipette());
 
@@ -1746,7 +1753,6 @@
   function endPip() {
     pip = null;
     loupe.hidden = true;
-    if (reopenColors) { reopenColors = false; colorsPanel.hidden = false; }
     window.removeEventListener('pointermove', onPipMove, true);
     window.removeEventListener('pointerup', onPipUp, true);
     window.removeEventListener('pointercancel', onPipCancel, true);
@@ -1771,10 +1777,11 @@
     endPip();
     if (hex) setColor(key, hex);
     else toast('Il n\'y a pas de couleur à cet endroit. Vise la pièce ou un sticker.');
+    returnToPicker();
   }
 
   function onPipCancel(e) {
-    if (pip && e.pointerId === pip.pointerId) endPip();
+    if (pip && e.pointerId === pip.pointerId) { endPip(); returnToPicker(); }
   }
 
   stageArea.addEventListener('pointerdown', (e) => {
@@ -1792,7 +1799,7 @@
       if (pip === current) drawLoupe();
     }).catch((err) => {
       console.warn('Pipette impossible', err);
-      if (pip === current) { endPip(); toast('Impossible de lire les couleurs de la pièce.'); }
+      if (pip === current) { endPip(); toast('Impossible de lire les couleurs de la pièce.'); returnToPicker(); }
     });
     window.addEventListener('pointermove', onPipMove, true);
     window.addEventListener('pointerup', onPipUp, true);

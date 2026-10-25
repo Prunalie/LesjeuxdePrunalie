@@ -2191,3 +2191,4 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .pipette-hint span { flex: 1; }
 .pipette-hint .btn { flex-shrink: 0; }
 @media (max-width: 720px) { .pipette-hint { font-size: .78rem; bottom: 6px; } }
+.cp-head-btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
