@@ -1676,16 +1676,21 @@
       // Le panneau des couleurs se cache le temps de viser, puis revient.
       reopenColors = !colorsPanel.hidden;
       colorsPanel.hidden = true;
-      toast(`Appuie dans la pièce et glisse la loupe sur la couleur voulue pour ${PIPETTE_NAMES[key]}, puis relâche.`);
+      // Rappel qui reste affiché tant que la pipette est active (avec un bouton pour annuler).
+      $('#pipetteHintText').textContent = `💧 Pipette pour ${PIPETTE_NAMES[key]} : appuie dans la pièce, glisse la loupe sur la couleur voulue, puis relâche.`;
+      $('#pipetteHint').hidden = false;
     });
   });
 
   let reopenColors = false;
-  function stopPipette() {
+  // reopen=false : on garde le panneau caché (pendant la visée), il revient quand le doigt est relevé.
+  function stopPipette(reopen = true) {
     pipetteKey = null;
     stageArea.classList.remove('pipette');
-    if (reopenColors) { reopenColors = false; colorsPanel.hidden = false; }
+    $('#pipetteHint').hidden = true;
+    if (reopen && reopenColors) { reopenColors = false; colorsPanel.hidden = false; }
   }
+  $('#pipetteCancel').addEventListener('click', () => stopPipette());
 
   // En mode pipette, appuyer dans la pièce affiche une loupe au-dessus du doigt :
   // on glisse pour viser la bonne couleur, et on relâche pour la choisir.
@@ -1741,6 +1746,7 @@
   function endPip() {
     pip = null;
     loupe.hidden = true;
+    if (reopenColors) { reopenColors = false; colorsPanel.hidden = false; }
     window.removeEventListener('pointermove', onPipMove, true);
     window.removeEventListener('pointerup', onPipUp, true);
     window.removeEventListener('pointercancel', onPipCancel, true);
@@ -1773,12 +1779,13 @@
 
   stageArea.addEventListener('pointerdown', (e) => {
     if (!pipetteKey) return;
+    if (e.target.closest('.pipette-hint')) return; // le bouton « Annuler » doit rester cliquable
     e.preventDefault();
     e.stopPropagation();
     if (pip) return; // un seul doigt pour la pipette
     if (e.target.closest('.bar-tab, .zoom-ctrl, .toolbar')) { stopPipette(); return; }
     pip = { key: pipetteKey, ctx: null, pointerId: e.pointerId, x: e.clientX, y: e.clientY };
-    stopPipette();
+    stopPipette(false);
     const current = pip;
     current.ready = renderScene(SCENE_K, state.colors.background || null).then((cv) => {
       current.ctx = cv.getContext('2d', { willReadFrequently: true });

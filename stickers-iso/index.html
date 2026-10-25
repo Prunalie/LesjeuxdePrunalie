@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610251000">
+  <link rel="stylesheet" href="style.css?v=202610251100">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -199,6 +199,7 @@
       <button id="tabTop" class="bar-tab tab-top" aria-controls="roomTopbar"></button>
       <button id="tabLib" class="bar-tab tab-lib" aria-controls="roomLibrary"></button>
 
+      <div id="pipetteHint" class="pipette-hint" hidden><span id="pipetteHintText"></span><button id="pipetteCancel" class="btn" type="button">Annuler</button></div>
       <div id="contestBanner" class="contest-banner" hidden><span id="contestBannerText"></span></div>
       <div class="stage-tools">
         <div class="undo-ctrl" role="group" aria-label="Historique">
@@ -889,7 +890,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610251000"></script>
-  <script src="game.js?v=202610251000"></script>
+  <script src="firebase-config.js?v=202610251100"></script>
+  <script src="game.js?v=202610251100"></script>
 </body>
 </html>
