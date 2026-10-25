@@ -2120,8 +2120,31 @@
     } catch (e) { /* hors ligne : on garde la version en mémoire */ }
   }
   // En revenant sur le jeu après un moment, on relit le profil.
+  // Retour sur la page après une longue absence : on recharge le jeu (nouvelle version, thème du jour,
+  // prix, messages…), sans rien perdre. Pour une absence plus courte, on rafraîchit seulement l'essentiel.
+  const AWAY_RELOAD_MS = 15 * 60 * 1000;
+  let hiddenAt = null;
+  // Rien d'en cours qu'un rechargement ferait perdre (fenêtre ouverte, envoi de stickers en préparation).
+  const busyForReload = () => !!document.querySelector('.modal:not([hidden]), .duel-view:not([hidden]), .color-sheet:not([hidden])')
+    || !screens.creations.hidden;
+  function updateContestBanner() {
+    const r = currentRoom();
+    if (r && r.contestDay) $('#contestBannerText').textContent = `Pièce du concours · thème « ${themeOf(r.contestDay)} » · tous tes stickers sont disponibles ici`;
+  }
   document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState !== 'visible' || !state.profile) return;
+    if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
+    const away = hiddenAt ? Date.now() - hiddenAt : 0;
+    hiddenAt = null;
+    if (!state.profile) return;
+    if (away >= AWAY_RELOAD_MS && !state.isAdmin && !busyForReload()) {
+      try { select(null); await saveRoom(); } catch (e) { /* on recharge quand même */ }
+      toast('Mise à jour de ta page…');
+      setTimeout(() => location.reload(), 400);
+      return;
+    }
+    await refreshSettings();
+    renderContestTile();
+    updateContestBanner();
     if (Date.now() - profileRefreshedAt < 30000) return;
     await refreshProfile();
     if (!screens.home.hidden) goHome();
@@ -4800,7 +4823,8 @@
   setInterval(async () => {
     if (!state.profile || document.visibilityState !== 'visible') return;
     await refreshSettings();
-    if (!screens.home.hidden) renderMaintTiles();
+    if (!screens.home.hidden) { renderMaintTiles(); renderContestTile(); }
+    updateContestBanner();
     if (state.isAdmin) return;
     if (maintOn('all')) { $('#maintScreen').hidden = false; return; }
     $('#maintScreen').hidden = true;
