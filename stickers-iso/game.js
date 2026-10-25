@@ -4759,6 +4759,9 @@
       savePending = true;
       await saveRoom();
       toast('Ta pièce est publiée 🏆 Demain, tout le monde votera jusqu\'à 20 h !');
+      // La pièce se ferme : retour à l'écran du concours, où l'on voit sa participation.
+      state.roomId = null;
+      openContest();
     } catch (e) {
       console.warn('Publication impossible', e);
       toast('La pièce n\'a pas pu être publiée. Vérifie ta connexion.');
