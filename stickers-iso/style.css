@@ -1460,16 +1460,19 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
 }
 .atelier-item-dl { left: 34px; }
 
-/* Fenêtre des stickers agrandie (bouton ⤢) */
+/* Liste des stickers : 3 crans (grande, petite, cachée) avec la languette, et filtre par collection */
 .library-actions { display: flex; gap: 6px; align-items: center; }
-.lib-size-btn { width: 36px; height: 36px; padding: 0; justify-content: center; font-size: 1.05rem; }
+.lib-filter-btn { height: 36px; padding: 0 10px; justify-content: center; font-size: 1.05rem; max-width: 170px; }
+.lib-filter-btn .label-long { font-size: .8rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-filter-btn.active { background: #fff3cc; border-color: #e6b422; }
 .library { transition: width .2s; }
 .screen-room.lib-big .library { width: 440px; }
 .screen-room.lib-big .library-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
 @media (max-width: 720px) {
   .library-actions { flex-direction: column; gap: 4px; }
   .library-actions .btn { width: 52px; height: 24px; border-radius: 8px; font-size: .9rem; padding: 0; }
-  .library-actions .import-btn .label-long { display: none; }
+  .library-actions .import-btn .label-long, .lib-filter-btn .label-long { display: none; }
+  .lib-filter-btn { max-width: none; font-size: .9rem; }
   /* Agrandie : 3 rangées de stickers qu'on fait défiler sur le côté (glisser vers le haut pour poser) */
   .screen-room.lib-big .library { width: auto; }
   .screen-room.lib-big .library-grid {
@@ -2227,3 +2230,11 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .object-bar { left: 50%; transform: translateX(-50%); bottom: 72px; width: min(440px, calc(100% - 16px)); }
 @media (max-width: 720px) { .object-bar { bottom: 56px; } }
 .toolbar button.active { background: #fff3cc; }
+
+/* Filtre par collection */
+.lib-filter-list { display: flex; flex-direction: column; gap: 6px; max-height: 55vh; overflow-y: auto; margin: 8px 0; }
+.lib-filter-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; text-align: left; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; cursor: pointer; }
+.lib-filter-item:hover { background: var(--hover); }
+.lib-filter-item.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); font-weight: 800; }
+.lf-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lf-n { flex-shrink: 0; font-size: .8rem; color: var(--muted); }

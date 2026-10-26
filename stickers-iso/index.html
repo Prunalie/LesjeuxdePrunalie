@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610261200">
+  <link rel="stylesheet" href="style.css?v=202610270910">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -178,7 +178,7 @@
       <div class="library-head">
         <h2>Mes stickers</h2>
         <div class="library-actions">
-          <button id="btnLibSize" class="btn lib-size-btn" title="Agrandir la fenêtre des stickers" aria-pressed="false">⤢</button>
+          <button id="btnLibFilter" class="btn lib-filter-btn" title="Filtrer les stickers par collection" aria-haspopup="dialog">🗂️<span id="libFilterLabel" class="label-long"></span></button>
           <button id="btnLibShop" class="btn btn-primary import-btn" title="Boutique">🛍️<span class="label-long">&nbsp;Boutique</span></button>
         </div>
       </div>
@@ -675,6 +675,14 @@
     </div>
   </div>
 
+  <div id="libFilterDialog" class="modal" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="libFilterTitle">
+      <h2 id="libFilterTitle" class="modal-title">Filtrer par collection</h2>
+      <div id="libFilterList" class="lib-filter-list"></div>
+      <div class="modal-actions"><button id="libFilterClose" class="btn">Fermer</button></div>
+    </div>
+  </div>
+
   <div id="ctStartDialog" class="modal" hidden>
     <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="ctStartTitle">
       <h2 id="ctStartTitle" class="modal-title">Ta pièce du concours 🎨</h2>
@@ -904,7 +912,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610261200"></script>
-  <script src="game.js?v=202610261200"></script>
+  <script src="firebase-config.js?v=202610270910"></script>
+  <script src="game.js?v=202610270910"></script>
 </body>
 </html>

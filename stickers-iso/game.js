@@ -737,10 +737,63 @@
   }
   const available = (id) => owned(id) - usedCount(id);
 
+  // Filtre de la liste des stickers : null = toutes les collections, sinon l'id d'une enveloppe (ou NO_COLLECTION).
+  const NO_COLLECTION = '__none';
+  let libFilter = null;
+  const collectionOf = (img) => (state.envelopes.some((e) => e.id === img.envelope) ? img.envelope : NO_COLLECTION);
+
+  // Collections où le joueur a au moins un sticker, dans l'ordre de la boutique.
+  function libCollections() {
+    const mine = [...state.images.values()].filter((img) => owned(img.id) > 0);
+    const out = [];
+    for (const env of state.envelopes) {
+      const n = mine.filter((img) => collectionOf(img) === env.id).length;
+      if (n) out.push({ id: env.id, name: env.name || 'Enveloppe', n });
+    }
+    const none = mine.filter((img) => collectionOf(img) === NO_COLLECTION).length;
+    if (none) out.push({ id: NO_COLLECTION, name: 'Sans collection', n: none });
+    return { list: out, total: mine.length };
+  }
+
+  function updateLibFilterButton() {
+    const { list } = libCollections();
+    if (libFilter && !list.some((c) => c.id === libFilter)) libFilter = null; // plus aucun sticker de cette collection
+    const cur = list.find((c) => c.id === libFilter);
+    const btn = $('#btnLibFilter');
+    btn.classList.toggle('active', !!cur);
+    btn.hidden = list.length < 2 && !cur;
+    $('#libFilterLabel').textContent = cur ? `\u00a0${cur.name}` : '\u00a0Collections';
+    btn.title = cur ? `Collection : ${cur.name} (toucher pour changer)` : 'Filtrer les stickers par collection';
+  }
+
+  function openLibFilter() {
+    const { list, total } = libCollections();
+    const box = $('#libFilterList');
+    box.innerHTML = '';
+    const item = (id, label, n) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'lib-filter-item' + ((libFilter || null) === id ? ' active' : '');
+      b.innerHTML = '<span class="lf-name"></span><span class="lf-n"></span>';
+      b.querySelector('.lf-name').textContent = ((libFilter || null) === id ? '✓ ' : '') + label;
+      b.querySelector('.lf-n').textContent = plural(n, 'sticker');
+      b.addEventListener('click', () => { libFilter = id; $('#libFilterDialog').hidden = true; renderLibrary(); });
+      box.appendChild(b);
+    };
+    item(null, 'Toutes mes collections', total);
+    list.forEach((c) => item(c.id, c.name, c.n));
+    $('#libFilterDialog').hidden = false;
+  }
+  $('#btnLibFilter').addEventListener('click', openLibFilter);
+  $('#libFilterClose').addEventListener('click', () => { $('#libFilterDialog').hidden = true; });
+  $('#libFilterDialog').addEventListener('click', (e) => { if (e.target.id === 'libFilterDialog') $('#libFilterDialog').hidden = true; });
+
   function renderLibrary() {
     libraryGrid.innerHTML = '';
-    const mine = [...state.images.values()].filter((img) => owned(img.id) > 0);
-    libraryEmpty.hidden = mine.length > 0;
+    const all = [...state.images.values()].filter((img) => owned(img.id) > 0);
+    updateLibFilterButton();
+    const mine = libFilter ? all.filter((img) => collectionOf(img) === libFilter) : all;
+    libraryEmpty.hidden = all.length > 0;
     for (const img of mine) {
       const left = available(img.id);
       const el = document.createElement('div');
@@ -2869,30 +2922,36 @@
     return { top: !mqSmall.matches, lib: true };
   })();
 
+  const libMode = () => (!bars.lib ? 'hidden' : bars.big ? 'big' : 'small');
   function applyBars() {
     screens.room.classList.toggle('hide-top', !bars.top);
     screens.room.classList.toggle('hide-lib', !bars.lib);
     screens.room.classList.toggle('lib-big', !!bars.big);
-    const sizeBtn = $('#btnLibSize');
-    sizeBtn.textContent = bars.big ? '⤡' : '⤢';
-    sizeBtn.title = bars.big ? 'Réduire la fenêtre des stickers' : 'Agrandir la fenêtre des stickers';
-    sizeBtn.setAttribute('aria-pressed', !!bars.big);
     tabTop.textContent = bars.top ? '▴' : '▾ Menu';
     tabTop.title = bars.top ? 'Cacher la barre du haut' : 'Afficher la barre du haut';
     tabTop.setAttribute('aria-expanded', bars.top);
-    if (mqSmall.matches) tabLib.textContent = bars.lib ? '▾' : '▴ Stickers';
-    else tabLib.textContent = bars.lib ? '‹' : '› Stickers';
-    tabLib.title = bars.lib ? 'Cacher les stickers' : 'Afficher les stickers';
+    // La languette de la liste des stickers a 3 crans : grande → petite → cachée.
+    const mode = libMode();
+    const small = mqSmall.matches;
+    tabLib.textContent = { big: '⤡', small: small ? '▾' : '‹', hidden: small ? '▴ Stickers' : '› Stickers' }[mode];
+    tabLib.title = { big: 'Réduire la liste des stickers', small: 'Cacher la liste des stickers', hidden: 'Afficher la liste des stickers (en grand)' }[mode];
     tabLib.setAttribute('aria-expanded', bars.lib);
   }
-  $('#btnLibSize').addEventListener('click', () => toggleBar('big'));
   function toggleBar(name) {
     bars[name] = !bars[name];
     try { localStorage.setItem(BARS_KEY, JSON.stringify(bars)); } catch (e) { /* stockage indisponible */ }
     applyBars();
   }
   tabTop.addEventListener('click', () => toggleBar('top'));
-  tabLib.addEventListener('click', () => toggleBar('lib'));
+  // Un appui change de cran : grande → petite → cachée → grande.
+  tabLib.addEventListener('click', () => {
+    const m = libMode();
+    if (m === 'big') bars.big = false;
+    else if (m === 'small') { bars.lib = false; bars.big = false; }
+    else { bars.lib = true; bars.big = true; }
+    try { localStorage.setItem(BARS_KEY, JSON.stringify(bars)); } catch (e) { /* stockage indisponible */ }
+    applyBars();
+  });
   mqSmall.addEventListener('change', applyBars);
 
   // Panneau « Couleurs » (bouton 🎨 à côté des flèches).
