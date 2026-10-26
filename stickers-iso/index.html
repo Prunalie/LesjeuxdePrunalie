@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610251230">
+  <link rel="stylesheet" href="style.css?v=202610261030">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -192,6 +192,8 @@
         <div class="stage" id="stage">
           <svg id="room" class="room" viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg"></svg>
           <div id="stickerLayer" class="sticker-layer"></div>
+          <div id="lightLayer" class="light-layer" aria-hidden="true"></div>
+          <div id="lightHandles" class="light-handles"></div>
         </div>
       </div>
 
@@ -209,12 +211,32 @@
         <button id="btnLayers" class="layers-btn" aria-controls="layersPanel" title="Objets posés : sélectionner, verrouiller">☰<span class="label-long">&nbsp;Objets</span></button>
         <div class="room-tools" role="group" aria-label="Pièce">
           <button id="btnColors" aria-controls="colorsPanel" aria-expanded="false" title="Couleurs des murs, du sol et du fond">🎨<span class="label-long">&nbsp;Couleurs</span></button>
+          <button id="btnLight" title="Lumière (test)" aria-controls="lightPanel" aria-expanded="false" hidden>💡<span class="label-long">&nbsp;Lumière</span></button>
           <button id="btnShape" title="Aménager : jardin, taille, étages">🏗️<span class="label-long">&nbsp;Aménager</span></button>
           <button id="btnExport2" class="tool-export" title="Exporter la pièce en image">📷<span class="label-long">&nbsp;Exporter</span></button>
           <button id="btnContestDraft" class="tool-draft" hidden title="Enregistrer en brouillon et revenir plus tard">💾<span class="label-long">&nbsp;Brouillon</span></button>
           <button id="btnContestPublish2" class="tool-publish" hidden title="Publier cette pièce au concours du jour">🏆<span class="label-long">&nbsp;Publier</span></button>
         </div>
       </div>
+
+      <aside id="lightPanel" class="colors-panel light-panel" hidden aria-label="Lumière">
+        <div class="layers-head">
+          <h2>Lumière 💡</h2>
+          <span class="light-head-btns">
+            <button id="lightCollapse" class="layers-close" title="Réduire pour voir la pièce" aria-pressed="false">▾</button>
+            <button id="lightClose" class="layers-close" title="Fermer">✕</button>
+          </span>
+        </div>
+        <p class="muted light-note">En test, réservé à l'administratrice.</p>
+        <label class="light-ambient"><span>Lumière de la pièce <output id="ambientOut">100 %</output></span>
+          <input id="ambientRange" type="range" min="5" max="100" step="1" value="100">
+          <span class="light-scale"><span>🌙 nuit</span><span>☀️ jour</span></span>
+        </label>
+        <div class="light-sep"></div>
+        <div class="light-head"><h3>Points lumineux</h3><button id="lightAdd" class="btn cp-small" type="button">＋ Ajouter</button></div>
+        <p id="lightHint" class="muted light-hint"></p>
+        <ul id="lightList" class="light-list"></ul>
+      </aside>
 
       <aside id="colorsPanel" class="colors-panel" hidden aria-label="Couleurs">
         <div class="layers-head">
@@ -272,6 +294,7 @@
         <span class="sep"></span>
         <button data-act="flip" title="Retourner (miroir)">↔️</button>
         <button data-act="duplicate" title="Dupliquer">⧉</button>
+        <button data-act="light" title="Ajouter un point lumineux sur cet objet (test)" hidden>💡</button>
         <button data-act="lock" title="Verrouiller (ne plus pouvoir le toucher dans la pièce)">🔒</button>
         <button data-act="delete" title="Supprimer" class="danger">🗑️</button>
       </div>
@@ -883,7 +906,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610251230"></script>
-  <script src="game.js?v=202610251230"></script>
+  <script src="firebase-config.js?v=202610261030"></script>
+  <script src="game.js?v=202610261030"></script>
 </body>
 </html>

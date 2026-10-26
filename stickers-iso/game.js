@@ -57,6 +57,8 @@
     proposals: [],       // coffre (administratrice) : toutes les propositions
     images: new Map(),   // catalogue : id -> { id, envelope, rarity, name, data, url, w, h }
     stickers: [],        // ordre du tableau = ordre d'empilement (dernier = devant)
+    ambient: 100,        // lumière de la pièce, de 5 (nuit) à 100 (jour)
+    lights: [],          // points lumineux : { id, sid (sticker), dx, dy (position sur le sticker), color, intensity }
     colors: { ...DEFAULT_COLORS },
     shape: null,         // forme de la pièce ouverte (type, taille, étages)
     selectedId: null,
@@ -373,11 +375,13 @@
       shape: state.shape,
       ...(currentRoom() && currentRoom().contestDay ? { contestDay: currentRoom().contestDay } : {}),
       ...(currentRoom() && currentRoom().publishedAt ? { publishedAt: currentRoom().publishedAt } : {}),
+      ...(state.ambient < 100 ? { ambient: state.ambient } : {}),
+      ...(state.lights.length ? { lights: state.lights.map((l) => ({ ...l })) } : {}),
       thumb,
       updated: Date.now(),
     };
     const i = state.rooms.findIndex((r) => r.id === room.id);
-    if (i >= 0) state.rooms[i] = { ...room, stickers: [...room.stickers], colors: { ...room.colors }, shape: JSON.parse(JSON.stringify(room.shape)) };
+    if (i >= 0) state.rooms[i] = { ...room, stickers: [...room.stickers], colors: { ...room.colors }, shape: JSON.parse(JSON.stringify(room.shape)), ...(room.lights ? { lights: room.lights.map((l) => ({ ...l })) } : {}) };
     try {
       await db.putRoom(room);
       if (!savePending) setSaveStatus('Sauvegardé ✓');
@@ -812,7 +816,7 @@
   const history = { undo: [], redo: [] };
   let lastCoalesce = { kind: null, time: 0 };
 
-  const snapshot = () => JSON.stringify({ stickers: state.stickers, colors: state.colors, shape: state.shape });
+  const snapshot = () => JSON.stringify({ stickers: state.stickers, colors: state.colors, shape: state.shape, ambient: state.ambient, lights: state.lights });
 
   // Enregistre l'état « avant » si la pièce a vraiment changé depuis.
   function commit(before) {
@@ -849,6 +853,8 @@
     state.stickers = data.stickers.filter((st) => state.images.has(st.imageId));
     state.colors = { ...DEFAULT_COLORS, ...data.colors };
     state.shape = normShape(data.shape);
+    state.ambient = Number.isFinite(data.ambient) ? data.ambient : 100;
+    state.lights = Array.isArray(data.lights) ? data.lights : [];
     if (!shapeDialog.hidden) renderShapeDialog();
     // Un exemplaire vendu entre-temps ne peut pas revenir dans la pièce.
     for (const id of new Set(state.stickers.map((st) => st.imageId))) {
@@ -863,6 +869,7 @@
     drawRoom();
     if (cpKey && !cpTarget) renderPickerState(currentColor(cpKey), true);
     renderStickers();
+    renderLightPanel();
     scheduleSave();
     updateUndoButtons();
   }
@@ -913,6 +920,7 @@
     // Le bandeau du concours laisse la place à la barre d'outils du sticker.
     document.getElementById('contestBanner').classList.toggle('away', !!id);
     renderLayers();
+    renderLightPanel();
   }
 
   function applyStickerStyle(el, s) {
@@ -923,6 +931,7 @@
     el.style.transform = `rotate(${s.rot}deg)`;
     el.firstChild.style.transform = s.flip ? 'scaleX(-1)' : '';
     el.classList.toggle('locked', !!s.locked);
+    scheduleLights();
   }
 
   function renderStickers() {
@@ -948,7 +957,245 @@
     });
     select(state.selectedId);
     renderLibrary();
+    scheduleLights();
   }
+
+
+  // ---------------------------------------------------------------------------
+  // Lumière (test pour l'administratrice) : lumière de la pièce + points lumineux sur des objets
+  // ---------------------------------------------------------------------------
+  const LIGHT_DEFAULT = { color: '#ffd27a', intensity: 70 };
+  const AMBIENT_MIN = 5;
+  const lightLayer = $('#lightLayer');
+  const lightHandles = $('#lightHandles');
+  const lightPanel = $('#lightPanel');
+  let lightSel = null; // point lumineux sélectionné
+  const hexRgb = (hex) => {
+    const n = parseInt(String(hex || '#ffffff').slice(1), 16) || 0;
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  };
+  const lightRadius = (l) => 50 + l.intensity * 1.3;
+  // Position d'un point lumineux dans la scène : posé sur son sticker (tourné, retourné, agrandi…).
+  function lightPos(l, stickers = state.stickers) {
+    const s = stickers.find((x) => x.id === l.sid);
+    if (!s) return null;
+    const a = (s.rot || 0) * Math.PI / 180;
+    const lx = (s.flip ? -1 : 1) * l.dx * s.w, ly = l.dy * s.h;
+    return { x: s.x + lx * Math.cos(a) - ly * Math.sin(a), y: s.y + lx * Math.sin(a) + ly * Math.cos(a) };
+  }
+  // Les lumières se voient moins en pleine journée qu'à la tombée de la nuit.
+  function glowStops(l, ambient) {
+    const [r, g, b] = hexRgb(l.color);
+    const a = (0.25 + 0.6 * l.intensity / 100) * (0.55 + 0.45 * (1 - ambient / 100));
+    return [[0, `rgba(${r},${g},${b},${a.toFixed(3)})`], [0.35, `rgba(${r},${g},${b},${(a * 0.5).toFixed(3)})`], [1, `rgba(${r},${g},${b},0)`]];
+  }
+  const glowCss = (l, ambient) => `radial-gradient(circle closest-side, ${glowStops(l, ambient).map(([p, c]) => `${c} ${p * 100}%`).join(', ')})`;
+
+  const glowEls = new Map();
+  const handleEls = new Map();
+  let lightRaf = 0;
+  function scheduleLights() {
+    if (lightRaf) return;
+    lightRaf = requestAnimationFrame(() => { lightRaf = 0; renderLights(); });
+  }
+
+  function renderLights() {
+    stage.classList.toggle('dim', state.ambient < 100);
+    stage.style.setProperty('--amb', (state.ambient / 100).toFixed(3));
+    // Un point lumineux disparaît avec son sticker.
+    const n = state.lights.length;
+    state.lights = state.lights.filter((l) => state.stickers.some((s) => s.id === l.sid));
+    if (state.lights.length !== n) {
+      if (lightSel && !state.lights.some((l) => l.id === lightSel)) lightSel = null;
+      renderLightPanel();
+    }
+    const showHandles = state.isAdmin && !lightPanel.hidden;
+    const seen = new Set();
+    for (const l of state.lights) {
+      const p = lightPos(l);
+      if (!p) continue;
+      seen.add(l.id);
+      const r = lightRadius(l);
+      let g = glowEls.get(l.id);
+      if (!g) { g = document.createElement('div'); g.className = 'glow'; lightLayer.appendChild(g); glowEls.set(l.id, g); }
+      g.style.left = `${p.x - r}px`; g.style.top = `${p.y - r}px`;
+      g.style.width = g.style.height = `${r * 2}px`;
+      g.style.background = glowCss(l, state.ambient);
+      let h = handleEls.get(l.id);
+      if (showHandles) {
+        if (!h) {
+          h = document.createElement('div');
+          h.className = 'light-handle';
+          h.title = 'Glisse pour déplacer le point lumineux sur l\'objet';
+          h.addEventListener('pointerdown', (e) => startLightDrag(e, l.id));
+          lightHandles.appendChild(h);
+          handleEls.set(l.id, h);
+        }
+        h.style.left = `${p.x}px`; h.style.top = `${p.y}px`;
+        h.style.background = l.color;
+        h.classList.toggle('sel', l.id === lightSel);
+      } else if (h) { h.remove(); handleEls.delete(l.id); }
+    }
+    for (const [id, el] of glowEls) if (!seen.has(id)) { el.remove(); glowEls.delete(id); }
+    for (const [id, el] of handleEls) if (!seen.has(id) || !showHandles) { el.remove(); handleEls.delete(id); }
+  }
+
+  function startLightDrag(e, id) {
+    e.preventDefault();
+    e.stopPropagation();
+    const l = state.lights.find((x) => x.id === id);
+    const s = l && state.stickers.find((x) => x.id === l.sid);
+    if (!s) return;
+    lightSel = id;
+    renderLightPanel();
+    scheduleLights();
+    const before = snapshot();
+    const move = (ev) => {
+      const p = toStage(ev.clientX, ev.clientY);
+      const a = (s.rot || 0) * Math.PI / 180;
+      const vx = p.x - s.x, vy = p.y - s.y;
+      const lx = vx * Math.cos(a) + vy * Math.sin(a), ly = -vx * Math.sin(a) + vy * Math.cos(a);
+      l.dx = clamp((s.flip ? -1 : 1) * lx / s.w, -0.7, 0.7);
+      l.dy = clamp(ly / s.h, -0.7, 0.7);
+      scheduleLights();
+    };
+    const end = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      commit(before);
+      scheduleSave();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+  }
+
+  function addLightTo(s) {
+    const already = state.lights.filter((l) => l.sid === s.id).length;
+    const l = { id: uid(), sid: s.id, dx: Math.min(0.5, already * 0.15), dy: 0, ...LIGHT_DEFAULT };
+    state.lights.push(l);
+    lightSel = l.id;
+    return l;
+  }
+
+  function openLightPanel() {
+    if (!state.isAdmin) return;
+    if (!colorsPanel.hidden) setColorsPanel(false);
+    if (!layersPanel.hidden) closeLayers();
+    lightPanel.hidden = false;
+    $('#btnLight').setAttribute('aria-expanded', 'true');
+    renderLightPanel();
+    scheduleLights();
+  }
+  function closeLightPanel() {
+    lightPanel.hidden = true;
+    $('#btnLight').setAttribute('aria-expanded', 'false');
+    scheduleLights();
+  }
+
+  function renderLightPanel() {
+    if (lightPanel.hidden) return;
+    $('#ambientRange').value = state.ambient;
+    $('#ambientOut').textContent = `${state.ambient} %`;
+    const sel = getSelected();
+    $('#lightAdd').disabled = !sel;
+    $('#lightHint').textContent = sel
+      ? `Ajouter un point lumineux sur « ${stickerLabel(sel)} ».`
+      : 'Sélectionne un objet dans la pièce, puis ajoute un point lumineux dessus.';
+    const list = $('#lightList');
+    list.innerHTML = '';
+    for (const l of state.lights) {
+      const s = state.stickers.find((x) => x.id === l.sid);
+      const img = s && state.images.get(s.imageId);
+      if (!img) continue;
+      const li = document.createElement('li');
+      li.className = 'light-row' + (l.id === lightSel ? ' sel' : '');
+      li.innerHTML = `
+        <div class="light-row-top">
+          <span class="layer-thumb"><img alt=""></span>
+          <span class="light-name"></span>
+          <button type="button" class="swatch-btn light-color" title="Couleur de la lumière"></button>
+          <button type="button" class="layer-lock light-del" title="Supprimer ce point lumineux">🗑️</button>
+        </div>
+        <label class="light-int"><span>Intensité</span><input type="range" min="5" max="100" step="1"><output></output></label>`;
+      li.querySelector('img').src = img.url;
+      li.querySelector('.light-name').textContent = stickerLabel(s);
+      const swatch = li.querySelector('.light-color');
+      swatch.style.background = l.color;
+      const range = li.querySelector('input[type="range"]');
+      const out = li.querySelector('output');
+      range.value = l.intensity;
+      out.textContent = `${l.intensity} %`;
+      range.addEventListener('input', () => {
+        checkpoint('lightint:' + l.id);
+        l.intensity = Number(range.value);
+        out.textContent = `${l.intensity} %`;
+        scheduleLights();
+        scheduleSave();
+      });
+      swatch.addEventListener('click', (e) => {
+        e.stopPropagation();
+        lightSel = l.id;
+        openColorPickerFor({
+          label: `Lumière · ${stickerLabel(s)}`,
+          stickers: [img],
+          get: () => l.color,
+          set: (hex) => {
+            checkpoint('lightcolor:' + l.id);
+            l.color = hex;
+            swatch.style.background = hex;
+            scheduleLights();
+            scheduleSave();
+          },
+        });
+      });
+      li.querySelector('.light-del').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const before = snapshot();
+        state.lights = state.lights.filter((x) => x.id !== l.id);
+        if (lightSel === l.id) lightSel = null;
+        commit(before);
+        scheduleSave();
+        renderLightPanel();
+        scheduleLights();
+      });
+      li.addEventListener('click', () => {
+        lightSel = l.id;
+        list.querySelectorAll('.light-row').forEach((r) => r.classList.toggle('sel', r === li));
+        scheduleLights();
+      });
+      list.appendChild(li);
+    }
+  }
+
+  $('#btnLight').addEventListener('click', () => (lightPanel.hidden ? openLightPanel() : closeLightPanel()));
+  $('#lightClose').addEventListener('click', closeLightPanel);
+  // Réduit le panneau à son en-tête pour voir toute la pièce (et déplacer les points lumineux).
+  $('#lightCollapse').addEventListener('click', () => {
+    const on = lightPanel.classList.toggle('collapsed');
+    $('#lightCollapse').textContent = on ? '▴' : '▾';
+    $('#lightCollapse').setAttribute('aria-pressed', on);
+  });
+  $('#ambientRange').addEventListener('input', (e) => {
+    checkpoint('ambient');
+    state.ambient = clamp(Number(e.target.value) || 100, AMBIENT_MIN, 100);
+    $('#ambientOut').textContent = `${state.ambient} %`;
+    scheduleLights();
+    scheduleSave();
+  });
+  $('#lightAdd').addEventListener('click', () => {
+    const s = getSelected();
+    if (!s) return;
+    const before = snapshot();
+    addLightTo(s);
+    commit(before);
+    scheduleSave();
+    renderLightPanel();
+    scheduleLights();
+  });
+  // Recopie des points lumineux avec de nouveaux sticker (copie ou duplication d'une pièce).
+  const remapLights = (lights, idMap) => (lights || []).filter((l) => idMap.has(l.sid)).map((l) => ({ ...l, id: uid(), sid: idMap.get(l.sid) }));
 
   // ---------------------------------------------------------------------------
   // Objets posés : la liste des stickers de la pièce, du plus devant au plus
@@ -1015,6 +1262,7 @@
   function openLayers() {
     layersPanel.hidden = false;
     if (!colorsPanel.hidden) setColorsPanel(false);
+    if (!lightPanel.hidden) closeLightPanel();
     renderLayers();
   }
   function closeLayers() {
@@ -1132,7 +1380,7 @@
 
   // Molette : sur le sticker sélectionné, agrandir / réduire ; ailleurs, zoomer.
   stageArea.addEventListener('wheel', (e) => {
-    if (e.target.closest('.toolbar, .bar-tab, .zoom-ctrl, .stage-tools, .layers-panel')) return;
+    if (e.target.closest('.toolbar, .bar-tab, .zoom-ctrl, .stage-tools, .layers-panel, .colors-panel, .pipette-hint')) return;
     e.preventDefault();
     const s = getSelected();
     const onSelected = s && e.target.closest('.sticker') === elFor(s.id);
@@ -1153,7 +1401,7 @@
   let viewGesture = null;
 
   stageArea.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.sticker, .toolbar, .bar-tab, .zoom-ctrl, .stage-tools, .layers-panel')) return;
+    if (e.target.closest('.sticker, .toolbar, .bar-tab, .zoom-ctrl, .stage-tools, .layers-panel, .colors-panel, .pipette-hint')) return;
     if (e.button !== undefined && e.button !== 0) return;
     if (joinPinch(e)) return;
     viewPointerDown(e);
@@ -1254,6 +1502,11 @@
         break;
       }
       case 'delete': arr.splice(i, 1); state.selectedId = null; break;
+      case 'light':
+        if (!state.isAdmin) return;
+        addLightTo(s);
+        openLightPanel();
+        break;
       case 'lock':
         s.locked = true;
         state.selectedId = null;
@@ -1836,29 +2089,70 @@
       ctx.fillRect(0, 0, STAGE_W, STAGE_H);
     }
 
+    const stickers = data ? (data.stickers || []) : state.stickers;
+    const lights = data ? (data.lights || []) : state.lights;
+    const ambient = data ? (Number.isFinite(data.ambient) ? data.ambient : 100) : state.ambient;
+    // Pièce sombre : la pièce et ses stickers sont dessinés à part, puis assombris (le fond ne l'est pas).
+    let content = ctx, layerCv = null;
+    if (ambient < 100) {
+      layerCv = document.createElement('canvas');
+      layerCv.width = cv.width;
+      layerCv.height = cv.height;
+      content = layerCv.getContext('2d');
+      content.scale(K, K);
+    }
+
     const svgText = data
       ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${STAGE_W} ${STAGE_H}" width="${STAGE_W}" height="${STAGE_H}">${roomSvg({ ...DEFAULT_COLORS, ...(data.colors || {}) }, data.shape)}</svg>`
       : new XMLSerializer().serializeToString(room);
     const svgUrl = URL.createObjectURL(new Blob([svgText], { type: 'image/svg+xml' }));
     try {
-      ctx.drawImage(await loadImageEl(svgUrl), 0, 0, STAGE_W, STAGE_H);
+      content.drawImage(await loadImageEl(svgUrl), 0, 0, STAGE_W, STAGE_H);
     } finally {
       URL.revokeObjectURL(svgUrl);
     }
 
-    for (const s of data ? (data.stickers || []) : state.stickers) {
+    for (const s of stickers) {
       const img = state.images.get(s.imageId);
       if (!img) continue;
       let el;
       try { el = await loadImageEl(img.url); } catch (e) { console.warn('Sticker illisible, ignoré', img.name); continue; }
+      content.save();
+      content.translate(s.x, s.y);
+      content.rotate(s.rot * Math.PI / 180);
+      if (s.flip) content.scale(-1, 1);
+      content.shadowColor = 'rgba(0,0,0,.18)';
+      content.shadowBlur = 3;
+      content.shadowOffsetY = 4;
+      content.drawImage(el, -s.w / 2, -s.h / 2, s.w, s.h);
+      content.restore();
+    }
+
+    if (layerCv) {
+      // Assombrit seulement ce qui est dessiné (équivalent de brightness() à l'écran).
+      content.save();
+      content.setTransform(1, 0, 0, 1, 0, 0);
+      content.globalCompositeOperation = 'source-atop';
+      content.fillStyle = `rgba(0,0,0,${(1 - ambient / 100).toFixed(3)})`;
+      content.fillRect(0, 0, layerCv.width, layerCv.height);
+      content.restore();
       ctx.save();
-      ctx.translate(s.x, s.y);
-      ctx.rotate(s.rot * Math.PI / 180);
-      if (s.flip) ctx.scale(-1, 1);
-      ctx.shadowColor = 'rgba(0,0,0,.18)';
-      ctx.shadowBlur = 3;
-      ctx.shadowOffsetY = 4;
-      ctx.drawImage(el, -s.w / 2, -s.h / 2, s.w, s.h);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(layerCv, 0, 0);
+      ctx.restore();
+    }
+
+    // Points lumineux : halos qui s'ajoutent à la lumière (comme « screen » à l'écran).
+    for (const l of lights) {
+      const p = lightPos(l, stickers);
+      if (!p) continue;
+      const r = lightRadius(l);
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+      for (const [pos, color] of glowStops(l, ambient)) g.addColorStop(pos, color);
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = g;
+      ctx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
       ctx.restore();
     }
     return cv;
@@ -2328,10 +2622,13 @@
       state.rooms.push(copy);
       // Chaque exemplaire ne se pose qu'une fois : on ne recopie que ce qui reste.
       let missing = 0;
+      const idMap = new Map();
       for (const st of r.stickers || []) {
-        if (available(st.imageId) > 0) copy.stickers.push({ ...st, id: uid() });
+        if (available(st.imageId) > 0) { const c = { ...st, id: uid() }; idMap.set(st.id, c.id); copy.stickers.push(c); }
         else missing++;
       }
+      if (copy.lights) copy.lights = remapLights(copy.lights, idMap);
+      if (copy.lights && !copy.lights.length) delete copy.lights;
       if (missing) {
         copy.thumb = '';
         toast(`${missing} sticker${missing > 1 ? 's' : ''} n'${missing > 1 ? 'ont' : 'a'} pas été copié${missing > 1 ? 's' : ''} : tu n'en as plus d'exemplaire libre.`);
@@ -2358,8 +2655,15 @@
       .filter((s) => state.images.has(s.imageId))
       .map((s) => ({ ...s }));
     state.selectedId = null;
+    state.ambient = Number.isFinite(r.ambient) ? clamp(r.ambient, AMBIENT_MIN, 100) : 100;
+    state.lights = (r.lights || []).map((l) => ({ ...l }));
+    lightSel = null;
     resetHistory();
     layersPanel.hidden = true;
+    lightPanel.hidden = true;
+    // La lumière est en test : seulement pour l'administratrice.
+    $('#btnLight').hidden = !state.isAdmin;
+    toolbar.querySelector('[data-act="light"]').hidden = !state.isAdmin;
     $('#roomName').value = r.name;
     // Pièce du concours : bouton « Publier », et retour vers le concours.
     screens.room.classList.toggle('contest-mode', !!r.contestDay);
@@ -2607,6 +2911,7 @@
     colorsPanel.hidden = !open;
     $('#btnColors').setAttribute('aria-expanded', open);
     if (open && !layersPanel.hidden) closeLayers();
+    if (open && !lightPanel.hidden) closeLightPanel();
   }
   $('#btnColors').addEventListener('click', () => setColorsPanel(colorsPanel.hidden));
   $('#colorsClose').addEventListener('click', () => { setColorsPanel(false); closeColorPicker(false); });
@@ -4693,7 +4998,10 @@
     };
     // Copie d'une pièce existante : mêmes stickers, couleurs et aménagement (l'originale ne bouge pas).
     if (from) {
-      r.stickers = (from.stickers || []).map((st) => ({ ...JSON.parse(JSON.stringify(st)), id: uid() }));
+      const idMap = new Map();
+      r.stickers = (from.stickers || []).map((st) => { const c = { ...JSON.parse(JSON.stringify(st)), id: uid() }; idMap.set(st.id, c.id); return c; });
+      if (from.ambient < 100) r.ambient = from.ambient;
+      if (from.lights && from.lights.length) r.lights = remapLights(from.lights, idMap);
       r.colors = { ...DEFAULT_COLORS, ...(from.colors || {}) };
       if (from.shape) r.shape = JSON.parse(JSON.stringify(from.shape));
       r.thumb = from.thumb || '';

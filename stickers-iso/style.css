@@ -2192,3 +2192,41 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .pipette-hint .btn { flex-shrink: 0; }
 @media (max-width: 720px) { .pipette-hint { font-size: .78rem; bottom: 6px; } }
 .cp-head-btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* Lumière (test administratrice) */
+.light-layer { position: absolute; inset: 0; z-index: 4000; pointer-events: none; }
+.light-layer .glow { position: absolute; border-radius: 50%; mix-blend-mode: screen; pointer-events: none; }
+.light-handles { position: absolute; inset: 0; z-index: 4500; pointer-events: none; }
+.light-handle {
+  position: absolute; width: 26px; height: 26px; border-radius: 50%;
+  transform: translate(-50%, -50%) scale(var(--inv));
+  border: 3px solid #fff; box-shadow: 0 0 0 2px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.4);
+  pointer-events: auto; touch-action: none; cursor: grab;
+}
+.light-handle.sel { box-shadow: 0 0 0 3px var(--select), 0 2px 6px rgba(0,0,0,.4); width: 30px; height: 30px; }
+/* Pièce plus sombre : la pièce et ses stickers s'assombrissent, pas le fond autour. */
+.stage.dim #room { filter: brightness(var(--amb)); }
+.stage.dim .sticker > img { filter: drop-shadow(0 4px 3px rgba(0,0,0,.18)) brightness(var(--amb)); }
+
+.light-panel { width: 290px; max-height: calc(100% - 120px); overflow-y: auto; }
+.light-note { margin: 0; font-size: .78rem; }
+.light-ambient { display: flex; flex-direction: column; gap: 4px; font-size: .92rem; font-weight: 700; }
+.light-ambient > span:first-child { display: flex; justify-content: space-between; }
+.light-ambient input[type=range], .light-int input[type=range] { width: 100%; accent-color: var(--accent); }
+.light-scale { display: flex; justify-content: space-between; font-size: .72rem; font-weight: 600; color: var(--muted); }
+.light-sep { height: 1px; background: var(--line); margin: 2px 0; }
+.light-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.light-head h3 { margin: 0; font-size: .95rem; }
+.light-hint { margin: 0; font-size: .8rem; }
+.light-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.light-row { padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); display: flex; flex-direction: column; gap: 6px; cursor: pointer; }
+.light-row.sel { border-color: var(--select); box-shadow: 0 0 0 2px var(--select); }
+.light-row-top { display: flex; align-items: center; gap: 8px; }
+.light-name { flex: 1; min-width: 0; font-weight: 700; font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.light-color { width: 34px; height: 30px; border-radius: 8px; border: 2px solid var(--line); cursor: pointer; flex-shrink: 0; }
+.light-int { display: grid; grid-template-columns: auto 1fr 3.2em; align-items: center; gap: 8px; font-size: .8rem; }
+.light-int output { text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 720px) { .light-panel { width: min(290px, calc(100% - 16px)); } }
+.light-head-btns { display: flex; gap: 4px; }
+.light-panel.collapsed { width: 200px; gap: 0; padding-bottom: 6px; }
+.light-panel.collapsed > :not(.layers-head) { display: none; }
