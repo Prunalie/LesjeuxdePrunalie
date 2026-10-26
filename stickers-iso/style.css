@@ -2208,7 +2208,7 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 }
 /* Pièce plus sombre : la pièce et ses stickers s'assombrissent, pas le fond autour. */
 .stage.dim #room { filter: brightness(var(--amb)); }
-.stage.dim .sticker > img { filter: drop-shadow(0 4px 3px rgba(0,0,0,.18)) brightness(var(--amb)); }
+.stage.dim .sticker > img { filter: drop-shadow(0 4px 3px rgba(0,0,0,.18)) brightness(var(--sb, var(--amb))); }
 
 /* Barres de réglage : lumière de la pièce (en haut) et lumière d'un objet (en bas, au-dessus de la barre d'outils) */
 .light-bar {

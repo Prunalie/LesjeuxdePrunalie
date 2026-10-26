@@ -1050,6 +1050,15 @@
   }
   const glowCss = (l, ambient) => `radial-gradient(circle closest-side, ${glowStops(l, ambient).map(([p, c]) => `${c} ${p * 100}%`).join(', ')})`;
 
+  // Un objet éclairé redevient plus clair : plus sa lumière est forte, moins il subit l'obscurité de la pièce
+  // (à 100 %, il retrouve sa luminosité de jour).
+  function stickerBrightness(sid, lights = state.lights, ambient = state.ambient) {
+    const b = ambient / 100;
+    let strength = 0;
+    for (const l of lights) if (l.sid === sid) strength = Math.max(strength, l.intensity);
+    return b + (1 - b) * strength / 100;
+  }
+
   const glowEls = new Map();
   const handleEls = new Map();
   let lightRaf = 0;
@@ -1067,6 +1076,12 @@
     if (state.lights.length !== n) {
       if (lightSel && !state.lights.some((l) => l.id === lightSel)) { lightSel = null; closeLightBar(); }
       updateLightButton();
+    }
+    for (const st of state.stickers) {
+      const el = elFor(st.id);
+      if (!el) continue;
+      if (state.lights.some((l) => l.sid === st.id)) el.style.setProperty('--sb', stickerBrightness(st.id).toFixed(3));
+      else el.style.removeProperty('--sb');
     }
     const seen = new Set();
     for (const l of state.lights) {
@@ -2134,7 +2149,8 @@
     const stickers = data ? (data.stickers || []) : state.stickers;
     const lights = data ? (data.lights || []) : state.lights;
     const ambient = data ? (Number.isFinite(data.ambient) ? data.ambient : 100) : state.ambient;
-    // Pièce sombre : la pièce et ses stickers sont dessinés à part, puis assombris (le fond ne l'est pas).
+    // Pièce sombre : la pièce est dessinée à part puis assombrie (le fond ne l'est pas),
+    // et chaque sticker est assombri selon sa propre lumière.
     let content = ctx, layerCv = null;
     if (ambient < 100) {
       layerCv = document.createElement('canvas');
@@ -2153,35 +2169,51 @@
     } finally {
       URL.revokeObjectURL(svgUrl);
     }
+    // Assombrit seulement ce qui est dessiné (équivalent de brightness() à l'écran).
+    const darken = (c2, amount) => {
+      c2.save();
+      c2.setTransform(1, 0, 0, 1, 0, 0);
+      c2.globalCompositeOperation = 'source-atop';
+      c2.fillStyle = `rgba(0,0,0,${amount.toFixed(3)})`;
+      c2.fillRect(0, 0, c2.canvas.width, c2.canvas.height);
+      c2.restore();
+    };
+    if (layerCv) {
+      darken(content, 1 - ambient / 100);
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(layerCv, 0, 0);
+      ctx.restore();
+    }
 
     for (const s of stickers) {
       const img = state.images.get(s.imageId);
       if (!img) continue;
       let el;
       try { el = await loadImageEl(img.url); } catch (e) { console.warn('Sticker illisible, ignoré', img.name); continue; }
-      content.save();
-      content.translate(s.x, s.y);
-      content.rotate(s.rot * Math.PI / 180);
-      if (s.flip) content.scale(-1, 1);
-      content.shadowColor = 'rgba(0,0,0,.18)';
-      content.shadowBlur = 3;
-      content.shadowOffsetY = 4;
-      content.drawImage(el, -s.w / 2, -s.h / 2, s.w, s.h);
-      content.restore();
-    }
-
-    if (layerCv) {
-      // Assombrit seulement ce qui est dessiné (équivalent de brightness() à l'écran).
-      content.save();
-      content.setTransform(1, 0, 0, 1, 0, 0);
-      content.globalCompositeOperation = 'source-atop';
-      content.fillStyle = `rgba(0,0,0,${(1 - ambient / 100).toFixed(3)})`;
-      content.fillRect(0, 0, layerCv.width, layerCv.height);
-      content.restore();
-      ctx.save();
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.drawImage(layerCv, 0, 0);
-      ctx.restore();
+      const f = ambient < 100 ? stickerBrightness(s.id, lights, ambient) : 1;
+      // Le sticker est dessiné sur un petit calque à part s'il doit être assombri.
+      const D = Math.ceil(Math.hypot(s.w, s.h) + 24);
+      let target = ctx, tmp = null;
+      if (f < 0.999) {
+        tmp = document.createElement('canvas');
+        tmp.width = tmp.height = Math.max(1, Math.ceil(D * K));
+        target = tmp.getContext('2d');
+        target.scale(K, K);
+      }
+      target.save();
+      target.translate(tmp ? D / 2 : s.x, tmp ? D / 2 : s.y);
+      target.rotate(s.rot * Math.PI / 180);
+      if (s.flip) target.scale(-1, 1);
+      target.shadowColor = 'rgba(0,0,0,.18)';
+      target.shadowBlur = 3;
+      target.shadowOffsetY = 4;
+      target.drawImage(el, -s.w / 2, -s.h / 2, s.w, s.h);
+      target.restore();
+      if (tmp) {
+        darken(target, 1 - f);
+        ctx.drawImage(tmp, s.x - D / 2, s.y - D / 2, D, D);
+      }
     }
 
     // Points lumineux : halos qui s'ajoutent à la lumière (comme « screen » à l'écran).
