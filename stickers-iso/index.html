@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610261030">
+  <link rel="stylesheet" href="style.css?v=202610261200">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -211,7 +211,7 @@
         <button id="btnLayers" class="layers-btn" aria-controls="layersPanel" title="Objets posés : sélectionner, verrouiller">☰<span class="label-long">&nbsp;Objets</span></button>
         <div class="room-tools" role="group" aria-label="Pièce">
           <button id="btnColors" aria-controls="colorsPanel" aria-expanded="false" title="Couleurs des murs, du sol et du fond">🎨<span class="label-long">&nbsp;Couleurs</span></button>
-          <button id="btnLight" title="Lumière (test)" aria-controls="lightPanel" aria-expanded="false" hidden>💡<span class="label-long">&nbsp;Lumière</span></button>
+          <button id="btnLight" title="Lumière (test)" aria-controls="ambientBar" aria-expanded="false" hidden>💡<span class="label-long">&nbsp;Lumière</span></button>
           <button id="btnShape" title="Aménager : jardin, taille, étages">🏗️<span class="label-long">&nbsp;Aménager</span></button>
           <button id="btnExport2" class="tool-export" title="Exporter la pièce en image">📷<span class="label-long">&nbsp;Exporter</span></button>
           <button id="btnContestDraft" class="tool-draft" hidden title="Enregistrer en brouillon et revenir plus tard">💾<span class="label-long">&nbsp;Brouillon</span></button>
@@ -219,24 +219,22 @@
         </div>
       </div>
 
-      <aside id="lightPanel" class="colors-panel light-panel" hidden aria-label="Lumière">
-        <div class="layers-head">
-          <h2>Lumière 💡</h2>
-          <span class="light-head-btns">
-            <button id="lightCollapse" class="layers-close" title="Réduire pour voir la pièce" aria-pressed="false">▾</button>
-            <button id="lightClose" class="layers-close" title="Fermer">✕</button>
-          </span>
-        </div>
-        <p class="muted light-note">En test, réservé à l'administratrice.</p>
-        <label class="light-ambient"><span>Lumière de la pièce <output id="ambientOut">100 %</output></span>
-          <input id="ambientRange" type="range" min="5" max="100" step="1" value="100">
-          <span class="light-scale"><span>🌙 nuit</span><span>☀️ jour</span></span>
-        </label>
-        <div class="light-sep"></div>
-        <div class="light-head"><h3>Points lumineux</h3><button id="lightAdd" class="btn cp-small" type="button">＋ Ajouter</button></div>
-        <p id="lightHint" class="muted light-hint"></p>
-        <ul id="lightList" class="light-list"></ul>
-      </aside>
+      <!-- Lumière (test administratrice) : réglage général en haut, réglage d'un objet en bas -->
+      <div id="ambientBar" class="light-bar ambient-bar" hidden role="group" aria-label="Lumière de la pièce">
+        <span class="lb-icon" aria-hidden="true">🌙</span>
+        <input id="ambientRange" type="range" min="5" max="100" step="1" value="100" aria-label="Lumière de la pièce">
+        <span class="lb-icon" aria-hidden="true">☀️</span>
+        <output id="ambientOut" class="lb-out">100 %</output>
+        <button id="ambientClose" class="lb-x" type="button" title="Fermer">✕</button>
+      </div>
+      <div id="lightBar" class="light-bar object-bar" hidden role="group" aria-label="Lumière de l'objet">
+        <span class="lb-icon" aria-hidden="true">💡</span>
+        <button id="lightColor" class="swatch-btn light-color" type="button" title="Couleur de la lumière"></button>
+        <input id="lightRange" type="range" min="5" max="100" step="1" value="70" aria-label="Intensité de la lumière">
+        <output id="lightOut" class="lb-out">70 %</output>
+        <button id="lightDel" class="lb-x" type="button" title="Retirer la lumière de cet objet">🗑️</button>
+        <button id="lightBarClose" class="lb-x" type="button" title="Fermer">✕</button>
+      </div>
 
       <aside id="colorsPanel" class="colors-panel" hidden aria-label="Couleurs">
         <div class="layers-head">
@@ -906,7 +904,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610261030"></script>
-  <script src="game.js?v=202610261030"></script>
+  <script src="firebase-config.js?v=202610261200"></script>
+  <script src="game.js?v=202610261200"></script>
 </body>
 </html>
