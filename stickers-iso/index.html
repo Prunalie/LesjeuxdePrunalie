@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610271130">
+  <link rel="stylesheet" href="style.css?v=202610271220">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -664,12 +664,14 @@
 
   <div id="unfiledDialog" class="modal" hidden>
     <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="unfiledTitle">
-      <h2 id="unfiledTitle" class="modal-title"></h2>
+      <div class="modal-head">
+        <h2 id="unfiledTitle" class="modal-title"></h2>
+        <button id="unfiledClose" class="modal-x" type="button" title="Annuler" aria-label="Annuler">✕</button>
+      </div>
       <p class="muted">Les stickers acceptés qui ne sont dans aucune enveloppe. Touche ceux à ranger ici.</p>
       <div id="unfiledGrid" class="env-grid env-grid-small unfiled-grid"></div>
       <div class="modal-actions">
         <button id="unfiledAll" class="btn btn-ghost"></button>
-        <button id="unfiledClose" class="btn">Annuler</button>
         <button id="unfiledAdd" class="btn btn-primary"></button>
       </div>
     </div>
@@ -677,36 +679,43 @@
 
   <div id="libFilterDialog" class="modal" hidden>
     <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="libFilterTitle">
-      <h2 id="libFilterTitle" class="modal-title">Filtrer par collection</h2>
+      <div class="modal-head">
+        <h2 id="libFilterTitle" class="modal-title">Filtrer par collection</h2>
+        <button id="libFilterClose" class="modal-x" type="button" title="Fermer" aria-label="Fermer">✕</button>
+      </div>
       <div id="libFilterList" class="lib-filter-list"></div>
-      <div class="modal-actions"><button id="libFilterClose" class="btn">Fermer</button></div>
     </div>
   </div>
 
   <div id="ctStartDialog" class="modal" hidden>
     <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="ctStartTitle">
-      <h2 id="ctStartTitle" class="modal-title">Ta pièce du concours 🎨</h2>
+      <div class="modal-head">
+        <h2 id="ctStartTitle" class="modal-title">Ta pièce du concours 🎨</h2>
+        <button id="ctStartCancel" class="modal-x" type="button" title="Annuler" aria-label="Annuler">✕</button>
+      </div>
       <p class="muted">Pars d'une pièce vide, ou d'une copie d'une de tes pièces (ta pièce d'origine ne change pas).</p>
       <button id="ctStartEmpty" class="btn btn-primary ct-start-empty">✨ Partir de zéro</button>
       <p class="ct-start-label">📋 Ou partir d'une de mes pièces :</p>
       <div id="ctStartRooms" class="ct-start-rooms"></div>
-      <div class="modal-actions">
-        <button id="ctStartCancel" class="btn">Annuler</button>
-      </div>
     </div>
   </div>
 
   <div id="ctView" class="modal ct-view" hidden>
     <div class="modal-box modal-wide" role="dialog" aria-modal="true">
-      <h2 id="ctViewTitle" class="modal-title"></h2>
+      <div class="modal-head">
+        <h2 id="ctViewTitle" class="modal-title"></h2>
+        <button id="ctViewClose" class="modal-x" type="button" title="Fermer" aria-label="Fermer">✕</button>
+      </div>
       <img id="ctViewImg" alt="">
-      <div class="modal-actions"><button id="ctViewClose" class="btn btn-primary">Fermer</button></div>
     </div>
   </div>
 
   <div id="prefsDialog" class="modal" hidden>
     <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="prefsTitle">
-      <h2 id="prefsTitle" class="modal-title">Paramètres ⚙️</h2>
+      <div class="modal-head">
+        <h2 id="prefsTitle" class="modal-title">Paramètres ⚙️</h2>
+        <button id="prefsClose" class="modal-x" type="button" title="Fermer" aria-label="Fermer">✕</button>
+      </div>
       <section class="prefs-section">
         <h3>Apparence</h3>
         <div class="theme-choices" role="group" aria-label="Thème">
@@ -721,7 +730,6 @@
         <p class="muted prefs-hint">Tu joues en tant que <strong id="prefsName"></strong>.</p>
         <button id="btnLogout" class="btn" type="button">🚪 Se déconnecter</button>
       </section>
-      <div class="modal-actions"><button id="prefsClose" class="btn btn-primary">Fermer</button></div>
     </div>
   </div>
 
@@ -752,21 +760,23 @@
 
   <div id="shapeDialog" class="modal" hidden>
     <div class="modal-box modal-wide shape-box" role="dialog" aria-modal="true" aria-labelledby="shapeTitle">
-      <h2 id="shapeTitle" class="modal-title">Aménager 🏗️</h2>
+      <div class="modal-head">
+        <h2 id="shapeTitle" class="modal-title">Aménager 🏗️</h2>
+        <button id="shapeClose" class="modal-x" type="button" title="Fermer" aria-label="Fermer">✕</button>
+      </div>
       <p id="shapeStars" class="muted"></p>
       <div id="shapeBody" class="shape-body"></div>
-      <div class="modal-actions"><button id="shapeClose" class="btn btn-primary">Terminé</button></div>
     </div>
   </div>
 
   <div id="exportDialog" class="modal" hidden>
     <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-label="Image de la pièce">
+      <div class="modal-head modal-head-end"><button id="exportClose" class="modal-x" type="button" title="Fermer" aria-label="Fermer">✕</button></div>
       <img id="exportImg" class="export-img" alt="Ta pièce décorée">
       <p class="hint">Clic droit (ou appui long) sur l'image → « Enregistrer l'image ».</p>
       <div class="modal-actions">
         <button id="exportShare" class="btn btn-primary" hidden>📤 Enregistrer</button>
         <a id="exportLink" class="btn" download="ma-petite-piece.png">Télécharger</a>
-        <button id="exportClose" class="btn btn-primary">Fermer</button>
       </div>
     </div>
   </div>
@@ -789,6 +799,7 @@
 
   <div id="cardDialog" class="modal" hidden>
     <div class="modal-box card-box" role="dialog" aria-modal="true" aria-labelledby="cardName">
+      <div class="modal-head modal-head-end"><button id="cardClose" class="modal-x" type="button" title="Fermer" aria-label="Fermer">✕</button></div>
       <div id="cardImg" class="card-img"><img alt=""></div>
       <span id="cardRarity" class="rarity-tag"></span>
       <h2 id="cardName" class="modal-title"></h2>
@@ -796,7 +807,6 @@
       <p id="cardSellHint" class="card-sell-hint muted"></p>
       <div class="modal-actions">
         <button id="cardSell" class="btn"></button>
-        <button id="cardClose" class="btn btn-primary">Fermer</button>
       </div>
     </div>
   </div>
@@ -804,7 +814,10 @@
   <div id="sellDialog" class="modal" hidden>
     <div class="modal-box card-box sell-box" role="dialog" aria-modal="true" aria-labelledby="sellTitle">
       <div id="sellImg" class="sell-img"><img alt=""></div>
-      <h2 id="sellTitle" class="modal-title">Vendre <span id="sellName"></span></h2>
+      <div class="modal-head">
+        <h2 id="sellTitle" class="modal-title">Vendre <span id="sellName"></span></h2>
+        <button id="sellCancel" class="modal-x" type="button" title="Annuler" aria-label="Annuler">✕</button>
+      </div>
       <label for="sellQty" class="muted sell-label">Combien en vends-tu ?</label>
       <div class="sell-stepper">
         <button id="sellMinus" class="btn" aria-label="Un de moins">−</button>
@@ -816,7 +829,6 @@
       <p class="sell-gain"><span id="sellGain"></span></p>
       <p id="sellNote" class="sell-note muted"></p>
       <div class="modal-actions">
-        <button id="sellCancel" class="btn">Annuler</button>
         <button id="sellConfirm" class="btn btn-primary"></button>
       </div>
     </div>
@@ -824,7 +836,10 @@
 
   <div id="giftDialog" class="modal" hidden>
     <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="giftTitle">
-      <h2 id="giftTitle" class="modal-title">Offrir des stickers 🎁</h2>
+      <div class="modal-head">
+        <h2 id="giftTitle" class="modal-title">Offrir des stickers 🎁</h2>
+        <button id="giftCancel" class="modal-x" type="button" title="Annuler" aria-label="Annuler">✕</button>
+      </div>
       <label class="gift-field"><span>Titre</span><input id="giftSubject" class="field" maxlength="80" placeholder="Un cadeau pour toi 🎁"></label>
       <label class="gift-field"><span>Message</span><textarea id="giftText" class="field gift-textarea" maxlength="4000" rows="6"></textarea></label>
       <details id="giftStickers" class="gift-stickers">
@@ -834,7 +849,6 @@
       </details>
       <label class="gift-field small"><span>Pièces en plus 🪙</span><input id="giftCoins" class="field" type="number" min="0" step="10" value="0"></label>
       <div class="modal-actions">
-        <button id="giftCancel" class="btn">Annuler</button>
         <button id="giftSend" class="btn btn-primary">Envoyer</button>
       </div>
     </div>
@@ -842,6 +856,7 @@
 
   <div id="stampDialog" class="modal" hidden>
     <div class="modal-box modal-wide stamp-dialog-box" role="dialog" aria-modal="true" aria-label="Carte de tampons">
+      <div class="modal-head modal-head-end"><button id="stampClose" class="modal-x" type="button" title="Fermer" aria-label="Fermer">✕</button></div>
       <section class="stamp-card in-dialog" aria-label="Carte de tampons">
         <div class="stamp-head">
           <div>
@@ -857,16 +872,17 @@
         <div id="stampGrid" class="stamp-grid"></div>
         <p class="stamp-help muted">1 enveloppe achetée = 1 tampon. 10 tampons = 1 étoile 🌟 (ou achète-la pour 1000 🪙), qui permet de choisir le sticker que tu veux dans n'importe quelle enveloppe.</p>
       </section>
-      <div class="modal-actions"><button id="stampClose" class="btn">Fermer</button></div>
     </div>
   </div>
 
   <div id="starDialog" class="modal" hidden>
     <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="starTitle">
-      <h2 id="starTitle" class="modal-title">Choisis ton sticker 🌟</h2>
+      <div class="modal-head">
+        <h2 id="starTitle" class="modal-title">Choisis ton sticker 🌟</h2>
+        <button id="starClose" class="modal-x" type="button" title="Plus tard" aria-label="Plus tard">✕</button>
+      </div>
       <p class="muted star-sub">Ton étoile te permet de prendre le sticker que tu veux, dans n'importe quelle enveloppe.</p>
       <div id="starList" class="star-list"></div>
-      <div class="modal-actions"><button id="starClose" class="btn">Plus tard</button></div>
     </div>
   </div>
 
@@ -914,7 +930,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610271130"></script>
-  <script src="game.js?v=202610271130"></script>
+  <script src="firebase-config.js?v=202610271220"></script>
+  <script src="game.js?v=202610271220"></script>
 </body>
 </html>

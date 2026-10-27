@@ -2244,3 +2244,6 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .modal-head .modal-title { flex: 1; min-width: 0; }
 .modal-x { width: 34px; height: 34px; flex-shrink: 0; border: 0; border-radius: 50%; background: var(--hover); color: var(--ink); font-size: 1rem; line-height: 1; cursor: pointer; }
 .modal-x:hover { background: var(--line); }
+/* Croix seule en haut à droite (fenêtres sans titre) */
+.modal-head-end { justify-content: flex-end; margin-bottom: 6px; }
+.modal-head { align-self: stretch; }
