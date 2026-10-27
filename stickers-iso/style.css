@@ -2247,3 +2247,5 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 /* Croix seule en haut à droite (fenêtres sans titre) */
 .modal-head-end { justify-content: flex-end; margin-bottom: 6px; }
 .modal-head { align-self: stretch; }
+
+.ct-history-btn { align-self: center; margin-top: 8px; }

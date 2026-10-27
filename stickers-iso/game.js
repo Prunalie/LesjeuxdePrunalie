@@ -253,6 +253,8 @@
         listContest: (day) => all(rooms.where('contestDay', '==', day)),
         putContest: ({ id, ...c }) => rooms.doc(id).set(clean({ ...c, type: 'contest' })),
         deleteContest: (id) => rooms.doc(id).delete(),
+        // Toutes les participations d'un joueur, tous jours confondus
+        listMyContest: async (owner) => (await all(rooms.where('owner', '==', owner))).filter((c) => c.type === 'contest' && c.kind === 'entry'),
       };
     } catch (e) {
       console.warn('Firebase indisponible', e);
@@ -339,6 +341,7 @@
       listContest: async (day) => (await getAll('contest')).filter((c) => c.contestDay === day),
       putContest: (c) => run('contest', 'readwrite', (s) => s.put(c)),
       deleteContest: (id) => run('contest', 'readwrite', (s) => s.delete(id)),
+      listMyContest: async (owner) => (await getAll('contest')).filter((c) => c.kind === 'entry' && c.owner === owner),
     };
   })();
 
@@ -2290,6 +2293,7 @@
     atelier: $('#screenAtelier'),
     news: $('#screenNews'),
     contest: $('#screenContest'),
+    ctHistory: $('#screenCtHistory'),
     settings: $('#screenSettings'),
     adminContest: $('#screenAdminContest'),
     maintenance: $('#screenMaintenance'),
@@ -4984,7 +4988,53 @@
         })));
       c3.appendChild(grid);
     }
+    const hist = document.createElement('button');
+    hist.className = 'btn ct-history-btn';
+    hist.textContent = '📜 Mon historique des concours';
+    hist.addEventListener('click', openContestHistory);
+    body.appendChild(hist);
   }
+
+  // Historique : toutes les pièces publiées par le joueur, avec le résultat de chaque concours terminé.
+  async function openContestHistory() {
+    showScreen('ctHistory');
+    renderPoints();
+    const body = $('#ctHistBody');
+    body.innerHTML = '<p class="muted">Chargement…</p>';
+    try {
+      const mine = (await db.listMyContest(state.player.key)).filter((e) => e.contestDay && e.image)
+        .sort((a, b) => b.contestDay.localeCompare(a.contestDay));
+      if (!mine.length) { body.innerHTML = '<p class="muted">Tu n\'as pas encore participé à un concours. Tes pièces publiées apparaîtront ici !</p>'; return; }
+      const done = lastRevealedDay();
+      const results = {};
+      await Promise.all(mine.filter((e) => e.contestDay <= done).map(async (e) => {
+        try { results[e.contestDay] = await loadContestDay(e.contestDay); } catch (err) { /* résultat indisponible */ }
+      }));
+      body.innerHTML = '';
+      const wonCount = mine.filter((e) => results[e.contestDay] && results[e.contestDay].winners.includes(e.owner)).length;
+      const intro = document.createElement('p');
+      intro.className = 'muted';
+      intro.textContent = `${plural(mine.length, 'participation')}${wonCount ? ` · 🏆 ${plural(wonCount, 'victoire')}` : ''}. Touche une pièce pour l'agrandir.`;
+      body.appendChild(intro);
+      const grid = document.createElement('div');
+      grid.className = 'ct-grid';
+      for (const e of mine) {
+        const r = results[e.contestDay];
+        const won = !!r && r.winners.includes(e.owner);
+        let score = null;
+        if (e.contestDay > done) score = e.contestDay === today() ? '⏳ Vote demain' : '⏳ Résultat à 20 h';
+        else if (r && r.solo) score = 'Seule participante : gagnée d\'office';
+        else if (r && r.seen[e.owner]) score = `⚔️ ${r.wins[e.owner] || 0}/${r.seen[e.owner]} · ${Math.round(r.rate(e.owner) * 100)} %`;
+        const card = entryCard({ ...e, ownerName: `${themeOf(e.contestDay)}`, roomName: dayLabel(e.contestDay) }, { mine: true, winner: won, score });
+        grid.appendChild(card);
+      }
+      body.appendChild(grid);
+    } catch (err) {
+      console.warn('Historique indisponible', err);
+      body.innerHTML = '<p class="muted">Impossible de charger ton historique. Vérifie ta connexion.</p>';
+    }
+  }
+  $('#ctHistBack').addEventListener('click', openContest);
 
   // Les duels d'un joueur : toutes les paires de pièces (sans la sienne), 10 au plus.
   function duelPlan(v, me) {
