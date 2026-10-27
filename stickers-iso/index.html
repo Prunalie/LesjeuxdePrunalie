@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610271100">
+  <link rel="stylesheet" href="style.css?v=202610271130">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -773,11 +773,13 @@
 
   <div id="envDialog" class="modal" hidden>
     <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="envTitle">
-      <h2 id="envTitle" class="modal-title"></h2>
+      <div class="modal-head">
+        <h2 id="envTitle" class="modal-title"></h2>
+        <button id="envClose" class="modal-x" type="button" title="Fermer" aria-label="Fermer">✕</button>
+      </div>
       <p id="envSub" class="muted"></p>
       <div id="envGrid" class="env-grid"></div>
       <div class="modal-actions">
-        <button id="envClose" class="btn">Fermer</button>
         <button id="envStar" class="btn" hidden>🌟 Étoile</button>
         <button id="envBuy5" class="btn"></button>
         <button id="envBuy" class="btn btn-primary"></button>
@@ -912,7 +914,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610271100"></script>
-  <script src="game.js?v=202610271100"></script>
+  <script src="firebase-config.js?v=202610271130"></script>
+  <script src="game.js?v=202610271130"></script>
 </body>
 </html>

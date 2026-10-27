@@ -3278,6 +3278,7 @@
     envDialog.hidden = false;
   }
   $('#envClose').addEventListener('click', () => { envDialog.hidden = true; });
+  envDialog.addEventListener('click', (e) => { if (e.target === envDialog) envDialog.hidden = true; });
 
   // Tirage pondéré par la rareté.
   function drawSticker(list) {

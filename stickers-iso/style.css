@@ -2238,3 +2238,9 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .lib-filter-item.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); font-weight: 800; }
 .lf-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lf-n { flex-shrink: 0; font-size: .8rem; color: var(--muted); }
+
+/* Croix de fermeture en haut à droite d'une fenêtre */
+.modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.modal-head .modal-title { flex: 1; min-width: 0; }
+.modal-x { width: 34px; height: 34px; flex-shrink: 0; border: 0; border-radius: 50%; background: var(--hover); color: var(--ink); font-size: 1rem; line-height: 1; cursor: pointer; }
+.modal-x:hover { background: var(--line); }
