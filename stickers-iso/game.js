@@ -254,6 +254,7 @@
         putContest: ({ id, ...c }) => rooms.doc(id).set(clean({ ...c, type: 'contest' })),
         deleteContest: (id) => rooms.doc(id).delete(),
         // Toutes les participations d'un joueur, tous jours confondus
+        listAllEntries: async () => (await all(rooms.where('type', '==', 'contest'))).filter((c) => c.kind === 'entry'),
         listMyContest: async (owner) => (await all(rooms.where('owner', '==', owner))).filter((c) => c.type === 'contest' && c.kind === 'entry'),
       };
     } catch (e) {
@@ -341,6 +342,7 @@
       listContest: async (day) => (await getAll('contest')).filter((c) => c.contestDay === day),
       putContest: (c) => run('contest', 'readwrite', (s) => s.put(c)),
       deleteContest: (id) => run('contest', 'readwrite', (s) => s.delete(id)),
+      listAllEntries: async () => (await getAll('contest')).filter((c) => c.kind === 'entry'),
       listMyContest: async (owner) => (await getAll('contest')).filter((c) => c.kind === 'entry' && c.owner === owner),
     };
   })();
@@ -6234,6 +6236,7 @@
   // ---------------------------------------------------------------------------
   let players = [];
   let playersSort = 'recent';
+  let contestStats = {}; // joueur -> { count, last } : participations aux concours
 
   async function openPlayers() {
     if (!state.isAdmin) return;
@@ -6248,6 +6251,16 @@
       return;
     }
     renderPlayers();
+    try {
+      const stats = {};
+      for (const e of await db.listAllEntries()) {
+        const st = stats[e.owner] || (stats[e.owner] = { count: 0, last: '' });
+        st.count++;
+        if ((e.contestDay || '') > st.last) st.last = e.contestDay;
+      }
+      contestStats = stats;
+      renderPlayers();
+    } catch (e) { console.warn('Participations aux concours indisponibles', e); }
   }
   $('#homePlayers').addEventListener('click', openPlayers);
   $('#playersBack').addEventListener('click', goHome);
@@ -6279,6 +6292,7 @@
         if (playersSort === 'name') return (a.p.pseudo || '').localeCompare(b.p.pseudo || '', 'fr');
         if (playersSort === 'points') return (b.p.points || 0) - (a.p.points || 0);
         if (playersSort === 'collection') return b.distinct - a.distinct;
+        if (playersSort === 'contest') return ((contestStats[playerKey(b.p)] || {}).count || 0) - ((contestStats[playerKey(a.p)] || {}).count || 0);
         return b.lastSeen - a.lastSeen;
       });
 
@@ -6287,7 +6301,8 @@
     $('#playersUnlocks').textContent = `Options débloquées : ${Object.keys(UNLOCKS).map((k) =>
       `${UNLOCK_ICONS[k]} ${UNLOCKS[k].label} ${real.filter((p) => p.unlocks && p.unlocks[k]).length}/${real.length}`).join(' · ')}`;
     const active7 = players.filter((p) => (p.lastSeen || 0) > Date.now() - 7 * 86400000).length;
-    $('#playersCount').textContent = `${plural(players.length, 'joueur')} · ${active7} venu${active7 > 1 ? 's' : ''} ces 7 derniers jours`;
+    $('#playersCount').textContent = `${plural(players.length, 'joueur')} · ${active7} venu${active7 > 1 ? 's' : ''} ces 7 derniers jours`
+      + (Object.keys(contestStats).length ? ` · ${plural(Object.values(contestStats).reduce((a, c) => a + c.count, 0), 'participation')} aux concours` : '');
     const body = $('#playersList');
     body.innerHTML = '';
     $('#playersEmpty').hidden = list.length > 0;
@@ -6304,6 +6319,7 @@
           <div><dt>Pièces</dt><dd class="s-points"></dd></div>
           <div><dt>Collection</dt><dd class="s-coll"></dd></div>
           <div><dt>Étoiles</dt><dd class="s-stars"></dd></div>
+          <div><dt>Concours</dt><dd class="s-contest"></dd></div>
         </dl>
         <div class="player-unlocks"></div>
         <div class="player-actions">
@@ -6317,6 +6333,9 @@
       row.querySelector('.s-coll').textContent = total ? `${distinct}/${total}` : `${distinct}`;
       row.querySelector('.s-coll').title = `${copies} exemplaires en tout`;
       row.querySelector('.s-stars').textContent = `🌟 ${p.stars || 0}`;
+      const cs = contestStats[key];
+      row.querySelector('.s-contest').textContent = `🏆 ${cs ? cs.count : 0}`;
+      row.querySelector('.s-contest').title = cs ? `${plural(cs.count, 'participation')} · dernière : ${dayLabel(cs.last)}` : 'Aucune participation';
       // Options d'aménagement débloquées par ce joueur.
       const ul = row.querySelector('.player-unlocks');
       if (ADMIN_PSEUDOS.includes(key)) {
