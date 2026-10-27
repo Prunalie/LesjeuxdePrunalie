@@ -2311,17 +2311,42 @@
   const OVERLAY_SEL = '.modal:not([hidden]), #duelView:not([hidden]), #colorPicker:not([hidden])';
   const inSubHistory = () => !!(window.history.state && window.history.state.nav === 'sub');
   const currentScreenName = () => Object.keys(screens).find((k) => !screens[k].hidden);
-  let ignorePop = false;
+  let popPending = false;   // un retour automatique est en cours : on attend qu'il soit terminé
+  let popTimer = 0;
   let historyTimer = 0;
+
+  // Chrome ignore (au retour) les entrées d'historique ajoutées sans geste de l'utilisateur :
+  // tant qu'il n'y en a pas eu, on attend le premier appui avant d'ajouter l'entrée.
+  const noGestureYet = () => !!(navigator.userActivation && !navigator.userActivation.hasBeenActive);
+  let waitingGesture = false;
+  function syncAfterGesture() {
+    if (waitingGesture) return;
+    waitingGesture = true;
+    const go = () => {
+      waitingGesture = false;
+      ['pointerup', 'touchend', 'click', 'keydown'].forEach((ev) => window.removeEventListener(ev, go, true));
+      scheduleHistorySync();
+    };
+    ['pointerup', 'touchend', 'click', 'keydown'].forEach((ev) => window.addEventListener(ev, go, true));
+  }
 
   // Entrée d'historique en plus quand on est loin de l'accueil (sous-écran ou fenêtre ouverte).
   function scheduleHistorySync() {
     clearTimeout(historyTimer);
     historyTimer = setTimeout(() => {
+      if (popPending) return; // on refait le point dès que le retour en cours est fini
       const cur = currentScreenName();
       const deep = (cur && cur !== 'home' && cur !== 'start') || !!document.querySelector(OVERLAY_SEL);
-      if (deep && !inSubHistory()) window.history.pushState({ nav: 'sub' }, '');
-      else if (!deep && inSubHistory()) { ignorePop = true; window.history.back(); }
+      if (deep && !inSubHistory()) {
+        if (noGestureYet()) { syncAfterGesture(); return; }
+        window.history.pushState({ nav: 'sub' }, '');
+      } else if (!deep && inSubHistory()) {
+        // Un seul retour à la fois, même si l'écran change plusieurs fois pendant qu'il s'effectue.
+        popPending = true;
+        clearTimeout(popTimer);
+        popTimer = setTimeout(() => { popPending = false; scheduleHistorySync(); }, 700);
+        window.history.back();
+      }
     }, 0);
   }
 
@@ -2346,13 +2371,16 @@
   }
 
   window.addEventListener('popstate', () => {
-    if (ignorePop) { ignorePop = false; return; }
+    if (popPending) { popPending = false; clearTimeout(popTimer); scheduleHistorySync(); return; }
     if (inSubHistory()) return; // on est (re)tombé sur une entrée de sous-écran : rien à défaire
     navBack();
     scheduleHistorySync();
   });
   new MutationObserver(scheduleHistorySync).observe(document.body, { attributes: true, attributeFilter: ['hidden'], subtree: true });
   if (!window.history.state) window.history.replaceState({ nav: 'home' }, '');
+  // Au retour sur la page (téléphone qui se réveille, page restaurée), on vérifie que l'historique est bon.
+  window.addEventListener('pageshow', scheduleHistorySync);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') scheduleHistorySync(); });
 
   // Mémorisé dans le navigateur : le dernier pseudo (pré-rempli à l'accueil), la
   // session en cours (pour rester connectée en actualisant) et l'écran ouvert.
