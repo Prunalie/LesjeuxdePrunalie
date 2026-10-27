@@ -2300,6 +2300,11 @@
     if (name === 'room') fitStage();
     // On retient l'écran (et la pièce) pour y revenir après une actualisation.
     if (name !== 'start') store(PLACE_KEY, JSON.stringify({ screen: name, roomId: state.roomId }));
+    // Pile des écrans : un écran déjà dans la pile (retour) la raccourcit, un nouvel écran s'y ajoute.
+    const at = screenStack.lastIndexOf(name);
+    if (name === 'home' || name === 'start') screenStack = [name];
+    else if (at >= 0) screenStack.length = at + 1;
+    else screenStack.push(name);
     scheduleHistorySync();
   }
 
@@ -2309,43 +2314,52 @@
   // navigateur a une entrée de plus ; le retour du téléphone la retire et lance le « retour » du jeu.
   // ---------------------------------------------------------------------------
   const OVERLAY_SEL = '.modal:not([hidden]), #duelView:not([hidden]), #colorPicker:not([hidden])';
-  const inSubHistory = () => !!(window.history.state && window.history.state.nav === 'sub');
   const currentScreenName = () => Object.keys(screens).find((k) => !screens[k].hidden);
+  // Chaque écran ouvert (au-dessus de l'accueil) et chaque fenêtre ouverte ajoute une entrée à l'historique du
+  // navigateur, au moment où on l'ouvre. Un retour du téléphone retire une entrée et ferme la fenêtre / revient
+  // à l'écran d'avant : le jeu n'a jamais besoin de rajouter une entrée après coup.
+  let screenStack = ['start'];
+  const histDepth = () => { const st = window.history.state; return st && Number.isFinite(st.n) ? st.n : 0; };
+  const targetDepth = () => Math.max(0, screenStack.length - 1) + document.querySelectorAll(OVERLAY_SEL).length;
   let popPending = false;   // un retour automatique est en cours : on attend qu'il soit terminé
   let popTimer = 0;
   let historyTimer = 0;
+  let backBusy = false;     // un retour du téléphone vient d'être traité : pas d'entrée ajoutée le temps qu'il se termine
+  let backBusyTimer = 0;
 
   // Chrome ignore (au retour) les entrées d'historique ajoutées sans geste de l'utilisateur :
-  // tant qu'il n'y en a pas eu, on attend le premier appui avant d'ajouter l'entrée.
+  // tant qu'il n'y en a pas eu, on attend le premier appui avant d'ajouter une entrée.
   const noGestureYet = () => !!(navigator.userActivation && !navigator.userActivation.hasBeenActive);
   let waitingGesture = false;
   function syncAfterGesture() {
     if (waitingGesture) return;
     waitingGesture = true;
+    const evs = ['pointerup', 'touchend', 'click', 'keydown'];
     const go = () => {
       waitingGesture = false;
-      ['pointerup', 'touchend', 'click', 'keydown'].forEach((ev) => window.removeEventListener(ev, go, true));
+      evs.forEach((ev) => window.removeEventListener(ev, go, true));
       scheduleHistorySync();
     };
-    ['pointerup', 'touchend', 'click', 'keydown'].forEach((ev) => window.addEventListener(ev, go, true));
+    evs.forEach((ev) => window.addEventListener(ev, go, true));
   }
 
-  // Entrée d'historique en plus quand on est loin de l'accueil (sous-écran ou fenêtre ouverte).
+  // Met le nombre d'entrées de l'historique en accord avec ce qui est ouvert.
   function scheduleHistorySync() {
     clearTimeout(historyTimer);
     historyTimer = setTimeout(() => {
       if (popPending) return; // on refait le point dès que le retour en cours est fini
-      const cur = currentScreenName();
-      const deep = (cur && cur !== 'home' && cur !== 'start') || !!document.querySelector(OVERLAY_SEL);
-      if (deep && !inSubHistory()) {
+      const target = targetDepth();
+      const n = histDepth();
+      if (target > n) {
+        if (backBusy) return; // sera refait à la fin du délai
         if (noGestureYet()) { syncAfterGesture(); return; }
-        window.history.pushState({ nav: 'sub' }, '');
-      } else if (!deep && inSubHistory()) {
-        // Un seul retour à la fois, même si l'écran change plusieurs fois pendant qu'il s'effectue.
+        for (let i = n + 1; i <= target; i++) window.history.pushState({ nav: 'app', n: i }, '');
+      } else if (target < n) {
+        // Un seul retour automatique à la fois, même si l'écran change plusieurs fois pendant qu'il s'effectue.
         popPending = true;
         clearTimeout(popTimer);
         popTimer = setTimeout(() => { popPending = false; scheduleHistorySync(); }, 700);
-        window.history.back();
+        window.history.go(target - n);
       }
     }, 0);
   }
@@ -2372,12 +2386,15 @@
 
   window.addEventListener('popstate', () => {
     if (popPending) { popPending = false; clearTimeout(popTimer); scheduleHistorySync(); return; }
-    if (inSubHistory()) return; // on est (re)tombé sur une entrée de sous-écran : rien à défaire
+    if (histDepth() >= targetDepth()) return; // pas un retour en arrière par rapport à ce qui est ouvert
+    // Retour du téléphone : on ferme la fenêtre ou on revient à l'écran d'avant (le jeu a alors une entrée de moins).
+    backBusy = true;
+    clearTimeout(backBusyTimer);
+    backBusyTimer = setTimeout(() => { backBusy = false; scheduleHistorySync(); }, 600);
     navBack();
-    scheduleHistorySync();
   });
   new MutationObserver(scheduleHistorySync).observe(document.body, { attributes: true, attributeFilter: ['hidden'], subtree: true });
-  if (!window.history.state) window.history.replaceState({ nav: 'home' }, '');
+  if (!window.history.state || !Number.isFinite(window.history.state.n)) window.history.replaceState({ nav: 'app', n: 0 }, '');
   // Au retour sur la page (téléphone qui se réveille, page restaurée), on vérifie que l'historique est bon.
   window.addEventListener('pageshow', scheduleHistorySync);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') scheduleHistorySync(); });
