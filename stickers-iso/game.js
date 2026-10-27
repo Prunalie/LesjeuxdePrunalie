@@ -2300,7 +2300,59 @@
     if (name === 'room') fitStage();
     // On retient l'écran (et la pièce) pour y revenir après une actualisation.
     if (name !== 'start') store(PLACE_KEY, JSON.stringify({ screen: name, roomId: state.roomId }));
+    scheduleHistorySync();
   }
+
+  // ---------------------------------------------------------------------------
+  // Bouton retour du téléphone : on revient à l'écran d'avant (ou on ferme la fenêtre ouverte)
+  // au lieu de quitter le jeu. Dès qu'on est dans un sous-écran ou une fenêtre, l'historique du
+  // navigateur a une entrée de plus ; le retour du téléphone la retire et lance le « retour » du jeu.
+  // ---------------------------------------------------------------------------
+  const OVERLAY_SEL = '.modal:not([hidden]), #duelView:not([hidden]), #colorPicker:not([hidden])';
+  const inSubHistory = () => !!(window.history.state && window.history.state.nav === 'sub');
+  const currentScreenName = () => Object.keys(screens).find((k) => !screens[k].hidden);
+  let ignorePop = false;
+  let historyTimer = 0;
+
+  // Entrée d'historique en plus quand on est loin de l'accueil (sous-écran ou fenêtre ouverte).
+  function scheduleHistorySync() {
+    clearTimeout(historyTimer);
+    historyTimer = setTimeout(() => {
+      const cur = currentScreenName();
+      const deep = (cur && cur !== 'home' && cur !== 'start') || !!document.querySelector(OVERLAY_SEL);
+      if (deep && !inSubHistory()) window.history.pushState({ nav: 'sub' }, '');
+      else if (!deep && inSubHistory()) { ignorePop = true; window.history.back(); }
+    }, 0);
+  }
+
+  // Ferme la fenêtre ouverte, en passant par son bouton Annuler / Fermer / OK.
+  function closeTopOverlay() {
+    const open = [...document.querySelectorAll(OVERLAY_SEL)];
+    if (!open.length) return false;
+    const top = open.find((e) => e.id === 'confirmDialog') || open[open.length - 1];
+    const btn = top.querySelector('button[id$="Cancel"], button[id$="Close"], button[id$="Ok"]') || top.querySelector('.modal-actions button');
+    if (btn) btn.click(); else top.hidden = true;
+    return true;
+  }
+
+  // Un cran en arrière dans le jeu : fenêtre, puis liste des enveloppes (atelier), puis écran précédent.
+  function navBack() {
+    if (closeTopOverlay()) return;
+    const cur = currentScreenName();
+    if (!cur || cur === 'home' || cur === 'start') return;
+    if (cur === 'atelier' && !$('#atelierDetailBar').hidden) { $('#atelierAll').click(); return; }
+    const btn = screens[cur].querySelector('.topbar button[id$="Back"]');
+    if (btn) btn.click(); else goHome();
+  }
+
+  window.addEventListener('popstate', () => {
+    if (ignorePop) { ignorePop = false; return; }
+    if (inSubHistory()) return; // on est (re)tombé sur une entrée de sous-écran : rien à défaire
+    navBack();
+    scheduleHistorySync();
+  });
+  new MutationObserver(scheduleHistorySync).observe(document.body, { attributes: true, attributeFilter: ['hidden'], subtree: true });
+  if (!window.history.state) window.history.replaceState({ nav: 'home' }, '');
 
   // Mémorisé dans le navigateur : le dernier pseudo (pré-rempli à l'accueil), la
   // session en cours (pour rester connectée en actualisant) et l'écran ouvert.
