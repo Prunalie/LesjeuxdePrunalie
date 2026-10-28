@@ -77,6 +77,7 @@
     { group: 'Pièces et étoiles', key: 'stampsPerStar', label: 'Tampons pour gagner une étoile', unit: 'tampons', def: () => STAMPS_PER_STAR, min: 1, max: 100, step: 1 },
     { group: 'Boutique', key: 'defaultEnvPrice', label: 'Prix d\'une nouvelle enveloppe', unit: '🪙', def: () => DEFAULT_PRICE, max: 100000, step: 10 },
     { group: 'Boutique', key: 'dailyEnvCount', label: 'Enveloppes du jour (prix normal, 0 = toutes)', unit: 'enveloppes', def: () => 5, max: 100, step: 1 },
+    { group: 'Boutique', key: 'sundayAllNormal', type: 'bool', label: 'Le dimanche, toutes les enveloppes sont au prix normal', def: () => true },
     { group: 'Boutique', key: 'offPricePct', label: 'Hausse du prix des autres enveloppes', unit: '%', def: () => 100, max: 1000, step: 10 },
     { group: 'Boutique', key: 'packDiscountPct', label: 'Réduction sur le paquet « ×5 » (enveloppes du jour seulement)', unit: '% moins cher', def: () => 0, max: 90, step: 5 },
     { group: 'Boutique', key: 'multiBuy', label: 'Enveloppes du bouton « ×… »', unit: 'enveloppes', def: () => MULTI_BUY, min: 2, max: 50, step: 1 },
@@ -3218,10 +3219,12 @@
     const all = state.settings.dailyEnvPicks;
     return (all && Array.isArray(all[day]) ? all[day] : []);
   };
-  function dailyEnvelopeIds(day = today()) {
+  // Le dimanche, toutes les enveloppes sont au prix normal (réglable dans Paramétrage).
+  const allNormalDay = (day = today()) => setting('sundayAllNormal') && new Date(day + 'T12:00:00').getDay() === 0;
+  function dailyEnvelopeIds(day = today(), ignoreSunday = false) {
     const shop = state.envelopes.filter((env) => stickersOf(env.id).length);
     const n = setting('dailyEnvCount');
-    if (!n || shop.length <= n) return new Set(shop.map((e) => e.id));
+    if (!n || shop.length <= n || (!ignoreSunday && allNormalDay(day))) return new Set(shop.map((e) => e.id));
     const chosen = dailyPicks(day).filter((id) => shop.some((e) => e.id === id)).slice(0, n);
     // S'il en manque (aucun choix, ou moins de n), on complète au hasard.
     const rest = shop.filter((e) => !chosen.includes(e.id))
@@ -3269,7 +3272,7 @@
       : 'Bientôt des enveloppes';
     const daily = setting('dailyEnvCount');
     const nDaily = dailyEnvelopeIds().size;
-    $('#shopChoiceEnvChip').textContent = !shop.length ? 'Reviens bientôt' : (!daily || shop.length <= daily
+    $('#shopChoiceEnvChip').textContent = !shop.length ? 'Reviens bientôt' : (allNormalDay() ? '☀️ Dimanche : toutes au prix normal !' : !daily || shop.length <= daily
       ? '⭐ Toutes au prix normal aujourd\'hui' : `⭐ ${plural(nDaily, 'enveloppe')} du jour au prix normal`);
     const walls = [...state.decos.values()].filter((d) => d.kind === 'wall').length;
     const floors = [...state.decos.values()].filter((d) => d.kind === 'floor').length;
@@ -3305,6 +3308,7 @@
       envs.push(...featured, 'toggle');
       if (shopShowOthers) envs.push(null, ...others);
     } else {
+      if (allNormalDay() && featured.length && setting('dailyEnvCount')) heading('☀️ Dimanche : toutes les enveloppes au prix normal !', 'Profites-en pour compléter ta collection · retour des enveloppes du jour demain');
       envs.push(...featured);
     }
     for (const env of envs) {
@@ -4212,7 +4216,7 @@
       return;
     }
     const picks = dailyPicks(day).filter((id) => shop.some((e) => e.id === id));
-    const current = dailyEnvelopeIds(day);
+    const current = dailyEnvelopeIds(day, true);
     head.innerHTML = `<div class="atelier-daily-tabs">
         <button type="button" class="btn ${dailyDayOffset === 0 ? 'btn-primary' : ''}" data-off="0">Aujourd'hui</button>
         <button type="button" class="btn ${dailyDayOffset === 1 ? 'btn-primary' : ''}" data-off="1">Demain</button>
@@ -4222,6 +4226,7 @@
     head.querySelector('.atelier-daily-info').textContent = picks.length
       ? `Ton choix : ${picks.length}/${n}${picks.length < n ? ` (les ${n - picks.length} autres sont tirées au sort)` : ''}. Touche une enveloppe pour l'ajouter ou la retirer.`
       : `Tirage au sort en ce moment. Touche une enveloppe pour choisir toi-même (jusqu'à ${n}).`;
+    if (allNormalDay(day)) head.querySelector('.atelier-daily-info').textContent = `☀️ Ce jour-là est un dimanche : toutes les enveloppes sont au prix normal, ce choix ne sert pas. ${head.querySelector('.atelier-daily-info').textContent}`;
     head.querySelector('.atelier-daily-random').hidden = !picks.length;
     head.querySelectorAll('[data-off]').forEach((b) => b.addEventListener('click', () => { dailyDayOffset = Number(b.dataset.off); renderAtelier(); }));
     head.querySelector('.atelier-daily-random').addEventListener('click', () => setDailyPicks(day, []));
