@@ -1688,7 +1688,7 @@
       input.title = c;
     }
     $('#bgReset').hidden = !state.colors.background;
-    $('#decoRow').hidden = !state.isAdmin || normShape(state.shape).kind === 'garden';
+    syncDecoSwatches();
   }
 
   // ---------------------------------------------------------------------------
@@ -3902,28 +3902,56 @@
     }
   }
 
-  // Choix dans une pièce
+  // Choix dans une pièce : un carré à côté de Mur G, Mur D et Sol, avec l'aperçu du décor posé.
   const decoPicker = $('#decoPicker');
-  let decoKind = 'wall', decoTarget = 'both';
-  const decoKeys = () => (decoKind === 'floor' ? ['floorDeco']
-    : decoTarget === 'left' ? ['wallLeftDeco'] : decoTarget === 'right' ? ['wallRightDeco'] : ['wallLeftDeco', 'wallRightDeco']);
+  const DECO_SLOTS = {
+    wallLeftDeco: { kind: 'wall', title: 'Papier peint · mur gauche', other: 'wallRightDeco', otherName: 'mur droit' },
+    wallRightDeco: { kind: 'wall', title: 'Papier peint · mur droit', other: 'wallLeftDeco', otherName: 'mur gauche' },
+    floorDeco: { kind: 'floor', title: 'Sol à motif', other: null },
+  };
+  let decoSlot = 'wallLeftDeco';
+  const decoSwatches = [...document.querySelectorAll('.deco-swatch')];
+  function syncDecoSwatches() {
+    const show = state.isAdmin && normShape(state.shape).kind !== 'garden';
+    for (const b of decoSwatches) {
+      b.hidden = !show;
+      const d = state.decos.get(state.colors[b.dataset.deco] || '');
+      b.classList.toggle('empty', !d);
+      b.style.backgroundImage = d ? `url("${d.url}")` : '';
+      b.textContent = d ? '' : '🖼️';
+      b.title = d ? `${d.name} (touche pour changer)` : (b.dataset.deco === 'floorDeco' ? 'Choisir un sol à motif' : 'Choisir un papier peint');
+    }
+  }
+  for (const b of decoSwatches) b.addEventListener('click', () => openDecoPicker(b.dataset.deco));
+  function openDecoPicker(slot) {
+    decoSlot = slot;
+    renderDecoPicker();
+    decoPicker.hidden = false;
+  }
   function renderDecoPicker() {
-    decoPicker.querySelectorAll('.deco-tabs .deco-tab').forEach((t) => t.classList.toggle('active', t.dataset.kind === decoKind));
-    $('#decoTarget').hidden = decoKind === 'floor';
+    const slot = DECO_SLOTS[decoSlot];
+    $('#decoPickTitle').textContent = slot.title;
     const list = $('#decoPickList');
     list.innerHTML = '';
-    const cur = decoKeys().map((k) => state.colors[k] || '');
-    const none = document.createElement('button');
-    none.type = 'button';
-    none.className = 'deco-item' + (cur.every((v) => !v) ? ' active' : '');
-    none.innerHTML = '<span class="deco-thumb none">∅</span><span class="deco-name">Couleur unie</span>';
-    none.addEventListener('click', () => applyDeco(''));
-    list.appendChild(none);
-    const owned = decoList(decoKind).filter((d) => decoOwned(d.id));
+    const cur = state.colors[decoSlot] || '';
+    const action = (label, cls, fn) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn deco-action ' + cls;
+      b.textContent = label;
+      b.addEventListener('click', fn);
+      list.appendChild(b);
+    };
+    // Même papier peint que l'autre mur, s'il en a un (et pas déjà ici).
+    const otherId = slot.other ? state.colors[slot.other] || '' : '';
+    const otherDeco = otherId && state.decos.get(otherId);
+    if (otherDeco && otherId !== cur) action(`Même que le ${slot.otherName} : ${otherDeco.name}`, 'btn-primary', () => applyDeco(otherId));
+    if (cur) action('✕ Retirer', 'btn-ghost', () => applyDeco(''));
+    const owned = decoList(slot.kind).filter((d) => decoOwned(d.id));
     decoGroups(owned, list, (d) => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'deco-item' + (cur.every((v) => v === d.id) ? ' active' : '');
+      b.className = 'deco-item' + (cur === d.id ? ' active' : '');
       b.appendChild(decoThumb(d));
       const n = document.createElement('span');
       n.className = 'deco-name';
@@ -3935,25 +3963,21 @@
     if (!owned.length) {
       const p = document.createElement('p');
       p.className = 'muted deco-empty';
-      p.textContent = decoKind === 'floor' ? 'Aucun sol pour l\'instant : il y en a à la boutique (🎨 Décor).' : 'Aucun papier peint pour l\'instant : il y en a à la boutique (🎨 Décor).';
+      p.textContent = slot.kind === 'floor' ? 'Aucun sol pour l\'instant : il y en a à la boutique (🎨 Décor).' : 'Aucun papier peint pour l\'instant : il y en a à la boutique (🎨 Décor).';
       list.appendChild(p);
     }
   }
   function applyDeco(id) {
     const before = snapshot();
-    for (const k of decoKeys()) {
-      if (id) state.colors[k] = id; else delete state.colors[k];
-    }
+    if (id) state.colors[decoSlot] = id; else delete state.colors[decoSlot];
     commit(before);
     drawRoom();
+    syncDecoSwatches();
     scheduleSave();
-    renderDecoPicker();
+    decoPicker.hidden = true;
   }
-  $('#btnDeco').addEventListener('click', () => { renderDecoPicker(); decoPicker.hidden = false; });
   $('#decoPickClose').addEventListener('click', () => { decoPicker.hidden = true; });
   decoPicker.addEventListener('click', (e) => { if (e.target === decoPicker) decoPicker.hidden = true; });
-  decoPicker.querySelectorAll('.deco-tabs .deco-tab').forEach((t) => t.addEventListener('click', () => { decoKind = t.dataset.kind; renderDecoPicker(); }));
-  decoPicker.querySelectorAll('input[name="decoTarget"]').forEach((r) => r.addEventListener('change', () => { decoTarget = r.value; renderDecoPicker(); }));
 
   // Boutique : achat un par un
   const decoShop = $('#decoShop');

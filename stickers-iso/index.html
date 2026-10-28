@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610281400">
+  <link rel="stylesheet" href="style.css?v=202610281500">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -243,15 +243,15 @@
         </div>
         <div class="color-row">
           <label class="color-pick" title="Couleur du mur gauche">Mur G <button type="button" class="swatch-btn" id="colorWallLeft" aria-haspopup="dialog"></button></label>
+          <button type="button" class="swatch-btn deco-swatch" data-deco="wallLeftDeco" title="Papier peint du mur gauche" hidden></button>
         </div>
         <div class="color-row">
           <label class="color-pick" title="Couleur du mur droit">Mur D <button type="button" class="swatch-btn" id="colorWallRight" aria-haspopup="dialog"></button></label>
+          <button type="button" class="swatch-btn deco-swatch" data-deco="wallRightDeco" title="Papier peint du mur droit" hidden></button>
         </div>
         <div class="color-row">
           <label class="color-pick" title="Couleur du sol">Sol <button type="button" class="swatch-btn" id="colorFloor" aria-haspopup="dialog"></button></label>
-        </div>
-        <div class="color-row deco-row" id="decoRow" hidden>
-          <button id="btnDeco" class="btn" type="button" aria-haspopup="dialog" title="Papiers peints et sols (en test)">🖼️ Papiers peints &amp; sols</button>
+          <button type="button" class="swatch-btn deco-swatch" data-deco="floorDeco" title="Sol à motif" hidden></button>
         </div>
         <div class="color-row level-color" hidden>
           <label class="color-pick" title="Couleur des murs de l'étage, côté gauche">Étage G <button type="button" class="swatch-btn" id="colorLevelLeft" aria-haspopup="dialog"></button></label>
@@ -650,15 +650,6 @@
         <h2 id="decoPickTitle" class="modal-title">Papiers peints et sols</h2>
         <button id="decoPickClose" class="modal-x" type="button" title="Fermer" aria-label="Fermer">✕</button>
       </div>
-      <div class="deco-tabs">
-        <button class="deco-tab active" type="button" data-kind="wall">Murs</button>
-        <button class="deco-tab" type="button" data-kind="floor">Sol</button>
-      </div>
-      <div id="decoTarget" class="deco-target">
-        <label><input type="radio" name="decoTarget" value="both" checked> Les deux murs</label>
-        <label><input type="radio" name="decoTarget" value="left"> Mur gauche seulement</label>
-        <label><input type="radio" name="decoTarget" value="right"> Mur droit seulement</label>
-      </div>
       <div id="decoPickList" class="deco-list"></div>
     </div>
   </div>
@@ -1005,7 +996,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610281400"></script>
-  <script src="game.js?v=202610281400"></script>
+  <script src="firebase-config.js?v=202610281500"></script>
+  <script src="game.js?v=202610281500"></script>
 </body>
 </html>

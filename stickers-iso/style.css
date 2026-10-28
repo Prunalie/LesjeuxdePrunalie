@@ -2298,3 +2298,9 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .deco-admin-fields label { display: flex; flex-direction: column; gap: 2px; font-size: .75rem; color: var(--muted); }
 .deco-admin-fields .field { padding: 6px 8px; font-size: .9rem; }
 @media (max-width: 560px) { .deco-admin-card { flex-wrap: wrap; } .deco-preview { width: 80px; height: 80px; } }
+
+/* Aperçu du papier peint / sol à côté de la couleur */
+.deco-swatch { width: 36px; height: 32px; flex: none; border: 2px dashed var(--line); border-radius: 8px; background-color: var(--surface); background-size: 70% auto; background-repeat: repeat; font-size: 1rem; display: grid; place-items: center; cursor: pointer; padding: 0; }
+.deco-swatch:not(.empty) { border-style: solid; }
+.deco-swatch[hidden] { display: none; }
+.deco-action { grid-column: 1 / -1; justify-content: center; text-align: center; }
