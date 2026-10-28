@@ -90,6 +90,7 @@
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_levels', label: '🏢 Étages', unit: '🌟', def: () => 2, max: 100, step: 1 },
     { group: 'Concours', key: 'contestReward', label: 'Récompense du gagnant', unit: '🪙', def: () => 200, max: 100000, step: 10 },
     { group: 'Concours', key: 'contestSoloReward', label: 'Gagnant d\'office (une seule pièce)', unit: '🪙', def: () => Math.round(setting('contestReward') / 2), max: 100000, step: 10 },
+    { group: 'Concours', key: 'contestJoinReward', label: 'Pour avoir participé (une fois par jour, à la première publication)', unit: '🪙', def: () => 50, max: 100000, step: 5 },
     { group: 'Concours', key: 'voteReward', label: 'Pour avoir fini ses duels', unit: '🪙', def: () => 20, max: 100000, step: 5 },
     { group: 'Concours', key: 'duelsMax', label: 'Duels par joueur et par jour', unit: 'au plus', def: () => 10, min: 1, max: 100, step: 1 },
   ];
@@ -2596,7 +2597,7 @@
     try {
       const fresh = await db.getPlayer(playerDocId(state.player.key));
       if (!fresh) return;
-      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'stairsGift']) {
+      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'joinRewardDay', 'stairsGift']) {
         if (fresh[k] !== undefined) state.profile[k] = fresh[k];
       }
       state.profile.inventory = state.profile.inventory || {};
@@ -4903,7 +4904,7 @@
     // 1. Thème du jour : publier une pièce
     const t = contestData.today;
     const c1 = section('ct-today', `Thème du jour : ${themeOf(t.day)}`,
-      `Décore une pièce sur ce thème et publie-la avant minuit. Demain, tout le monde vote jusqu'à 20 h, puis on dévoile le gagnant : il reçoit ${contestReward()} 🪙.`);
+      `Décore une pièce sur ce thème et publie-la avant minuit${setting('contestJoinReward') > 0 ? ` (+${setting('contestJoinReward')} 🪙 pour ta participation)` : ''}. Demain, tout le monde vote jusqu'à 20 h, puis on dévoile le gagnant : il reçoit ${contestReward()} 🪙.`);
     const mine = t.entries.find((e) => e.owner === me);
     if (mine) {
       const box = document.createElement('div');
@@ -5319,7 +5320,20 @@
       if (cur) cur.publishedAt = Date.now();
       savePending = true;
       await saveRoom();
-      toast('Ta pièce est publiée 🏆 Demain, tout le monde votera jusqu\'à 20 h !');
+      // Pièces de participation : une fois par jour, dès la première publication.
+      let joinMsg = '';
+      const join = setting('contestJoinReward');
+      if (join > 0 && state.profile.joinRewardDay !== r.contestDay) {
+        await refreshProfile();
+        if (state.profile.joinRewardDay !== r.contestDay) {
+          state.profile.joinRewardDay = r.contestDay;
+          state.profile.points = (state.profile.points || 0) + join;
+          renderPoints();
+          saveProfile();
+          joinMsg = ` +${join} 🪙 pour ta participation !`;
+        }
+      }
+      toast(`Ta pièce est publiée 🏆${joinMsg} Demain, tout le monde votera jusqu'à 20 h !`);
       // La pièce se ferme : retour à l'écran du concours, où l'on voit sa participation.
       state.roomId = null;
       openContest();
