@@ -4476,6 +4476,14 @@
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
     {
+      id: 'n-2026-10-28a', date: Date.UTC(2026, 9, 28, 8, 0), title: 'Des pièces pour participer au concours 🏆',
+      items: [
+        'Tu gagnes maintenant des pièces 🪙 dès que tu publies ta pièce du concours, une fois par jour.',
+        'Tu peux toujours la modifier et la republier jusqu\'à minuit, sans gagner de pièces en plus.',
+        'Le montant est indiqué sur l\'écran du concours, à côté du thème du jour.',
+      ],
+    },
+    {
       id: 'n-2026-10-24a', date: Date.UTC(2026, 9, 24, 9, 0), title: 'Menu Paramètres ⚙️',
       items: [
         'Le bouton en haut à droite du menu ouvre maintenant les Paramètres.',
