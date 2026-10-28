@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610281500">
+  <link rel="stylesheet" href="style.css?v=202610281600">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -308,18 +308,46 @@
     <header class="topbar">
       <div class="room-title">
         <button id="shopBack" class="btn btn-ghost" title="Retour">←<span class="label-long">&nbsp;Retour</span></button>
-        <h1>Boutique</h1>
+        <h1 id="shopTitle">Boutique</h1>
       </div>
       <div class="topbar-actions">
-        <button id="shopDeco" class="btn" type="button" hidden title="Papiers peints et sols (test admin)">🎨<span class="label-long">&nbsp;Décor</span></button>
         <button id="shopStamps" class="btn stamps-btn" title="Ma carte de tampons et mes étoiles" aria-haspopup="dialog">⭐<span id="shopStampsText"></span></button>
         <span class="points-pill"></span>
       </div>
     </header>
     <div class="rooms-body">
-      <p class="shop-intro">Chaque enveloppe contient <strong>un</strong> sticker tiré au sort. Touche une enveloppe pour voir ce qu'elle peut contenir. Tu gagnes <strong id="shopDaily">100 🪙</strong> chaque jour.</p>
-      <div id="shopGrid" class="shop-grid"></div>
-      <p id="shopEmpty" class="empty" hidden>Aucune enveloppe en vente pour l'instant. Reviens bientôt&nbsp;!</p>
+      <div id="shopChoice" class="home-big shop-choice" hidden>
+        <button id="shopChoiceEnv" class="card home-card big" type="button">
+          <span class="card-blob" style="background:#FFE0E6"></span>
+          <span class="big-text">
+            <span class="tile-icon big" style="background:#FFE0E6"><svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="7" width="26" height="18" rx="3" fill="#F2A7B5" stroke="#5A3E3A" stroke-width="2.4"/><path d="M4 9 L16 18 L28 9" fill="none" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/></svg></span>
+            <span>
+              <span class="card-title big">Enveloppes</span>
+              <span class="card-sub big">Un sticker tiré au sort dans chaque enveloppe</span>
+            </span>
+          </span>
+        </button>
+        <button id="shopChoiceDeco" class="card home-card big" type="button">
+          <span class="card-blob" style="background:#DCEBFA"></span>
+          <span class="big-text">
+            <span class="tile-icon big" style="background:#DCEBFA"><svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 8 L16 3 L28 8 V26 H4 Z" fill="#F6D27A" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M10 26 V12 M16 26 V10 M22 26 V12" stroke="#5A3E3A" stroke-width="2" opacity=".55"/></svg></span>
+            <span>
+              <span class="card-title big">Décor</span>
+              <span class="card-sub big">Papiers peints et sols pour tes pièces</span>
+            </span>
+          </span>
+        </button>
+      </div>
+      <div id="shopEnvView">
+        <p class="shop-intro">Chaque enveloppe contient <strong>un</strong> sticker tiré au sort. Touche une enveloppe pour voir ce qu'elle peut contenir. Tu gagnes <strong id="shopDaily">100 🪙</strong> chaque jour.</p>
+        <div id="shopGrid" class="shop-grid"></div>
+        <p id="shopEmpty" class="empty" hidden>Aucune enveloppe en vente pour l'instant. Reviens bientôt&nbsp;!</p>
+      </div>
+      <div id="shopDecoView" hidden>
+        <p class="shop-intro">Papiers peints et sols, en vente un par un. Une fois achetés, tu les poses dans 🎨 Couleurs, quand tu décores une pièce.</p>
+        <label id="decoAsPlayerRow" class="deco-asplayer" hidden><input id="decoAsPlayer" type="checkbox"> Tester comme un joueur (je n'ai que mes achats)</label>
+        <div id="decoShopList" class="deco-list deco-shop-page"></div>
+      </div>
     </div>
   </section>
 
@@ -654,17 +682,6 @@
     </div>
   </div>
 
-  <div id="decoShop" class="modal" hidden>
-    <div class="modal-box deco-box" role="dialog" aria-modal="true" aria-labelledby="decoShopTitle">
-      <div class="modal-head">
-        <h2 id="decoShopTitle" class="modal-title">Décor 🎨</h2>
-        <button id="decoShopClose" class="modal-x" type="button" title="Fermer" aria-label="Fermer">✕</button>
-      </div>
-      <label id="decoAsPlayerRow" class="deco-asplayer" hidden><input id="decoAsPlayer" type="checkbox"> Tester comme un joueur (je n'ai que mes achats)</label>
-      <div id="decoShopList" class="deco-list"></div>
-    </div>
-  </div>
-
   <div id="confirmDialog" class="modal" hidden>
     <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="confirmText">
       <p id="confirmText"></p>
@@ -996,7 +1013,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610281500"></script>
-  <script src="game.js?v=202610281500"></script>
+  <script src="firebase-config.js?v=202610281600"></script>
+  <script src="game.js?v=202610281600"></script>
 </body>
 </html>

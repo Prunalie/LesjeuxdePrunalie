@@ -3178,14 +3178,15 @@
     } else {
       shopReturnRoom = null;
     }
+    shopView = state.isAdmin ? 'choice' : 'envelopes'; // le décor est en test chez l'administratrice
     renderShop();
-    $('#shopDeco').hidden = !state.isAdmin;
     showScreen('shop');
   }
 
   $('#homeShop').addEventListener('click', () => openShop(false));
   $('#btnLibShop').addEventListener('click', () => openShop(true));
   $('#shopBack').addEventListener('click', () => {
+    if (state.isAdmin && shopView !== 'choice') { shopView = 'choice'; applyShopView(); window.scrollTo(0, 0); return; }
     if (shopReturnRoom && state.rooms.some((r) => r.id === shopReturnRoom)) {
       openRoom(shopReturnRoom);
     } else {
@@ -3247,7 +3248,19 @@
     return Math.round(full * (1 - packDiscount(env) / 100));
   }
 
+  // Boutique : un écran de choix (enveloppes ou décor), puis la page choisie.
+  let shopView = 'envelopes';
+  function applyShopView() {
+    $('#shopChoice').hidden = shopView !== 'choice';
+    $('#shopEnvView').hidden = shopView !== 'envelopes';
+    $('#shopDecoView').hidden = shopView !== 'deco';
+    $('#shopStamps').hidden = shopView !== 'envelopes';
+    $('#shopTitle').textContent = shopView === 'envelopes' && state.isAdmin ? 'Enveloppes' : (shopView === 'deco' ? 'Décor' : 'Boutique');
+    $('#shopBack').title = shopView === 'choice' || !state.isAdmin ? 'Retour' : 'Retour à la boutique';
+  }
+
   function renderShop() {
+    applyShopView();
     renderPoints();
     $('#shopDaily').textContent = `${dailyPoints()} 🪙`;
     renderStampCard();
@@ -3980,7 +3993,6 @@
   decoPicker.addEventListener('click', (e) => { if (e.target === decoPicker) decoPicker.hidden = true; });
 
   // Boutique : achat un par un
-  const decoShop = $('#decoShop');
   function renderDecoShop() {
     $('#decoAsPlayerRow').hidden = !state.isAdmin;
     const list = $('#decoShopList');
@@ -4027,9 +4039,8 @@
     toast(`« ${d.name} » est à toi ! Tu le trouves dans 🎨 Couleurs, quand tu décores une pièce.`);
     renderDecoShop();
   }
-  $('#shopDeco').addEventListener('click', () => { renderDecoShop(); decoShop.hidden = false; });
-  $('#decoShopClose').addEventListener('click', () => { decoShop.hidden = true; });
-  decoShop.addEventListener('click', (e) => { if (e.target === decoShop) decoShop.hidden = true; });
+  $('#shopChoiceEnv').addEventListener('click', () => { shopView = 'envelopes'; renderShop(); window.scrollTo(0, 0); });
+  $('#shopChoiceDeco').addEventListener('click', () => { shopView = 'deco'; renderDecoShop(); applyShopView(); window.scrollTo(0, 0); });
   $('#decoAsPlayer').addEventListener('change', (e) => { decoAsPlayer = e.target.checked; renderDecoShop(); });
 
   // Atelier : importer et régler les décors

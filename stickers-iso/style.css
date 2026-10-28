@@ -2304,3 +2304,9 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .deco-swatch:not(.empty) { border-style: solid; }
 .deco-swatch[hidden] { display: none; }
 .deco-action { grid-column: 1 / -1; justify-content: center; text-align: center; }
+
+/* Boutique : choix entre enveloppes et décor */
+.shop-choice { max-width: 788px; margin: 8px auto 0; }
+.deco-shop-page { max-width: 788px; margin: 0 auto; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+.deco-shop-page .deco-thumb { width: 96px; height: 96px; }
+@media (max-width: 720px) { .shop-choice { grid-template-columns: 1fr; } .shop-choice .home-card.big { height: 150px; } }
