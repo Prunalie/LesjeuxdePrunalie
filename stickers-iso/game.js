@@ -55,6 +55,7 @@
     mails: [],           // boîte aux lettres : { id, to, title, text, reward, read, claimed, created }
     myProposals: [],     // stickers proposés par le joueur : { id, name, data, status, reward, ... }
     proposals: [],       // coffre (administratrice) : toutes les propositions
+    decos: new Map(),    // papiers peints et sols : id -> { id, kind: 'wall' | 'floor', name, collection, price, size, data, url, w, h }
     images: new Map(),   // catalogue : id -> { id, envelope, rarity, name, data, url, w, h }
     stickers: [],        // ordre du tableau = ordre d'empilement (dernier = devant)
     ambient: 100,        // lumière de la pièce, de 5 (nuit) à 100 (jour)
@@ -196,6 +197,8 @@
       // enveloppes partagent « ma-petite-piece » (champ type), les stickers l'autre.
       return {
         listCatalog: () => all(images.where('catalog', '==', true)),
+        // Papiers peints et sols (en test chez l'administratrice)
+        listDecos: () => all(images.where('deco', '==', true)),
         putImage: ({ id, url, ...rec }) => images.doc(id).set(clean(rec)),
         deleteImage: (id) => images.doc(id).delete(),
         // Les participations au concours ont aussi un « owner » : ce ne sont pas des pièces.
@@ -297,6 +300,7 @@
     const getAll = async (store) => (await run(store, 'readonly', (s) => s.getAll())) || [];
     return {
       listCatalog: async () => (await getAll('images')).filter((r) => r.catalog),
+      listDecos: async () => (await getAll('images')).filter((r) => r.deco),
       putImage: ({ url, ...rec }) => run('images', 'readwrite', (s) => s.put(rec)),
       deleteImage: (id) => run('images', 'readwrite', (s) => s.delete(id)),
       listRooms: (owner) => byOwner('rooms', owner),
@@ -500,11 +504,28 @@
     };
   }
 
+  // Papier peint / sol : un motif plat (carré qui se répète) plaqué sur le plan du mur ou du sol.
+  let decoSeq = 0;
+  const DECO_VK = 1.0717; // 1 carreau de hauteur du motif = 1 carreau de large (la hauteur d'un carreau de pièce est un peu plus courte)
   function roomSvg(colors, shape) {
     const g = roomGeom(shape);
     const { sh, k, P, garden } = g;
     const base = garden ? { ...GARDEN_COLORS } : { ...DEFAULT_COLORS };
     const { wallLeft, wallRight, floor } = { ...base, ...colors };
+    const defs = [];
+    const decoFor = (key) => {
+      const d = !garden && colors && colors[key] ? state.decos.get(colors[key]) : null;
+      return d && d.w && d.h ? d : null;
+    };
+    // along : vecteur écran d'un carreau vers la droite du motif ; down : vers le bas du motif.
+    const texture = (d, along, down, origin) => {
+      const id = `deco${++decoSeq}`;
+      const wu = Math.max(0.5, Math.min(12, Number(d.size) || 2)), hu = wu * d.h / d.w;
+      const m = [along.x * wu / d.w, along.y * wu / d.w, down.x * hu / d.h, down.y * hu / d.h, origin.x, origin.y].map((n) => n.toFixed(5)).join(' ');
+      defs.push(`<pattern id="${id}" patternUnits="userSpaceOnUse" x="0" y="0" width="${d.w}" height="${d.h}" patternTransform="matrix(${m})"><image href="${d.data}" width="${d.w}" height="${d.h}" preserveAspectRatio="none"/></pattern>`);
+      return `url(#${id})`;
+    };
+    const decoWL = decoFor('wallLeftDeco'), decoWR = decoFor('wallRightDeco'), decoF = decoFor('floorDeco');
     const W = sh.w, D = sh.d, Z = g.wallTiles;
     const C = P(0, 0), R = P(W, 0), L = P(0, D), B = P(W, D);
     const up = (p) => ({ x: p.x, y: p.y - g.wallPx });
@@ -513,8 +534,11 @@
     const parts = [];
 
     // Murs (ou haies pour un jardin)
-    parts.push(`<polygon points="${pts(L, C, up(C), up(L))}" fill="${wallLeft}"/>`);
-    parts.push(`<polygon points="${pts(C, R, up(R), up(C))}" fill="${wallRight}"/>`);
+    const wallDown = { x: 0, y: TILE_Z * k * DECO_VK };
+    const fillWL = decoWL ? texture(decoWL, { x: -TILE_X * k, y: TILE_Y * k }, wallDown, up(C)) : wallLeft;
+    const fillWR = decoWR ? texture(decoWR, { x: TILE_X * k, y: TILE_Y * k }, wallDown, up(C)) : wallRight;
+    parts.push(`<polygon points="${pts(L, C, up(C), up(L))}" fill="${fillWL}"/>`);
+    parts.push(`<polygon points="${pts(C, R, up(R), up(C))}" fill="${fillWR}"/>`);
     if (garden) {
       // Feuillage : quelques bosses sur le haut des haies.
       const bumps = (a, b, n, fill) => {
@@ -537,8 +561,9 @@
     if (!garden) parts.push(`<line x1="${C.x.toFixed(1)}" y1="${C.y.toFixed(1)}" x2="${C.x.toFixed(1)}" y2="${up(C).y.toFixed(1)}" stroke="${shade(wallLeft, -0.3)}" stroke-opacity=".35" stroke-width="2"/>`);
 
     // Sol
-    parts.push(`<polygon points="${pts(C, R, B, L)}" fill="${floor}"/>`);
-    floorPattern(parts, P, W, D, 0, floor, garden, k);
+    const fillF = decoF ? texture(decoF, { x: TILE_X * k, y: TILE_Y * k }, { x: -TILE_X * k, y: TILE_Y * k }, C) : floor;
+    parts.push(`<polygon points="${pts(C, R, B, L)}" fill="${fillF}"/>`);
+    if (!decoF) floorPattern(parts, P, W, D, 0, floor, garden, k);
 
     // Étages : chacun est un bloc collé au coin du fond, posé sur le précédent.
     let z = 0;
@@ -572,7 +597,7 @@
     parts.push(`<polygon points="${pts(RT, R, B)}" fill="${floor}"/>`);
 
 
-    return parts.join('');
+    return (defs.length ? `<defs>${defs.join('')}</defs>` : '') + parts.join('');
   }
 
   // ---------------------------------------------------------------------------
@@ -716,6 +741,10 @@
       console.warn('Téléchargement impossible', e);
       toast('L\'image n\'a pas pu être téléchargée.');
     }
+  }
+
+  function addDeco(rec) {
+    if (rec.data) state.decos.set(rec.id, { ...rec, url: rec.data });
   }
 
   function addImageToLibrary(rec) {
@@ -1659,6 +1688,7 @@
       input.title = c;
     }
     $('#bgReset').hidden = !state.colors.background;
+    $('#decoRow').hidden = !state.isAdmin || normShape(state.shape).kind === 'garden';
   }
 
   // ---------------------------------------------------------------------------
@@ -2294,6 +2324,7 @@
     mail: $('#screenMail'),
     coffre: $('#screenCoffre'),
     atelier: $('#screenAtelier'),
+    decoAdmin: $('#screenDecoAdmin'),
     news: $('#screenNews'),
     contest: $('#screenContest'),
     ctHistory: $('#screenCtHistory'),
@@ -2484,6 +2515,7 @@
     $('#homeAtelier').hidden = !state.isAdmin;
     $('#homeAdmin').hidden = !state.isAdmin;
     state.images = new Map();
+    state.decos = new Map();
     let gained = 0;
     let isNew = false;
     try {
@@ -2494,6 +2526,7 @@
         d.listNews().catch(() => []),
       ]));
       setNews(news);
+      if (state.isAdmin) (await withFallback((d) => d.listDecos()).catch(() => [])).forEach(addDeco);
       state.settings = { dailyPoints: DAILY_POINTS, ...(settings || {}) };
       state.mails = mails;
       state.myProposals = mine;
@@ -2597,7 +2630,7 @@
     try {
       const fresh = await db.getPlayer(playerDocId(state.player.key));
       if (!fresh) return;
-      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'joinRewardDay', 'stairsGift']) {
+      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'joinRewardDay', 'stairsGift', 'decos']) {
         if (fresh[k] !== undefined) state.profile[k] = fresh[k];
       }
       state.profile.inventory = state.profile.inventory || {};
@@ -3146,6 +3179,7 @@
       shopReturnRoom = null;
     }
     renderShop();
+    $('#shopDeco').hidden = !state.isAdmin;
     showScreen('shop');
   }
 
@@ -3836,6 +3870,218 @@
       listEl.appendChild(sec);
     }
   }
+
+
+  // ---------------------------------------------------------------------------
+  // Décor : papiers peints et sols (en test chez l'administratrice)
+  // Vendus un par un. Dans une pièce : un papier peint pour les deux murs, ou pour un seul.
+  // ---------------------------------------------------------------------------
+  let decoAsPlayer = false; // admin : ne voir que ses achats, comme un joueur
+  const decoOwned = (id) => (state.isAdmin && !decoAsPlayer) || !!(state.profile && state.profile.decos && state.profile.decos[id]);
+  const decoByName = (a, b) => (a.collection || '').localeCompare(b.collection || '', 'fr') || (a.name || '').localeCompare(b.name || '', 'fr');
+  const decoList = (kind) => [...state.decos.values()].filter((d) => d.kind === kind).sort(decoByName);
+  function decoThumb(d) {
+    const el = document.createElement('span');
+    el.className = 'deco-thumb';
+    el.style.backgroundImage = `url("${d.url}")`;
+    return el;
+  }
+  // Titres de collection au-dessus des décors (un décor se vend toujours seul).
+  function decoGroups(list, container, makeItem) {
+    let last = null;
+    for (const d of list) {
+      const c = d.collection || 'Sans collection';
+      if (c !== last) {
+        const h = document.createElement('h4');
+        h.className = 'deco-group';
+        h.textContent = c;
+        container.appendChild(h);
+        last = c;
+      }
+      container.appendChild(makeItem(d));
+    }
+  }
+
+  // Choix dans une pièce
+  const decoPicker = $('#decoPicker');
+  let decoKind = 'wall', decoTarget = 'both';
+  const decoKeys = () => (decoKind === 'floor' ? ['floorDeco']
+    : decoTarget === 'left' ? ['wallLeftDeco'] : decoTarget === 'right' ? ['wallRightDeco'] : ['wallLeftDeco', 'wallRightDeco']);
+  function renderDecoPicker() {
+    decoPicker.querySelectorAll('.deco-tabs .deco-tab').forEach((t) => t.classList.toggle('active', t.dataset.kind === decoKind));
+    $('#decoTarget').hidden = decoKind === 'floor';
+    const list = $('#decoPickList');
+    list.innerHTML = '';
+    const cur = decoKeys().map((k) => state.colors[k] || '');
+    const none = document.createElement('button');
+    none.type = 'button';
+    none.className = 'deco-item' + (cur.every((v) => !v) ? ' active' : '');
+    none.innerHTML = '<span class="deco-thumb none">∅</span><span class="deco-name">Couleur unie</span>';
+    none.addEventListener('click', () => applyDeco(''));
+    list.appendChild(none);
+    const owned = decoList(decoKind).filter((d) => decoOwned(d.id));
+    decoGroups(owned, list, (d) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'deco-item' + (cur.every((v) => v === d.id) ? ' active' : '');
+      b.appendChild(decoThumb(d));
+      const n = document.createElement('span');
+      n.className = 'deco-name';
+      n.textContent = d.name;
+      b.appendChild(n);
+      b.addEventListener('click', () => applyDeco(d.id));
+      return b;
+    });
+    if (!owned.length) {
+      const p = document.createElement('p');
+      p.className = 'muted deco-empty';
+      p.textContent = decoKind === 'floor' ? 'Aucun sol pour l\'instant : il y en a à la boutique (🎨 Décor).' : 'Aucun papier peint pour l\'instant : il y en a à la boutique (🎨 Décor).';
+      list.appendChild(p);
+    }
+  }
+  function applyDeco(id) {
+    const before = snapshot();
+    for (const k of decoKeys()) {
+      if (id) state.colors[k] = id; else delete state.colors[k];
+    }
+    commit(before);
+    drawRoom();
+    scheduleSave();
+    renderDecoPicker();
+  }
+  $('#btnDeco').addEventListener('click', () => { renderDecoPicker(); decoPicker.hidden = false; });
+  $('#decoPickClose').addEventListener('click', () => { decoPicker.hidden = true; });
+  decoPicker.addEventListener('click', (e) => { if (e.target === decoPicker) decoPicker.hidden = true; });
+  decoPicker.querySelectorAll('.deco-tabs .deco-tab').forEach((t) => t.addEventListener('click', () => { decoKind = t.dataset.kind; renderDecoPicker(); }));
+  decoPicker.querySelectorAll('input[name="decoTarget"]').forEach((r) => r.addEventListener('change', () => { decoTarget = r.value; renderDecoPicker(); }));
+
+  // Boutique : achat un par un
+  const decoShop = $('#decoShop');
+  function renderDecoShop() {
+    $('#decoAsPlayerRow').hidden = !state.isAdmin;
+    const list = $('#decoShopList');
+    list.innerHTML = '';
+    let any = false;
+    for (const kind of ['wall', 'floor']) {
+      const items = decoList(kind);
+      if (!items.length) continue;
+      any = true;
+      const h = document.createElement('h3');
+      h.className = 'deco-kind';
+      h.textContent = kind === 'wall' ? 'Papiers peints' : 'Sols';
+      list.appendChild(h);
+      decoGroups(items, list, (d) => {
+        const own = decoOwned(d.id);
+        const card = document.createElement('div');
+        card.className = 'deco-item deco-shop-item';
+        card.appendChild(decoThumb(d));
+        const n = document.createElement('span');
+        n.className = 'deco-name';
+        n.textContent = d.name;
+        card.appendChild(n);
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn' + (own ? '' : ' btn-primary');
+        b.disabled = own;
+        b.textContent = own ? '✓ À toi' : `${d.price} 🪙`;
+        b.addEventListener('click', () => buyDeco(d));
+        card.appendChild(b);
+        return card;
+      });
+    }
+    if (!any) list.innerHTML = '<p class="muted deco-empty">Rien en vente pour l\'instant.</p>';
+  }
+  async function buyDeco(d) {
+    if (decoOwned(d.id)) return;
+    if ((state.profile.points || 0) < d.price) { toast(`Il te manque ${d.price - (state.profile.points || 0)} 🪙.`); return; }
+    if (!(await askConfirm(`Acheter « ${d.name} » pour ${d.price} 🪙 ?`, 'Acheter'))) return;
+    if ((state.profile.points || 0) < d.price) return;
+    state.profile.points -= d.price;
+    state.profile.decos = { ...(state.profile.decos || {}), [d.id]: true };
+    renderPoints();
+    saveProfile();
+    toast(`« ${d.name} » est à toi ! Tu le trouves dans 🎨 Couleurs, quand tu décores une pièce.`);
+    renderDecoShop();
+  }
+  $('#shopDeco').addEventListener('click', () => { renderDecoShop(); decoShop.hidden = false; });
+  $('#decoShopClose').addEventListener('click', () => { decoShop.hidden = true; });
+  decoShop.addEventListener('click', (e) => { if (e.target === decoShop) decoShop.hidden = true; });
+  $('#decoAsPlayer').addEventListener('change', (e) => { decoAsPlayer = e.target.checked; renderDecoShop(); });
+
+  // Atelier : importer et régler les décors
+  function renderDecoAdmin() {
+    const list = $('#decoAdminList');
+    list.innerHTML = '';
+    const items = [...state.decos.values()].sort((a, b) => a.kind.localeCompare(b.kind) || decoByName(a, b));
+    $('#decoAdminEmpty').hidden = items.length > 0;
+    const collections = [...new Set(items.map((d) => d.collection).filter(Boolean))];
+    for (const d of items) {
+      const card = document.createElement('article');
+      card.className = 'deco-admin-card';
+      card.innerHTML = `
+        <div class="deco-preview"></div>
+        <div class="deco-admin-fields">
+          <label><span>Nom</span><input class="field" data-f="name" maxlength="40"></label>
+          <label><span>Type</span><select class="field" data-f="kind"><option value="wall">Papier peint</option><option value="floor">Sol</option></select></label>
+          <label><span>Collection</span><input class="field" data-f="collection" maxlength="40" list="decoCollections"></label>
+          <label><span>Prix 🪙</span><input class="field" data-f="price" type="number" min="0" step="10"></label>
+          <label><span>Taille (carreaux)</span><input class="field" data-f="size" type="number" min="0.5" max="12" step="0.5"></label>
+        </div>
+        <button class="btn btn-ghost deco-admin-del" type="button" title="Supprimer ce décor">🗑️</button>`;
+      card.querySelector('.deco-preview').style.backgroundImage = `url("${d.url}")`;
+      const save = (field, value) => {
+        d[field] = value;
+        db.updateImage(d.id, { [field]: value }).catch(() => toast('Le réglage n\'a pas pu être enregistré. Vérifie ta connexion.'));
+      };
+      const f = (name) => card.querySelector(`[data-f="${name}"]`);
+      f('name').value = d.name || '';
+      f('kind').value = d.kind;
+      f('collection').value = d.collection || '';
+      f('price').value = d.price ?? 100;
+      f('size').value = d.size || 2;
+      f('name').addEventListener('change', () => save('name', f('name').value.trim() || 'Décor'));
+      f('kind').addEventListener('change', () => save('kind', f('kind').value));
+      f('collection').addEventListener('change', () => save('collection', f('collection').value.trim()));
+      f('price').addEventListener('change', () => save('price', Math.max(0, Math.round(Number(f('price').value) || 0))));
+      f('size').addEventListener('change', () => save('size', Math.max(0.5, Math.min(12, Number(f('size').value) || 2))));
+      card.querySelector('.deco-admin-del').addEventListener('click', async () => {
+        if (!(await askConfirm(`Supprimer « ${d.name} » ? Les pièces qui l'utilisent reprennent leur couleur unie.`, 'Supprimer'))) return;
+        state.decos.delete(d.id);
+        db.deleteImage(d.id).catch(() => toast('Le décor n\'a pas pu être supprimé.'));
+        renderDecoAdmin();
+      });
+      list.appendChild(card);
+    }
+    let dl = $('#decoCollections');
+    if (!dl) { dl = document.createElement('datalist'); dl.id = 'decoCollections'; document.body.appendChild(dl); }
+    dl.innerHTML = collections.map((c) => `<option value="${c.replace(/"/g, '&quot;')}">`).join('');
+  }
+  $('#decoImportFile').addEventListener('change', async (e) => {
+    const files = [...e.target.files];
+    e.target.value = '';
+    const kind = $('#decoImportKind').value;
+    let n = 0;
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) continue;
+      try {
+        const src = URL.createObjectURL(file);
+        const el = await loadImageEl(src);
+        URL.revokeObjectURL(src);
+        const { data, w, h } = encodeImage(el);
+        const rec = { id: uid(), deco: true, kind, name: file.name.replace(/\.[^.]+$/, '').slice(0, 40) || 'Décor', collection: '', price: kind === 'floor' ? 150 : 100, size: 2, data, w, h, created: Date.now() };
+        await db.putImage(rec);
+        addDeco(rec);
+        n++;
+      } catch (err) {
+        console.warn('Import du décor impossible', err);
+        toast(`« ${file.name} » n'a pas pu être importé.`);
+      }
+    }
+    if (n) toast(`${plural(n, 'décor')} ajouté${n > 1 ? 's' : ''}. Règle leur nom, leur collection et leur prix.`);
+    renderDecoAdmin();
+  });
+  $('#atelierDeco').addEventListener('click', () => { if (!state.isAdmin) return; renderDecoAdmin(); showScreen('decoAdmin'); });
+  $('#decoAdminBack').addEventListener('click', openAtelier);
 
   // Ranger les enveloppes : l'ordre ici est celui de la boutique (et du classeur).
   let atelierReorder = false;

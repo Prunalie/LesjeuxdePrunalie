@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610281300">
+  <link rel="stylesheet" href="style.css?v=202610281400">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -250,6 +250,9 @@
         <div class="color-row">
           <label class="color-pick" title="Couleur du sol">Sol <button type="button" class="swatch-btn" id="colorFloor" aria-haspopup="dialog"></button></label>
         </div>
+        <div class="color-row deco-row" id="decoRow" hidden>
+          <button id="btnDeco" class="btn" type="button" aria-haspopup="dialog" title="Papiers peints et sols (en test)">🖼️ Papiers peints &amp; sols</button>
+        </div>
         <div class="color-row level-color" hidden>
           <label class="color-pick" title="Couleur des murs de l'étage, côté gauche">Étage G <button type="button" class="swatch-btn" id="colorLevelLeft" aria-haspopup="dialog"></button></label>
         </div>
@@ -308,6 +311,7 @@
         <h1>Boutique</h1>
       </div>
       <div class="topbar-actions">
+        <button id="shopDeco" class="btn" type="button" hidden title="Papiers peints et sols (test admin)">🎨<span class="label-long">&nbsp;Décor</span></button>
         <button id="shopStamps" class="btn stamps-btn" title="Ma carte de tampons et mes étoiles" aria-haspopup="dialog">⭐<span id="shopStampsText"></span></button>
         <span class="points-pill"></span>
       </div>
@@ -601,6 +605,7 @@
           <button id="atelierCoffre" class="btn">🗃️ Coffre</button>
           <button id="atelierOrder" class="btn">↕️ Ordre de la boutique</button>
           <button id="atelierDaily" class="btn">⭐ Enveloppes du jour</button>
+          <button id="atelierDeco" class="btn">🎨 Décor</button>
           <button id="btnNewEnvelope" class="btn btn-primary">＋ Nouvelle enveloppe</button>
         </div>
       </div>
@@ -614,6 +619,60 @@
       <div id="atelierList" class="atelier-list"></div>
     </div>
   </section>
+
+  <!-- Décor : papiers peints et sols (test administratrice) -->
+  <section id="screenDecoAdmin" class="screen screen-atelier" hidden>
+    <header class="topbar">
+      <div class="room-title">
+        <button id="decoAdminBack" class="btn btn-ghost" title="Retour à l'atelier">←<span class="label-long">&nbsp;Atelier</span></button>
+        <h1>Décor 🎨</h1>
+      </div>
+    </header>
+    <div class="rooms-body">
+      <div class="atelier-intro">
+        <p>Papiers peints (murs) et sols vendus un par un dans la boutique. Importe un <strong>motif plat qui se répète</strong> (carré, sans angle) : le jeu le plaque lui-même sur le mur ou le sol, au bon angle. « Taille » = nombre de carreaux de large que couvre le motif.</p>
+        <div class="atelier-intro-actions">
+          <select id="decoImportKind" class="coffre-select" aria-label="Type">
+            <option value="wall">Papier peint</option>
+            <option value="floor">Sol</option>
+          </select>
+          <label class="btn btn-primary">＋ Importer des motifs<input id="decoImportFile" type="file" accept="image/*" multiple hidden></label>
+        </div>
+      </div>
+      <p id="decoAdminEmpty" class="empty" hidden>Aucun décor pour l'instant.</p>
+      <div id="decoAdminList" class="deco-admin-list"></div>
+    </div>
+  </section>
+
+  <div id="decoPicker" class="modal" hidden>
+    <div class="modal-box deco-box" role="dialog" aria-modal="true" aria-labelledby="decoPickTitle">
+      <div class="modal-head">
+        <h2 id="decoPickTitle" class="modal-title">Papiers peints et sols</h2>
+        <button id="decoPickClose" class="modal-x" type="button" title="Fermer" aria-label="Fermer">✕</button>
+      </div>
+      <div class="deco-tabs">
+        <button class="deco-tab active" type="button" data-kind="wall">Murs</button>
+        <button class="deco-tab" type="button" data-kind="floor">Sol</button>
+      </div>
+      <div id="decoTarget" class="deco-target">
+        <label><input type="radio" name="decoTarget" value="both" checked> Les deux murs</label>
+        <label><input type="radio" name="decoTarget" value="left"> Mur gauche seulement</label>
+        <label><input type="radio" name="decoTarget" value="right"> Mur droit seulement</label>
+      </div>
+      <div id="decoPickList" class="deco-list"></div>
+    </div>
+  </div>
+
+  <div id="decoShop" class="modal" hidden>
+    <div class="modal-box deco-box" role="dialog" aria-modal="true" aria-labelledby="decoShopTitle">
+      <div class="modal-head">
+        <h2 id="decoShopTitle" class="modal-title">Décor 🎨</h2>
+        <button id="decoShopClose" class="modal-x" type="button" title="Fermer" aria-label="Fermer">✕</button>
+      </div>
+      <label id="decoAsPlayerRow" class="deco-asplayer" hidden><input id="decoAsPlayer" type="checkbox"> Tester comme un joueur (je n'ai que mes achats)</label>
+      <div id="decoShopList" class="deco-list"></div>
+    </div>
+  </div>
 
   <div id="confirmDialog" class="modal" hidden>
     <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="confirmText">
@@ -946,7 +1005,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610281300"></script>
-  <script src="game.js?v=202610281300"></script>
+  <script src="firebase-config.js?v=202610281400"></script>
+  <script src="game.js?v=202610281400"></script>
 </body>
 </html>

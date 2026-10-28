@@ -6,7 +6,7 @@ Coche une case (`- [x]`) quand c'est fait.
 ## À faire
 
 - [ ] **Lumière** (en test chez l'administratrice) : lumière de la pièce et points lumineux sur des objets. À ouvrir aux joueurs une fois testée (peut-être en l'achetant avec des étoiles, comme les étages).
-- [ ] **Historique de mes pièces de concours** : retrouver toutes les pièces que j'ai publiées aux concours passés (thème, date, résultat).
+- [ ] **Papiers peints et sols** (en test chez l'administratrice) : motifs plats importés dans l'Atelier (🎨 Décor), vendus un par un dans la boutique, choisis par pièce (les deux murs ou un seul). À ouvrir aux joueurs une fois testé.
 - [ ] **Troc** : échanger des stickers entre joueurs.
 - [ ] **Mini-jeux pour gagner des pièces** (par exemple un Memory avec les stickers).
 - [ ] **Voter pour le thème suivant** du concours.
@@ -23,6 +23,7 @@ Coche une case (`- [x]`) quand c'est fait.
 
 ## Fait ✅
 
+- [x] **Historique de mes pièces de concours** : thème, date et résultat de chaque participation.
 - [x] **Concours du jour** : un thème par jour, on publie sa pièce, vote le lendemain jusqu'à 20 h, gagnant dévoilé et récompensé à 20 h. Thèmes et récompense réglables dans l'Atelier.
 - [x] Palette de couleurs : 8 couleurs en mémoire, curseurs placés sur la couleur actuelle.
 - [x] Couleurs des murs et du sol des étages.
