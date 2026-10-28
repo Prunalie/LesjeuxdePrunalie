@@ -3759,8 +3759,18 @@
           <select class="atelier-move" aria-label="Enveloppe" title="Changer d'enveloppe"></select>
           <button class="atelier-item-del" title="Retirer et archiver">✕</button>
           <label class="atelier-item-img" title="Changer le dessin">🖼️<input type="file" accept="image/*" hidden></label>
-          <button class="atelier-item-dl" title="Télécharger le dessin">⬇️</button>`;
+          <button class="atelier-item-dl" title="Télécharger le dessin">⬇️</button>
+          <button class="atelier-item-tag" type="button"></button>`;
         cell.querySelector('img').src = img.url;
+        const tagBtn = cell.querySelector('.atelier-item-tag');
+        const paintTag = () => {
+          cell.classList.toggle('to-fix', !!img.toFix);
+          tagBtn.textContent = '🏷️';
+          tagBtn.title = img.toFix ? 'À modifier (touche pour retirer le tag)' : 'Marquer « à modifier » : il apparaîtra dans le Coffre';
+          tagBtn.setAttribute('aria-pressed', img.toFix ? 'true' : 'false');
+        };
+        paintTag();
+        tagBtn.addEventListener('click', async () => { await setToFix(img, !img.toFix); paintTag(); });
         const nameIn = cell.querySelector('.atelier-name');
         nameIn.value = img.name;
         nameIn.addEventListener('change', () => {
@@ -4008,6 +4018,18 @@
 
   // Nouveau dessin pour un sticker existant : il garde son nom, sa rareté, son enveloppe,
   // et les joueurs qui l'ont voient le nouveau dessin partout (même dans leurs pièces).
+  // Tag « à modifier » : le sticker reste dans son enveloppe, on le retrouve dans l'onglet « À modifier » du Coffre.
+  async function setToFix(img, on) {
+    img.toFix = on;
+    try {
+      await db.updateImage(img.id, { toFix: on });
+    } catch (e) {
+      console.warn('Tag impossible', e);
+      img.toFix = !on;
+      toast('Le tag n\'a pas pu être enregistré. Vérifie ta connexion.');
+    }
+  }
+
   async function replaceStickerImage(img, file) {
     if (!file.type.startsWith('image/')) return;
     if (!(await askConfirm(`Remplacer le dessin de « ${img.name} » par « ${file.name} » ? Les joueurs qui l'ont garderont leur sticker, avec le nouveau dessin.`, 'Remplacer'))) return;
@@ -5920,14 +5942,63 @@
     renderCoffre();
   }));
 
+  const toFixList = () => [...state.images.values()].filter((i) => i.catalog && i.toFix);
+
+  function renderToFix() {
+    const list = $('#coffreList');
+    const items = toFixList().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+    $('#coffreEmpty').hidden = items.length > 0;
+    $('#coffreEmpty').textContent = 'Aucun sticker à modifier. Dans l\'atelier, touche 🏷️ sur un sticker pour le retrouver ici.';
+    for (const img of items) {
+      const env = state.envelopes.find((e) => e.id === img.envelope);
+      const card = document.createElement('article');
+      card.className = 'coffre-card';
+      card.innerHTML = `
+        <div class="env-item-img"><img alt=""></div>
+        <div class="coffre-info">
+          <h3></h3>
+          <p class="muted coffre-meta"></p>
+          <div class="coffre-actions"></div>
+        </div>`;
+      card.querySelector('img').src = img.url;
+      card.querySelector('h3').textContent = img.name;
+      card.querySelector('.coffre-meta').textContent = (env ? `Dans l'enveloppe « ${env.name} »` : (img.archived ? '📦 Archivé' : 'Pas dans une enveloppe'))
+        + (img.author ? ` · par ${img.author}` : '');
+      const actions = card.querySelector('.coffre-actions');
+      const dl = document.createElement('button');
+      dl.className = 'btn';
+      dl.textContent = '⬇️ Télécharger';
+      dl.addEventListener('click', () => downloadImage(img.url, img.name));
+      const rep = document.createElement('label');
+      rep.className = 'btn btn-primary';
+      rep.innerHTML = '🖼️ Remplacer le dessin<input type="file" accept="image/*" hidden>';
+      rep.querySelector('input').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        e.target.value = '';
+        if (!file) return;
+        const before = img.updated;
+        await replaceStickerImage(img, file);
+        if (img.updated !== before) { await setToFix(img, false); renderCoffre(); }
+      });
+      const done = document.createElement('button');
+      done.className = 'btn btn-ghost';
+      done.textContent = '✓ Retirer le tag';
+      done.addEventListener('click', async () => { await setToFix(img, false); renderCoffre(); });
+      actions.append(dl, rep, done);
+      list.appendChild(card);
+    }
+  }
+
   function renderCoffre() {
     document.querySelectorAll('.coffre-tab').forEach((tab) => {
-      const n = state.proposals.filter((p) => coffreStatus(p) === tab.dataset.filter).length;
+      const n = tab.dataset.filter === 'tofix' ? toFixList().length : state.proposals.filter((p) => coffreStatus(p) === tab.dataset.filter).length;
       tab.classList.toggle('active', tab.dataset.filter === coffreFilter);
       tab.querySelector('span').textContent = n;
     });
     const list = $('#coffreList');
     list.innerHTML = '';
+    $('#coffreEmpty').textContent = 'Rien ici pour l\'instant.';
+    if (coffreFilter === 'tofix') { $('#coffreAcceptAll').hidden = true; renderToFix(); return; }
     const items = state.proposals
       .filter((p) => coffreStatus(p) === coffreFilter)
       .sort((a, b) => (b.created || 0) - (a.created || 0));

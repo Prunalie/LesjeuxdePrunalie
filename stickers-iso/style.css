@@ -2253,3 +2253,14 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .modal-head { align-self: stretch; }
 
 .ct-history-btn { align-self: center; margin-top: 8px; }
+
+/* Atelier : tag « à modifier » */
+.atelier-item-tag {
+  position: absolute; top: 34px; left: 4px; border: none; color: inherit; padding: 0;
+  width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--panel); box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  cursor: pointer; font-size: 13px; opacity: .55;
+}
+.atelier-item.to-fix { outline: 3px solid #e8892b; outline-offset: -1px; }
+.atelier-item.to-fix .atelier-item-tag { opacity: 1; background: #e8892b; }

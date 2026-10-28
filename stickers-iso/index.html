@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610281000">
+  <link rel="stylesheet" href="style.css?v=202610281100">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -573,6 +573,7 @@
         <button class="coffre-tab" data-filter="accepted">Dans une enveloppe <span></span></button>
         <button class="coffre-tab" data-filter="refused">Refusées <span></span></button>
         <button class="coffre-tab" data-filter="archived">📦 Archivées <span></span></button>
+        <button class="coffre-tab" data-filter="tofix">🏷️ À modifier <span></span></button>
       </div>
       <div class="coffre-bar"><button id="coffreAcceptAll" class="btn btn-primary" hidden>✓ Tout valider</button></div>
       <p id="coffreEmpty" class="empty" hidden>Rien ici pour l'instant.</p>
@@ -945,7 +946,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610281000"></script>
-  <script src="game.js?v=202610281000"></script>
+  <script src="firebase-config.js?v=202610281100"></script>
+  <script src="game.js?v=202610281100"></script>
 </body>
 </html>
