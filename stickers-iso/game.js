@@ -3259,8 +3259,28 @@
     $('#shopBack').title = shopView === 'choice' || !state.isAdmin ? 'Retour' : 'Retour à la boutique';
   }
 
+  // Infos sur les deux grandes cartes du choix.
+  function renderShopChoice() {
+    const shop = state.envelopes.filter((env) => stickersOf(env.id).length);
+    const stars = state.profile ? state.profile.stars || 0 : 0;
+    const stamps = state.profile ? state.profile.stamps || 0 : 0;
+    $('#shopChoiceEnvSub').textContent = shop.length
+      ? `${plural(shop.length, 'enveloppe')} en vente · tampons ${stamps}/${stampsPerStar()}${stars ? ` · ${plural(stars, 'étoile')} à utiliser` : ''}`
+      : 'Bientôt des enveloppes';
+    const daily = setting('dailyEnvCount');
+    const nDaily = dailyEnvelopeIds().size;
+    $('#shopChoiceEnvChip').textContent = !shop.length ? 'Reviens bientôt' : (!daily || shop.length <= daily
+      ? '⭐ Toutes au prix normal aujourd\'hui' : `⭐ ${plural(nDaily, 'enveloppe')} du jour au prix normal`);
+    const walls = [...state.decos.values()].filter((d) => d.kind === 'wall').length;
+    const floors = [...state.decos.values()].filter((d) => d.kind === 'floor').length;
+    $('#shopChoiceDecoSub').textContent = walls + floors
+      ? `${plural(walls, 'papier peint')} · ${plural(floors, 'sol')} en vente`
+      : 'Papiers peints et sols pour tes pièces';
+  }
+
   function renderShop() {
     applyShopView();
+    renderShopChoice();
     renderPoints();
     $('#shopDaily').textContent = `${dailyPoints()} 🪙`;
     renderStampCard();
