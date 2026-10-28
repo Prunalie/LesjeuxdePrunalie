@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="800" viewBox="0 0 1000 800" font-family="Arial, Helvetica, sans-serif">
+<rect width="1000" height="800" fill="#ffffff"/>
+<polygon points="185.0,527.5 500.0,370.0 500.0,130.0 185.0,287.5" fill="#fde9ee"/>
+<polygon points="500.0,370.0 815.0,527.5 815.0,287.5 500.0,130.0" fill="#e8f1fb"/>
+<polygon points="500.0,370.0 815.0,527.5 500.0,685.0 185.0,527.5" fill="#f6efe2"/>
+<line x1="500.0" y1="370.0" x2="185.0" y2="527.5" stroke="#c9a56a" stroke-width="1.2"/>
+<line x1="552.5" y1="396.2" x2="237.5" y2="553.8" stroke="#c9a56a" stroke-width="1.2"/>
+<line x1="605.0" y1="422.5" x2="290.0" y2="580.0" stroke="#c9a56a" stroke-width="1.2"/>
+<line x1="657.5" y1="448.8" x2="342.5" y2="606.2" stroke="#c9a56a" stroke-width="1.2"/>
+<line x1="710.0" y1="475.0" x2="395.0" y2="632.5" stroke="#c9a56a" stroke-width="1.2"/>
+<line x1="762.5" y1="501.2" x2="447.5" y2="658.8" stroke="#c9a56a" stroke-width="1.2"/>
+<line x1="815.0" y1="527.5" x2="500.0" y2="685.0" stroke="#c9a56a" stroke-width="1.2"/>
+<line x1="500.0" y1="370.0" x2="815.0" y2="527.5" stroke="#c9a56a" stroke-width="1.2"/>
+<line x1="447.5" y1="396.2" x2="762.5" y2="553.8" stroke="#c9a56a" stroke-width="1.2"/>
+<line x1="395.0" y1="422.5" x2="710.0" y2="580.0" stroke="#c9a56a" stroke-width="1.2"/>
+<line x1="342.5" y1="448.8" x2="657.5" y2="606.2" stroke="#c9a56a" stroke-width="1.2"/>
+<line x1="290.0" y1="475.0" x2="605.0" y2="632.5" stroke="#c9a56a" stroke-width="1.2"/>
+<line x1="237.5" y1="501.2" x2="552.5" y2="658.8" stroke="#c9a56a" stroke-width="1.2"/>
+<line x1="185.0" y1="527.5" x2="500.0" y2="685.0" stroke="#c9a56a" stroke-width="1.2"/>
+<line x1="500.0" y1="370.0" x2="500.0" y2="130.0" stroke="#e59ab0" stroke-width="1.2"/>
+<line x1="447.5" y1="396.2" x2="447.5" y2="156.2" stroke="#e59ab0" stroke-width="1.2"/>
+<line x1="395.0" y1="422.5" x2="395.0" y2="182.5" stroke="#e59ab0" stroke-width="1.2"/>
+<line x1="342.5" y1="448.8" x2="342.5" y2="208.8" stroke="#e59ab0" stroke-width="1.2"/>
+<line x1="290.0" y1="475.0" x2="290.0" y2="235.0" stroke="#e59ab0" stroke-width="1.2"/>
+<line x1="237.5" y1="501.2" x2="237.5" y2="261.2" stroke="#e59ab0" stroke-width="1.2"/>
+<line x1="185.0" y1="527.5" x2="185.0" y2="287.5" stroke="#e59ab0" stroke-width="1.2"/>
+<line x1="500.0" y1="370.0" x2="185.0" y2="527.5" stroke="#e59ab0" stroke-width="1.2"/>
+<line x1="500.0" y1="310.0" x2="185.0" y2="467.5" stroke="#e59ab0" stroke-width="1.2"/>
+<line x1="500.0" y1="250.0" x2="185.0" y2="407.5" stroke="#e59ab0" stroke-width="1.2"/>
+<line x1="500.0" y1="190.0" x2="185.0" y2="347.5" stroke="#e59ab0" stroke-width="1.2"/>
+<line x1="500.0" y1="130.0" x2="185.0" y2="287.5" stroke="#e59ab0" stroke-width="1.2"/>
+<line x1="500.0" y1="370.0" x2="500.0" y2="130.0" stroke="#8fb4de" stroke-width="1.2"/>
+<line x1="552.5" y1="396.2" x2="552.5" y2="156.2" stroke="#8fb4de" stroke-width="1.2"/>
+<line x1="605.0" y1="422.5" x2="605.0" y2="182.5" stroke="#8fb4de" stroke-width="1.2"/>
+<line x1="657.5" y1="448.8" x2="657.5" y2="208.8" stroke="#8fb4de" stroke-width="1.2"/>
+<line x1="710.0" y1="475.0" x2="710.0" y2="235.0" stroke="#8fb4de" stroke-width="1.2"/>
+<line x1="762.5" y1="501.2" x2="762.5" y2="261.2" stroke="#8fb4de" stroke-width="1.2"/>
+<line x1="815.0" y1="527.5" x2="815.0" y2="287.5" stroke="#8fb4de" stroke-width="1.2"/>
+<line x1="500.0" y1="370.0" x2="815.0" y2="527.5" stroke="#8fb4de" stroke-width="1.2"/>
+<line x1="500.0" y1="310.0" x2="815.0" y2="467.5" stroke="#8fb4de" stroke-width="1.2"/>
+<line x1="500.0" y1="250.0" x2="815.0" y2="407.5" stroke="#8fb4de" stroke-width="1.2"/>
+<line x1="500.0" y1="190.0" x2="815.0" y2="347.5" stroke="#8fb4de" stroke-width="1.2"/>
+<line x1="500.0" y1="130.0" x2="815.0" y2="287.5" stroke="#8fb4de" stroke-width="1.2"/>
+<line x1="500.0" y1="370.0" x2="500.0" y2="130.0" stroke="#5a3e3a" stroke-width="3"/>
+<polygon points="500.0,370.0 815.0,527.5 500.0,685.0 185.0,527.5" fill="none" stroke="#5a3e3a" stroke-width="3" stroke-linejoin="round"/>
+<polyline points="185.0,527.5 185.0,287.5 500.0,130.0 815.0,287.5 815.0,527.5" fill="none" stroke="#5a3e3a" stroke-width="3" stroke-linejoin="round"/>
+<polygon points="447.5,553.8 500.0,580.0 500.0,520.0 447.5,493.8" fill="#f6d27a" stroke="#5a3e3a" stroke-width="2.5" stroke-linejoin="round"/>
+<polygon points="552.5,553.8 500.0,580.0 500.0,520.0 552.5,493.8" fill="#e0b24a" stroke="#5a3e3a" stroke-width="2.5" stroke-linejoin="round"/>
+<polygon points="500.0,467.5 552.5,493.8 500.0,520.0 447.5,493.8" fill="#fbe7a8" stroke="#5a3e3a" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="500" y="604" font-size="15" fill="#5a3e3a" text-anchor="middle" font-weight="bold">cube 1×1×1</text>
+<line x1="200.0" y1="370.0" x2="800.0" y2="370.0" stroke="#d6336c" stroke-width="2" stroke-dasharray="6 5"/>
+<path d="M595.0,370.0 A95,95 0 0 1 585.0,412.5" fill="none" stroke="#d6336c" stroke-width="2.5"/>
+<text x="600" y="392" font-size="17" fill="#d6336c" font-weight="bold">26,57°</text>
+<path d="M405.0,370.0 A95,95 0 0 0 415.0,412.5" fill="none" stroke="#d6336c" stroke-width="2.5"/>
+<text x="400" y="392" font-size="17" fill="#d6336c" font-weight="bold" text-anchor="end">26,57°</text>
+<text x="500" y="408" font-size="16" fill="#5a3e3a" text-anchor="middle" font-weight="bold">126,87°</text>
+<text x="500" y="661" font-size="16" fill="#5a3e3a" text-anchor="middle" font-weight="bold">126,87°</text>
+<text x="829" y="534" font-size="16" fill="#5a3e3a" font-weight="bold">53,13°</text>
+<text x="171" y="534" font-size="16" fill="#5a3e3a" font-weight="bold" text-anchor="end">53,13°</text>
+<text x="510" y="210" font-size="16" fill="#5a3e3a" font-weight="bold">90° (vertical)</text>
+<text x="500" y="44" font-size="26" text-anchor="middle" fill="#5a3e3a" font-weight="bold">Grille-guide · vue isométrique 2:1 (Ma petite pièce)</text>
+<text x="500" y="70" font-size="15" text-anchor="middle" fill="#7a5f58">Caméra orthographique : tournée de 45°, inclinée de 30° vers le bas · 1 carreau = 105 px de large × 52,5 px de haut · hauteur d'un carreau = 60 px</text>
+<rect x="190" y="695" width="26" height="6" fill="#c9a56a"/><text x="226" y="703" font-size="15" fill="#5a3e3a">Sol : arêtes à ±26,57° (monte 1 px quand elle avance de 2 px)</text>
+<rect x="190" y="721" width="26" height="6" fill="#e59ab0"/><text x="226" y="729" font-size="15" fill="#5a3e3a">Mur de gauche : horizontales qui montent vers la droite (+26,57°)</text>
+<rect x="190" y="747" width="26" height="6" fill="#8fb4de"/><text x="226" y="755" font-size="15" fill="#5a3e3a">Mur de droite : horizontales qui descendent vers la droite (−26,57°)</text>
+<text x="500" y="792" font-size="13" text-anchor="middle" fill="#7a5f58">Les lignes verticales de l'objet restent verticales. Pas de perspective : les parallèles le restent.</text>
+</svg>
