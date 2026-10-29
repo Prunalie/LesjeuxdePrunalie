@@ -2310,3 +2310,7 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .deco-shop-page { max-width: 788px; margin: 0 auto; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
 .deco-shop-page .deco-thumb { width: 96px; height: 96px; }
 @media (max-width: 720px) { .shop-choice { grid-template-columns: 1fr; } .shop-choice .home-card.big { height: 150px; } }
+
+.deco-toon { grid-column: 1 / -1; }
+.deco-toon input[type="range"] { width: 100%; }
+.deco-admin-card.busy { opacity: .6; }
