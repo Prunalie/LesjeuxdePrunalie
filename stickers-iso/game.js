@@ -2496,6 +2496,20 @@
   const playerDocId = (key) => 'player-' + key.replace(/\//g, '_');
   const today = () => new Date().toLocaleDateString('fr-CA'); // AAAA-MM-JJ, heure locale
 
+  // Enveloppes : brouillon (invisible des joueurs), prévue un jour précis, ou en vente. Une seule nouvelle par jour.
+  // Les anciennes enveloppes (sans réglage) sont en vente depuis toujours.
+  const isLive = (env) => !env.draft && (!env.publishAt || env.publishAt <= today());
+  const liveEnvelopes = () => state.envelopes.filter(isLive);
+  const envStatus = (env) => (env.draft ? 'draft' : isLive(env) ? 'live' : 'scheduled');
+  // Jour « occupé » par une enveloppe : le jour prévu, ou à défaut le jour de sa création.
+  const envSlotDay = (env) => (env.draft ? '' : env.publishAt || (env.created ? new Date(env.created).toLocaleDateString('fr-CA') : ''));
+  const slotTaken = (day, exceptId) => state.envelopes.some((e) => e.id !== exceptId && envSlotDay(e) === day);
+  function nextFreeDay(from = today(), exceptId = null) {
+    let day = from;
+    for (let i = 0; i < 800 && slotTaken(day, exceptId); i++) day = shiftDay(day, 1);
+    return day;
+  }
+
   // L'ancien profil « Administrateur » devient « Administratrice » : on reprend ses pièces,
   // sa collection et ses pièces décorées la première fois qu'on se connecte avec le nouveau pseudo.
   const OLD_ADMIN = 'administrateur';
@@ -3234,7 +3248,7 @@
   // Le dimanche, toutes les enveloppes sont au prix normal (réglable dans Paramétrage).
   const allNormalDay = (day = today()) => setting('sundayAllNormal') && new Date(day + 'T12:00:00').getDay() === 0;
   function dailyEnvelopeIds(day = today(), ignoreSunday = false) {
-    const shop = state.envelopes.filter((env) => stickersOf(env.id).length);
+    const shop = liveEnvelopes().filter((env) => stickersOf(env.id).length);
     const n = setting('dailyEnvCount');
     if (!n || shop.length <= n || (!ignoreSunday && allNormalDay(day))) return new Set(shop.map((e) => e.id));
     const chosen = dailyPicks(day).filter((id) => shop.some((e) => e.id === id)).slice(0, n);
@@ -3276,7 +3290,7 @@
 
   // Infos sur les deux grandes cartes du choix.
   function renderShopChoice() {
-    const shop = state.envelopes.filter((env) => stickersOf(env.id).length);
+    const shop = liveEnvelopes().filter((env) => stickersOf(env.id).length);
     const stars = state.profile ? state.profile.stars || 0 : 0;
     const stamps = state.profile ? state.profile.stamps || 0 : 0;
     $('#shopChoiceEnvSub').textContent = shop.length
@@ -3301,7 +3315,7 @@
     renderStampCard();
     const grid = $('#shopGrid');
     grid.innerHTML = '';
-    const all = state.envelopes.filter((env) => stickersOf(env.id).length);
+    const all = liveEnvelopes().filter((env) => stickersOf(env.id).length);
     $('#shopEmpty').hidden = all.length > 0;
     const daily = dailyEnvelopeIds();
     const featured = all.filter((env) => daily.has(env.id));
@@ -3601,7 +3615,7 @@
       : 'Ton étoile te permet de prendre le sticker que tu veux, dans n\'importe quelle enveloppe.';
     const body = $('#starList');
     body.innerHTML = '';
-    const envs = onlyEnv ? [onlyEnv] : state.envelopes;
+    const envs = onlyEnv ? [onlyEnv] : liveEnvelopes();
     for (const env of envs.filter((e) => stickersOf(e.id).length)) {
       const h = document.createElement('h3');
       h.className = 'star-env';
@@ -3722,6 +3736,7 @@
       id: uid(), name, price: setting('defaultEnvPrice'),
       color: ENVELOPE_COLORS[state.envelopes.length % ENVELOPE_COLORS.length],
       created: Date.now(),
+      draft: true, // préparée à l'avance : les joueurs ne la voient qu'une fois publiée
     };
     // Rangée à la fin (après celles déjà ordonnées).
     if (state.envelopes.some((e) => Number.isFinite(e.order))) env.order = state.envelopes.length;
@@ -3729,7 +3744,78 @@
     db.putEnvelope(env).catch(() => toast('L\'enveloppe n\'a pas pu être enregistrée.'));
     atelierOpen = env.id;
     renderAtelier();
+    toast('Enveloppe créée en brouillon 📝 Les joueurs ne la voient pas : publie-la quand elle est prête (une nouvelle par jour).');
   });
+
+  // Publication : brouillon, jour prévu ou en vente. Une seule nouvelle enveloppe par jour.
+  async function setEnvelopePublication(env, draft, publishAt) {
+    const before = { draft: env.draft, publishAt: env.publishAt };
+    if (draft) { env.draft = true; delete env.publishAt; } else { delete env.draft; env.publishAt = publishAt; }
+    try { await db.putEnvelope(env); } catch (e) {
+      Object.assign(env, before);
+      if (before.draft === undefined) delete env.draft;
+      if (before.publishAt === undefined) delete env.publishAt;
+      toast('Le changement n\'a pas pu être enregistré. Vérifie ta connexion.');
+    }
+    renderAtelier();
+  }
+  function renderPublishBox(box, env) {
+    const st = envStatus(env);
+    box.innerHTML = '<p class="atelier-publish-info"></p><div class="atelier-publish-actions"></div>';
+    const info = box.querySelector('p');
+    const actions = box.querySelector('.atelier-publish-actions');
+    info.textContent = st === 'draft' ? '📝 Brouillon : les joueurs ne la voient pas. Une seule nouvelle enveloppe peut sortir par jour.'
+      : st === 'scheduled' ? `📅 Sortira le ${dayLabel(env.publishAt)} : les joueurs ne la voient pas avant.`
+        : `✅ En vente${env.publishAt ? ` depuis le ${dayLabel(env.publishAt)}` : ''}.`;
+    box.dataset.status = st;
+    if (st === 'live') return;
+    const btn = (label, cls, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + cls; b.textContent = label; b.addEventListener('click', fn); actions.appendChild(b); return b; };
+    const need = () => { if (stickersOf(env.id).length) return true; toast('Cette enveloppe est vide : ajoute-lui des stickers avant de la publier.'); return false; };
+    btn('Publier aujourd\'hui', 'btn-primary', () => {
+      if (!need()) return;
+      if (slotTaken(today(), env.id)) { toast('Une enveloppe sort déjà aujourd\'hui : une seule par jour. Choisis un autre jour.'); return; }
+      setEnvelopePublication(env, false, today());
+    });
+    btn('📅 Prochain jour libre', '', () => {
+      if (!need()) return;
+      const day = nextFreeDay(today(), env.id);
+      setEnvelopePublication(env, false, day).then(() => toast(`Elle sortira ${day === today() ? 'aujourd\'hui' : 'le ' + dayLabel(day)}.`));
+    });
+    const date = document.createElement('input');
+    date.type = 'date';
+    date.className = 'field atelier-publish-date';
+    date.min = today();
+    date.value = env.publishAt && env.publishAt >= today() ? env.publishAt : '';
+    date.setAttribute('aria-label', 'Choisir le jour de sortie');
+    date.addEventListener('change', () => {
+      if (!date.value) return;
+      if (!need()) { date.value = ''; return; }
+      if (slotTaken(date.value, env.id)) { toast(`Une enveloppe sort déjà le ${dayLabel(date.value)} : une seule par jour.`); date.value = env.publishAt || ''; return; }
+      setEnvelopePublication(env, false, date.value);
+    });
+    actions.appendChild(date);
+    if (st === 'scheduled') btn('Repasser en brouillon', 'btn-ghost', () => setEnvelopePublication(env, true));
+  }
+
+  // Planifie tous les brouillons qui ont des stickers : une enveloppe par jour, à partir du premier jour libre.
+  async function planDrafts() {
+    const drafts = state.envelopes.filter((e) => e.draft && stickersOf(e.id).length)
+      .sort((a, b) => (Number.isFinite(a.order) ? a.order : 1e9) - (Number.isFinite(b.order) ? b.order : 1e9) || (a.created || 0) - (b.created || 0));
+    if (!drafts.length) { toast('Aucun brouillon avec des stickers à planifier.'); return; }
+    const first = nextFreeDay(today());
+    if (!(await askConfirm(`Planifier ${plural(drafts.length, 'brouillon')} : une enveloppe par jour, à partir de ${first === today() ? 'aujourd\'hui' : 'le ' + dayLabel(first)} ? Tu pourras changer chaque jour ensuite.`, 'Planifier'))) return;
+    let day = first;
+    for (const env of drafts) {
+      day = nextFreeDay(day, env.id);
+      delete env.draft;
+      env.publishAt = day;
+      db.putEnvelope(env).catch(() => toast('Une enveloppe n\'a pas pu être enregistrée.'));
+      day = shiftDay(day, 1);
+    }
+    renderAtelier();
+    toast(`${plural(drafts.length, 'enveloppe')} planifiée${drafts.length > 1 ? 's' : ''} 📅`);
+  }
+  $('#atelierPlan').addEventListener('click', planDrafts);
 
   const envSaveTimers = {};
   function saveEnvelopeSoon(env) {
@@ -3784,6 +3870,7 @@
           </div>
           <button class="btn btn-ghost atelier-del" title="Supprimer l'enveloppe">🗑️</button>
         </div>
+        <div class="atelier-publish"></div>
         <p class="atelier-count muted"></p>
         <div class="atelier-grid"></div>
         <div class="atelier-add-row">
@@ -3827,6 +3914,7 @@
       fColor.addEventListener('click', pickFor('color', 'Enveloppe'));
       fSeal.addEventListener('click', pickFor('seal', 'Petit rond'));
 
+      renderPublishBox(sec.querySelector('.atelier-publish'), env);
       const list = stickersOf(env.id);
       sec.querySelector('.atelier-count').textContent = list.length
         ? `${list.length} sticker${list.length > 1 ? 's' : ''} (conseil : entre 5 et 10). Les « très rares » tombent environ 10 fois moins souvent que les « communs ».`
@@ -4336,11 +4424,11 @@
   // Choisir les enveloppes du jour (aujourd'hui ou demain) ; sinon, tirage au sort.
   let atelierDaily = false;
   let dailyDayOffset = 0;
-  const shopCount = () => state.envelopes.filter((env) => stickersOf(env.id).length).length;
+  const shopCount = () => liveEnvelopes().filter((env) => stickersOf(env.id).length).length;
   function renderAtelierDaily(listEl) {
     const n = setting('dailyEnvCount');
     const day = shiftDay(today(), dailyDayOffset);
-    const shop = state.envelopes.filter((env) => stickersOf(env.id).length);
+    const shop = liveEnvelopes().filter((env) => stickersOf(env.id).length);
     const head = document.createElement('div');
     head.className = 'atelier-daily-head';
     // Nombre d'enveloppes du jour mises à disposition (0 = toutes au prix normal).
@@ -4449,10 +4537,12 @@
       const hits = q ? list.filter((img) => normalizeText(img.name).includes(q)) : [];
       if (q && !normalizeText(env.name).includes(q) && !hits.length) continue;
       shown++;
-      const sub = (list.length ? plural(list.length, 'sticker') : 'Vide : pas dans la boutique')
+      const st = envStatus(env);
+      const sub = (st === 'draft' ? '📝 Brouillon · ' : st === 'scheduled' ? `📅 Sort le ${dayLabel(env.publishAt)} · ` : '')
+        + (list.length ? plural(list.length, 'sticker') : 'Vide : pas dans la boutique')
         + ` · ${env.price ?? DEFAULT_PRICE} 🪙` + (list.length && isDailyEnvelope(env) && setting('dailyEnvCount') ? ' · ⭐ du jour' : '')
         + (hits.length ? ` · contient « ${hits.slice(0, 2).map((h) => h.name).join(' », « ')} »${hits.length > 2 ? '…' : ''}` : '');
-      tile(envelopeArt(env), env.name || 'Enveloppe', sub, async () => { atelierOpen = env.id; renderAtelier(); await refreshCoffreCount(); if (atelierOpen === env.id) renderAtelier(); }, list.length ? '' : 'empty');
+      tile(envelopeArt(env), env.name || 'Enveloppe', sub, async () => { atelierOpen = env.id; renderAtelier(); await refreshCoffreCount(); if (atelierOpen === env.id) renderAtelier(); }, (list.length ? '' : 'empty') + (st === 'live' ? '' : ' unpublished'));
     }
     const arch = archivedStickers();
     const archHits = q ? arch.filter((img) => normalizeText(img.name).includes(q)) : arch;
@@ -4564,7 +4654,7 @@
   // ---------------------------------------------------------------------------
   const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
   // Stickers du catalogue rangés dans une enveloppe qui existe encore.
-  const collectible = () => [...state.images.values()].filter((img) => state.envelopes.some((e) => e.id === img.envelope));
+  const collectible = () => [...state.images.values()].filter((img) => liveEnvelopes().some((e) => e.id === img.envelope));
 
   // Duels restant à voter pour le concours d'hier (mis en valeur sur la tuile du menu).
   let homeVote = { day: null, at: 0, left: 0 };
@@ -4602,7 +4692,7 @@
     if (state.profile) claimContestRewards();
     const all = collectible();
     const got = all.filter((img) => owned(img.id) > 0).length;
-    const envs = state.envelopes.filter((env) => stickersOf(env.id).length).length;
+    const envs = liveEnvelopes().filter((env) => stickersOf(env.id).length).length;
     const nRooms = realRooms().length;
     $('#homeRoomsSub').textContent = nRooms ? plural(nRooms, 'pièce') : 'Crée ta première pièce';
     const stars = state.profile.stars || 0;
@@ -4637,7 +4727,7 @@
   // Collection : un classeur avec une page par enveloppe
   // ---------------------------------------------------------------------------
   let binderPage = 0;
-  const binderPages = () => state.envelopes.filter((env) => stickersOf(env.id).length);
+  const binderPages = () => liveEnvelopes().filter((env) => stickersOf(env.id).length);
 
   function openCollection(page) {
     if (maintBlocked('collection')) return;

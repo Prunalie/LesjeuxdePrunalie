@@ -2333,3 +2333,12 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .deco-pad-floor { grid-template-columns: repeat(2, 40px); }
 .deco-pad-floor .deco-pad-reset { grid-column: 1 / -1; }
 .deco-pad-step { display: flex; flex-direction: column; gap: 2px; font-size: .75rem; }
+
+/* Enveloppes : brouillon / planifiée */
+.atelier-publish { margin: 0 0 10px; padding: 10px 12px; border-radius: 12px; background: var(--hover); font-size: .9rem; }
+.atelier-publish[data-status="live"] { background: transparent; padding: 0; color: var(--muted); }
+.atelier-publish p { margin: 0 0 8px; }
+.atelier-publish[data-status="live"] p { margin: 0; }
+.atelier-publish-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.atelier-publish-date { width: auto; padding: 6px 8px; font-size: .9rem; }
+.atelier-tile.unpublished { border-style: dashed; }
