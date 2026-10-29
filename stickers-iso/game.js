@@ -4782,6 +4782,14 @@
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
     {
+      id: 'n-2026-10-29a', date: Date.UTC(2026, 9, 29, 8, 0), title: 'Le dimanche, tout est au prix normal ☀️',
+      items: [
+        'Chaque dimanche, toutes les enveloppes de la boutique sont au prix normal, pas seulement celles du jour.',
+        'Profites-en pour compléter ta collection : le paquet ×5 est aussi moins cher sur toutes les enveloppes ce jour-là.',
+        'Dès le lundi, les enveloppes du jour reviennent.',
+      ],
+    },
+    {
       id: 'n-2026-10-28a', date: Date.UTC(2026, 9, 28, 8, 0), title: 'Des pièces pour participer au concours 🏆',
       items: [
         'Tu gagnes maintenant des pièces 🪙 dès que tu publies ta pièce du concours, une fois par jour.',
