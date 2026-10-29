@@ -2613,6 +2613,7 @@
     $('#playerName').textContent = display;
     $('#playerName2').textContent = display;
     $('#homeAtelier').hidden = !state.isAdmin;
+    $('#homeDecoAtelier').hidden = !state.isAdmin;
     $('#homeAdmin').hidden = !state.isAdmin;
     state.images = new Map();
     state.decos = new Map();
@@ -4172,12 +4173,31 @@
   $('#decoAsPlayer').addEventListener('change', (e) => { decoAsPlayer = e.target.checked; renderDecoShop(); });
 
   // Atelier : importer et régler les décors
+  // Filtres : type (papiers peints / sols), collection et recherche.
+  let decoAdminKind = 'all', decoAdminCol = '', decoAdminQuery = '';
   function renderDecoAdmin() {
     const list = $('#decoAdminList');
     list.innerHTML = '';
-    const items = [...state.decos.values()].sort((a, b) => a.kind.localeCompare(b.kind) || decoByName(a, b));
+    const everything = [...state.decos.values()].sort((a, b) => a.kind.localeCompare(b.kind) || decoByName(a, b));
+    const collections = [...new Set(everything.map((d) => d.collection).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
+    // Compteurs des onglets, liste des collections.
+    const counts = { all: everything.length, wall: everything.filter((d) => d.kind === 'wall').length, floor: everything.filter((d) => d.kind === 'floor').length };
+    document.querySelectorAll('#decoAdminTabs .deco-tab').forEach((t) => {
+      t.classList.toggle('active', t.dataset.kind === decoAdminKind);
+      t.querySelector('span').textContent = counts[t.dataset.kind];
+    });
+    if (decoAdminCol && !collections.includes(decoAdminCol)) decoAdminCol = '';
+    const colSel = $('#decoAdminCollection');
+    colSel.innerHTML = '';
+    colSel.add(new Option('Toutes les collections', ''));
+    for (const c of collections) colSel.add(new Option(c, c));
+    colSel.value = decoAdminCol;
+    const q = normalizePseudo(decoAdminQuery);
+    const items = everything.filter((d) => (decoAdminKind === 'all' || d.kind === decoAdminKind)
+      && (!decoAdminCol || d.collection === decoAdminCol)
+      && (!q || normalizePseudo(`${d.name || ''} ${d.collection || ''}`).includes(q)));
     $('#decoAdminEmpty').hidden = items.length > 0;
-    const collections = [...new Set(items.map((d) => d.collection).filter(Boolean))];
+    $('#decoAdminEmpty').textContent = everything.length ? 'Aucun décor ne correspond à ce filtre.' : 'Aucun décor pour l\'instant : importe tes premiers motifs.';
     for (const d of items) {
       const card = document.createElement('article');
       card.className = 'deco-admin-card';
@@ -4255,8 +4275,20 @@
     if (n) toast(`${plural(n, 'décor')} ajouté${n > 1 ? 's' : ''}. Règle leur nom, leur collection et leur prix.`);
     renderDecoAdmin();
   });
-  $('#atelierDeco').addEventListener('click', () => { if (!state.isAdmin) return; renderDecoAdmin(); showScreen('decoAdmin'); });
-  $('#decoAdminBack').addEventListener('click', openAtelier);
+  function openDecoAtelier() {
+    if (!state.isAdmin) return;
+    renderDecoAdmin();
+    showScreen('decoAdmin');
+  }
+  $('#homeDecoAtelier').addEventListener('click', openDecoAtelier);
+  $('#decoAdminBack').addEventListener('click', goHome);
+  document.querySelectorAll('#decoAdminTabs .deco-tab').forEach((t) => t.addEventListener('click', () => {
+    decoAdminKind = t.dataset.kind;
+    if (decoAdminKind !== 'all') $('#decoImportKind').value = decoAdminKind; // on importe dans l'onglet choisi
+    renderDecoAdmin();
+  }));
+  $('#decoAdminSearch').addEventListener('input', (e) => { decoAdminQuery = e.target.value; renderDecoAdmin(); });
+  $('#decoAdminCollection').addEventListener('change', (e) => { decoAdminCol = e.target.value; renderDecoAdmin(); });
 
   // Ranger les enveloppes : l'ordre ici est celui de la boutique (et du classeur).
   let atelierReorder = false;

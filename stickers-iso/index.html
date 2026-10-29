@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610291200">
+  <link rel="stylesheet" href="style.css?v=202610291500">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -124,6 +124,10 @@
             <button id="homeAtelier" class="mini home-card admin-card" hidden>
               <span class="tile-icon" style="background:#F6E8E3"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect x="13.5" y="12" width="5" height="17" rx="2" fill="#E8906B" stroke="#5A3E3A" stroke-width="2.4"/><rect x="6" y="4" width="20" height="9" rx="2.5" fill="#A9B4C2" stroke="#5A3E3A" stroke-width="2.4"/><path d="M6 8.5 H2.5" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/></svg></span>
               <span class="small-text"><span class="card-title">Atelier enveloppes</span><span class="card-sub">Créer les enveloppes</span></span>
+            </button>
+            <button id="homeDecoAtelier" class="mini home-card admin-card" hidden>
+              <span class="tile-icon" style="background:#DCEBFA"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="4" width="24" height="24" rx="4" fill="#F6D27A" stroke="#5A3E3A" stroke-width="2.4"/><path d="M11 4 V28 M17 4 V28 M23 4 V28" stroke="#5A3E3A" stroke-width="2" opacity=".5"/><circle cx="14" cy="16" r="2.4" fill="#E8906B" stroke="#5A3E3A" stroke-width="1.6"/></svg></span>
+              <span class="small-text"><span class="card-title">Atelier décor</span><span class="card-sub">Papiers peints et sols</span></span>
             </button>
             <button id="homeSettings" class="mini home-card admin-card">
               <span class="tile-icon" style="background:#FFF3CC"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 9 H27 M5 16 H27 M5 23 H27" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/><circle cx="11" cy="9" r="3.4" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.4"/><circle cx="21" cy="16" r="3.4" fill="#F0658A" stroke="#5A3E3A" stroke-width="2.4"/><circle cx="14" cy="23" r="3.4" fill="#6CB4E0" stroke="#5A3E3A" stroke-width="2.4"/></svg></span>
@@ -635,7 +639,6 @@
           <button id="atelierCoffre" class="btn">🗃️ Coffre</button>
           <button id="atelierOrder" class="btn">↕️ Ordre de la boutique</button>
           <button id="atelierDaily" class="btn">⭐ Enveloppes du jour</button>
-          <button id="atelierDeco" class="btn">🎨 Décor</button>
           <button id="btnNewEnvelope" class="btn btn-primary">＋ Nouvelle enveloppe</button>
         </div>
       </div>
@@ -654,8 +657,8 @@
   <section id="screenDecoAdmin" class="screen screen-atelier" hidden>
     <header class="topbar">
       <div class="room-title">
-        <button id="decoAdminBack" class="btn btn-ghost" title="Retour à l'atelier">←<span class="label-long">&nbsp;Atelier</span></button>
-        <h1>Décor 🎨</h1>
+        <button id="decoAdminBack" class="btn btn-ghost" title="Menu principal">←<span class="label-long">&nbsp;Menu</span></button>
+        <h1>Atelier décor 🎨</h1>
       </div>
     </header>
     <div class="rooms-body">
@@ -668,6 +671,15 @@
           </select>
           <label class="btn btn-primary">＋ Importer des motifs<input id="decoImportFile" type="file" accept="image/*" multiple hidden></label>
         </div>
+      </div>
+      <div class="deco-filter">
+        <div id="decoAdminTabs" class="deco-tabs" role="tablist">
+          <button class="deco-tab active" type="button" data-kind="all">Tout <span></span></button>
+          <button class="deco-tab" type="button" data-kind="wall">🖼️ Papiers peints <span></span></button>
+          <button class="deco-tab" type="button" data-kind="floor">🟫 Sols <span></span></button>
+        </div>
+        <input id="decoAdminSearch" class="field" type="search" placeholder="Chercher un décor" aria-label="Chercher un décor">
+        <select id="decoAdminCollection" class="coffre-select" aria-label="Collection"><option value="">Toutes les collections</option></select>
       </div>
       <p id="decoAdminEmpty" class="empty" hidden>Aucun décor pour l'instant.</p>
       <div id="decoAdminList" class="deco-admin-list"></div>
@@ -1015,7 +1027,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610291200"></script>
-  <script src="game.js?v=202610291200"></script>
+  <script src="firebase-config.js?v=202610291500"></script>
+  <script src="game.js?v=202610291500"></script>
 </body>
 </html>
