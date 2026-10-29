@@ -93,6 +93,8 @@
     { group: 'Concours', key: 'contestReward', label: 'Récompense du gagnant', unit: '🪙', def: () => 200, max: 100000, step: 10 },
     { group: 'Concours', key: 'contestSoloReward', label: 'Gagnant d\'office (une seule pièce)', unit: '🪙', def: () => Math.round(setting('contestReward') / 2), max: 100000, step: 10 },
     { group: 'Concours', key: 'contestJoinReward', label: 'Pour avoir participé (une fois par jour, à la première publication)', unit: '🪙', def: () => 50, max: 100000, step: 5 },
+    { group: 'Concours', key: 'contestMilestoneEvery', label: 'Bonus de fidélité : tous les … concours auxquels on participe', unit: 'participations', def: () => 10, min: 1, max: 1000, step: 1 },
+    { group: 'Concours', key: 'contestMilestoneReward', label: 'Bonus de fidélité (0 = pas de bonus)', unit: '🪙', def: () => 500, max: 1000000, step: 50 },
     { group: 'Concours', key: 'voteReward', label: 'Pour avoir fini ses duels', unit: '🪙', def: () => 20, max: 100000, step: 5 },
     { group: 'Concours', key: 'duelsMax', label: 'Duels par joueur et par jour', unit: 'au plus', def: () => 10, min: 1, max: 100, step: 1 },
   ];
@@ -2641,7 +2643,7 @@
     try {
       const fresh = await db.getPlayer(playerDocId(state.player.key));
       if (!fresh) return;
-      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'joinRewardDay', 'stairsGift', 'decos']) {
+      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'joinRewardDay', 'contestCount', 'contestMilestones', 'stairsGift', 'decos']) {
         if (fresh[k] !== undefined) state.profile[k] = fresh[k];
       }
       state.profile.inventory = state.profile.inventory || {};
@@ -5426,6 +5428,18 @@
     nb.className = 'muted ct-small-text';
     nb.textContent = t.entries.length ? `${plural(t.entries.length, 'participation')} aujourd'hui.` : 'Personne n\'a encore participé aujourd\'hui : sois la première ou le premier !';
     c1.appendChild(nb);
+    {
+      const every = setting('contestMilestoneEvery'), prize = setting('contestMilestoneReward');
+      if (prize > 0) {
+        const cnt = state.profile.contestCount;
+        const bonus = document.createElement('p');
+        bonus.className = 'muted ct-small-text';
+        bonus.textContent = cnt === undefined
+          ? `🎁 Tous les ${every} concours auxquels tu participes : +${prize} 🪙 de bonus !`
+          : `🎁 Bonus de fidélité : ${cnt % every}/${every} participations avant tes +${prize} 🪙 (${plural(cnt, 'participation')} au total).`;
+        c1.appendChild(bonus);
+      }
+    }
     if (state.isAdmin && t.entries.length) {
       const grid = document.createElement('div');
       grid.className = 'ct-grid';
@@ -5787,17 +5801,32 @@
       if (cur) cur.publishedAt = Date.now();
       savePending = true;
       await saveRoom();
-      // Pièces de participation : une fois par jour, dès la première publication.
+      // Première publication du jour : pièces de participation, et bonus de fidélité tous les N concours.
       let joinMsg = '';
-      const join = setting('contestJoinReward');
-      if (join > 0 && state.profile.joinRewardDay !== r.contestDay) {
+      if (state.profile.joinRewardDay !== r.contestDay) {
         await refreshProfile();
         if (state.profile.joinRewardDay !== r.contestDay) {
           state.profile.joinRewardDay = r.contestDay;
-          state.profile.points = (state.profile.points || 0) + join;
-          renderPoints();
+          const join = setting('contestJoinReward');
+          let gain = join;
+          if (join > 0) joinMsg = ` +${join} 🪙 pour ta participation !`;
+          // Nombre de participations : relevé dans l'historique la première fois, puis tenu à jour.
+          let count;
+          try {
+            count = state.profile.contestCount === undefined ? (await db.listMyContest(state.player.key)).length : state.profile.contestCount + 1;
+          } catch (e) { console.warn('Participations non comptées', e); }
+          if (count !== undefined) {
+            state.profile.contestCount = count;
+            const every = setting('contestMilestoneEvery'), prize = setting('contestMilestoneReward');
+            const due = Math.floor(count / every) - (state.profile.contestMilestones || 0);
+            state.profile.contestMilestones = Math.max(state.profile.contestMilestones || 0, Math.floor(count / every));
+            if (prize > 0 && due > 0) {
+              gain += due * prize;
+              joinMsg += ` 🎉 ${count}e participation : +${due * prize} 🪙 de bonus !`;
+            }
+          }
+          if (gain > 0) state.profile.points = (state.profile.points || 0) + gain;
           saveProfile();
-          joinMsg = ` +${join} 🪙 pour ta participation !`;
         }
       }
       toast(`Ta pièce est publiée 🏆${joinMsg} Demain, tout le monde votera jusqu'à 20 h !`);
