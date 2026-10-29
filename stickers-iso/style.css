@@ -2297,7 +2297,7 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .deco-admin-fields { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; }
 .deco-admin-fields label { display: flex; flex-direction: column; gap: 2px; font-size: .75rem; color: var(--muted); }
 .deco-admin-fields .field { padding: 6px 8px; font-size: .9rem; }
-@media (max-width: 560px) { .deco-admin-card { flex-wrap: wrap; } .deco-preview { width: 80px; height: 80px; } .deco-admin-fields { flex-basis: 100%; order: 3; grid-template-columns: 1fr 1fr; } .deco-admin-del { margin-left: auto; } }
+@media (max-width: 560px) { .deco-admin-card { flex-wrap: wrap; } .deco-preview { width: 80px; height: 80px; } .deco-admin-fields { flex-basis: 100%; order: 3; grid-template-columns: 1fr 1fr; } .deco-admin-btns { margin-left: auto; flex-direction: row; } }
 
 /* Aperçu du papier peint / sol à côté de la couleur */
 .deco-swatch { width: 36px; height: 32px; flex: none; border: 2px dashed var(--line); border-radius: 8px; background-color: var(--surface); background-size: 70% auto; background-repeat: repeat; font-size: 1rem; display: grid; place-items: center; cursor: pointer; padding: 0; }
@@ -2317,3 +2317,11 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .deco-filter .deco-tabs { margin: 0; flex-wrap: wrap; }
 .deco-tab span { margin-left: 4px; padding: 0 7px; border-radius: 999px; background: var(--hover); font-size: .75rem; font-weight: 700; }
 .deco-tab.active span { background: var(--bg); color: var(--ink); }
+
+.deco-admin-btns { display: flex; flex-direction: column; gap: 6px; flex: none; }
+.deco-test-box { max-width: 560px; }
+.deco-test-stage { width: 100%; height: auto; display: block; border-radius: 12px; background: var(--bg); margin: 0 0 10px; }
+.deco-test-controls { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.deco-test-controls label { display: flex; flex-direction: column; gap: 2px; font-size: .75rem; color: var(--muted); }
+.deco-test-size { display: flex; align-items: center; gap: 8px; font-size: .8rem; color: var(--muted); flex-wrap: wrap; }
+.deco-test-size strong { min-width: 2.2em; text-align: center; color: var(--ink); font-size: 1rem; }

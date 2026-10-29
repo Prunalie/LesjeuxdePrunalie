@@ -4107,7 +4107,10 @@
           <label><span>Prix 🪙</span><input class="field" data-f="price" type="number" min="0" step="10"></label>
           <label><span>Taille (carreaux)</span><input class="field" data-f="size" type="number" min="0.5" max="12" step="0.5"></label>
         </div>
-        <button class="btn btn-ghost deco-admin-del" type="button" title="Supprimer ce décor">🗑️</button>`;
+        <div class="deco-admin-btns">
+          <button class="btn btn-primary deco-admin-test" type="button" title="Voir ce décor dans une pièce, avec des meubles">👁️<span class="label-long">&nbsp;Tester</span></button>
+          <button class="btn btn-ghost deco-admin-del" type="button" title="Supprimer ce décor">🗑️</button>
+        </div>`;
       card.querySelector('.deco-preview').style.backgroundImage = `url("${d.url}")`;
       const save = (field, value) => {
         d[field] = value;
@@ -4124,6 +4127,7 @@
       f('collection').addEventListener('change', () => save('collection', f('collection').value.trim()));
       f('price').addEventListener('change', () => save('price', Math.max(0, Math.round(Number(f('price').value) || 0))));
       f('size').addEventListener('change', () => save('size', Math.max(0.5, Math.min(12, Number(f('size').value) || 2))));
+      card.querySelector('.deco-admin-test').addEventListener('click', () => openDecoTest(d));
       card.querySelector('.deco-admin-del').addEventListener('click', async () => {
         if (!(await askConfirm(`Supprimer « ${d.name} » ? Les pièces qui l'utilisent reprennent leur couleur unie.`, 'Supprimer'))) return;
         state.decos.delete(d.id);
@@ -4160,6 +4164,80 @@
     if (n) toast(`${plural(n, 'décor')} ajouté${n > 1 ? 's' : ''}. Règle leur nom, leur collection et leur prix.`);
     renderDecoAdmin();
   });
+  // Tester un décor dans une pièce avec des meubles, sans quitter l'atelier : la taille se règle ici en direct.
+  const decoTest = $('#decoTest');
+  let decoTestFor = null, decoTestSeed = 0;
+  function renderDecoTest() {
+    const d = decoTestFor;
+    if (!d) return;
+    const wall = d.kind === 'wall';
+    $('#decoTestTitle').textContent = `Tester : ${d.name}`;
+    $('#decoTestTargetRow').hidden = !wall;
+    $('#decoTestSize').textContent = String(d.size || 2);
+    // Décor complémentaire (l'autre type) pour juger l'ensemble.
+    const withSel = $('#decoTestWith');
+    const prev = withSel.value;
+    $('#decoTestWithLabel').textContent = wall ? 'Avec ce sol' : 'Avec ce papier peint';
+    withSel.innerHTML = '';
+    withSel.add(new Option('Couleur unie', ''));
+    for (const o of decoList(wall ? 'floor' : 'wall')) withSel.add(new Option(o.name, o.id));
+    withSel.value = [...withSel.options].some((o) => o.value === prev) ? prev : '';
+    const colors = { ...DEFAULT_COLORS };
+    const target = $('#decoTestTarget').value;
+    const other = withSel.value;
+    if (wall) {
+      if (target !== 'right') colors.wallLeftDeco = d.id;
+      if (target !== 'left') colors.wallRightDeco = d.id;
+      if (other) colors.floorDeco = other;
+    } else {
+      colors.floorDeco = d.id;
+      if (other) { colors.wallLeftDeco = other; colors.wallRightDeco = other; }
+    }
+    // Quelques meubles du jeu posés au sol (tirés au hasard, comme dans une vraie pièce).
+    const g = roomGeom(null);
+    const pool = [...state.images.values()].filter((i) => i.catalog && i.url && i.w && i.h);
+    let seed = decoTestSeed * 9301 + 49297;
+    const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    const picks = [];
+    while (picks.length < 5 && pool.length) picks.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
+    const spots = [[0.3, 0.3], [0.72, 0.3], [0.3, 0.72], [0.72, 0.72], [0.5, 0.52]].slice(0, picks.length);
+    const items = picks.map((img, i) => {
+      const p = g.P(g.sh.w * spots[i][0], g.sh.d * spots[i][1]);
+      const k = Math.min(190 / img.w, 170 / img.h) * Math.max(g.k, 0.6);
+      return { img, x: p.x, y: p.y, w: img.w * k, h: img.h * k };
+    }).sort((a, b) => a.y - b.y);
+    $('#decoTestStage').innerHTML = roomSvg(colors, null)
+      + items.map((it) => `<image href="${it.img.url}" x="${(it.x - it.w / 2).toFixed(1)}" y="${(it.y - it.h).toFixed(1)}" width="${it.w.toFixed(1)}" height="${it.h.toFixed(1)}" preserveAspectRatio="xMidYMid meet"/>`).join('');
+    $('#decoTestShuffle').hidden = !pool.length && picks.length < 2;
+  }
+  function openDecoTest(d) {
+    decoTestFor = d;
+    decoTestSeed = 1;
+    $('#decoTestTarget').value = 'both';
+    $('#decoTestWith').value = '';
+    renderDecoTest();
+    decoTest.hidden = false;
+  }
+  function closeDecoTest() {
+    decoTest.hidden = true;
+    decoTestFor = null;
+    renderDecoAdmin(); // la taille a pu changer
+  }
+  const saveDecoTestSize = (delta) => {
+    const d = decoTestFor;
+    if (!d) return;
+    d.size = Math.max(0.5, Math.min(12, (Number(d.size) || 2) + delta));
+    db.updateImage(d.id, { size: d.size }).catch(() => toast('La taille n\'a pas pu être enregistrée. Vérifie ta connexion.'));
+    renderDecoTest();
+  };
+  $('#decoTestSmaller').addEventListener('click', () => saveDecoTestSize(-0.5));
+  $('#decoTestBigger').addEventListener('click', () => saveDecoTestSize(0.5));
+  $('#decoTestTarget').addEventListener('change', renderDecoTest);
+  $('#decoTestWith').addEventListener('change', renderDecoTest);
+  $('#decoTestShuffle').addEventListener('click', () => { decoTestSeed++; renderDecoTest(); });
+  $('#decoTestClose').addEventListener('click', closeDecoTest);
+  decoTest.addEventListener('click', (e) => { if (e.target === decoTest) closeDecoTest(); });
+
   function openDecoAtelier() {
     if (!state.isAdmin) return;
     renderDecoAdmin();

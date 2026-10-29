@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610291700">
+  <link rel="stylesheet" href="style.css?v=202610291800">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -686,6 +686,27 @@
     </div>
   </section>
 
+  <div id="decoTest" class="modal" hidden>
+    <div class="modal-box deco-test-box" role="dialog" aria-modal="true" aria-labelledby="decoTestTitle">
+      <div class="modal-head">
+        <h2 id="decoTestTitle" class="modal-title">Tester</h2>
+        <button id="decoTestClose" class="modal-x" type="button" title="Fermer" aria-label="Fermer">✕</button>
+      </div>
+      <svg id="decoTestStage" class="deco-test-stage" viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg" aria-label="Aperçu dans une pièce"></svg>
+      <div class="deco-test-controls">
+        <label id="decoTestTargetRow"><span>Papier peint sur</span>
+          <select id="decoTestTarget" class="coffre-select"><option value="both">Les deux murs</option><option value="left">Mur gauche</option><option value="right">Mur droit</option></select></label>
+        <div class="deco-test-size"><span>Taille (carreaux)</span>
+          <button id="decoTestSmaller" class="btn" type="button" aria-label="Plus petit">−</button>
+          <strong id="decoTestSize"></strong>
+          <button id="decoTestBigger" class="btn" type="button" aria-label="Plus grand">＋</button></div>
+        <label><span id="decoTestWithLabel">Avec</span>
+          <select id="decoTestWith" class="coffre-select"></select></label>
+        <button id="decoTestShuffle" class="btn" type="button">🔀 Autres meubles</button>
+      </div>
+    </div>
+  </div>
+
   <div id="decoPicker" class="modal" hidden>
     <div class="modal-box deco-box" role="dialog" aria-modal="true" aria-labelledby="decoPickTitle">
       <div class="modal-head">
@@ -1027,7 +1048,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610291700"></script>
-  <script src="game.js?v=202610291700"></script>
+  <script src="firebase-config.js?v=202610291800"></script>
+  <script src="game.js?v=202610291800"></script>
 </body>
 </html>
