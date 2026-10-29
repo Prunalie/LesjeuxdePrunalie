@@ -519,9 +519,12 @@
       return d && d.w && d.h ? d : null;
     };
     // along : vecteur écran d'un carreau vers la droite du motif ; down : vers le bas du motif.
-    const texture = (d, along, down, origin) => {
+    // sx = -1 pour le mur de gauche, dont l'axe du motif va vers la gauche : un décalage « vers la droite » reste vers la droite à l'écran.
+    const texture = (d, along, down, origin, sx = 1) => {
       const id = `deco${++decoSeq}`;
       const wu = Math.max(0.5, Math.min(12, Number(d.size) || 2)), hu = wu * d.h / d.w;
+      const fx = (Number(d.offX) || 0) * sx, fy = Number(d.offY) || 0; // décalage réglé à la main, en part de motif
+      origin = { x: origin.x + along.x * wu * fx + down.x * hu * fy, y: origin.y + along.y * wu * fx + down.y * hu * fy };
       const m = [along.x * wu / d.w, along.y * wu / d.w, down.x * hu / d.h, down.y * hu / d.h, origin.x, origin.y].map((n) => n.toFixed(5)).join(' ');
       defs.push(`<pattern id="${id}" patternUnits="userSpaceOnUse" x="0" y="0" width="${d.w}" height="${d.h}" patternTransform="matrix(${m})"><image href="${d.data}" width="${d.w}" height="${d.h}" preserveAspectRatio="none"/></pattern>`);
       return `url(#${id})`;
@@ -536,7 +539,7 @@
 
     // Murs (ou haies pour un jardin)
     const wallDown = { x: 0, y: TILE_Z * k * DECO_VK };
-    const fillWL = decoWL ? texture(decoWL, { x: -TILE_X * k, y: TILE_Y * k }, wallDown, up(C)) : wallLeft;
+    const fillWL = decoWL ? texture(decoWL, { x: -TILE_X * k, y: TILE_Y * k }, wallDown, up(C), -1) : wallLeft;
     const fillWR = decoWR ? texture(decoWR, { x: TILE_X * k, y: TILE_Y * k }, wallDown, up(C)) : wallRight;
     parts.push(`<polygon points="${pts(L, C, up(C), up(L))}" fill="${fillWL}"/>`);
     parts.push(`<polygon points="${pts(C, R, up(R), up(C))}" fill="${fillWR}"/>`);
@@ -4174,6 +4177,8 @@
     $('#decoTestTitle').textContent = `Tester : ${d.name}`;
     $('#decoTestTargetRow').hidden = !wall;
     $('#decoTestSize').textContent = String(d.size || 2);
+    $('#decoPadWall').hidden = !wall;
+    $('#decoPadFloor').hidden = wall;
     // Décor complémentaire (l'autre type) pour juger l'ensemble.
     const withSel = $('#decoTestWith');
     const prev = withSel.value;
@@ -4232,6 +4237,30 @@
   };
   $('#decoTestSmaller').addEventListener('click', () => saveDecoTestSize(-0.5));
   $('#decoTestBigger').addEventListener('click', () => saveDecoTestSize(0.5));
+  // Position du motif : décalage enregistré avec le décor (valable pour toutes les pièces qui l'utilisent).
+  let decoMoveSave = 0;
+  function moveDecoTest(mx, my) {
+    const d = decoTestFor;
+    if (!d) return;
+    const step = Number($('#decoTestStep').value) || 0.1;
+    const wrap = (v) => Math.round((((v % 1) + 1) % 1) * 1000) / 1000;
+    d.offX = wrap((Number(d.offX) || 0) + mx * step);
+    d.offY = wrap((Number(d.offY) || 0) + my * step);
+    renderDecoTest();
+    clearTimeout(decoMoveSave);
+    decoMoveSave = setTimeout(() => db.updateImage(d.id, { offX: d.offX, offY: d.offY }).catch(() => toast('La position n\'a pas pu être enregistrée. Vérifie ta connexion.')), 400);
+  }
+  decoTest.querySelectorAll('.deco-pad button').forEach((b) => b.addEventListener('click', () => {
+    if (b.dataset.reset) {
+      const d = decoTestFor;
+      if (!d) return;
+      d.offX = 0; d.offY = 0;
+      renderDecoTest();
+      db.updateImage(d.id, { offX: 0, offY: 0 }).catch(() => toast('La position n\'a pas pu être enregistrée.'));
+      return;
+    }
+    moveDecoTest(Number(b.dataset.mx), Number(b.dataset.my));
+  }));
   $('#decoTestTarget').addEventListener('change', renderDecoTest);
   $('#decoTestWith').addEventListener('change', renderDecoTest);
   $('#decoTestShuffle').addEventListener('click', () => { decoTestSeed++; renderDecoTest(); });

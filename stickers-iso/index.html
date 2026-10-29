@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610291800">
+  <link rel="stylesheet" href="style.css?v=202610291900">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -700,6 +700,25 @@
           <button id="decoTestSmaller" class="btn" type="button" aria-label="Plus petit">−</button>
           <strong id="decoTestSize"></strong>
           <button id="decoTestBigger" class="btn" type="button" aria-label="Plus grand">＋</button></div>
+        <div class="deco-test-move">
+          <span>Position du motif</span>
+          <div id="decoPadWall" class="deco-pad">
+            <span></span><button type="button" class="btn" data-mx="0" data-my="-1" aria-label="Monter">▲</button><span></span>
+            <button type="button" class="btn" data-mx="-1" data-my="0" aria-label="À gauche">◀</button>
+            <button type="button" class="btn deco-pad-reset" data-reset="1" title="Remettre à zéro">⟲</button>
+            <button type="button" class="btn" data-mx="1" data-my="0" aria-label="À droite">▶</button>
+            <span></span><button type="button" class="btn" data-mx="0" data-my="1" aria-label="Descendre">▼</button><span></span>
+          </div>
+          <div id="decoPadFloor" class="deco-pad deco-pad-floor" hidden>
+            <button type="button" class="btn" data-mx="-1" data-my="0" aria-label="Vers le haut à gauche">↖</button>
+            <button type="button" class="btn" data-mx="0" data-my="-1" aria-label="Vers le haut à droite">↗</button>
+            <button type="button" class="btn" data-mx="0" data-my="1" aria-label="Vers le bas à gauche">↙</button>
+            <button type="button" class="btn" data-mx="1" data-my="0" aria-label="Vers le bas à droite">↘</button>
+            <button type="button" class="btn deco-pad-reset" data-reset="1" title="Remettre à zéro">⟲</button>
+          </div>
+          <label class="deco-pad-step"><span>Pas</span>
+            <select id="decoTestStep" class="coffre-select"><option value="0.02">Fin</option><option value="0.1" selected>Normal</option><option value="0.25">Grand</option></select></label>
+        </div>
         <label><span id="decoTestWithLabel">Avec</span>
           <select id="decoTestWith" class="coffre-select"></select></label>
         <button id="decoTestShuffle" class="btn" type="button">🔀 Autres meubles</button>
@@ -1048,7 +1067,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610291800"></script>
-  <script src="game.js?v=202610291800"></script>
+  <script src="firebase-config.js?v=202610291900"></script>
+  <script src="game.js?v=202610291900"></script>
 </body>
 </html>

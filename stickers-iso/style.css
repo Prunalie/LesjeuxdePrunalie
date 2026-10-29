@@ -2325,3 +2325,11 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .deco-test-controls label { display: flex; flex-direction: column; gap: 2px; font-size: .75rem; color: var(--muted); }
 .deco-test-size { display: flex; align-items: center; gap: 8px; font-size: .8rem; color: var(--muted); flex-wrap: wrap; }
 .deco-test-size strong { min-width: 2.2em; text-align: center; color: var(--ink); font-size: 1rem; }
+
+.deco-test-move { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); width: 100%; }
+.deco-pad { display: grid; grid-template-columns: repeat(3, 40px); gap: 4px; }
+.deco-pad .btn { padding: 0; height: 36px; display: grid; place-items: center; font-size: 1rem; }
+.deco-pad[hidden] { display: none; }
+.deco-pad-floor { grid-template-columns: repeat(2, 40px); }
+.deco-pad-floor .deco-pad-reset { grid-column: 1 / -1; }
+.deco-pad-step { display: flex; flex-direction: column; gap: 2px; font-size: .75rem; }
