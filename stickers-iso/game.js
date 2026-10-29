@@ -523,7 +523,7 @@
       const id = `deco${++decoSeq}`;
       const wu = Math.max(0.5, Math.min(12, Number(d.size) || 2)), hu = wu * d.h / d.w;
       const m = [along.x * wu / d.w, along.y * wu / d.w, down.x * hu / d.h, down.y * hu / d.h, origin.x, origin.y].map((n) => n.toFixed(5)).join(' ');
-      defs.push(`<pattern id="${id}" patternUnits="userSpaceOnUse" x="0" y="0" width="${d.w}" height="${d.h}" patternTransform="matrix(${m})"><image href="${d.tex || d.data}" width="${d.w}" height="${d.h}" preserveAspectRatio="none"/></pattern>`);
+      defs.push(`<pattern id="${id}" patternUnits="userSpaceOnUse" x="0" y="0" width="${d.w}" height="${d.h}" patternTransform="matrix(${m})"><image href="${d.data}" width="${d.w}" height="${d.h}" preserveAspectRatio="none"/></pattern>`);
       return `url(#${id})`;
     };
     const decoWL = decoFor('wallLeftDeco'), decoWR = decoFor('wallRightDeco'), decoF = decoFor('floorDeco');
@@ -746,104 +746,7 @@
 
   function addDeco(rec) {
     if (!rec.data) return;
-    const d = { ...rec, url: rec.data };
-    state.decos.set(rec.id, d);
-    applyToon(d);
-  }
-
-  // « Style dessin » : rapproche un motif réaliste du style dessiné des stickers.
-  // Le motif d'origine n'est jamais modifié : le résultat est recalculé à l'ouverture (d.tex).
-  const decoPending = new Set();
-  function applyToon(d) {
-    const t = Math.max(0, Math.min(100, Number(d.toon) || 0)) / 100;
-    if (!t) { d.tex = null; d.url = d.data; return Promise.resolve(); }
-    const job = loadImageEl(d.data).then((el) => {
-      if ((Number(d.toon) || 0) / 100 !== t) return; // réglage changé entre-temps
-      const cv = toonProcess(el, t);
-      let out = cv.toDataURL('image/webp', 0.92);
-      if (!out.startsWith('data:image/webp')) out = cv.toDataURL('image/png');
-      d.tex = out;
-      d.url = out;
-    }).catch((e) => console.warn('Style dessin impossible', e)).then(() => {
-      decoPending.delete(job);
-      afterDecoTex();
-    });
-    decoPending.add(job);
-    return job;
-  }
-  // Flou rapide (deux passes de moyenne) qui se raccorde d'un bord à l'autre : le motif reste répétable.
-  function boxBlurWrap(px, w, h, r) {
-    const n = 2 * r + 1;
-    const tmp = new Uint8ClampedArray(px.length);
-    for (let y = 0; y < h; y++) {
-      for (let c = 0; c < 3; c++) {
-        let sum = 0;
-        for (let k = -r; k <= r; k++) sum += px[(y * w + ((k + w) % w)) * 4 + c];
-        for (let x = 0; x < w; x++) {
-          tmp[(y * w + x) * 4 + c] = sum / n;
-          sum += px[(y * w + ((x + r + 1) % w)) * 4 + c] - px[(y * w + (((x - r) % w) + w) % w) * 4 + c];
-        }
-      }
-    }
-    for (let x = 0; x < w; x++) {
-      for (let c = 0; c < 3; c++) {
-        let sum = 0;
-        for (let k = -r; k <= r; k++) sum += tmp[((((k + h) % h) * w) + x) * 4 + c];
-        for (let y = 0; y < h; y++) {
-          px[(y * w + x) * 4 + c] = sum / n;
-          sum += tmp[((((y + r + 1) % h) * w) + x) * 4 + c] - tmp[(((((y - r) % h) + h) % h) * w + x) * 4 + c];
-        }
-      }
-    }
-  }
-  function toonProcess(el, t) {
-    const w = el.naturalWidth, h = el.naturalHeight;
-    const cv = document.createElement('canvas');
-    cv.width = w; cv.height = h;
-    const ctx = cv.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(el, 0, 0);
-    const im = ctx.getImageData(0, 0, w, h);
-    const px = im.data;
-    // 1. Adoucit les détails fins.
-    const r = Math.max(1, Math.min(Math.round(0.5 + t * 2.5), Math.floor(Math.min(w, h) / 2) - 1));
-    boxBlurWrap(px, w, h, r);
-    boxBlurWrap(px, w, h, r);
-    // 2. Aplats : moins de nuances, couleurs un peu douces et chaudes, contraste réduit.
-    const levels = Math.round(24 - t * 18);
-    const step = 255 / (levels - 1);
-    const sat = 1 - 0.22 * t, soft = 1 - 0.18 * t;
-    const lum = new Float32Array(w * h);
-    for (let i = 0; i < w * h; i++) {
-      const o = i * 4;
-      let R = px[o], G = px[o + 1], B = px[o + 2];
-      const l = 0.3 * R + 0.59 * G + 0.11 * B;
-      R = l + (R - l) * sat + 8 * t; G = l + (G - l) * sat + 2 * t; B = l + (B - l) * sat - 8 * t;
-      R = 128 + (R - 128) * soft + 10 * t; G = 128 + (G - 128) * soft + 10 * t; B = 128 + (B - 128) * soft + 10 * t;
-      R = Math.round(Math.max(0, Math.min(255, R)) / step) * step;
-      G = Math.round(Math.max(0, Math.min(255, G)) / step) * step;
-      B = Math.round(Math.max(0, Math.min(255, B)) / step) * step;
-      px[o] = R; px[o + 1] = G; px[o + 2] = B;
-      lum[i] = 0.3 * px[o] + 0.59 * px[o + 1] + 0.11 * px[o + 2];
-    }
-    // 3. Fin contour brun là où les aplats changent (comme le trait des stickers).
-    const L = (x, y) => lum[((y + h) % h) * w + ((x + w) % w)];
-    const edge = new Float32Array(w * h);
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const gx = L(x + 1, y - 1) + 2 * L(x + 1, y) + L(x + 1, y + 1) - L(x - 1, y - 1) - 2 * L(x - 1, y) - L(x - 1, y + 1);
-        const gy = L(x - 1, y + 1) + 2 * L(x, y + 1) + L(x + 1, y + 1) - L(x - 1, y - 1) - 2 * L(x, y - 1) - L(x + 1, y - 1);
-        edge[y * w + x] = Math.sqrt(gx * gx + gy * gy);
-      }
-    }
-    const BR = [90, 62, 58];
-    for (let i = 0; i < w * h; i++) {
-      const a = Math.max(0, Math.min(1, (edge[i] - 70) / 130)) * t * 0.55;
-      if (!a) continue;
-      const o = i * 4;
-      px[o] += (BR[0] - px[o]) * a; px[o + 1] += (BR[1] - px[o + 1]) * a; px[o + 2] += (BR[2] - px[o + 2]) * a;
-    }
-    ctx.putImageData(im, 0, 0);
-    return cv;
+    state.decos.set(rec.id, { ...rec, url: rec.data });
   }
 
   function addImageToLibrary(rec) {
@@ -2271,7 +2174,6 @@
   // Dessine la pièce et ses stickers dans un canvas (export et miniatures).
   // data (facultatif) : une autre pièce { colors, shape, stickers } à dessiner que celle ouverte.
   async function renderScene(K, background, data = null) {
-    if (decoPending.size) await Promise.all([...decoPending]); // « style dessin » des décors encore en calcul
     const cv = document.createElement('canvas');
     cv.width = Math.round(STAGE_W * K);
     cv.height = Math.round(STAGE_H * K);
@@ -4039,11 +3941,6 @@
     }
   }
 
-  // Un motif vient d'être recalculé : on remet la pièce et les aperçus à jour.
-  function afterDecoTex() {
-    if (!screens.room.hidden) { drawRoom(); syncDecoSwatches(); }
-  }
-
   // Choix dans une pièce : un carré à côté de Mur G, Mur D et Sol, avec l'aperçu du décor posé.
   const decoPicker = $('#decoPicker');
   const DECO_SLOTS = {
@@ -4209,7 +4106,6 @@
           <label><span>Collection</span><input class="field" data-f="collection" maxlength="40" list="decoCollections"></label>
           <label><span>Prix 🪙</span><input class="field" data-f="price" type="number" min="0" step="10"></label>
           <label><span>Taille (carreaux)</span><input class="field" data-f="size" type="number" min="0.5" max="12" step="0.5"></label>
-          <label class="deco-toon"><span>Style dessin : <b data-f="toonText"></b> <i>(adoucit une image réaliste)</i></span><input data-f="toon" type="range" min="0" max="100" step="10"></label>
         </div>
         <button class="btn btn-ghost deco-admin-del" type="button" title="Supprimer ce décor">🗑️</button>`;
       card.querySelector('.deco-preview').style.backgroundImage = `url("${d.url}")`;
@@ -4223,17 +4119,6 @@
       f('collection').value = d.collection || '';
       f('price').value = d.price ?? 100;
       f('size').value = d.size || 2;
-      const toonText = () => { const v = Number(f('toon').value); f('toonText').textContent = v ? `${v} %` : 'aucun'; };
-      f('toon').value = d.toon || 0;
-      toonText();
-      f('toon').addEventListener('input', toonText);
-      f('toon').addEventListener('change', async () => {
-        save('toon', Number(f('toon').value));
-        card.classList.add('busy');
-        await applyToon(d);
-        card.classList.remove('busy');
-        card.querySelector('.deco-preview').style.backgroundImage = `url("${d.url}")`;
-      });
       f('name').addEventListener('change', () => save('name', f('name').value.trim() || 'Décor'));
       f('kind').addEventListener('change', () => save('kind', f('kind').value));
       f('collection').addEventListener('change', () => save('collection', f('collection').value.trim()));
