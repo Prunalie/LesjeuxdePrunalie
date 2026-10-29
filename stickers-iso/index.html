@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610291500">
+  <link rel="stylesheet" href="style.css?v=202610291600">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -113,14 +113,6 @@
             <svg class="chev" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9 L12 15 L18 9" fill="none" stroke="#5A3E3A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </summary>
           <div class="admin-grid">
-            <button id="homeCoffre" class="mini home-card admin-card" hidden>
-              <span class="tile-icon" style="background:#E2F0E6"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 14 A11 9 0 0 1 27 14 Z" fill="#B07AD8" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><rect x="5" y="14" width="22" height="13" rx="2.5" fill="#9C7BD0" stroke="#5A3E3A" stroke-width="2.4"/><rect x="13" y="12" width="6" height="8" rx="1.5" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.2"/></svg></span>
-              <span class="small-text"><span class="card-title">Coffre</span><span id="homeCoffreSub" class="card-sub">Propositions des joueurs</span></span>
-            </button>
-            <button id="homePlayers" class="mini home-card admin-card" hidden>
-              <span class="tile-icon" style="background:#E0F0F1"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><circle cx="21" cy="11" r="4.5" fill="#F0658A" stroke="#5A3E3A" stroke-width="2.4"/><path d="M13 27 C13 20 17 18 21 18 C25 18 29 20 29 27 Z" fill="#F0658A" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><circle cx="11" cy="12" r="5" fill="#7A52B3" stroke="#5A3E3A" stroke-width="2.4"/><path d="M2 28 C2 20 6 18.5 11 18.5 C16 18.5 20 20 20 28 Z" fill="#7A52B3" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/></svg></span>
-              <span class="small-text"><span class="card-title">Joueurs</span><span class="card-sub">Qui joue, et leur écrire</span></span>
-            </button>
             <button id="homeAtelier" class="mini home-card admin-card" hidden>
               <span class="tile-icon" style="background:#F6E8E3"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect x="13.5" y="12" width="5" height="17" rx="2" fill="#E8906B" stroke="#5A3E3A" stroke-width="2.4"/><rect x="6" y="4" width="20" height="9" rx="2.5" fill="#A9B4C2" stroke="#5A3E3A" stroke-width="2.4"/><path d="M6 8.5 H2.5" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/></svg></span>
               <span class="small-text"><span class="card-title">Atelier enveloppes</span><span class="card-sub">Créer les enveloppes</span></span>
@@ -129,13 +121,21 @@
               <span class="tile-icon" style="background:#DCEBFA"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="4" width="24" height="24" rx="4" fill="#F6D27A" stroke="#5A3E3A" stroke-width="2.4"/><path d="M11 4 V28 M17 4 V28 M23 4 V28" stroke="#5A3E3A" stroke-width="2" opacity=".5"/><circle cx="14" cy="16" r="2.4" fill="#E8906B" stroke="#5A3E3A" stroke-width="1.6"/></svg></span>
               <span class="small-text"><span class="card-title">Atelier décor</span><span class="card-sub">Papiers peints et sols</span></span>
             </button>
-            <button id="homeSettings" class="mini home-card admin-card">
-              <span class="tile-icon" style="background:#FFF3CC"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 9 H27 M5 16 H27 M5 23 H27" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/><circle cx="11" cy="9" r="3.4" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.4"/><circle cx="21" cy="16" r="3.4" fill="#F0658A" stroke="#5A3E3A" stroke-width="2.4"/><circle cx="14" cy="23" r="3.4" fill="#6CB4E0" stroke="#5A3E3A" stroke-width="2.4"/></svg></span>
-              <span class="small-text"><span class="card-title">Paramétrage</span><span class="card-sub">Prix, récompenses, chiffres</span></span>
-            </button>
             <button id="homeAdminContest" class="mini home-card admin-card">
               <span class="tile-icon" style="background:#FFF3CC"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><path d="M9 5 H23 V13 A7 7 0 0 1 9 13 Z" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M9 8 H4 C4 14 6 16 9 16 M23 8 H28 C28 14 26 16 23 16" fill="none" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/><rect x="14.5" y="19" width="3" height="5" fill="#5A3E3A"/><rect x="10" y="24" width="12" height="5" rx="1.5" fill="#B07AD8" stroke="#5A3E3A" stroke-width="2.4"/></svg></span>
               <span class="small-text"><span class="card-title">Concours</span><span class="card-sub">Thèmes et résultats en direct</span></span>
+            </button>
+            <button id="homeCoffre" class="mini home-card admin-card" hidden>
+              <span class="tile-icon" style="background:#E2F0E6"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 14 A11 9 0 0 1 27 14 Z" fill="#B07AD8" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><rect x="5" y="14" width="22" height="13" rx="2.5" fill="#9C7BD0" stroke="#5A3E3A" stroke-width="2.4"/><rect x="13" y="12" width="6" height="8" rx="1.5" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.2"/></svg></span>
+              <span class="small-text"><span class="card-title">Coffre</span><span id="homeCoffreSub" class="card-sub">Propositions des joueurs</span></span>
+            </button>
+            <button id="homePlayers" class="mini home-card admin-card" hidden>
+              <span class="tile-icon" style="background:#E0F0F1"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><circle cx="21" cy="11" r="4.5" fill="#F0658A" stroke="#5A3E3A" stroke-width="2.4"/><path d="M13 27 C13 20 17 18 21 18 C25 18 29 20 29 27 Z" fill="#F0658A" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><circle cx="11" cy="12" r="5" fill="#7A52B3" stroke="#5A3E3A" stroke-width="2.4"/><path d="M2 28 C2 20 6 18.5 11 18.5 C16 18.5 20 20 20 28 Z" fill="#7A52B3" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/></svg></span>
+              <span class="small-text"><span class="card-title">Joueurs</span><span class="card-sub">Qui joue, et leur écrire</span></span>
+            </button>
+            <button id="homeSettings" class="mini home-card admin-card">
+              <span class="tile-icon" style="background:#FFF3CC"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 9 H27 M5 16 H27 M5 23 H27" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/><circle cx="11" cy="9" r="3.4" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.4"/><circle cx="21" cy="16" r="3.4" fill="#F0658A" stroke="#5A3E3A" stroke-width="2.4"/><circle cx="14" cy="23" r="3.4" fill="#6CB4E0" stroke="#5A3E3A" stroke-width="2.4"/></svg></span>
+              <span class="small-text"><span class="card-title">Paramétrage</span><span class="card-sub">Prix, récompenses, chiffres</span></span>
             </button>
             <button id="homeMaintenance" class="mini home-card admin-card">
               <span class="tile-icon" style="background:#FFE0E6"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><path d="M20.5 4.5 A7 7 0 0 0 13.5 13.5 L4.5 22.5 A3 3 0 0 0 9.5 27.5 L18.5 18.5 A7 7 0 0 0 27.5 11.5 L23 16 L18 14 L16 9 Z" fill="#A9B4C2" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/></svg></span>
@@ -1027,7 +1027,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610291500"></script>
-  <script src="game.js?v=202610291500"></script>
+  <script src="firebase-config.js?v=202610291600"></script>
+  <script src="game.js?v=202610291600"></script>
 </body>
 </html>
