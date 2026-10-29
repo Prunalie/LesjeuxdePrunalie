@@ -1010,6 +1010,10 @@
     state.focusId = id && focus ? id : (id && id === state.focusId ? id : null);
     for (const el of layer.children) el.classList.toggle('selected', el.dataset.id === id);
     layer.classList.toggle('focus', !!state.focusId);
+    const focusBtn = toolbar.querySelector('[data-act="focus"]');
+    focusBtn.classList.toggle('active', !!state.focusId);
+    focusBtn.setAttribute('aria-pressed', state.focusId ? 'true' : 'false');
+    focusBtn.title = state.focusId ? 'Dégriser les autres meubles' : 'Griser les autres meubles pour déplacer cet objet sans être gêné';
     toolbar.hidden = !id;
     // Le bandeau du concours laisse la place à la barre d'outils du sticker.
     document.getElementById('contestBanner').classList.toggle('away', !!id);
@@ -1576,6 +1580,7 @@
   function act(action) {
     const s = getSelected();
     if (!s) return;
+    if (action === 'focus') { const on = !state.focusId; state.focusId = null; select(s.id, on); return; } // griser / dégriser les autres objets
     const before = snapshot();
     const arr = state.stickers;
     const i = arr.indexOf(s);
