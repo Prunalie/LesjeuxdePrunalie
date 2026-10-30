@@ -89,6 +89,7 @@
     { group: 'Propositions de stickers', key: 'maxPending', label: 'Propositions en attente par joueur', unit: 'au plus', def: () => MAX_PENDING, min: 1, max: 1000, step: 1 },
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_garden', label: '🌳 Jardin', unit: '🌟', def: () => 2, max: 100, step: 1 },
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_size', label: '📐 Taille sur mesure', unit: '🌟', def: () => 1, max: 100, step: 1 },
+    { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_decor', label: '🎨 Décor (papiers peints et sols)', unit: '🌟', def: () => 2, max: 100, step: 1 },
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_levels', label: '🏢 Étages', unit: '🌟', def: () => 2, max: 100, step: 1 },
     { group: 'Concours', key: 'contestReward', label: 'Récompense du gagnant', unit: '🪙', def: () => 200, max: 100000, step: 10 },
     { group: 'Concours', key: 'contestSoloReward', label: 'Gagnant d\'office (une seule pièce)', unit: '🪙', def: () => Math.round(setting('contestReward') / 2), max: 100000, step: 10 },
@@ -2926,11 +2927,14 @@
   const UNLOCKS = {
     garden: { label: 'Jardin', cost: 2, desc: 'Transforme une pièce en jardin : haies, pelouse et ciel.' },
     size: { label: 'Taille sur mesure', cost: 1, desc: 'Choisis la largeur, la profondeur et la hauteur des murs.' },
+    decor: { label: 'Décor', cost: 2, desc: 'Ouvre la boutique de papiers peints et de sols pour décorer tes pièces.' },
     levels: { label: 'Étages', cost: 2, desc: 'Ajoute jusqu\'à 3 niveaux surélevés au fond de la pièce. Un escalier gratuit 🪜 t\'est envoyé par message.' },
   };
-  const UNLOCK_ICONS = { garden: '🌳', size: '📐', levels: '🏢' };
+  const UNLOCK_ICONS = { garden: '🌳', size: '📐', decor: '🎨', levels: '🏢' };
   const unlockCost = (key) => setting('unlock_' + key);
   const isUnlocked = (key) => state.isAdmin || !!(state.profile.unlocks && state.profile.unlocks[key]);
+  // Le décor : l'administratrice peut tester comme un joueur (à débloquer avec des étoiles).
+  const decorUnlocked = () => (state.isAdmin && !decoAsPlayer) || !!(state.profile.unlocks && state.profile.unlocks.decor);
   const shapeDialog = $('#shapeDialog');
 
   // L'escalier offert avec les étages : l'objet « Escalier » de la collection Meuble(s).
@@ -2973,7 +2977,7 @@
     const stairs = key === 'levels' ? await sendStairsGift() : null;
     saveProfile();
     toast(`« ${u.label} » est débloqué 🎉${stairs ? ' Un escalier gratuit 🪜 t\'attend dans ta boîte aux lettres 💌' : ''}`);
-    renderShapeDialog();
+    if (!shapeDialog.hidden) renderShapeDialog();
   }
 
   // Modifie la forme de la pièce (avec retour en arrière possible).
@@ -3284,6 +3288,7 @@
     $('#shopEnvView').hidden = shopView !== 'envelopes';
     $('#shopDecoView').hidden = shopView !== 'deco';
     $('#shopStamps').hidden = shopView !== 'envelopes';
+    $('#decoAsPlayerRow').hidden = !state.isAdmin || shopView === 'envelopes';
     $('#shopTitle').textContent = shopView === 'envelopes' && state.isAdmin ? 'Enveloppes' : (shopView === 'deco' ? 'Décor' : 'Boutique');
     $('#shopBack').title = shopView === 'choice' || !state.isAdmin ? 'Retour' : 'Retour à la boutique';
   }
@@ -3305,6 +3310,12 @@
     $('#shopChoiceDecoSub').textContent = walls + floors
       ? `${plural(walls, 'papier peint')} · ${plural(floors, 'sol')} en vente`
       : 'Papiers peints et sols pour tes pièces';
+    // Le décor se débloque avec des étoiles (comme les étages).
+    const lock = $('#shopChoiceDecoLock');
+    lock.hidden = decorUnlocked();
+    lock.textContent = `🔒 Débloquer · ${unlockCost('decor')} 🌟 (tu en as ${stars})`;
+    $('#shopChoiceDeco').classList.toggle('locked', !decorUnlocked());
+    $('#decoRelock').hidden = !(state.isAdmin && decoAsPlayer && state.profile.unlocks && state.profile.unlocks.decor);
   }
 
   function renderShop() {
@@ -4126,7 +4137,6 @@
 
   // Boutique : achat un par un
   function renderDecoShop() {
-    $('#decoAsPlayerRow').hidden = !state.isAdmin;
     const list = $('#decoShopList');
     list.innerHTML = '';
     let any = false;
@@ -4172,8 +4182,25 @@
     renderDecoShop();
   }
   $('#shopChoiceEnv').addEventListener('click', () => { shopView = 'envelopes'; renderShop(); window.scrollTo(0, 0); });
-  $('#shopChoiceDeco').addEventListener('click', () => { shopView = 'deco'; renderDecoShop(); applyShopView(); window.scrollTo(0, 0); });
-  $('#decoAsPlayer').addEventListener('change', (e) => { decoAsPlayer = e.target.checked; renderDecoShop(); });
+  $('#shopChoiceDeco').addEventListener('click', async () => {
+    if (!decorUnlocked()) {
+      await unlock('decor');
+      renderShopChoice();
+      if (!decorUnlocked()) return;
+    }
+    shopView = 'deco';
+    renderDecoShop();
+    applyShopView();
+    window.scrollTo(0, 0);
+  });
+  $('#decoRelock').addEventListener('click', () => { state.profile.unlocks = { ...(state.profile.unlocks || {}), decor: false }; saveProfile(); renderShopChoice(); });
+  $('#decoAsPlayer').addEventListener('change', (e) => {
+    decoAsPlayer = e.target.checked;
+    if (shopView === 'deco' && !decorUnlocked()) shopView = 'choice'; // test joueur : retour à l'écran de choix
+    renderShopChoice();
+    renderDecoShop();
+    applyShopView();
+  });
 
   // Atelier : importer et régler les décors
   // Filtres : type (papiers peints / sols), collection et recherche.

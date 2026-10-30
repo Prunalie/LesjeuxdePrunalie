@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610301100">
+  <link rel="stylesheet" href="style.css?v=202610301300">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -322,6 +322,8 @@
       </div>
     </header>
     <div class="rooms-body">
+      <label id="decoAsPlayerRow" class="deco-asplayer" hidden><input id="decoAsPlayer" type="checkbox"><span>Tester comme un joueur (décor à débloquer avec des étoiles, et seulement mes achats)</span>
+        <button id="decoRelock" class="btn btn-ghost" type="button" hidden>↺ Reverrouiller</button></label>
       <div id="shopChoice" class="home-big shop-choice" hidden>
         <button id="shopChoiceEnv" class="card home-card big" type="button">
           <span class="card-blob" style="background:#FFE0E6"></span>
@@ -342,6 +344,7 @@
               <span class="card-title big">Décor</span>
               <span class="vote-todo-badge">✨ Nouveau</span>
               <span id="shopChoiceDecoSub" class="card-sub big">Papiers peints et sols pour tes pièces</span>
+              <span id="shopChoiceDecoLock" class="chip" hidden></span>
             </span>
           </span>
         </button>
@@ -353,7 +356,6 @@
       </div>
       <div id="shopDecoView" hidden>
         <p class="shop-intro">Papiers peints et sols, en vente un par un. Une fois achetés, tu les poses dans 🎨 Couleurs, quand tu décores une pièce.</p>
-        <label id="decoAsPlayerRow" class="deco-asplayer" hidden><input id="decoAsPlayer" type="checkbox"> Tester comme un joueur (je n'ai que mes achats)</label>
         <div id="decoShopList" class="deco-list deco-shop-page"></div>
       </div>
     </div>
@@ -1075,7 +1077,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610301100"></script>
-  <script src="game.js?v=202610301100"></script>
+  <script src="firebase-config.js?v=202610301300"></script>
+  <script src="game.js?v=202610301300"></script>
 </body>
 </html>

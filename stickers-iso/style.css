@@ -2348,3 +2348,8 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .coffre-reward-field { display: inline-flex; align-items: center; gap: 6px; }
 .coffre-reward-field .field { width: 90px; padding: 6px 8px; }
 .coffre-reward-note { font-size: .8rem; flex-basis: 100%; }
+
+.shop-choice .home-card.locked { filter: saturate(.55); }
+.deco-asplayer { flex-wrap: nowrap; align-items: flex-start; }
+.deco-asplayer input { margin-top: 3px; flex: none; }
+.deco-asplayer .btn { flex: none; }
