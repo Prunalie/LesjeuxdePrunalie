@@ -3744,7 +3744,7 @@
     db.putEnvelope(env).catch(() => toast('L\'enveloppe n\'a pas pu être enregistrée.'));
     atelierOpen = env.id;
     renderAtelier();
-    toast('Enveloppe créée en brouillon 📝 Les joueurs ne la voient pas : publie-la quand elle est prête (une nouvelle par jour).');
+    toast('Enveloppe créée en brouillon 📝 Les joueurs ne la voient pas : publie-la quand elle est prête (une nouvelle par jour est conseillée).');
   });
 
   // Publication : brouillon, jour prévu ou en vente. Une seule nouvelle enveloppe par jour.
@@ -3759,21 +3759,29 @@
     }
     renderAtelier();
   }
+  // Plusieurs enveloppes le même jour : possible, mais on prévient (une nouvelle par jour est conseillée).
+  async function confirmSameDay(env, day) {
+    const others = state.envelopes.filter((e) => e.id !== env.id && envSlotDay(e) === day);
+    if (!others.length) return true;
+    const when = day === today() ? 'aujourd\'hui' : `le ${dayLabel(day)}`;
+    const names = others.map((e) => `« ${e.name || 'Enveloppe'} »`).join(', ');
+    return askConfirm(`⚠️ ${others.length > 1 ? 'Des enveloppes sortent' : 'Une enveloppe sort'} déjà ${when} : ${names}. Les joueurs auront ${others.length + 1} nouvelles enveloppes le même jour, alors qu'on en conseille une seule par jour. Publier quand même ?`, 'Publier quand même');
+  }
   function renderPublishBox(box, env) {
     const st = envStatus(env);
     box.innerHTML = '<p class="atelier-publish-info"></p><div class="atelier-publish-actions"></div>';
     const info = box.querySelector('p');
     const actions = box.querySelector('.atelier-publish-actions');
-    info.textContent = st === 'draft' ? '📝 Brouillon : les joueurs ne la voient pas. Une seule nouvelle enveloppe peut sortir par jour.'
+    info.textContent = st === 'draft' ? '📝 Brouillon : les joueurs ne la voient pas. Conseil : une seule nouvelle enveloppe par jour.'
       : st === 'scheduled' ? `📅 Sortira le ${dayLabel(env.publishAt)} : les joueurs ne la voient pas avant.`
         : `✅ En vente${env.publishAt ? ` depuis le ${dayLabel(env.publishAt)}` : ''}.`;
     box.dataset.status = st;
     if (st === 'live') return;
     const btn = (label, cls, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + cls; b.textContent = label; b.addEventListener('click', fn); actions.appendChild(b); return b; };
     const need = () => { if (stickersOf(env.id).length) return true; toast('Cette enveloppe est vide : ajoute-lui des stickers avant de la publier.'); return false; };
-    btn('Publier aujourd\'hui', 'btn-primary', () => {
+    btn('Publier aujourd\'hui', 'btn-primary', async () => {
       if (!need()) return;
-      if (slotTaken(today(), env.id)) { toast('Une enveloppe sort déjà aujourd\'hui : une seule par jour. Choisis un autre jour.'); return; }
+      if (!(await confirmSameDay(env, today()))) return;
       setEnvelopePublication(env, false, today());
     });
     btn('📅 Prochain jour libre', '', () => {
@@ -3787,10 +3795,10 @@
     date.min = today();
     date.value = env.publishAt && env.publishAt >= today() ? env.publishAt : '';
     date.setAttribute('aria-label', 'Choisir le jour de sortie');
-    date.addEventListener('change', () => {
+    date.addEventListener('change', async () => {
       if (!date.value) return;
       if (!need()) { date.value = ''; return; }
-      if (slotTaken(date.value, env.id)) { toast(`Une enveloppe sort déjà le ${dayLabel(date.value)} : une seule par jour.`); date.value = env.publishAt || ''; return; }
+      if (!(await confirmSameDay(env, date.value))) { date.value = env.publishAt && env.publishAt >= today() ? env.publishAt : ''; return; }
       setEnvelopePublication(env, false, date.value);
     });
     actions.appendChild(date);
