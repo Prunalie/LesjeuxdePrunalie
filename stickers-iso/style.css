@@ -2353,3 +2353,7 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .deco-asplayer { flex-wrap: nowrap; align-items: flex-start; }
 .deco-asplayer input { margin-top: 3px; flex: none; }
 .deco-asplayer .btn { flex: none; }
+
+/* Petite étiquette NEW sur les enveloppes sorties aujourd'hui */
+.shop-card { position: relative; }
+.new-badge { position: absolute; top: -8px; left: -6px; z-index: 2; padding: 2px 9px; border-radius: 999px; background: #f0658a; color: #fff; font-weight: 800; font-size: .72rem; letter-spacing: .06em; border: 2px solid var(--chunk); box-shadow: 0 2px 0 var(--chunk); transform: rotate(-6deg); pointer-events: none; }

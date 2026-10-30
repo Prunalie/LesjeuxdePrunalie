@@ -2501,6 +2501,8 @@
   // Les anciennes enveloppes (sans réglage) sont en vente depuis toujours.
   const isLive = (env) => !env.draft && (!env.publishAt || env.publishAt <= today());
   const liveEnvelopes = () => state.envelopes.filter(isLive);
+  // « NEW » : les enveloppes sorties aujourd'hui.
+  const isNewEnvelope = (env) => isLive(env) && envSlotDay(env) === today();
   const envStatus = (env) => (env.draft ? 'draft' : isLive(env) ? 'live' : 'scheduled');
   // Jour « occupé » par une enveloppe : le jour prévu, ou à défaut le jour de sa création.
   const envSlotDay = (env) => (env.draft ? '' : env.publishAt || (env.created ? new Date(env.created).toLocaleDateString('fr-CA') : ''));
@@ -3301,6 +3303,9 @@
     $('#shopChoiceEnvSub').textContent = shop.length
       ? `${plural(shop.length, 'enveloppe')} en vente · tampons ${stamps}/${stampsPerStar()}${stars ? ` · ${plural(stars, 'étoile')} à utiliser` : ''}`
       : 'Bientôt des enveloppes';
+    const nNew = shop.filter(isNewEnvelope).length;
+    $('#shopChoiceEnvNew').hidden = !nNew;
+    $('#shopChoiceEnvNew').textContent = nNew > 1 ? `✨ NEW · ${nNew} nouvelles enveloppes` : '✨ NEW · une nouvelle enveloppe';
     const daily = setting('dailyEnvCount');
     const nDaily = dailyEnvelopeIds().size;
     $('#shopChoiceEnvChip').textContent = !shop.length ? 'Reviens bientôt' : (allNormalDay() ? '☀️ Dimanche : toutes au prix normal !' : !daily || shop.length <= daily
@@ -3378,6 +3383,13 @@
         </div>`;
       card.querySelector('.shop-art').appendChild(envelopeArt(env));
       card.querySelector('.shop-name').textContent = env.name || 'Enveloppe';
+      if (isNewEnvelope(env)) {
+        const tag = document.createElement('span');
+        tag.className = 'new-badge';
+        tag.textContent = 'NEW';
+        tag.title = 'Nouvelle enveloppe du jour';
+        card.appendChild(tag);
+      }
       if (others.length && daily.has(env.id)) card.classList.add('shop-daily');
       else if (others.length) card.classList.add('shop-other');
       card.querySelector('.bar span').style.width = `${(got / list.length) * 100}%`;
