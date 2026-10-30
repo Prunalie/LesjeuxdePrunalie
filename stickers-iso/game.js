@@ -5064,7 +5064,7 @@
     {
       id: 'n-2026-10-28a', date: Date.UTC(2026, 9, 28, 8, 0), title: 'Des pièces pour participer au concours 🏆',
       items: [
-        'Tu gagnes maintenant des pièces 🪙 dès que tu publies ta pièce du concours, une fois par jour.',
+        'Tu gagnes maintenant des pièces 🪙 dès que tu publies ta pièce du concours, une fois par jour : ta récompense arrive dans ta boîte aux lettres, à récupérer.',
         'Tu peux toujours la modifier et la republier jusqu\'à minuit, sans gagner de pièces en plus.',
         'Le montant est indiqué sur l\'écran du concours, à côté du thème du jour.',
       ],
@@ -5927,31 +5927,52 @@
       savePending = true;
       await saveRoom();
       // Première publication du jour : pièces de participation, et bonus de fidélité tous les N concours.
+      // La récompense arrive dans la boîte aux lettres, à récupérer.
       let joinMsg = '';
       if (state.profile.joinRewardDay !== r.contestDay) {
         await refreshProfile();
         if (state.profile.joinRewardDay !== r.contestDay) {
-          state.profile.joinRewardDay = r.contestDay;
+          const me = state.player.key;
           const join = setting('contestJoinReward');
           let gain = join;
-          if (join > 0) joinMsg = ` +${join} 🪙 pour ta participation !`;
+          const lines = [];
+          if (join > 0) lines.push(`Merci d'avoir participé au concours « ${themeOf(r.contestDay)} » ! Voici ${join} 🪙 pour ta participation.`);
           // Nombre de participations : relevé dans l'historique la première fois, puis tenu à jour.
           let count;
           try {
-            count = state.profile.contestCount === undefined ? (await db.listMyContest(state.player.key)).length : state.profile.contestCount + 1;
+            count = state.profile.contestCount === undefined ? (await db.listMyContest(me)).length : state.profile.contestCount + 1;
           } catch (e) { console.warn('Participations non comptées', e); }
+          let milestones = state.profile.contestMilestones || 0;
           if (count !== undefined) {
-            state.profile.contestCount = count;
             const every = setting('contestMilestoneEvery'), prize = setting('contestMilestoneReward');
-            const due = Math.floor(count / every) - (state.profile.contestMilestones || 0);
-            state.profile.contestMilestones = Math.max(state.profile.contestMilestones || 0, Math.floor(count / every));
+            const due = Math.floor(count / every) - milestones;
+            milestones = Math.max(milestones, Math.floor(count / every));
             if (prize > 0 && due > 0) {
               gain += due * prize;
-              joinMsg += ` 🎉 ${count}e participation : +${due * prize} 🪙 de bonus !`;
+              lines.push(`🎉 C'est ta ${count}e participation : bonus de fidélité de ${due * prize} 🪙 !`);
             }
           }
-          if (gain > 0) state.profile.points = (state.profile.points || 0) + gain;
-          saveProfile();
+          let sent = true;
+          if (gain > 0) {
+            const m = {
+              id: `contest-join-${r.contestDay}-${me}`, to: me, title: '🏆 Merci pour ta participation !',
+              text: `${lines.join('\n\n')}\n\nRécupère ta récompense : ${gain} 🪙.`,
+              reward: gain, read: false, claimed: false, created: Date.now(),
+            };
+            try {
+              if (await db.createMail(m)) state.mails.push(m);
+              renderMailBadge();
+              joinMsg = ` ${gain} 🪙 t'attendent dans ta boîte aux lettres 💌`;
+            } catch (e) {
+              console.warn('Message de participation impossible', e);
+              sent = false; // la récompense sera envoyée à la prochaine publication
+            }
+          }
+          if (sent) {
+            state.profile.joinRewardDay = r.contestDay;
+            if (count !== undefined) { state.profile.contestCount = count; state.profile.contestMilestones = milestones; }
+            saveProfile();
+          }
         }
       }
       toast(`Ta pièce est publiée 🏆${joinMsg} Demain, tout le monde votera jusqu'à 20 h !`);
