@@ -1053,7 +1053,7 @@
       el.className = 'sticker';
       el.dataset.id = s.id;
       el.style.zIndex = i + 1;
-      el.innerHTML = `<img alt="" draggable="false"><span class="handle handle-rotate" title="Tourner"></span><span class="handle handle-scale" title="Agrandir / réduire"></span>`;
+      el.innerHTML = `<img alt="" draggable="false"><span class="handle handle-rotate" title="Tourner"></span><span class="handle handle-scale" title="Agrandir / réduire"></span><span class="handle handle-move" title="Déplacer sans avoir le doigt sur l'objet"></span>`;
       el.firstChild.src = img.url;
       applyStickerStyle(el, s);
       el.addEventListener('pointerdown', (e) => onStickerPointerDown(e, s, el));
@@ -1393,6 +1393,8 @@
     let mode = 'move';
     if (e.target.classList.contains('handle-scale')) mode = 'scale';
     else if (e.target.classList.contains('handle-rotate')) mode = 'rotate';
+    // La croix de déplacement : même geste que de tirer l'objet, mais le doigt reste à côté.
+    else if (e.target.classList.contains('handle-move')) mode = 'move';
 
     gesture = { s, el, mode, pointers: new Map(), before: snapshot() };
     gesture.pointers.set(e.pointerId, toStage(e.clientX, e.clientY));

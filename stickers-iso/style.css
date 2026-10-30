@@ -206,6 +206,14 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
   width: calc(2px * var(--inv)); height: calc(var(--hs) * 0.75 * var(--inv));
   margin-left: calc(-1px * var(--inv)); background: var(--select);
 }
+/* Croix de déplacement : à côté de l'objet, pour le déplacer sans le cacher avec le doigt */
+.handle-move {
+  --mv: calc(var(--hs) * 1.35 * var(--inv));
+  width: var(--mv); height: var(--mv);
+  left: calc(var(--mv) * -1.05); bottom: calc(var(--mv) * -1.05);
+  background: #fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 2 L8.5 6 H11 V11 H6 V8.5 L2 12 L6 15.5 V13 H11 V18 H8.5 L12 22 L15.5 18 H13 V13 H18 V15.5 L22 12 L18 8.5 V11 H13 V6 H15.5 Z' fill='%235A3E3A'/></svg>") center / 70% no-repeat;
+  cursor: move;
+}
 /* Écran tactile : poignées plus grosses, bouton de suppression toujours visible */
 @media (pointer: coarse) {
   .stage { --hs: 30px; }
