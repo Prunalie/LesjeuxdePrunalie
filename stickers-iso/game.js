@@ -6590,6 +6590,7 @@
   }
 
   function renderCoffre() {
+    if (document.activeElement !== coffreRewardInput) coffreRewardInput.value = proposalReward();
     document.querySelectorAll('.coffre-tab').forEach((tab) => {
       const n = tab.dataset.filter === 'tofix' ? toFixList().length : state.proposals.filter((p) => coffreStatus(p) === tab.dataset.filter).length;
       tab.classList.toggle('active', tab.dataset.filter === coffreFilter);
@@ -6714,11 +6715,18 @@
     }
   }
 
+  // Montant de la récompense : réglé tout en haut du Coffre (même réglage que dans Paramétrage).
+  const coffreRewardInput = $('#coffreReward');
+  function coffreReward() {
+    const v = Math.max(0, Math.round(Number(coffreRewardInput.value)));
+    if (coffreRewardInput.value === '' || !Number.isFinite(v)) { coffreRewardInput.value = proposalReward(); return proposalReward(); }
+    if (v !== proposalReward()) { state.settings.proposalReward = v; saveSettings(); }
+    return v;
+  }
+  coffreRewardInput.addEventListener('change', coffreReward);
+
   async function acceptProposal(p) {
-    const give = setting('proposalGiveSticker');
-    const answer = await askText(`Valider « ${p.name} » de ${p.ownerName || p.owner}. Combien de pièces lui offrir ?${give ? ' (Il recevra aussi le sticker en 1 exemplaire.)' : ''}`, 'Valider', String(proposalReward()));
-    if (answer === null) return;
-    const reward = Math.max(0, Math.round(Number(answer) || 0));
+    const reward = coffreReward();
     if (await doAccept(p, reward)) toast(`« ${p.name} » validé. ${p.ownerName || p.owner} a reçu un message.`);
     else toast('La validation n\'a pas pu être enregistrée. Vérifie ta connexion.');
     renderCoffre();
@@ -6731,9 +6739,8 @@
     const list = state.proposals.filter((p) => p.status === 'pending');
     if (!list.length) return;
     const give = setting('proposalGiveSticker');
-    const answer = await askText(`Valider les ${list.length} propositions en attente. Combien de pièces offrir à chaque joueur ?${give ? ' (Chacun recevra aussi son sticker en 1 exemplaire.)' : ''}`, `Tout valider (${list.length})`, String(proposalReward()));
-    if (answer === null) return;
-    const reward = Math.max(0, Math.round(Number(answer) || 0));
+    const reward = coffreReward();
+    if (!(await askConfirm(`Valider les ${list.length} propositions en attente, avec ${reward} 🪙 pour chaque joueur ?${give ? ' (Chacun recevra aussi son sticker en 1 exemplaire.)' : ''}`, `Tout valider (${list.length})`))) return;
     acceptingAll = true;
     const btn = $('#coffreAcceptAll');
     let ok = 0;

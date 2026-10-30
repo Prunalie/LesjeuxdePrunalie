@@ -2342,3 +2342,9 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .atelier-publish-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .atelier-publish-date { width: auto; padding: 6px 8px; font-size: .9rem; }
 .atelier-tile.unpublished { border-style: dashed; }
+
+.coffre-reward { max-width: 1100px; margin: 0 auto 12px; padding: 10px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.coffre-reward label { font-weight: 700; }
+.coffre-reward-field { display: inline-flex; align-items: center; gap: 6px; }
+.coffre-reward-field .field { width: 90px; padding: 6px 8px; }
+.coffre-reward-note { font-size: .8rem; flex-basis: 100%; }

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610292200">
+  <link rel="stylesheet" href="style.css?v=202610301000">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -607,6 +607,11 @@
       </div>
     </header>
     <div class="rooms-body">
+      <div class="coffre-reward">
+        <label for="coffreReward">Récompense par sticker validé</label>
+        <span class="coffre-reward-field"><input id="coffreReward" class="field" type="number" min="0" step="10" inputmode="numeric"> 🪙</span>
+        <span class="muted coffre-reward-note">« Valider » envoie ce montant tout de suite, sans redemander.</span>
+      </div>
       <div class="coffre-tabs" role="tablist">
         <button class="coffre-tab" data-filter="pending">À valider <span></span></button>
         <button class="coffre-tab" data-filter="unfiled">À ranger <span></span></button>
@@ -1070,7 +1075,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610292200"></script>
-  <script src="game.js?v=202610292200"></script>
+  <script src="firebase-config.js?v=202610301000"></script>
+  <script src="game.js?v=202610301000"></script>
 </body>
 </html>
