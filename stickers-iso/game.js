@@ -4059,10 +4059,14 @@
   const decoOwned = (id) => (state.isAdmin && !decoAsPlayer) || !!(state.profile && state.profile.decos && state.profile.decos[id]);
   const decoByName = (a, b) => (a.collection || '').localeCompare(b.collection || '', 'fr') || (a.name || '').localeCompare(b.name || '', 'fr');
   const decoList = (kind) => [...state.decos.values()].filter((d) => d.kind === kind).sort(decoByName);
+  // Aperçu à plat : la largeur de la vignette représente 4 carreaux de pièce, donc un motif de « taille 2 »
+  // y apparaît deux fois, un motif de « taille 1 » quatre fois (au plus un motif entier si la taille est grande).
+  const decoBgSize = (d) => `${Math.min(100, Math.max(8, ((Number(d.size) || 2) / 4) * 100))}% auto`;
   function decoThumb(d) {
     const el = document.createElement('span');
     el.className = 'deco-thumb';
     el.style.backgroundImage = `url("${d.url}")`;
+    el.style.backgroundSize = decoBgSize(d);
     return el;
   }
   // Titres de collection au-dessus des décors (un décor se vend toujours seul).
@@ -4200,6 +4204,7 @@
         card.className = 'dv-card';
         card.innerHTML = `<div class="dv-preview"><span class="dv-tag">${DV_ICON[kind]}${meta.tag}</span></div><div class="dv-name"></div>`;
         card.querySelector('.dv-preview').style.backgroundImage = `url("${d.url}")`;
+        card.querySelector('.dv-preview').style.backgroundSize = decoBgSize(d);
         card.querySelector('.dv-name').textContent = d.name;
         if (own) {
           const o = document.createElement('div');
@@ -4301,6 +4306,7 @@
           <button class="btn btn-ghost deco-admin-del" type="button" title="Supprimer ce décor">🗑️</button>
         </div>`;
       card.querySelector('.deco-preview').style.backgroundImage = `url("${d.url}")`;
+      card.querySelector('.deco-preview').style.backgroundSize = decoBgSize(d);
       const save = (field, value) => {
         d[field] = value;
         db.updateImage(d.id, { [field]: value }).catch(() => toast('Le réglage n\'a pas pu être enregistré. Vérifie ta connexion.'));
@@ -4315,7 +4321,10 @@
       f('kind').addEventListener('change', () => save('kind', f('kind').value));
       f('collection').addEventListener('change', () => save('collection', f('collection').value.trim()));
       f('price').addEventListener('change', () => save('price', Math.max(0, Math.round(Number(f('price').value) || 0))));
-      f('size').addEventListener('change', () => save('size', Math.max(0.5, Math.min(12, Number(f('size').value) || 2))));
+      f('size').addEventListener('change', () => {
+        save('size', Math.max(0.5, Math.min(12, Number(f('size').value) || 2)));
+        card.querySelector('.deco-preview').style.backgroundSize = decoBgSize(d);
+      });
       card.querySelector('.deco-admin-test').addEventListener('click', () => openDecoTest(d));
       card.querySelector('.deco-admin-del').addEventListener('click', async () => {
         if (!(await askConfirm(`Supprimer « ${d.name} » ? Les pièces qui l'utilisent reprennent leur couleur unie.`, 'Supprimer'))) return;
