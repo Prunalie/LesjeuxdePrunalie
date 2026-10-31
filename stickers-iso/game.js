@@ -254,6 +254,10 @@
           return true;
         }),
         // Nouveautés écrites par l'administratrice (type « news »)
+        // To-do de l'administratrice
+        listTodos: () => all(rooms.where('type', '==', 'todo')),
+        putTodo: ({ id, ...t }) => rooms.doc(id).set(clean({ ...t, type: 'todo' })),
+        deleteTodo: (id) => rooms.doc(id).delete(),
         listNews: () => all(rooms.where('type', '==', 'news')),
         putNews: ({ id, ...n }) => rooms.doc(id).set(clean({ ...n, type: 'news' })),
         deleteNews: (id) => rooms.doc(id).delete(),
@@ -345,6 +349,9 @@
         await run('mails', 'readwrite', (s) => s.put({ ...m, claimed: true, read: true }));
         return true;
       },
+      listTodos: async () => (await getAll('settings')).filter((r) => r.type === 'todo'),
+      putTodo: (t) => run('settings', 'readwrite', (s) => s.put({ ...t, type: 'todo' })),
+      deleteTodo: (id) => run('settings', 'readwrite', (s) => s.delete(id)),
       listNews: () => getAll('news'),
       putNews: (n) => run('news', 'readwrite', (s) => s.put(n)),
       deleteNews: (id) => run('news', 'readwrite', (s) => s.delete(id)),
@@ -2343,6 +2350,7 @@
     news: $('#screenNews'),
     contest: $('#screenContest'),
     ctHistory: $('#screenCtHistory'),
+    todo: $('#screenTodo'),
     settings: $('#screenSettings'),
     adminContest: $('#screenAdminContest'),
     maintenance: $('#screenMaintenance'),
@@ -2545,6 +2553,7 @@
     $('#playerName2').textContent = display;
     $('#homeAtelier').hidden = !state.isAdmin;
     $('#homeDecoAtelier').hidden = !state.isAdmin;
+    $('#homeTodo').hidden = !state.isAdmin;
     $('#homeAdmin').hidden = !state.isAdmin;
     state.images = new Map();
     state.decos = new Map();
@@ -6975,6 +6984,191 @@
     db.deleteImage(p.id).catch(() => toast('La proposition n\'a pas pu être supprimée.'));
     renderCoffre();
   }
+
+
+  // ---------------------------------------------------------------------------
+  // To-do (administratrice) : idées et tâches, qu'on peut ajouter, modifier, ranger et cocher
+  // ---------------------------------------------------------------------------
+  const TODO_CATS = { todo: 'À faire', later: 'Peut-être plus tard', bug: 'Petit défaut' };
+  // Liste de départ : reprise de IDEES.md (importée une seule fois, à la première ouverture).
+  const TODO_SEED = [
+    ['todo', 0, '**Lumière** (en test chez l\'administratrice) : lumière de la pièce et points lumineux sur des objets. À ouvrir aux joueurs une fois testée (peut-être en l\'achetant avec des étoiles, comme les étages).'],
+    ['todo', 0, '**Papiers peints et sols** (en test chez l\'administratrice) : motifs plats importés dans l\'Atelier décor, vendus un par un dans la boutique (2 étoiles pour débloquer), choisis par pièce. À ouvrir aux joueurs une fois testé.'],
+    ['todo', 0, '**Troc** : échanger des stickers entre joueurs.'],
+    ['todo', 0, '**Mini-jeux pour gagner des pièces** (par exemple un Memory avec les stickers).'],
+    ['todo', 0, '**Voter pour le thème suivant** du concours.'],
+    ['todo', 0, '**Ma maison** : avoir sa maison à décorer (plusieurs pièces réunies), et pouvoir aller visiter la maison des autres joueurs.'],
+    ['todo', 0, '**Boîte à idées pour les joueurs** : un espace où les joueurs envoient leurs idées pour le jeu, que l\'administratrice lit de son côté.'],
+    ['todo', 1, '**Historique de mes pièces de concours** : thème, date et résultat de chaque participation.'],
+    ['todo', 1, '**Concours du jour** : un thème par jour, on publie sa pièce, vote le lendemain jusqu\'à 20 h, gagnant dévoilé et récompensé à 20 h. Thèmes et récompense réglables dans l\'Atelier.'],
+    ['todo', 1, 'Palette de couleurs : 8 couleurs en mémoire, curseurs placés sur la couleur actuelle.'],
+    ['todo', 1, 'Couleurs des murs et du sol des étages.'],
+    ['todo', 1, '**Nouveautés** : fenêtre « Quoi de neuf ? » à la connexion et menu ✨ Nouveautés (l\'administratrice peut en écrire).'],
+    ['todo', 1, '**Aménager les pièces** (à débloquer avec des étoiles) : jardin, taille sur mesure, étages au fond de la pièce. Prix réglables dans l\'Atelier.'],
+    ['todo', 1, 'Nombre d\'étoiles affiché à côté des pièces.'],
+    ['todo', 1, '**Étoile depuis une collection** : bouton « 🌟 Utiliser une étoile » dans le classeur (et « 🌟 Étoile » dans l\'aperçu d\'une enveloppe), qui ne propose que les stickers de cette enveloppe.'],
+    ['todo', 1, '**Agrandir la fenêtre de sélection des stickers** (le panneau où on choisit les stickers à poser dans une pièce). Bouton ⤢ à côté de la Boutique.'],
+    ['todo', 1, '**Télécharger une image** : bouton ⬇️ dans le Coffre (image envoyée par le joueur) et dans l\'Atelier (dessin d\'un sticker), en PNG.'],
+    ['todo', 1, '**Remplacer l\'image d\'un sticker** : pouvoir réimporter une nouvelle image sur un sticker existant (pour améliorer son dessin) sans le perdre : les joueurs qui l\'ont et les pièces où il est posé gardent le sticker, avec le nouveau dessin.'],
+    ['todo', 1, 'Atelier réorganisé : liste des enveloppes, recherche, une enveloppe à la fois.'],
+    ['todo', 1, 'Offrir des stickers et des pièces aux joueurs.'],
+    ['todo', 1, '**Enveloppes du jour** : 5 enveloppes au prix normal chaque jour, les autres plus chères (réglable dans Paramétrage).'],
+    ['todo', 1, 'Message de bienvenue et cadeau de bienvenue (réglable dans Paramétrage) pour les nouveaux joueurs.'],
+    ['todo', 1, 'Messages aux joueurs avec un titre et un texte long (à un joueur ou à tous).'],
+    ['todo', 1, 'Coffre : onglet « À ranger » et archives.'],
+  ];
+  let todos = [];
+  let todoTab = 'todo';
+  let todoEditing = null; // id de l'élément en cours de modification
+
+  const cleanTodoText = (t) => t.replace(/\*\*/g, '');
+  async function loadTodos() {
+    let list = (await db.listTodos()) || [];
+    if (!list.some((t) => t.meta)) {
+      // Première ouverture : on reprend la liste d'idées de départ (identifiants fixes : jamais en double).
+      const now = Date.now();
+      const seeded = TODO_SEED.map(([cat, done, text], i) => ({
+        id: `todo-seed-${String(i + 1).padStart(2, '0')}`, cat, done: !!done, text: cleanTodoText(text),
+        order: i + 1, created: now - (TODO_SEED.length - i) * 1000, ...(done ? { doneAt: now - (TODO_SEED.length - i) * 1000 } : {}),
+      }));
+      for (const t of seeded) { if (!list.some((x) => x.id === t.id)) await db.putTodo(t); }
+      await db.putTodo({ id: 'todo-meta', meta: true, seeded: true });
+      list = [...list.filter((x) => !x.meta), ...seeded.filter((t) => !list.some((x) => x.id === t.id)), { id: 'todo-meta', meta: true }];
+    }
+    todos = list.filter((t) => !t.meta);
+  }
+  async function saveTodo(t) {
+    t.updated = Date.now();
+    try { await db.putTodo(t); } catch (e) {
+      console.warn('To-do non enregistrée', e);
+      toast('Le changement n\'a pas pu être enregistré. Vérifie ta connexion.');
+    }
+  }
+  const todoSorted = (cat) => todos.filter((t) => (cat === 'done' ? t.done : !t.done && t.cat === cat))
+    .sort((a, b) => (cat === 'done' ? (b.doneAt || 0) - (a.doneAt || 0) : (a.order || 0) - (b.order || 0) || (a.created || 0) - (b.created || 0)));
+
+  function renderTodo() {
+    document.querySelectorAll('#todoTabs .deco-tab').forEach((tab) => {
+      tab.classList.toggle('active', tab.dataset.cat === todoTab);
+      tab.querySelector('span').textContent = todoSorted(tab.dataset.cat).length;
+    });
+    const list = $('#todoList');
+    list.innerHTML = '';
+    const items = todoSorted(todoTab);
+    $('#todoEmpty').hidden = items.length > 0;
+    $('#todoEmpty').textContent = todoTab === 'done' ? 'Rien de fait pour l\'instant : coche une tâche quand elle est terminée.' : 'Rien ici pour l\'instant. Ajoute une idée avec le champ du haut !';
+    $('#homeTodoSub').textContent = `${plural(todoSorted('todo').length, 'chose')} à faire`;
+    items.forEach((t, i) => {
+      const li = document.createElement('li');
+      li.className = 'todo-item' + (t.done ? ' done' : '');
+      li.innerHTML = `
+        <input type="checkbox" class="todo-check" aria-label="Fait">
+        <div class="todo-body"><span class="todo-text" tabindex="0" role="button" title="Toucher pour modifier"></span><span class="todo-meta muted"></span></div>
+        <div class="todo-actions">
+          <button type="button" class="btn btn-ghost todo-up" title="Monter" aria-label="Monter">▲</button>
+          <button type="button" class="btn btn-ghost todo-down" title="Descendre" aria-label="Descendre">▼</button>
+          <select class="coffre-select todo-cat" aria-label="Changer de rubrique" title="Changer de rubrique"></select>
+          <button type="button" class="btn btn-ghost todo-del" title="Supprimer" aria-label="Supprimer">🗑️</button>
+        </div>`;
+      const check = li.querySelector('.todo-check');
+      check.checked = !!t.done;
+      check.addEventListener('change', async () => {
+        t.done = check.checked;
+        if (t.done) t.doneAt = Date.now(); else delete t.doneAt;
+        await saveTodo(t);
+        renderTodo();
+      });
+      const textEl = li.querySelector('.todo-text');
+      textEl.textContent = t.text;
+      li.querySelector('.todo-meta').textContent = t.done ? `${TODO_CATS[t.cat] || ''}${t.doneAt ? ' · fait le ' + new Date(t.doneAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : ''}` : '';
+      const startEdit = () => {
+        const box = document.createElement('textarea');
+        box.className = 'field todo-edit';
+        box.rows = Math.max(2, Math.ceil(t.text.length / 38));
+        box.maxLength = 600;
+        box.value = t.text;
+        textEl.replaceWith(box);
+        box.focus();
+        let finished = false;
+        const finish = async (save) => {
+          if (finished) return;
+          finished = true;
+          const v = box.value.trim();
+          if (save && v && v !== t.text) { t.text = v; await saveTodo(t); }
+          renderTodo();
+        };
+        box.addEventListener('blur', () => finish(true));
+        box.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+          else if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); box.blur(); }
+        });
+      };
+      textEl.addEventListener('click', startEdit);
+      textEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') startEdit(); });
+      for (const [k, label] of Object.entries(TODO_CATS)) li.querySelector('.todo-cat').add(new Option(label, k));
+      li.querySelector('.todo-cat').value = t.cat;
+      li.querySelector('.todo-cat').addEventListener('change', async (e) => {
+        t.cat = e.target.value;
+        t.order = Math.max(0, ...todos.filter((x) => x.cat === t.cat).map((x) => x.order || 0)) + 1;
+        await saveTodo(t);
+        renderTodo();
+      });
+      const move = async (dir) => {
+        const j = i + dir;
+        if (j < 0 || j >= items.length) return;
+        // On renumérote la rubrique pour que l'échange soit stable.
+        items.forEach((x, n) => { x.order = n + 1; });
+        [items[i].order, items[j].order] = [items[j].order, items[i].order];
+        await Promise.all([saveTodo(items[i]), saveTodo(items[j])]);
+        renderTodo();
+      };
+      const up = li.querySelector('.todo-up'), down = li.querySelector('.todo-down');
+      up.disabled = t.done || i === 0;
+      down.disabled = t.done || i === items.length - 1;
+      up.hidden = down.hidden = !!t.done;
+      up.addEventListener('click', () => move(-1));
+      down.addEventListener('click', () => move(1));
+      li.querySelector('.todo-del').addEventListener('click', async () => {
+        if (!(await askConfirm(`Supprimer « ${t.text.slice(0, 80)}${t.text.length > 80 ? '…' : ''} » ?`, 'Supprimer'))) return;
+        todos = todos.filter((x) => x.id !== t.id);
+        db.deleteTodo(t.id).catch(() => toast('La suppression n\'a pas pu être enregistrée.'));
+        renderTodo();
+      });
+      list.appendChild(li);
+    });
+  }
+  async function openTodo() {
+    if (!state.isAdmin) return;
+    showScreen('todo');
+    $('#todoList').innerHTML = '<li class="muted">Chargement…</li>';
+    try {
+      await loadTodos();
+    } catch (e) {
+      console.warn('To-do indisponible', e);
+      $('#todoList').innerHTML = '';
+      toast('Impossible de charger ta to-do. Vérifie ta connexion.');
+      return;
+    }
+    renderTodo();
+  }
+  $('#homeTodo').addEventListener('click', openTodo);
+  $('#todoBack').addEventListener('click', goHome);
+  document.querySelectorAll('#todoTabs .deco-tab').forEach((tab) => tab.addEventListener('click', () => { todoTab = tab.dataset.cat; renderTodo(); }));
+  $('#todoForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const text = $('#todoText').value.trim();
+    if (!text) return;
+    const cat = $('#todoCat').value;
+    const t = {
+      id: `todo-${uid()}`, cat, done: false, text,
+      order: Math.max(0, ...todos.filter((x) => x.cat === cat).map((x) => x.order || 0)) + 1, created: Date.now(),
+    };
+    todos.push(t);
+    $('#todoText').value = '';
+    todoTab = cat;
+    renderTodo();
+    await saveTodo(t);
+  });
 
   // ---------------------------------------------------------------------------
   // Joueurs (administratrice) : qui a commencé à jouer, et lui écrire

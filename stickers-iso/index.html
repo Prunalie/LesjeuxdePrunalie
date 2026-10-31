@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202610301700">
+  <link rel="stylesheet" href="style.css?v=202610311100">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -140,6 +140,10 @@
             <button id="homeMaintenance" class="mini home-card admin-card">
               <span class="tile-icon" style="background:#FFE0E6"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><path d="M20.5 4.5 A7 7 0 0 0 13.5 13.5 L4.5 22.5 A3 3 0 0 0 9.5 27.5 L18.5 18.5 A7 7 0 0 0 27.5 11.5 L23 16 L18 14 L16 9 Z" fill="#A9B4C2" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/></svg></span>
               <span class="small-text"><span class="card-title">Maintenance</span><span id="homeMaintenanceSub" class="card-sub">Tout est ouvert</span></span>
+            </button>
+            <button id="homeTodo" class="mini home-card admin-card" hidden>
+              <span class="tile-icon" style="background:#E8F4DC"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="4" width="22" height="24" rx="4" fill="#FFF8EF" stroke="#5A3E3A" stroke-width="2.4"/><path d="M10 11 L12.5 13.5 L17 8.5 M10 19 L12.5 21.5 L17 16.5" fill="none" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 11 H24 M20 19 H24" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+              <span class="small-text"><span class="card-title">À faire</span><span id="homeTodoSub" class="card-sub">Mes idées et ma to-do</span></span>
             </button>
           </div>
         </details>
@@ -478,6 +482,35 @@
     </header>
     <div class="rooms-body">
       <div id="ctHistBody" class="ct-body"></div>
+    </div>
+  </section>
+
+  <!-- To-do (administratrice) -->
+  <section id="screenTodo" class="screen screen-todo" hidden>
+    <header class="topbar">
+      <div class="room-title">
+        <button id="todoBack" class="btn btn-ghost" title="Menu principal">←<span class="label-long">&nbsp;Menu</span></button>
+        <h1>À faire ✅</h1>
+      </div>
+    </header>
+    <div class="rooms-body">
+      <form id="todoForm" class="todo-form" autocomplete="off">
+        <input id="todoText" class="field" type="text" maxlength="600" placeholder="Ajouter une idée…" aria-label="Nouvelle idée">
+        <select id="todoCat" class="coffre-select" aria-label="Rubrique">
+          <option value="todo">À faire</option>
+          <option value="later">Peut-être plus tard</option>
+          <option value="bug">Petit défaut</option>
+        </select>
+        <button class="btn btn-primary" type="submit">＋ Ajouter</button>
+      </form>
+      <div id="todoTabs" class="deco-tabs todo-tabs" role="tablist">
+        <button class="deco-tab active" type="button" data-cat="todo">À faire <span></span></button>
+        <button class="deco-tab" type="button" data-cat="later">Peut-être plus tard <span></span></button>
+        <button class="deco-tab" type="button" data-cat="bug">Petits défauts <span></span></button>
+        <button class="deco-tab" type="button" data-cat="done">Fait ✅ <span></span></button>
+      </div>
+      <p id="todoEmpty" class="empty" hidden>Rien ici pour l'instant.</p>
+      <ul id="todoList" class="todo-list"></ul>
     </div>
   </section>
 
@@ -1078,7 +1111,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202610301700"></script>
-  <script src="game.js?v=202610301700"></script>
+  <script src="firebase-config.js?v=202610311100"></script>
+  <script src="game.js?v=202610311100"></script>
 </body>
 </html>

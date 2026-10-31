@@ -2365,3 +2365,20 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 /* Petite étiquette NEW sur les enveloppes sorties aujourd'hui */
 .shop-card { position: relative; }
 .new-badge { position: absolute; top: -8px; left: -6px; z-index: 2; padding: 2px 9px; border-radius: 999px; background: #f0658a; color: #fff; font-weight: 800; font-size: .72rem; letter-spacing: .06em; border: 2px solid var(--chunk); box-shadow: 0 2px 0 var(--chunk); transform: rotate(-6deg); pointer-events: none; }
+
+/* To-do (administratrice) */
+.todo-form { max-width: 900px; margin: 0 auto 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+.todo-form .field { flex: 1; min-width: 200px; }
+.todo-tabs { max-width: 900px; margin: 0 auto 12px; flex-wrap: wrap; }
+.todo-list { list-style: none; margin: 0 auto; padding: 0; max-width: 900px; display: flex; flex-direction: column; gap: 8px; }
+.todo-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.todo-item.done .todo-text { text-decoration: line-through; color: var(--muted); }
+.todo-check { flex: none; width: 22px; height: 22px; margin-top: 2px; cursor: pointer; }
+.todo-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.todo-text { cursor: text; overflow-wrap: anywhere; line-height: 1.35; }
+.todo-meta { font-size: .78rem; }
+.todo-edit { width: 100%; resize: vertical; }
+.todo-actions { flex: none; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; justify-content: flex-end; max-width: 180px; }
+.todo-actions .btn { padding: 4px 8px; }
+.todo-actions .coffre-select { max-width: 130px; padding: 4px 6px; font-size: .8rem; }
+@media (max-width: 560px) { .todo-item { flex-wrap: wrap; } .todo-body { flex-basis: calc(100% - 40px); } .todo-actions { flex-basis: 100%; max-width: none; justify-content: flex-start; } }
