@@ -4159,39 +4159,72 @@
   decoPicker.addEventListener('click', (e) => { if (e.target === decoPicker) decoPicker.hidden = true; });
 
   // Boutique : achat un par un
+  // Page Décor de la boutique : papiers peints et sols en cartes (maquette « Ma petite pièce – Décor »).
+  const DV_ICON = {
+    wall: '<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5 L12 9 V21 L3 17 Z M12 9 L21 5 V17 L12 21 Z" fill="#FFE08A" stroke="#5A3E3A" stroke-width="2.6" stroke-linejoin="round"/></svg>',
+    floor: '<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6 L21 11 L12 16 L3 11 Z" fill="#C9E8D9" stroke="#5A3E3A" stroke-width="2.6" stroke-linejoin="round"/></svg>',
+  };
+  const DV_SECTION = {
+    wall: { title: 'Papiers peints', tag: 'Mur', bg: '#FFE08A', icon: '<svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5 L12 9 V21 L3 17 Z" fill="#FFF8EF" stroke="#5A3E3A" stroke-width="2" stroke-linejoin="round"/><path d="M12 9 L21 5 V17 L12 21 Z" fill="#F7A8B8" stroke="#5A3E3A" stroke-width="2" stroke-linejoin="round"/></svg>' },
+    floor: { title: 'Sols', tag: 'Sol', bg: '#C9E8D9', icon: '<svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6 L21 11 L12 16 L3 11 Z" fill="#FFF8EF" stroke="#5A3E3A" stroke-width="2" stroke-linejoin="round"/><path d="M3 11 V14 L12 19 L21 14 V11" fill="#DDAB70" stroke="#5A3E3A" stroke-width="2" stroke-linejoin="round"/></svg>' },
+  };
+  const DV_CHECK = '<svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5 L8.5 15 L16 5.5" fill="none" stroke="#5A3E3A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   function renderDecoShop() {
     const list = $('#decoShopList');
     list.innerHTML = '';
-    let any = false;
-    for (const kind of ['wall', 'floor']) {
-      const items = decoList(kind);
-      if (!items.length) continue;
-      any = true;
-      const h = document.createElement('h3');
-      h.className = 'deco-kind';
-      h.textContent = kind === 'wall' ? 'Papiers peints' : 'Sols';
-      list.appendChild(h);
-      decoGroups(items, list, (d) => {
+    const kinds = ['wall', 'floor'].filter((k) => decoList(k).length);
+    $('#decoTabs').hidden = kinds.length < 2;
+    if (!kinds.length) { list.innerHTML = '<p class="muted deco-empty">Rien en vente pour l\'instant.</p>'; return; }
+    for (const kind of kinds) {
+      const meta = DV_SECTION[kind];
+      const sec = document.createElement('section');
+      sec.className = 'dv-sec';
+      sec.id = kind === 'wall' ? 'decoSecWall' : 'decoSecFloor';
+      sec.innerHTML = `<div class="dv-sec-head"><span class="dv-sec-icon" style="background:${meta.bg}">${meta.icon}</span><h2></h2></div>`;
+      sec.querySelector('h2').textContent = meta.title;
+      let grid = null, last = null;
+      for (const d of decoList(kind)) {
+        const col = d.collection || 'Sans collection';
+        if (col !== last) {
+          const pill = document.createElement('div');
+          pill.className = 'dv-collection';
+          pill.textContent = col;
+          sec.appendChild(pill);
+          grid = document.createElement('div');
+          grid.className = 'dv-grid';
+          sec.appendChild(grid);
+          last = col;
+        }
         const own = decoOwned(d.id);
         const card = document.createElement('div');
-        card.className = 'deco-item deco-shop-item';
-        card.appendChild(decoThumb(d));
-        const n = document.createElement('span');
-        n.className = 'deco-name';
-        n.textContent = d.name;
-        card.appendChild(n);
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'btn' + (own ? '' : ' btn-primary');
-        b.disabled = own;
-        b.textContent = own ? '✓ À toi' : `${d.price} 🪙`;
-        b.addEventListener('click', () => buyDeco(d));
-        card.appendChild(b);
-        return card;
-      });
+        card.className = 'dv-card';
+        card.innerHTML = `<div class="dv-preview"><span class="dv-tag">${DV_ICON[kind]}${meta.tag}</span></div><div class="dv-name"></div>`;
+        card.querySelector('.dv-preview').style.backgroundImage = `url("${d.url}")`;
+        card.querySelector('.dv-name').textContent = d.name;
+        if (own) {
+          const o = document.createElement('div');
+          o.className = 'dv-own';
+          o.innerHTML = `${DV_CHECK}À toi`;
+          card.appendChild(o);
+        } else {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'dv-buy';
+          b.innerHTML = `${d.price}${COIN_SVG(20)}`;
+          b.setAttribute('aria-label', `Acheter ${d.name} pour ${d.price} pièces`);
+          b.addEventListener('click', () => buyDeco(d));
+          card.appendChild(b);
+        }
+        grid.appendChild(card);
+      }
+      list.appendChild(sec);
     }
-    if (!any) list.innerHTML = '<p class="muted deco-empty">Rien en vente pour l\'instant.</p>';
   }
+  document.querySelectorAll('#decoTabs .dv-tab').forEach((tab) => tab.addEventListener('click', () => {
+    document.querySelectorAll('#decoTabs .dv-tab').forEach((t) => t.classList.toggle('active', t === tab));
+    const sec = document.getElementById(tab.dataset.kind === 'wall' ? 'decoSecWall' : 'decoSecFloor');
+    if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
   async function buyDeco(d) {
     if (decoOwned(d.id)) return;
     if ((state.profile.points || 0) < d.price) { toast(`Il te manque ${d.price - (state.profile.points || 0)} 🪙.`); return; }

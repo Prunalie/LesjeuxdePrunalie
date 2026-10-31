@@ -2291,7 +2291,6 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
   font: inherit; cursor: pointer; text-align: center;
 }
 .deco-item.active { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,0,0,.06); }
-.deco-shop-item { cursor: default; }
 .deco-thumb {
   width: 72px; height: 72px; border-radius: 8px; border: 1px solid var(--line);
   background-size: 50% auto; background-repeat: repeat; display: grid; place-items: center;
@@ -2315,8 +2314,6 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 
 /* Boutique : choix entre enveloppes et décor */
 .shop-choice { max-width: 788px; margin: 8px auto 0; }
-.deco-shop-page { max-width: 788px; margin: 0 auto; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
-.deco-shop-page .deco-thumb { width: 96px; height: 96px; }
 @media (max-width: 720px) { .shop-choice { grid-template-columns: 1fr; } .shop-choice .home-card.big { height: 150px; } }
 
 
@@ -2382,3 +2379,33 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .todo-actions .btn { padding: 4px 8px; }
 .todo-actions .coffre-select { max-width: 130px; padding: 4px 6px; font-size: .8rem; }
 @media (max-width: 560px) { .todo-item { flex-wrap: wrap; } .todo-body { flex-basis: calc(100% - 40px); } .todo-actions { flex-basis: 100%; max-width: none; justify-content: flex-start; } }
+
+/* Boutique · Décor (design « Ma petite pièce – Décor ») : contours bruns, ombres pleines, formes arrondies */
+#shopDecoView { --dv-ink: #5A3E3A; --dv-surface: #FFF8EF; --dv-pink: #F7A8B8; --dv-buy: #B03A5B; --dv-buy-shadow: #7A2340; --dv-own: #D6EEDF; --dv-preview: #FFF0E4; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; padding-bottom: 32px; }
+.dv-intro { display: flex; gap: 12px; align-items: flex-start; border-radius: 22px; border: 3px solid var(--chunk); background: var(--panel); padding: 14px 16px; box-shadow: 0 4px 0 var(--chunk); }
+.dv-intro svg { flex: none; margin-top: 2px; }
+.dv-intro p { margin: 0; font-weight: 700; font-size: 15px; line-height: 1.4; }
+.dv-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-radius: 999px; border: 3px solid var(--chunk); background: var(--panel); padding: 5px; }
+.dv-tabs[hidden] { display: none; }
+.dv-tab { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border-radius: 999px; border: 2.5px solid transparent; background: transparent; color: var(--ink); font: inherit; font-weight: 800; font-size: 15px; cursor: pointer; }
+.dv-tab.active { background: var(--dv-pink); border-color: var(--chunk); color: #5A3E3A; }
+.dv-list { display: flex; flex-direction: column; gap: 8px; }
+.dv-sec { display: flex; flex-direction: column; gap: 12px; scroll-margin-top: 76px; }
+.dv-sec + .dv-sec { margin-top: 14px; }
+.dv-sec-head { display: flex; align-items: center; gap: 12px; }
+.dv-sec-head h2 { margin: 0; font-family: var(--font-title); font-weight: 700; font-size: 26px; line-height: 1; }
+.dv-sec-icon { width: 46px; height: 46px; flex: none; border-radius: 15px; border: 3px solid var(--chunk); display: flex; align-items: center; justify-content: center; }
+.dv-collection { align-self: flex-start; border-radius: 999px; border: 2.5px solid var(--chunk); background: var(--panel); padding: 2px 12px; font-weight: 800; font-size: 13px; }
+.dv-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.dv-card { position: relative; display: flex; flex-direction: column; gap: 8px; border-radius: 22px; border: 3px solid var(--chunk); background: var(--panel); padding: 8px 8px 10px; box-shadow: 0 4px 0 var(--chunk); text-align: center; }
+.dv-preview { position: relative; aspect-ratio: 100 / 86; border-radius: 15px; border: 2.5px solid var(--chunk); background-color: var(--dv-preview); background-size: 34% auto; background-repeat: repeat; overflow: hidden; }
+.dv-tag { position: absolute; left: 6px; top: 6px; display: flex; align-items: center; gap: 4px; border-radius: 999px; border: 2px solid var(--chunk); background: #FFF8EF; color: #5A3E3A; padding: 1px 8px 1px 5px; font-weight: 800; font-size: 11px; line-height: 18px; }
+.dv-name { font-family: var(--font-title); font-weight: 600; font-size: 17px; line-height: 1.1; padding: 0 2px; overflow-wrap: anywhere; }
+.dv-own { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; border-radius: 999px; border: 2.5px solid var(--chunk); background: var(--dv-own); color: #5A3E3A; font-weight: 800; font-size: 15px; }
+.dv-buy { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; width: 100%; border-radius: 999px; border: 2.5px solid var(--chunk); background: var(--dv-buy); color: #fff; font: inherit; font-weight: 800; font-size: 16px; box-shadow: 0 3px 0 var(--dv-buy-shadow); cursor: pointer; transition: transform .12s, box-shadow .12s; }
+.dv-buy:hover { transform: translateY(-2px); box-shadow: 0 5px 0 var(--dv-buy-shadow); }
+.dv-buy:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--dv-buy-shadow); }
+.dv-tab:focus-visible, .dv-buy:focus-visible { outline: 3px solid var(--chunk); outline-offset: 3px; }
+.deco-asplayer { min-height: 44px; font-weight: 700; font-size: 14px; line-height: 1.3; padding: 0 4px; }
+.deco-asplayer input[type="checkbox"] { width: 26px; height: 26px; margin: 0; accent-color: #B03A5B; }
+@media (max-width: 380px) { .dv-grid { gap: 10px; } .dv-name { font-size: 15px; } }
