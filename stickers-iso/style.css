@@ -2411,3 +2411,35 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .deco-asplayer { min-height: 44px; font-weight: 700; font-size: 14px; line-height: 1.3; padding: 0 4px; }
 .deco-asplayer input[type="checkbox"] { width: 26px; height: 26px; margin: 0; accent-color: #B03A5B; }
 @media (max-width: 380px) { .dv-grid { gap: 10px; } .dv-name { font-size: 15px; } }
+
+/* Boutique · le stand (design « Boutique ») */
+.stand-page { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; padding-bottom: 32px; }
+.stand-page[hidden] { display: none; }
+.stand-card { position: relative; overflow: hidden; border-radius: 30px; border: 3px solid var(--chunk); background: var(--panel); padding: 18px 16px 16px; box-shadow: 0 6px 0 var(--chunk); }
+.stand-circle { position: absolute; right: -70px; top: -70px; width: 200px; height: 200px; border-radius: 50%; background: #FFDDE4; opacity: .85; }
+.stand-head { position: relative; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding-top: 6px; }
+.stand-head h2 { margin: 0; max-width: 170px; font-family: var(--font-title); font-weight: 700; font-size: 28px; line-height: 1.05; }
+.stand-deco { position: relative; flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 104px; border-radius: 20px; border: 3px solid var(--chunk); background: #DCEBFA; color: #5A3E3A; padding: 8px 6px; box-shadow: 0 4px 0 var(--chunk); cursor: pointer; font: inherit; transition: transform .12s, box-shadow .12s; }
+.stand-deco:hover { transform: translateY(-3px); box-shadow: 0 7px 0 var(--chunk); }
+.stand-deco:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--chunk); }
+.stand-deco-name { font-family: var(--font-title); font-weight: 700; font-size: 19px; line-height: 1; }
+.stand-pill { position: absolute; right: -8px; top: -12px; display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; border: 2.5px solid var(--chunk); background: #B03A5B; color: #fff; padding: 1px 9px 1px 6px; font-weight: 800; font-size: 11px; line-height: 1.2; box-shadow: 0 2px 0 #7A2340; }
+.stand-wrap { position: relative; margin-top: 6px; }
+.stand-wrap svg { display: block; }
+.stand-empty { padding: 40px 10px; text-align: center; }
+.stand-arrow { position: absolute; top: 42%; width: 46px; height: 46px; padding: 0; border-radius: 50%; border: 3px solid var(--chunk); background: #B03A5B; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 0 #7A2340; cursor: pointer; transition: transform .12s, box-shadow .12s; }
+.stand-arrow[hidden] { display: none; }
+.stand-next { right: -10px; }
+.stand-prev { left: -10px; }
+.stand-arrow:hover { transform: translateY(-2px); }
+.stand-arrow:active { transform: translateY(3px); box-shadow: 0 1px 0 #7A2340; }
+.st-env { transition: transform .15s; transform-box: fill-box; transform-origin: 50% 100%; }
+.st-slot { cursor: pointer; outline: none; }
+.st-slot:hover .st-env, .st-slot:focus-visible .st-env { transform: translateY(-4px); }
+.st-slot:focus-visible text { text-decoration: underline; }
+.stand-info { position: relative; margin: 10px 0 0; font-weight: 700; font-size: 14px; line-height: 1.4; color: var(--muted); }
+.stand-all { box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 62px; border-radius: 22px; border: 3px solid var(--chunk); background: #B03A5B; color: #fff; font-family: var(--font-title); font-weight: 600; font-size: 22px; box-shadow: 0 5px 0 #7A2340; padding: 8px 18px; cursor: pointer; transition: transform .12s, box-shadow .12s; }
+.stand-all:hover { transform: translateY(-2px); }
+.stand-all:active { transform: translateY(3px); box-shadow: 0 1px 0 #7A2340; }
+.stand-all span { flex: 1; text-align: left; }
+.stand-deco:focus-visible, .stand-arrow:focus-visible, .stand-all:focus-visible { outline: 3px solid var(--chunk); outline-offset: 3px; }

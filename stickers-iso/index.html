@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611011200">
+  <link rel="stylesheet" href="style.css?v=202611011400">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -328,30 +328,42 @@
     <div class="rooms-body">
       <label id="decoAsPlayerRow" class="deco-asplayer" hidden><input id="decoAsPlayer" type="checkbox"><span>Tester comme un joueur (décor à débloquer avec des étoiles, et seulement mes achats)</span>
         <button id="decoRelock" class="btn btn-ghost" type="button" hidden>↺ Reverrouiller</button></label>
-      <div id="shopChoice" class="home-big shop-choice" hidden>
-        <button id="shopChoiceEnv" class="card home-card big" type="button">
-          <span class="card-blob" style="background:#FFE0E6"></span>
-          <span class="big-text">
-            <span class="tile-icon big" style="background:#FFE0E6"><svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="7" width="26" height="18" rx="3" fill="#F2A7B5" stroke="#5A3E3A" stroke-width="2.4"/><path d="M4 9 L16 18 L28 9" fill="none" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/></svg></span>
-            <span>
-              <span class="card-title big">Enveloppes</span>
-              <span id="shopChoiceEnvNew" class="vote-todo-badge" hidden></span>
-              <span id="shopChoiceEnvSub" class="card-sub big">Un sticker tiré au sort dans chaque enveloppe</span>
-              <span id="shopChoiceEnvChip" class="chip"></span>
-            </span>
-          </span>
-        </button>
-        <button id="shopChoiceDeco" class="card home-card big" type="button">
-          <span class="card-blob" style="background:#DCEBFA"></span>
-          <span class="big-text">
-            <span class="tile-icon big" style="background:#DCEBFA"><svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 8 L16 3 L28 8 V26 H4 Z" fill="#F6D27A" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M10 26 V12 M16 26 V10 M22 26 V12" stroke="#5A3E3A" stroke-width="2" opacity=".55"/></svg></span>
-            <span>
-              <span class="card-title big">Décor</span>
-              <span class="vote-todo-badge">✨ Nouveau</span>
-              <span id="shopChoiceDecoSub" class="card-sub big">Papiers peints et sols pour tes pièces</span>
-              <span id="shopChoiceDecoLock" class="chip" hidden></span>
-            </span>
-          </span>
+      <div id="shopChoice" class="stand-page" hidden>
+        <label id="standPreviewRow" class="deco-asplayer" hidden><input id="standPreview" type="checkbox"><span id="standPreviewText"></span></label>
+        <section class="stand-card" aria-label="Enveloppes du jour">
+          <div class="stand-circle"></div>
+          <div class="stand-head">
+            <h2 id="standTitle">Enveloppes du jour</h2>
+            <button id="standDeco" class="stand-deco" type="button">
+              <span id="standDecoPill" class="stand-pill"></span>
+              <svg viewBox="0 0 240 190" width="78" height="62" aria-hidden="true">
+                <defs>
+                  <pattern id="stp-fleurs" width="16" height="16" patternUnits="userSpaceOnUse"><rect width="16" height="16" fill="#E9E3D0"/><circle cx="4" cy="4" r="1.8" fill="#C98F96"/><circle cx="12" cy="11" r="1.8" fill="#C98F96"/><circle cx="12" cy="3" r="1" fill="#8FA58A"/><circle cx="4" cy="12" r="1" fill="#8FA58A"/></pattern>
+                  <pattern id="stp-parquet" width="16" height="16" patternUnits="userSpaceOnUse"><rect width="16" height="16" fill="#DDAB70"/><rect y="0" width="16" height="1.2" fill="#B98348"/><rect y="8" width="16" height="1.2" fill="#B98348"/><rect x="0" y="0" width="1.2" height="8" fill="#B98348"/><rect x="8" y="8" width="1.2" height="8" fill="#B98348"/></pattern>
+                </defs>
+                <polygon points="40,120 120,80 120,10 40,50" fill="#EBD9C4"/>
+                <rect width="80" height="70" transform="matrix(1,-0.5,0,1,40,50)" fill="url(#stp-fleurs)"/>
+                <rect width="80" height="70" transform="matrix(1,0.5,0,1,120,10)" fill="url(#stp-fleurs)"/>
+                <polygon points="120,80 200,120 200,50 120,10" fill="#5A3E3A" opacity=".08"/>
+                <rect width="80" height="80" transform="matrix(1,-0.5,1,0.5,40,120)" fill="url(#stp-parquet)"/>
+                <polygon points="40,120 120,160 120,172 40,132" fill="#B98348"/>
+                <polygon points="120,160 200,120 200,132 120,172" fill="#9E6B38"/>
+                <g fill="none" stroke="#5A3E3A" stroke-width="5" stroke-linejoin="round"><polygon points="40,120 120,80 120,10 40,50"/><polygon points="120,80 200,120 200,50 120,10"/><polygon points="120,80 200,120 120,160 40,120"/><polygon points="40,120 120,160 120,172 40,132"/><polygon points="120,160 200,120 200,132 120,172"/></g>
+              </svg>
+              <span class="stand-deco-name">Décor</span>
+            </button>
+          </div>
+          <div class="stand-wrap">
+            <div id="standSvg"></div>
+            <button id="standPrev" class="stand-arrow stand-prev" type="button" aria-label="Voir les enveloppes précédentes" hidden><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 L8 12 L15 19" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button id="standNext" class="stand-arrow stand-next" type="button" aria-label="Voir les enveloppes suivantes" hidden><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 L16 12 L9 19" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
+          <p id="standInfo" class="stand-info"></p>
+        </section>
+        <button id="standAll" class="stand-all" type="button">
+          <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="7" width="26" height="19" rx="3.5" fill="#FFF8EF" stroke="#5A3E3A" stroke-width="2.4"/><path d="M4.5 9 L16 18 L27.5 9" fill="none" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/></svg>
+          <span>Voir toutes les enveloppes</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 L16 12 L9 19" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
       </div>
       <div id="shopEnvView">
@@ -1123,7 +1135,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611011200"></script>
-  <script src="game.js?v=202611011200"></script>
+  <script src="firebase-config.js?v=202611011400"></script>
+  <script src="game.js?v=202611011400"></script>
 </body>
 </html>

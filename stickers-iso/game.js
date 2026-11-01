@@ -2511,6 +2511,9 @@
   // Les anciennes enveloppes (sans réglage) sont en vente depuis toujours.
   const isLive = (env) => !env.draft && (!env.publishAt || env.publishAt <= today());
   const liveEnvelopes = () => state.envelopes.filter(isLive);
+  // Nouvelle boutique (le stand) et décor : chez l'administratrice tout de suite, chez les joueurs à partir de demain.
+  const SHOP_V2_FROM = '2026-11-02';
+  const shopV2 = () => state.isAdmin || today() >= SHOP_V2_FROM;
   // « NEW » : les enveloppes sorties aujourd'hui.
   const isNewEnvelope = (env) => isLive(env) && envSlotDay(env) === today();
   const envStatus = (env) => (env.draft ? 'draft' : isLive(env) ? 'live' : 'scheduled');
@@ -2567,7 +2570,7 @@
         d.listNews().catch(() => []),
       ]));
       setNews(news);
-      if (state.isAdmin) (await withFallback((d) => d.listDecos()).catch(() => [])).forEach(addDeco);
+      if (shopV2()) (await withFallback((d) => d.listDecos()).catch(() => [])).forEach(addDeco);
       state.settings = { dailyPoints: DAILY_POINTS, ...(settings || {}) };
       state.mails = mails;
       state.myProposals = mine;
@@ -3222,7 +3225,8 @@
     } else {
       shopReturnRoom = null;
     }
-    shopView = state.isAdmin ? 'choice' : 'envelopes'; // le décor est en test chez l'administratrice
+    shopView = shopV2() ? 'choice' : 'envelopes'; // le stand (et le décor) : administratrice maintenant, joueurs à partir de demain
+    standPage = 0;
     renderShop();
     showScreen('shop');
   }
@@ -3230,7 +3234,7 @@
   $('#homeShop').addEventListener('click', () => openShop(false));
   $('#btnLibShop').addEventListener('click', () => openShop(true));
   $('#shopBack').addEventListener('click', () => {
-    if (state.isAdmin && shopView !== 'choice') { shopView = 'choice'; applyShopView(); window.scrollTo(0, 0); return; }
+    if (shopV2() && shopView !== 'choice') { shopView = 'choice'; renderShopChoice(); applyShopView(); window.scrollTo(0, 0); return; }
     if (shopReturnRoom && state.rooms.some((r) => r.id === shopReturnRoom)) {
       openRoom(shopReturnRoom);
     } else {
@@ -3302,37 +3306,139 @@
     $('#shopDecoView').hidden = shopView !== 'deco';
     $('#shopStamps').hidden = shopView !== 'envelopes';
     $('#decoAsPlayerRow').hidden = !state.isAdmin || shopView === 'envelopes';
-    $('#shopTitle').textContent = shopView === 'envelopes' && state.isAdmin ? 'Enveloppes' : (shopView === 'deco' ? 'Décor' : 'Boutique');
-    $('#shopBack').title = shopView === 'choice' || !state.isAdmin ? 'Retour' : 'Retour à la boutique';
+    $('#shopTitle').textContent = shopView === 'envelopes' && shopV2() ? 'Toutes les enveloppes' : (shopView === 'deco' ? 'Décor' : 'Boutique');
+    $('#shopBack').title = shopView === 'choice' || !shopV2() ? 'Retour' : 'Retour à la boutique';
   }
 
-  // Infos sur les deux grandes cartes du choix.
+  const STAND_HEAD = "<ellipse cx=\"170\" cy=\"489\" rx=\"150\" ry=\"8\" fill=\"#5A3E3A\" opacity=\".12\"/>\n<rect x=\"24\" y=\"74\" width=\"292\" height=\"353\" fill=\"#FFEFE0\"/>\n<rect x=\"12\" y=\"78\" width=\"12\" height=\"365\" rx=\"3\" fill=\"#E8B98A\" stroke=\"#5A3E3A\" stroke-width=\"3\"/>\n<rect x=\"316\" y=\"78\" width=\"12\" height=\"365\" rx=\"3\" fill=\"#E8B98A\" stroke=\"#5A3E3A\" stroke-width=\"3\"/>\n<rect x=\"24\" y=\"164\" width=\"292\" height=\"10\" rx=\"3\" fill=\"#E8B98A\" stroke=\"#5A3E3A\" stroke-width=\"2.500\"/>\n<rect x=\"24\" y=\"300\" width=\"292\" height=\"10\" rx=\"3\" fill=\"#E8B98A\" stroke=\"#5A3E3A\" stroke-width=\"2.500\"/>";
+  const STAND_IVY = "<!-- lierre sur les poteaux -->\n<path d=\"M18 80 Q8 125 20 165 T17 250 T19 345\" fill=\"none\" stroke=\"#4E8A66\" stroke-width=\"2.800\" stroke-linecap=\"round\"/><path d=\"M322 80 Q332 125 320 165 T323 250 T321 345\" fill=\"none\" stroke=\"#4E8A66\" stroke-width=\"2.800\" stroke-linecap=\"round\"/><path transform=\"translate(14.0 96.0) rotate(30)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(326.0 106.0) rotate(150)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(14.0 123.0) rotate(150)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(326.0 133.0) rotate(30)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(14.0 150.0) rotate(30)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(326.0 160.0) rotate(150)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(14.0 177.0) rotate(150)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(326.0 187.0) rotate(30)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(14.0 204.0) rotate(30)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(326.0 214.0) rotate(150)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(14.0 231.0) rotate(150)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(326.0 241.0) rotate(30)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(14.0 258.0) rotate(30)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(326.0 268.0) rotate(150)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(14.0 285.0) rotate(150)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(326.0 295.0) rotate(30)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(14.0 312.0) rotate(30)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(326.0 322.0) rotate(150)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(14.0 339.0) rotate(150)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(326.0 349.0) rotate(30)\" d=\"M0 0 C3.9 -4.9 10.4 -4.2 13 0 C10.4 4.2 3.9 4.9 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path d=\"M26.5 92 Q32.5 120 24.5 150\" fill=\"none\" stroke=\"#4E8A66\" stroke-width=\"2.600\" stroke-linecap=\"round\"/><path transform=\"translate(28.5 106.0) rotate(25)\" d=\"M0 0 C3.3 -4.2 8.8 -3.5 11 0 C8.8 3.5 3.3 4.2 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(26.5 124.0) rotate(155)\" d=\"M0 0 C3.3 -4.2 8.8 -3.5 11 0 C8.8 3.5 3.3 4.2 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(28.5 142.0) rotate(25)\" d=\"M0 0 C3.3 -4.2 8.8 -3.5 11 0 C8.8 3.5 3.3 4.2 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path d=\"M313.5 92 Q319.5 120 311.5 150\" fill=\"none\" stroke=\"#4E8A66\" stroke-width=\"2.600\" stroke-linecap=\"round\"/><path transform=\"translate(315.5 106.0) rotate(25)\" d=\"M0 0 C3.3 -4.2 8.8 -3.5 11 0 C8.8 3.5 3.3 4.2 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(313.5 124.0) rotate(155)\" d=\"M0 0 C3.3 -4.2 8.8 -3.5 11 0 C8.8 3.5 3.3 4.2 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(315.5 142.0) rotate(25)\" d=\"M0 0 C3.3 -4.2 8.8 -3.5 11 0 C8.8 3.5 3.3 4.2 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(34.0 22.0) rotate(-110)\" d=\"M0 0 C4.5 -5.7 12.0 -4.8 15 0 C12.0 4.8 4.5 5.7 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(34.0 22.0) rotate(-90)\" d=\"M0 0 C4.5 -5.7 12.0 -4.8 15 0 C12.0 4.8 4.5 5.7 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(34.0 22.0) rotate(-70)\" d=\"M0 0 C4.5 -5.7 12.0 -4.8 15 0 C12.0 4.8 4.5 5.7 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(306.0 22.0) rotate(-110)\" d=\"M0 0 C4.5 -5.7 12.0 -4.8 15 0 C12.0 4.8 4.5 5.7 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(306.0 22.0) rotate(-90)\" d=\"M0 0 C4.5 -5.7 12.0 -4.8 15 0 C12.0 4.8 4.5 5.7 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(306.0 22.0) rotate(-70)\" d=\"M0 0 C4.5 -5.7 12.0 -4.8 15 0 C12.0 4.8 4.5 5.7 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/>";
+  const STAND_COUNTER = "<!-- comptoir -->\n<path transform=\"translate(40 360) rotate(-105)\" d=\"M0 0 C4.2 -5.3 11.2 -4.5 14 0 C11.2 4.5 4.2 5.3 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(40 360) rotate(-80)\" d=\"M0 0 C4.8 -6.1 12.8 -5.1 16 0 C12.8 5.1 4.8 6.1 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(40 360) rotate(-55)\" d=\"M0 0 C4.2 -5.3 11.2 -4.5 14 0 C11.2 4.5 4.2 5.3 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(100 360) rotate(-105)\" d=\"M0 0 C4.2 -5.3 11.2 -4.5 14 0 C11.2 4.5 4.2 5.3 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(100 360) rotate(-80)\" d=\"M0 0 C4.8 -6.1 12.8 -5.1 16 0 C12.8 5.1 4.8 6.1 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(100 360) rotate(-55)\" d=\"M0 0 C4.2 -5.3 11.2 -4.5 14 0 C11.2 4.5 4.2 5.3 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(236 360) rotate(-105)\" d=\"M0 0 C4.2 -5.3 11.2 -4.5 14 0 C11.2 4.5 4.2 5.3 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(236 360) rotate(-80)\" d=\"M0 0 C4.8 -6.1 12.8 -5.1 16 0 C12.8 5.1 4.8 6.1 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(236 360) rotate(-55)\" d=\"M0 0 C4.2 -5.3 11.2 -4.5 14 0 C11.2 4.5 4.2 5.3 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(296 360) rotate(-105)\" d=\"M0 0 C4.2 -5.3 11.2 -4.5 14 0 C11.2 4.5 4.2 5.3 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(296 360) rotate(-80)\" d=\"M0 0 C4.8 -6.1 12.8 -5.1 16 0 C12.8 5.1 4.8 6.1 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(296 360) rotate(-55)\" d=\"M0 0 C4.2 -5.3 11.2 -4.5 14 0 C11.2 4.5 4.2 5.3 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/>\n<rect x=\"8\" y=\"437\" width=\"324\" height=\"44\" rx=\"10\" fill=\"#E8B98A\" stroke=\"#5A3E3A\" stroke-width=\"3\"/>\n<rect x=\"2\" y=\"427\" width=\"336\" height=\"14\" rx=\"7\" fill=\"#F3CFA3\" stroke=\"#5A3E3A\" stroke-width=\"3\"/>";
+  const STAND_NEW_SIGN = "<rect x=\"30\" y=\"418\" width=\"6\" height=\"9\" fill=\"#C9976A\" stroke=\"#5A3E3A\" stroke-width=\"2\"/><rect x=\"122\" y=\"418\" width=\"6\" height=\"9\" fill=\"#C9976A\" stroke=\"#5A3E3A\" stroke-width=\"2\"/><rect x=\"14\" y=\"358\" width=\"130\" height=\"60\" rx=\"9\" fill=\"#C9976A\" stroke=\"#5A3E3A\" stroke-width=\"3\"/><rect x=\"19\" y=\"363\" width=\"120\" height=\"50\" rx=\"5\" fill=\"#44604F\" stroke=\"#5A3E3A\" stroke-width=\"2\"/><circle cx=\"17.5\" cy=\"388\" r=\"1.600\" fill=\"#5A3E3A\"/><circle cx=\"140.5\" cy=\"388\" r=\"1.600\" fill=\"#5A3E3A\"/><path transform=\"translate(57 372) scale(.5) translate(-13 -18)\" d=\"M13 4 L17 14 L27 18 L17 22 L13 32 L9 22 L-1 18 L9 14 Z\" fill=\"#FFD96B\"/>\n<text x=\"68\" y=\"378\" font-family=\"Fredoka,sans-serif\" font-weight=\"700\" font-size=\"16\" fill=\"#FFD96B\">NEW</text>\n<text x=\"79\" y=\"394\" text-anchor=\"middle\" font-family=\"Fredoka,sans-serif\" font-weight=\"500\" font-size=\"12.500\" fill=\"#FFF8EF\">2 nouvelles</text>\n<text x=\"79\" y=\"408\" text-anchor=\"middle\" font-family=\"Fredoka,sans-serif\" font-weight=\"500\" font-size=\"12.500\" fill=\"#FFF8EF\">enveloppes</text>";
+  const STAND_SUN_SIGN = "<rect x=\"212\" y=\"418\" width=\"6\" height=\"9\" fill=\"#C9976A\" stroke=\"#5A3E3A\" stroke-width=\"2\"/><rect x=\"308\" y=\"418\" width=\"6\" height=\"9\" fill=\"#C9976A\" stroke=\"#5A3E3A\" stroke-width=\"2\"/><rect x=\"196\" y=\"358\" width=\"134\" height=\"60\" rx=\"9\" fill=\"#C9976A\" stroke=\"#5A3E3A\" stroke-width=\"3\"/><rect x=\"201\" y=\"363\" width=\"124\" height=\"50\" rx=\"5\" fill=\"#44604F\" stroke=\"#5A3E3A\" stroke-width=\"2\"/><circle cx=\"199.5\" cy=\"388\" r=\"1.600\" fill=\"#5A3E3A\"/><circle cx=\"326.5\" cy=\"388\" r=\"1.600\" fill=\"#5A3E3A\"/><g transform=\"translate(220 372)\"><circle r=\"4\" fill=\"#FFD96B\"/><path d=\"M0 -8 V-6 M0 6 V8 M-8 0 H-6 M6 0 H8 M-5.600 -5.600 L-4.200 -4.200 M4.200 4.200 L5.600 5.600 M5.600 -5.600 L4.200 -4.200 M-4.200 4.200 L-5.600 5.600\" stroke=\"#FFD96B\" stroke-width=\"1.600\" stroke-linecap=\"round\"/></g>\n<text x=\"232\" y=\"378\" font-family=\"Fredoka,sans-serif\" font-weight=\"700\" font-size=\"15\" fill=\"#FFD96B\">Dimanche :</text>\n<text x=\"263\" y=\"394\" text-anchor=\"middle\" font-family=\"Fredoka,sans-serif\" font-weight=\"500\" font-size=\"12.500\" fill=\"#FFF8EF\">toutes à prix</text>\n<text x=\"263\" y=\"408\" text-anchor=\"middle\" font-family=\"Fredoka,sans-serif\" font-weight=\"500\" font-size=\"12.500\" fill=\"#FFF8EF\">réduit !</text>";
+  const STAND_REST = "<path transform=\"translate(170 409) rotate(-90)\" d=\"M0 0 C8.4 -10.6 22.4 -9.0 28 0 C22.4 9.0 8.4 10.6 0 0 Z\" fill=\"#5FB27F\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(170 409) rotate(-62)\" d=\"M0 0 C7.2 -9.1 19.2 -7.7 24 0 C19.2 7.7 7.2 9.1 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(170 409) rotate(-118)\" d=\"M0 0 C7.2 -9.1 19.2 -7.7 24 0 C19.2 7.7 7.2 9.1 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(170 409) rotate(-40)\" d=\"M0 0 C5.4 -6.8 14.4 -5.8 18 0 C14.4 5.8 5.4 6.8 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(170 409) rotate(-140)\" d=\"M0 0 C5.4 -6.8 14.4 -5.8 18 0 C14.4 5.8 5.4 6.8 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><polygon transform=\"translate(170 427)\" points=\"-11,-18 11,-18 9,0 -9,0\" fill=\"#F7A8B8\" stroke=\"#5A3E3A\" stroke-width=\"2.200\" stroke-linejoin=\"round\"/>";
+  const STAND_SLATE = "<!-- panneau des prix : ardoise fixée sur le comptoir -->\n<rect x=\"84\" y=\"442\" width=\"172\" height=\"34\" rx=\"8\" fill=\"#C9976A\" stroke=\"#5A3E3A\" stroke-width=\"3\"/>\n<rect x=\"90\" y=\"447\" width=\"160\" height=\"24\" rx=\"5\" fill=\"#44604F\" stroke=\"#5A3E3A\" stroke-width=\"2\"/>\n<circle cx=\"87.500\" cy=\"459\" r=\"1.800\" fill=\"#5A3E3A\"/><circle cx=\"252.500\" cy=\"459\" r=\"1.800\" fill=\"#5A3E3A\"/>";
+  const STAND_AFTER_SLATE = "<path transform=\"translate(46 459)\" d=\"M0 6 C-10 -4 -3 -13 0 -7 C3 -13 10 -4 0 6 Z\" fill=\"#F0658A\" stroke=\"#5A3E3A\" stroke-width=\"2.200\" stroke-linejoin=\"round\"/>\n<path transform=\"translate(294 459)\" d=\"M0 -9 L2.800 -2.800 L9 -2.200 L4.300 2 L5.700 8.500 L0 5 L-5.700 8.500 L-4.300 2 L-9 -2.200 L-2.800 -2.800 Z\" fill=\"#FFD96B\" stroke=\"#5A3E3A\" stroke-width=\"2.200\" stroke-linejoin=\"round\"/>\n<path transform=\"translate(9 438) rotate(60)\" d=\"M0 0 C3.0 -3.8 8.0 -3.2 10 0 C8.0 3.2 3.0 3.8 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(331 443) rotate(120)\" d=\"M0 0 C3.0 -3.8 8.0 -3.2 10 0 C8.0 3.2 3.0 3.8 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(9 451) rotate(120)\" d=\"M0 0 C3.0 -3.8 8.0 -3.2 10 0 C8.0 3.2 3.0 3.8 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(331 456) rotate(60)\" d=\"M0 0 C3.0 -3.8 8.0 -3.2 10 0 C8.0 3.2 3.0 3.8 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(9 464) rotate(60)\" d=\"M0 0 C3.0 -3.8 8.0 -3.2 10 0 C8.0 3.2 3.0 3.8 0 0 Z\" fill=\"#9ED8B3\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/><path transform=\"translate(331 469) rotate(120)\" d=\"M0 0 C3.0 -3.8 8.0 -3.2 10 0 C8.0 3.2 3.0 3.8 0 0 Z\" fill=\"#7CC59B\" stroke=\"#5A3E3A\" stroke-width=\"1.800\" stroke-linejoin=\"round\"/>";
+  const STAND_AWNING = "<!-- auvent -->\n<g stroke=\"#5A3E3A\" stroke-width=\"3\" stroke-linejoin=\"round\">\n<path d=\"M6 30 H47 V74 A20.500 20.500 0 0 1 6 74 Z\" fill=\"#F0658A\"/>\n<path d=\"M47 30 H88 V74 A20.500 20.500 0 0 1 47 74 Z\" fill=\"#FFF8EF\"/>\n<path d=\"M88 30 H129 V74 A20.500 20.500 0 0 1 88 74 Z\" fill=\"#F0658A\"/>\n<path d=\"M129 30 H170 V74 A20.500 20.500 0 0 1 129 74 Z\" fill=\"#FFF8EF\"/>\n<path d=\"M170 30 H211 V74 A20.500 20.500 0 0 1 170 74 Z\" fill=\"#F0658A\"/>\n<path d=\"M211 30 H252 V74 A20.500 20.500 0 0 1 211 74 Z\" fill=\"#FFF8EF\"/>\n<path d=\"M252 30 H293 V74 A20.500 20.500 0 0 1 252 74 Z\" fill=\"#F0658A\"/>\n<path d=\"M293 30 H334 V74 A20.500 20.500 0 0 1 293 74 Z\" fill=\"#FFF8EF\"/>\n</g>\n<rect x=\"0\" y=\"20\" width=\"340\" height=\"14\" rx=\"7\" fill=\"#B03A5B\" stroke=\"#5A3E3A\" stroke-width=\"3\"/>";
+
+  // ---------------------------------------------------------------------------
+  // Le stand de la boutique (design « Boutique ») : 6 enveloppes par page (2 étagères de 3).
+  // Jour normal : les enveloppes du jour ; dimanche : toutes les enveloppes, à parcourir avec les flèches.
+  // ---------------------------------------------------------------------------
+  const STAND_PER_PAGE = 6;
+  const escXml = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  let standPage = 0;
+  let standAlt = false; // administratrice : voir le visuel de l'autre type de jour (demain, ou le dimanche)
+
+  function standModel() {
+    const live = liveEnvelopes().filter((env) => stickersOf(env.id).length);
+    const realSunday = allNormalDay();
+    const sunday = standAlt ? !realSunday : realSunday;
+    let list = live;
+    if (!sunday && setting('dailyEnvCount')) {
+      const ids = dailyEnvelopeIds(realSunday ? shiftDay(today(), 1) : today(), true);
+      list = live.filter((env) => ids.has(env.id));
+    }
+    // Aperçu du lendemain (administratrice, un dimanche) : les enveloppes prévues demain sont les nouvelles.
+    let nNew = live.filter(isNewEnvelope).length;
+    if (standAlt && realSunday) {
+      const tomorrow = shiftDay(today(), 1);
+      const coming = state.envelopes.filter((e) => !e.draft && e.publishAt === tomorrow && stickersOf(e.id).length);
+      list = [...coming, ...list.filter((e) => !coming.includes(e))];
+      nNew = coming.length;
+    }
+    // Les nouvelles enveloppes d'abord, puis l'ordre de la boutique.
+    const fresh = (e) => (standAlt && realSunday ? e.publishAt === shiftDay(today(), 1) : isNewEnvelope(e));
+    list = [...list].sort((a, b) => Number(fresh(b)) - Number(fresh(a)));
+    return { list, sunday, realSunday, live, nNew };
+  }
+
+  function standEnvelope(env, i) {
+    const col = i % 3, row = Math.floor(i / 3);
+    const x = [36.7, 134, 231.3][col], y = [164, 300][row];
+    const rot = [-4, 3, -3, 3, -3, 4][i], lrot = [-1.5, 1.2, -1, 1.4, -1.3, 1][i];
+    const cx = x + 36, ly = y + 10;
+    const body = env.color || ENVELOPE_COLORS[0], flap = shade(body, -0.2), seal = env.seal || DEFAULT_SEAL;
+    const name = env.name || 'Enveloppe';
+    const shown = name.length > 17 ? name.slice(0, 16) + '…' : name;
+    const fit = shown.length > 11 ? ' textLength="82" lengthAdjust="spacingAndGlyphs"' : '';
+    return `<g class="st-slot" data-env="${escXml(env.id)}" tabindex="0" role="button" aria-label="${escXml(name)}, ${shopPrice(env)} pièces">`
+      + `<g class="st-env"><g transform="translate(${x} ${y}) rotate(${rot} 36 0)"><rect x="0" y="-52" width="72" height="52" rx="7" fill="${body}" stroke="#5A3E3A" stroke-width="2.8"/>`
+      + `<path d="M3 -49 L36 -22 L69 -49" fill="${flap}" stroke="#5A3E3A" stroke-width="2.8" stroke-linejoin="round"/>`
+      + `<circle cx="36" cy="-22" r="9" fill="${seal}" stroke="#5A3E3A" stroke-width="2.4"/>`
+      + `<path transform="translate(36 -22) scale(1.15)" d="M0 -4 L1.2 -1.2 L4 -1 L1.9 0.9 L2.5 3.7 L0 2.2 L-2.5 3.7 L-1.9 0.9 L-4 -1 L-1.2 -1.2 Z" fill="#fff"/></g></g>`
+      + `<g transform="rotate(${lrot} ${cx} ${ly})"><path d="M${cx - 28} ${ly} V${ly + 8} M${cx + 28} ${ly} V${ly + 8}" stroke="#5A3E3A" stroke-width="2" stroke-linecap="round"/>`
+      + `<circle cx="${cx - 28}" cy="${ly}" r="2.4" fill="#5A3E3A"/><circle cx="${cx + 28}" cy="${ly}" r="2.4" fill="#5A3E3A"/>`
+      + `<rect x="${cx - 46}" y="${ly + 8}" width="92" height="25" rx="9" fill="#FFF8EF" stroke="#5A3E3A" stroke-width="2.4"/>`
+      + `<text x="${cx}" y="${ly + 25.5}" text-anchor="middle" font-family="Fredoka,sans-serif" font-weight="600" font-size="13.5" fill="#5A3E3A"${fit}>${escXml(shown)}</text></g></g>`;
+  }
+
+  function standSvg(pageItems, { nNew, sunday, priceMin, priceMax }) {
+    const slots = pageItems.map((env, i) => standEnvelope(env, i)).join('');
+    const newSign = nNew > 0
+      ? STAND_NEW_SIGN.replace('2 nouvelles', `${nNew} nouvelle${nNew > 1 ? 's' : ''}`).replace('>enveloppes<', `>enveloppe${nNew > 1 ? 's' : ''}<`) : '';
+    const sunSign = sunday ? STAND_SUN_SIGN : '';
+    // Ardoise du prix : un seul prix, ou « 50 et plus » s'il varie.
+    const txt = String(priceMin);
+    const coinX = 106 + txt.length * 11 + 12;
+    const label = priceMax > priceMin ? 'et plus' : 'l\'enveloppe';
+    const slate = STAND_SLATE
+      + `<text x="106" y="465.5" font-family="Fredoka,sans-serif" font-weight="700" font-size="19" fill="#FFF8EF">${txt}</text>`
+      + `<circle cx="${coinX}" cy="459" r="8" fill="#FFC84A" stroke="#FFF8EF" stroke-width="2"/><circle cx="${coinX}" cy="459" r="3.6" fill="none" stroke="#E39A1B" stroke-width="1.8"/>`
+      + `<text x="${coinX + 14}" y="464" font-family="Fredoka,sans-serif" font-weight="500" font-size="12.5" fill="#FFF8EF">${label}</text>`;
+    return `<svg viewBox="0 0 340 499" width="100%" role="group" aria-label="Le stand de la boutique avec les enveloppes">${STAND_HEAD}${slots}${STAND_IVY}${STAND_COUNTER}${newSign}${sunSign}${STAND_REST}${slate}${STAND_AFTER_SLATE}${STAND_AWNING}</svg>`;
+  }
+
+  // Dessine la page d'accueil de la boutique (le stand).
   function renderShopChoice() {
-    const shop = liveEnvelopes().filter((env) => stickersOf(env.id).length);
+    if (!shopV2()) return;
+    const { list, sunday, realSunday, live, nNew } = standModel();
+    const pages = Math.max(1, Math.ceil(list.length / STAND_PER_PAGE));
+    standPage = Math.min(Math.max(0, standPage), pages - 1);
+    const items = list.slice(standPage * STAND_PER_PAGE, (standPage + 1) * STAND_PER_PAGE);
+    const prices = items.map(shopPrice);
+    $('#standTitle').textContent = sunday ? 'Enveloppes du dimanche' : 'Enveloppes du jour';
+    const wrap = $('#standSvg');
+    wrap.innerHTML = items.length
+      ? standSvg(items, { nNew, sunday, priceMin: Math.min(...prices), priceMax: Math.max(...prices) })
+      : '<p class="muted stand-empty">Aucune enveloppe en vente pour l\'instant. Reviens bientôt !</p>';
+    $('#standPrev').hidden = standPage <= 0;
+    $('#standNext').hidden = standPage >= pages - 1;
     const stars = state.profile ? state.profile.stars || 0 : 0;
     const stamps = state.profile ? state.profile.stamps || 0 : 0;
-    $('#shopChoiceEnvSub').textContent = shop.length
-      ? `${plural(shop.length, 'enveloppe')} en vente · tampons ${stamps}/${stampsPerStar()}${stars ? ` · ${plural(stars, 'étoile')} à utiliser` : ''}`
-      : 'Bientôt des enveloppes';
-    const nNew = shop.filter(isNewEnvelope).length;
-    $('#shopChoiceEnvNew').hidden = !nNew;
-    $('#shopChoiceEnvNew').textContent = nNew > 1 ? `✨ NEW · ${nNew} nouvelles enveloppes` : '✨ NEW · une nouvelle enveloppe';
-    const daily = setting('dailyEnvCount');
-    const nDaily = dailyEnvelopeIds().size;
-    $('#shopChoiceEnvChip').textContent = !shop.length ? 'Reviens bientôt' : (allNormalDay() ? '☀️ Dimanche : toutes à prix réduit !' : !daily || shop.length <= daily
-      ? '⭐ Toutes à prix réduit aujourd\'hui' : `⭐ ${plural(nDaily, 'enveloppe')} du jour à prix réduit`);
+    $('#standInfo').textContent = `${pages > 1 ? `Page ${standPage + 1}/${pages} · ` : ''}${plural(live.length, 'enveloppe')} en vente · tampons ${stamps}/${stampsPerStar()}${stars ? ` · ${plural(stars, 'étoile')} à utiliser` : ''}`;
+    // Bouton Décor : « Nouveau », ou le prix en étoiles s'il faut encore le débloquer.
+    const pill = $('#standDecoPill');
+    if (decorUnlocked()) pill.innerHTML = `<svg width="12" height="12" viewBox="0 0 32 32" aria-hidden="true"><path d="M13 4 L17 14 L27 18 L17 22 L13 32 L9 22 L-1 18 L9 14 Z" transform="translate(3 -3) scale(.85)" fill="#FFD96B" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/></svg>Nouveau`;
+    else pill.innerHTML = `${unlockCost('decor')}<svg width="13" height="13" viewBox="0 0 28 28" aria-hidden="true"><path d="M14 3 L17.5 10.5 L25.5 11.5 L19.5 17 L21.2 25 L14 21 L6.8 25 L8.5 17 L2.5 11.5 L10.5 10.5 Z" fill="#FFD96B" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>`;
     const walls = [...state.decos.values()].filter((d) => d.kind === 'wall').length;
     const floors = [...state.decos.values()].filter((d) => d.kind === 'floor').length;
-    $('#shopChoiceDecoSub').textContent = walls + floors
-      ? `${plural(walls, 'papier peint')} · ${plural(floors, 'sol')} en vente`
-      : 'Papiers peints et sols pour tes pièces';
-    // Le décor se débloque avec des étoiles (comme les étages).
-    const lock = $('#shopChoiceDecoLock');
-    lock.hidden = decorUnlocked();
-    lock.textContent = `🔒 Débloquer · ${unlockCost('decor')} 🌟 (tu en as ${stars})`;
-    $('#shopChoiceDeco').classList.toggle('locked', !decorUnlocked());
+    $('#standDeco').setAttribute('aria-label', `Décor : ${plural(walls, 'papier peint')} et ${plural(floors, 'sol')} en vente${decorUnlocked() ? ', nouveau' : `, à débloquer pour ${unlockCost('decor')} étoiles`}`);
     $('#decoRelock').hidden = !(state.isAdmin && decoAsPlayer && state.profile.unlocks && state.profile.unlocks.decor);
+    // Administratrice : voir aussi le visuel de l'autre type de jour.
+    $('#standPreviewRow').hidden = !state.isAdmin;
+    $('#standPreview').checked = standAlt;
+    if (state.isAdmin) {
+      const tomorrowN = Math.min(STAND_PER_PAGE, dailyEnvelopeIds(shiftDay(today(), 1), true).size);
+      $('#standPreviewText').textContent = realSunday
+        ? `Voir le visuel de demain (jour normal : ${plural(dailyEnvelopeIds(shiftDay(today(), 1), true).size, 'enveloppe')} du jour, ${tomorrowN} sur la première page)`
+        : 'Voir le visuel du dimanche (toutes les enveloppes à prix réduit, avec les flèches)';
+    }
   }
+  $('#standSvg').addEventListener('click', (e) => {
+    const slot = e.target.closest('.st-slot');
+    const env = slot && state.envelopes.find((x) => x.id === slot.dataset.env);
+    if (env) showEnvelope(env);
+  });
+  $('#standSvg').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const slot = e.target.closest && e.target.closest('.st-slot');
+    const env = slot && state.envelopes.find((x) => x.id === slot.dataset.env);
+    if (env) { e.preventDefault(); showEnvelope(env); }
+  });
+  $('#standPrev').addEventListener('click', () => { standPage--; renderShopChoice(); });
+  $('#standNext').addEventListener('click', () => { standPage++; renderShopChoice(); });
+  $('#standPreview').addEventListener('change', (e) => { standAlt = e.target.checked; standPage = 0; renderShopChoice(); });
+  $('#standAll').addEventListener('click', () => { shopView = 'envelopes'; renderShop(); window.scrollTo(0, 0); });
 
   function renderShop() {
     applyShopView();
@@ -4095,7 +4201,7 @@
   let decoSlot = 'wallLeftDeco';
   const decoSwatches = [...document.querySelectorAll('.deco-swatch')];
   function syncDecoSwatches() {
-    const show = state.isAdmin && normShape(state.shape).kind !== 'garden';
+    const show = (state.isAdmin || (shopV2() && decorUnlocked())) && normShape(state.shape).kind !== 'garden';
     for (const b of decoSwatches) {
       b.hidden = !show;
       const d = state.decos.get(state.colors[b.dataset.deco] || '');
@@ -4242,8 +4348,7 @@
     toast(`« ${d.name} » est à toi ! Tu le trouves dans 🎨 Couleurs, quand tu décores une pièce.`);
     renderDecoShop();
   }
-  $('#shopChoiceEnv').addEventListener('click', () => { shopView = 'envelopes'; renderShop(); window.scrollTo(0, 0); });
-  $('#shopChoiceDeco').addEventListener('click', async () => {
+  $('#standDeco').addEventListener('click', async () => {
     if (!decorUnlocked()) {
       await unlock('decor');
       renderShopChoice();
