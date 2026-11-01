@@ -3380,12 +3380,19 @@
     // Ardoise du prix : un seul prix, ou « 50 et plus » s'il varie.
     const txt = String(priceMin);
     const coinX = 106 + txt.length * 11 + 12;
-    const label = priceMax > priceMin ? 'et plus' : 'l\'enveloppe';
+    const label = 'l\'enveloppe';
     const slate = STAND_SLATE
       + `<text x="106" y="465.5" font-family="Fredoka,sans-serif" font-weight="700" font-size="19" fill="#FFF8EF">${txt}</text>`
       + `<circle cx="${coinX}" cy="459" r="8" fill="#FFC84A" stroke="#FFF8EF" stroke-width="2"/><circle cx="${coinX}" cy="459" r="3.6" fill="none" stroke="#E39A1B" stroke-width="1.8"/>`
       + `<text x="${coinX + 14}" y="464" font-family="Fredoka,sans-serif" font-weight="500" font-size="12.5" fill="#FFF8EF">${label}</text>`;
     return `<svg viewBox="0 0 340 499" width="100%" role="group" aria-label="Le stand de la boutique avec les enveloppes">${STAND_HEAD}${slots}${STAND_IVY}${STAND_COUNTER}${newSign}${sunSign}${STAND_REST}${slate}${STAND_AFTER_SLATE}${STAND_AWNING}</svg>`;
+  }
+
+  // Prix affiché sur l'ardoise : le plus courant des enveloppes de la page (le prix de chacune est dans son aperçu).
+  function commonPrice(prices) {
+    const count = new Map();
+    for (const p of prices) count.set(p, (count.get(p) || 0) + 1);
+    return [...count.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
   }
 
   // Dessine la page d'accueil de la boutique (le stand).
@@ -3400,7 +3407,7 @@
     $('#standTitle').textContent = sunday ? 'Enveloppes du dimanche' : 'Enveloppes du jour';
     const wrap = $('#standSvg');
     wrap.innerHTML = items.length
-      ? standSvg(items, { nNew, sunday, priceMin: Math.min(...prices), priceMax: Math.max(...prices) })
+      ? standSvg(items, { nNew, sunday, priceMin: commonPrice(prices), priceMax: commonPrice(prices) })
       : '<p class="muted stand-empty">Aucune enveloppe en vente pour l\'instant. Reviens bientôt !</p>';
     $('#standPrev').hidden = standPage <= 0;
     $('#standNext').hidden = standPage >= pages - 1;
