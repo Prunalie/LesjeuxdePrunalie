@@ -757,6 +757,14 @@
     }
   }
 
+  // Un joueur connecté avant l'ouverture du décor le charge à l'ouverture de la boutique ou d'une pièce.
+  let decosTried = false;
+  async function ensureDecos() {
+    if (!shopV2() || decosTried || state.decos.size) return;
+    decosTried = true;
+    try { (await withFallback((d) => d.listDecos())).forEach(addDeco); } catch (e) { decosTried = false; console.warn('Décor indisponible', e); }
+  }
+
   function addDeco(rec) {
     if (!rec.data) return;
     state.decos.set(rec.id, { ...rec, url: rec.data });
@@ -2560,6 +2568,7 @@
     $('#homeAdmin').hidden = !state.isAdmin;
     state.images = new Map();
     state.decos = new Map();
+    decosTried = false;
     let gained = 0;
     let isNew = false;
     try {
@@ -2901,6 +2910,8 @@
     const r = state.rooms.find((x) => x.id === id);
     if (!r) return;
     if (maintBlocked(r.contestDay ? 'contest' : 'rooms')) return;
+    // Décor chargé à la demande si besoin (joueur connecté avant l'ouverture du décor).
+    ensureDecos().then(() => { if (state.decos.size && state.roomId === id) { drawRoom(); syncDecoSwatches(); } });
     state.roomId = r.id;
     state.roomName = r.name;
     view.zoom = 1; view.x = 0; view.y = 0;
@@ -3225,6 +3236,7 @@
     } else {
       shopReturnRoom = null;
     }
+    await ensureDecos();
     shopView = shopV2() ? 'choice' : 'envelopes'; // le stand (et le décor) : administratrice maintenant, joueurs à partir de demain
     standPage = 0;
     renderShop();
@@ -4896,7 +4908,37 @@
     } catch (e) { /* hors ligne : on ne dit rien */ }
   }
 
+  // Compte à rebours de la grosse mise à jour (jusqu'à minuit, heure de l'appareil, le jour d'ouverture).
+  const launchAt = () => { const [y, m, d] = SHOP_V2_FROM.split('-').map(Number); return new Date(y, m - 1, d, 0, 0, 0).getTime(); };
+  let countdownTimer = 0;
+  function renderCountdown() {
+    const box = $('#homeCountdown');
+    const left = launchAt() - Date.now();
+    if (left <= 0) {
+      box.hidden = true;
+      clearInterval(countdownTimer);
+      countdownTimer = 0;
+      // Le jour J : on recharge la page d'accueil pour activer la nouvelle boutique tout de suite.
+      if (!screens.home.hidden && !box.dataset.done) { box.dataset.done = '1'; setTimeout(() => location.reload(), 1500); }
+      return;
+    }
+    box.hidden = false;
+    const s = Math.floor(left / 1000), dd = Math.floor(s / 86400), hh = Math.floor((s % 86400) / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60;
+    const two = (n) => String(n).padStart(2, '0');
+    $('#cdTimer').textContent = `${dd ? `${dd} j ` : ''}${two(hh)} h ${two(mm)} min ${two(ss)} s`;
+    $('#cdWhen').textContent = dd >= 1 ? `dans ${dd + 1} jours` : (new Date().getDate() === new Date(launchAt() - 1).getDate() ? 'demain' : 'bientôt');
+  }
+  function startCountdown() {
+    clearInterval(countdownTimer);
+    countdownTimer = 0;
+    $('#homeCountdown').hidden = true;
+    if (today() >= SHOP_V2_FROM) return;
+    renderCountdown();
+    countdownTimer = setInterval(() => { if (!screens.home.hidden) renderCountdown(); }, 1000);
+  }
+
   function goHome() {
+    startCountdown();
     renderPoints();
     renderContestTile();
     refreshHomeVote();
@@ -5230,6 +5272,17 @@
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
     {
+      // Programmée : visible des joueurs à partir de minuit (heure de Paris) le 2 novembre, comme l'ouverture de la nouvelle boutique.
+      id: 'n-2026-11-02a', date: Date.UTC(2026, 10, 1, 23, 0), title: 'Grosse mise à jour : la nouvelle boutique ! 🛍️',
+      items: [
+        'La boutique a un nouveau look : un joli stand avec les enveloppes du jour sur deux étagères. Touche une enveloppe pour voir ce qu\'elle contient, et la flèche pour voir les suivantes.',
+        'Nouveau : le Décor 🎨 ! Des papiers peints et des sols pour tes pièces, vendus un par un. Il se débloque avec 2 étoiles 🌟, puis tu les poses dans 🎨 Couleurs quand tu décores une pièce.',
+        'Tu peux mettre un papier peint différent sur chaque mur, ou le même sur les deux.',
+        'Le dimanche, toutes les enveloppes sont à petit prix : le stand te les fait défiler avec les flèches. Le bouton « Voir toutes les enveloppes » ouvre la liste complète.',
+        'Ta carte de tampons ⭐ est toujours en haut de la boutique.',
+      ],
+    },
+    {
       id: 'n-2026-10-29a', date: Date.UTC(2026, 9, 29, 8, 0), title: 'Le dimanche, tout est à prix réduit ☀️',
       items: [
         'Chaque dimanche, toutes les enveloppes de la boutique sont à prix réduit, pas seulement celles du jour.',
@@ -5345,7 +5398,9 @@
   ];
   state.news = [...BUILTIN_NEWS];
   function setNews(fromDb) {
-    state.news = [...BUILTIN_NEWS, ...(fromDb || [])].sort((a, b) => (b.date || 0) - (a.date || 0));
+    // Une annonce programmée (date à venir) n'est visible que de l'administratrice, pour la relire avant.
+    state.news = [...BUILTIN_NEWS, ...(fromDb || [])].filter((n) => state.isAdmin || !n.date || n.date <= Date.now())
+      .sort((a, b) => (b.date || 0) - (a.date || 0));
   }
   const unseenNews = () => {
     const seen = (state.profile && state.profile.newsSeen) || 0;
@@ -5374,6 +5429,7 @@
     el.innerHTML = '<div class="mail-head"><h3></h3><time></time></div><ul class="news-points"></ul><p class="mail-text"></p>';
     el.querySelector('h3').textContent = n.title;
     el.querySelector('time').textContent = n.date ? new Date(n.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+    if (n.date && n.date > Date.now()) el.querySelector('time').textContent += ' · programmée : les joueurs la verront à cette date';
     const ul = el.querySelector('ul');
     for (const it of n.items || []) {
       const li = document.createElement('li');

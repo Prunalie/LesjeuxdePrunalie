@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611012100">
+  <link rel="stylesheet" href="style.css?v=202611012300">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -55,6 +55,11 @@
     <div class="rooms-body home-body">
       <nav class="home-main" aria-label="Menu principal">
         <p class="home-greeting" aria-hidden="true">Bonjour <span id="playerName2" class="home-name"></span></p>
+        <aside id="homeCountdown" class="home-countdown" hidden aria-label="Compte à rebours de la grosse mise à jour">
+          <span class="cd-icon" aria-hidden="true"><svg width="34" height="34" viewBox="0 0 32 32"><path d="M13 3 L17 13 L27 17 L17 21 L13 31 L9 21 L-1 17 L9 13 Z" transform="translate(2 0) scale(.9)" fill="#FFD96B" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M25 3 L26.5 7 L30.5 8.5 L26.5 10 L25 14 L23.5 10 L19.5 8.5 L23.5 7 Z" fill="#F0658A" stroke="#5A3E3A" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
+          <span class="cd-text"><strong>Grosse mise à jour <span id="cdWhen">demain</span> !</strong><span>Une nouvelle boutique et le Décor : papiers peints et sols pour tes pièces</span></span>
+          <span id="cdTimer" class="cd-timer" role="timer" aria-live="off"></span>
+        </aside>
         <section class="home-big" aria-label="Jouer">
           <button id="homeRooms" class="card home-card big">
             <span class="card-blob" style="background:#F7D9C4"></span>
@@ -1134,7 +1139,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611012100"></script>
-  <script src="game.js?v=202611012100"></script>
+  <script src="firebase-config.js?v=202611012300"></script>
+  <script src="game.js?v=202611012300"></script>
 </body>
 </html>
