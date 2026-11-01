@@ -2450,6 +2450,7 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .cd-icon { flex: none; width: 52px; height: 52px; border-radius: 16px; border: 3px solid var(--chunk); background: #FFF8EF; display: flex; align-items: center; justify-content: center; }
 .cd-text { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 2px; }
 .cd-text strong { font-family: var(--font-title); font-weight: 700; font-size: 19px; line-height: 1.1; }
+.cd-text strong span { font: inherit; }
 .cd-text > span { font-weight: 700; font-size: 13px; line-height: 1.3; }
 .cd-timer { flex: none; margin-left: auto; border-radius: 999px; border: 2.5px solid var(--chunk); background: #B03A5B; color: #fff; padding: 6px 14px; font-family: var(--font-title); font-weight: 600; font-size: 18px; font-variant-numeric: tabular-nums; box-shadow: 0 3px 0 #7A2340; white-space: nowrap; }
 @media (max-width: 420px) { .cd-timer { margin-left: 0; width: 100%; text-align: center; } }

@@ -2521,7 +2521,9 @@
   const liveEnvelopes = () => state.envelopes.filter(isLive);
   // Nouvelle boutique (le stand) et décor : chez l'administratrice tout de suite, chez les joueurs à partir de demain.
   const SHOP_V2_FROM = '2026-11-02';
-  const shopV2 = () => state.isAdmin || today() >= SHOP_V2_FROM;
+  const SHOP_V2_HOUR = 7; // ouverture aux joueurs à 7 h (heure de l'appareil)
+  const launchAt = () => { const [y, m, d] = SHOP_V2_FROM.split('-').map(Number); return new Date(y, m - 1, d, SHOP_V2_HOUR, 0, 0).getTime(); };
+  const shopV2 = () => state.isAdmin || Date.now() >= launchAt();
   // « NEW » : les enveloppes sorties aujourd'hui.
   const isNewEnvelope = (env) => isLive(env) && envSlotDay(env) === today();
   const envStatus = (env) => (env.draft ? 'draft' : isLive(env) ? 'live' : 'scheduled');
@@ -4909,7 +4911,6 @@
   }
 
   // Compte à rebours de la grosse mise à jour (jusqu'à minuit, heure de l'appareil, le jour d'ouverture).
-  const launchAt = () => { const [y, m, d] = SHOP_V2_FROM.split('-').map(Number); return new Date(y, m - 1, d, 0, 0, 0).getTime(); };
   let countdownTimer = 0;
   function renderCountdown() {
     const box = $('#homeCountdown');
@@ -4926,13 +4927,15 @@
     const s = Math.floor(left / 1000), dd = Math.floor(s / 86400), hh = Math.floor((s % 86400) / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60;
     const two = (n) => String(n).padStart(2, '0');
     $('#cdTimer').textContent = `${dd ? `${dd} j ` : ''}${two(hh)} h ${two(mm)} min ${two(ss)} s`;
-    $('#cdWhen').textContent = dd >= 1 ? `dans ${dd + 1} jours` : (new Date().getDate() === new Date(launchAt() - 1).getDate() ? 'demain' : 'bientôt');
+    const sameDay = new Date().toDateString() === new Date(launchAt()).toDateString();
+    const dayWord = sameDay ? 'aujourd\'hui' : (new Date(Date.now() + 86400000).toDateString() === new Date(launchAt()).toDateString() ? 'demain' : `dans ${dd + 1} jours`);
+    $('#cdWhen').textContent = `${dayWord} à ${SHOP_V2_HOUR} h`;
   }
   function startCountdown() {
     clearInterval(countdownTimer);
     countdownTimer = 0;
     $('#homeCountdown').hidden = true;
-    if (today() >= SHOP_V2_FROM) return;
+    if (Date.now() >= launchAt()) return;
     renderCountdown();
     countdownTimer = setInterval(() => { if (!screens.home.hidden) renderCountdown(); }, 1000);
   }
@@ -5272,8 +5275,8 @@
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
     {
-      // Programmée : visible des joueurs à partir de minuit (heure de Paris) le 2 novembre, comme l'ouverture de la nouvelle boutique.
-      id: 'n-2026-11-02a', date: Date.UTC(2026, 10, 1, 23, 0), title: 'Grosse mise à jour : la nouvelle boutique ! 🛍️',
+      // Programmée : visible des joueurs à partir de 7 h le 2 novembre (heure de leur appareil), comme l'ouverture de la nouvelle boutique.
+      id: 'n-2026-11-02a', date: launchAt(), title: 'Grosse mise à jour : la nouvelle boutique ! 🛍️',
       items: [
         'La boutique a un nouveau look : un joli stand avec les enveloppes du jour sur deux étagères. Touche une enveloppe pour voir ce qu\'elle contient, et la flèche pour voir les suivantes.',
         'Nouveau : le Décor 🎨 ! Des papiers peints et des sols pour tes pièces, vendus un par un. Il se débloque avec 2 étoiles 🌟, puis tu les poses dans 🎨 Couleurs quand tu décores une pièce.',
