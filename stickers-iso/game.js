@@ -3411,7 +3411,7 @@
       : '<p class="muted stand-empty">Aucune enveloppe en vente pour l\'instant. Reviens bientôt !</p>';
     $('#standPrev').hidden = standPage <= 0;
     $('#standNext').hidden = standPage >= pages - 1;
-    $('#standInfo').textContent = `${pages > 1 ? `Page ${standPage + 1}/${pages} · ` : ''}${plural(live.length, 'enveloppe')} en vente`;
+    $('#standAll span').textContent = `Voir toutes les enveloppes (${live.length})`;
     // Bouton Décor : « Nouveau », ou le prix en étoiles s'il faut encore le débloquer.
     const pill = $('#standDecoPill');
     if (decorUnlocked()) pill.innerHTML = `<svg width="12" height="12" viewBox="0 0 32 32" aria-hidden="true"><path d="M13 4 L17 14 L27 18 L17 22 L13 32 L9 22 L-1 18 L9 14 Z" transform="translate(3 -3) scale(.85)" fill="#FFD96B" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/></svg>Nouveau`;
