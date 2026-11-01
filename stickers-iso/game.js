@@ -5281,8 +5281,6 @@
         'La boutique a un nouveau look : un joli stand avec les enveloppes du jour sur deux étagères. Touche une enveloppe pour voir ce qu\'elle contient, et la flèche pour voir les suivantes.',
         'Nouveau : le Décor 🎨 ! Des papiers peints et des sols pour tes pièces, vendus un par un. Il se débloque avec 2 étoiles 🌟, puis tu les poses dans 🎨 Couleurs quand tu décores une pièce.',
         'Tu peux mettre un papier peint différent sur chaque mur, ou le même sur les deux.',
-        'Le dimanche, toutes les enveloppes sont à petit prix : le stand te les fait défiler avec les flèches. Le bouton « Voir toutes les enveloppes » ouvre la liste complète.',
-        'Ta carte de tampons ⭐ est toujours en haut de la boutique.',
       ],
     },
     {
