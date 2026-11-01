@@ -3304,7 +3304,7 @@
     $('#shopChoice').hidden = shopView !== 'choice';
     $('#shopEnvView').hidden = shopView !== 'envelopes';
     $('#shopDecoView').hidden = shopView !== 'deco';
-    $('#shopStamps').hidden = shopView !== 'envelopes';
+    $('#shopStamps').hidden = false; // la carte de tampons reste dans la barre du haut, sur toutes les pages de la boutique
     $('#decoAsPlayerRow').hidden = !state.isAdmin || shopView === 'envelopes';
     $('#shopTitle').textContent = shopView === 'envelopes' && shopV2() ? 'Toutes les enveloppes' : (shopView === 'deco' ? 'Décor' : 'Boutique');
     $('#shopBack').title = shopView === 'choice' || !shopV2() ? 'Retour' : 'Retour à la boutique';
@@ -3391,6 +3391,7 @@
   // Dessine la page d'accueil de la boutique (le stand).
   function renderShopChoice() {
     if (!shopV2()) return;
+    renderStampCard();
     const { list, sunday, realSunday, live, nNew } = standModel();
     const pages = Math.max(1, Math.ceil(list.length / STAND_PER_PAGE));
     standPage = Math.min(Math.max(0, standPage), pages - 1);
