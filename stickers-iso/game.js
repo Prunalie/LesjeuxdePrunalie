@@ -5950,6 +5950,9 @@
       const list = $('#ctStartRooms');
       list.innerHTML = '';
       const done = (v) => { dlg.hidden = true; resolve(v); };
+      // Deux choix d'abord ; les pièces ne s'affichent qu'après « À partir d'une de mes pièces ».
+      $('#ctStartChoice').hidden = false;
+      $('#ctStartPick').hidden = true;
       for (const r of rooms) {
         const b = document.createElement('button');
         b.type = 'button';
@@ -5963,6 +5966,8 @@
         list.appendChild(b);
       }
       $('#ctStartEmpty').onclick = () => done('');
+      $('#ctStartFromRoom').onclick = () => { $('#ctStartChoice').hidden = true; $('#ctStartPick').hidden = false; };
+      $('#ctStartBack').onclick = () => { $('#ctStartPick').hidden = true; $('#ctStartChoice').hidden = false; };
       $('#ctStartCancel').onclick = () => done(null);
       dlg.hidden = false;
     });

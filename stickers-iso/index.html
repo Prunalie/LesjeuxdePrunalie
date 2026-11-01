@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611011000">
+  <link rel="stylesheet" href="style.css?v=202611011100">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -881,10 +881,15 @@
         <h2 id="ctStartTitle" class="modal-title">Ta pièce du concours 🎨</h2>
         <button id="ctStartCancel" class="modal-x" type="button" title="Annuler" aria-label="Annuler">✕</button>
       </div>
-      <p class="muted">Pars d'une pièce vide, ou d'une copie d'une de tes pièces (ta pièce d'origine ne change pas).</p>
-      <button id="ctStartEmpty" class="btn btn-primary ct-start-empty">✨ Partir de zéro</button>
-      <p class="ct-start-label">📋 Ou partir d'une de mes pièces :</p>
-      <div id="ctStartRooms" class="ct-start-rooms"></div>
+      <div id="ctStartChoice" class="ct-start-choice">
+        <button id="ctStartEmpty" class="btn btn-primary ct-start-big">✨ À partir d'une page blanche</button>
+        <button id="ctStartFromRoom" class="btn ct-start-big">📋 À partir d'une de mes pièces</button>
+      </div>
+      <div id="ctStartPick" hidden>
+        <p class="ct-start-label">Choisis la pièce à copier (ta pièce d'origine ne change pas) :</p>
+        <div id="ctStartRooms" class="ct-start-rooms"></div>
+        <button id="ctStartBack" class="btn btn-ghost ct-start-back" type="button">← Retour</button>
+      </div>
     </div>
   </div>
 
@@ -1118,7 +1123,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611011000"></script>
-  <script src="game.js?v=202611011000"></script>
+  <script src="firebase-config.js?v=202611011100"></script>
+  <script src="game.js?v=202611011100"></script>
 </body>
 </html>
