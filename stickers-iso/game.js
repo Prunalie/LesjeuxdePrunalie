@@ -793,7 +793,9 @@
     }
     return n;
   }
-  const available = (id) => owned(id) - usedCount(id);
+  // Dans la pièce du concours, l'objet prêté du jour s'ajoute aux exemplaires que l'on possède (sans rien donner).
+  const ownedHere = (id) => owned(id) + (lentId() === id ? 1 : 0);
+  const available = (id) => ownedHere(id) - usedCount(id);
 
   // Filtre de la liste des stickers : null = toutes les collections, sinon l'id d'une enveloppe (ou NO_COLLECTION).
   const NO_COLLECTION = '__none';
@@ -802,7 +804,7 @@
 
   // Collections où le joueur a au moins un sticker, dans l'ordre de la boutique.
   function libCollections() {
-    const mine = [...state.images.values()].filter((img) => owned(img.id) > 0);
+    const mine = [...state.images.values()].filter((img) => ownedHere(img.id) > 0);
     const out = [];
     for (const env of state.envelopes) {
       const n = mine.filter((img) => collectionOf(img) === env.id).length;
@@ -848,19 +850,20 @@
 
   function renderLibrary() {
     libraryGrid.innerHTML = '';
-    const all = [...state.images.values()].filter((img) => owned(img.id) > 0);
+    const all = [...state.images.values()].filter((img) => ownedHere(img.id) > 0);
     updateLibFilterButton();
     const mine = libFilter ? all.filter((img) => collectionOf(img) === libFilter) : all;
     libraryEmpty.hidden = all.length > 0;
     for (const img of mine) {
       const left = available(img.id);
       const el = document.createElement('div');
-      el.className = 'thumb' + (left > 0 ? '' : ' used-up');
+      const lent = lentId() === img.id;
+      el.className = 'thumb' + (left > 0 ? '' : ' used-up') + (lent ? ' lent' : '');
       el.dataset.rarity = img.rarity || 'common';
-      el.title = `${img.name} : ${left} à poser sur ${owned(img.id)}`;
+      el.title = `${img.name} : ${left} à poser sur ${ownedHere(img.id)}${lent ? ' (1 prêté pour le concours)' : ''}`;
       el.innerHTML = `<img alt=""><span class="thumb-count"></span>`;
       el.querySelector('img').src = img.url;
-      el.querySelector('.thumb-count').textContent = `${Math.max(0, left)}/${owned(img.id)}`;
+      el.querySelector('.thumb-count').textContent = `${Math.max(0, left)}/${ownedHere(img.id)}`;
       el.addEventListener('pointerdown', (e) => startSpawnDrag(e, img.id));
       libraryGrid.appendChild(el);
     }
@@ -2364,6 +2367,7 @@
     maintenance: $('#screenMaintenance'),
   };
   function showScreen(name) {
+    roomScreenActive = name === 'room';
     for (const [key, el] of Object.entries(screens)) el.hidden = key !== name;
     if (name !== 'room' && !colorPicker.hidden) closeColorPicker(false);
     if (name === 'room') fitStage();
@@ -2703,7 +2707,7 @@
     || !screens.creations.hidden;
   function updateContestBanner() {
     const r = currentRoom();
-    if (r && r.contestDay) $('#contestBannerText').textContent = `Pièce du concours · thème « ${themeOf(r.contestDay)} » · tous tes stickers sont disponibles ici`;
+    if (r && r.contestDay) $('#contestBannerText').textContent = contestBannerText(r.contestDay);
   }
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
@@ -2914,6 +2918,7 @@
     if (maintBlocked(r.contestDay ? 'contest' : 'rooms')) return;
     // Décor chargé à la demande si besoin (joueur connecté avant l'ouverture du décor).
     ensureDecos().then(() => { if (state.decos.size && state.roomId === id) { drawRoom(); syncDecoSwatches(); } });
+    roomScreenActive = true;
     state.roomId = r.id;
     state.roomName = r.name;
     view.zoom = 1; view.x = 0; view.y = 0;
@@ -2942,7 +2947,7 @@
     $('#btnBack').title = r.contestDay ? 'Retour au concours' : 'Retour à mes pièces';
     $('#btnBack .label-long').innerHTML = r.contestDay ? '&nbsp;Concours' : '&nbsp;Mes pièces';
     $('#contestBanner').hidden = !r.contestDay;
-    if (r.contestDay) $('#contestBannerText').textContent = `Pièce du concours · thème « ${themeOf(r.contestDay)} » · tous tes stickers sont disponibles ici`;
+    if (r.contestDay) $('#contestBannerText').textContent = contestBannerText(r.contestDay);
     setSaveStatus('Sauvegardé ✓');
     syncColorInputs();
     drawRoom();
@@ -5542,8 +5547,83 @@
     const { y, m, dd } = parseDay(day);
     return new Date(y, m - 1, dd + n).toLocaleDateString('fr-CA');
   }
+  // ---------------------------------------------------------------------------
+  // Nouveau concept du concours (test chez l'administratrice) : chaque jour, une PIÈCE tirée au sort
+  // + un THÈME qui peut être un objet (prêté à tous ce jour-là), une couleur ou un thème général.
+  // ---------------------------------------------------------------------------
+  const DEFAULT_CONTEST_ROOMS = ['Chambre', 'Salon', 'Bureau', 'Entrée', 'Salon de thé'];
+  const DEFAULT_CONTEST_COLORS = [
+    { name: 'Rose', hex: '#e8a0ad' }, { name: 'Vert', hex: '#6a9f58' }, { name: 'Bleu', hex: '#8cc3d8' },
+    { name: 'Jaune', hex: '#f0c46c' }, { name: 'Violet', hex: '#ab9bd6' }, { name: 'Orange', hex: '#e8906b' },
+    { name: 'Marron', hex: '#8a5d3b' }, { name: 'Blanc', hex: '#fffaf3' }, { name: 'Noir', hex: '#2e2b28' },
+  ];
+  const contestRooms = () => {
+    const l = Array.isArray(state.settings.contestRooms) ? state.settings.contestRooms.filter(Boolean) : [];
+    return l.length ? l : DEFAULT_CONTEST_ROOMS;
+  };
+  const contestColors = () => {
+    const l = Array.isArray(state.settings.contestColors) ? state.settings.contestColors.filter((c) => c && c.name) : [];
+    return l.length ? l : DEFAULT_CONTEST_COLORS;
+  };
+  // Activé sur le compte de l'administratrice seulement, pour l'instant (case à cocher dans le menu Concours).
+  const CONTEST_V2_KEY = 'ma-petite-piece:concours-v2';
+  const contestV2 = () => { try { return state.isAdmin && localStorage.getItem(CONTEST_V2_KEY) === '1'; } catch (e) { return false; } };
+  // Objets que le jeu peut imposer : ceux des enveloppes en vente, avec un vrai nom (pas un simple numéro).
+  function contestObjectPool() {
+    const live = new Set(liveEnvelopes().map((e) => e.id));
+    return [...state.images.values()]
+      .filter((i) => i.catalog && live.has(i.envelope) && /\p{L}{3}/u.test(i.name || '') && !/^[0-9a-f]{16,}$/i.test(i.name || ''))
+      .sort((a, b) => a.id.localeCompare(b.id));
+  }
+  function planOf(day) {
+    const ov = (state.settings.contestPlanOverrides && state.settings.contestPlanOverrides[day]) || {};
+    const { y, m, dd } = parseDay(day);
+    const idx = Math.round((Date.UTC(y, m - 1, dd) - Date.UTC(2026, 0, 1)) / 86400000);
+    const rooms = contestRooms();
+    let room = ov.room;
+    if (!room) {
+      // Chaque pièce revient une fois par tour de liste, dans un ordre mélangé.
+      const cycle = Math.floor(idx / rooms.length);
+      const order = [...rooms].sort((a, b) => seededRank(`${cycle}r${a}`) - seededRank(`${cycle}r${b}`));
+      room = order[((idx % rooms.length) + rooms.length) % rooms.length];
+    }
+    const pool = contestObjectPool();
+    let kind = ov.kind;
+    if (!kind) { const k = seededRank(`${day}kind`) % 10; kind = k < 4 ? 'object' : k < 6 ? 'color' : 'general'; }
+    const plan = { day, room, kind };
+    if (kind === 'object') {
+      const img = (ov.objectId && state.images.get(ov.objectId)) || (pool.length ? pool[seededRank(`${day}obj`) % pool.length] : null);
+      if (img) { plan.objectId = img.id; plan.objectName = img.name; plan.text = `objet : ${img.name}`; return plan; }
+      plan.kind = kind = 'general'; // aucun objet possible : on retombe sur un thème général
+    }
+    if (kind === 'color') {
+      const colors = contestColors();
+      const c = colors.find((x) => x.name === ov.value) || colors[seededRank(`${day}col`) % colors.length];
+      plan.colorName = c.name; plan.colorHex = c.hex; plan.text = `couleur : ${c.name}`;
+      return plan;
+    }
+    plan.value = ov.value && contestThemes().includes(ov.value) ? ov.value : autoThemeOf(day);
+    plan.text = plan.value;
+    return plan;
+  }
+  // Objet prêté à tous aujourd'hui, dans la pièce du concours seulement : en plus de ceux qu'on possède.
+  let roomScreenActive = false; // vrai pendant qu'une pièce est ouverte (pas dans la collection, la boutique…)
+  function lentId() {
+    if (!contestV2() || !roomScreenActive) return null;
+    const r = currentRoom();
+    if (!r || !r.contestDay || r.contestDay !== today()) return null;
+    const p = planOf(today());
+    return p.kind === 'object' ? p.objectId : null;
+  }
+  function contestBannerText(day) {
+    if (!contestV2()) return `Pièce du concours · thème « ${themeOf(day)} » · tous tes stickers sont disponibles ici`;
+    const p = planOf(day);
+    return `Pièce du concours · ${p.room} · ${p.text}${p.kind === 'object' ? ' (prêté à tous aujourd\'hui)' : ''}`;
+  }
+
   // Thème choisi à la main par l'administratrice pour ce jour (sinon la rotation de la liste).
   function themeOf(day) {
+    if (contestV2()) { const p = planOf(day); return `${p.room} · ${p.text}`; }
     const o = state.settings.contestThemeOverrides && state.settings.contestThemeOverrides[day];
     return typeof o === 'string' && o.trim() ? o : autoThemeOf(day);
   }
@@ -5714,6 +5794,33 @@
     return card;
   }
 
+  // Carte « Pièce du jour + thème du jour » (nouveau concept) : le thème peut être un objet prêté, une couleur ou un thème.
+  function planCardEl(day) {
+    const p = planOf(day);
+    const el = document.createElement('div');
+    el.className = 'ct-plan';
+    el.innerHTML = '<div class="ct-plan-row"><span class="ct-plan-k">Pièce</span><strong class="ct-plan-room"></strong></div><div class="ct-plan-row"><span class="ct-plan-k">Thème</span><span class="ct-plan-theme"></span></div><p class="muted ct-small-text ct-plan-note" hidden></p>';
+    el.querySelector('.ct-plan-room').textContent = p.room;
+    const th = el.querySelector('.ct-plan-theme');
+    const note = el.querySelector('.ct-plan-note');
+    if (p.kind === 'object') {
+      const img = state.images.get(p.objectId);
+      th.innerHTML = '<img class="ct-plan-img" alt=""><strong></strong>';
+      if (img) th.querySelector('img').src = img.url;
+      th.querySelector('strong').textContent = p.objectName;
+      note.hidden = false;
+      note.textContent = 'Cet objet est prêté à tous les joueurs, aujourd\'hui seulement, dans la pièce du concours : pose-le même si tu ne l\'as pas. Si tu l\'as déjà, tu peux poser celui-ci en plus des tiens.';
+    } else if (p.kind === 'color') {
+      th.innerHTML = '<span class="ct-plan-swatch"></span><strong></strong>';
+      th.querySelector('.ct-plan-swatch').style.background = p.colorHex;
+      th.querySelector('strong').textContent = `Couleur : ${p.colorName}`;
+    } else {
+      th.innerHTML = '<strong></strong>';
+      th.querySelector('strong').textContent = p.value;
+    }
+    return el;
+  }
+
   function renderContest() {
     const body = $('#ctBody');
     body.innerHTML = '';
@@ -5732,6 +5839,7 @@
     const t = contestData.today;
     const c1 = section('ct-today', `Thème du jour : ${themeOf(t.day)}`,
       `Décore une pièce sur ce thème et publie-la avant minuit${setting('contestJoinReward') > 0 ? ` (+${setting('contestJoinReward')} 🪙 pour ta participation)` : ''}. Demain, tout le monde vote jusqu'à 20 h, puis on dévoile le gagnant : il reçoit ${contestReward()} 🪙.`);
+    if (contestV2()) c1.insertBefore(planCardEl(t.day), c1.firstChild);
     const mine = t.entries.find((e) => e.owner === me);
     if (mine) {
       const box = document.createElement('div');
@@ -6465,12 +6573,142 @@
     await saveSettings(theme ? `${label} : thème « ${theme} » ✓` : `${label} : thème automatique ✓`);
   }
 
+  // Nouveau concept (test) : plan des 7 prochains jours, que l'on peut forcer jour par jour.
+  const PLAN_KINDS = { object: 'Objet', color: 'Couleur', general: 'Thème général' };
+  async function setPlanOverride(day, patch) {
+    const all = { ...(state.settings.contestPlanOverrides || {}) };
+    const oldest = shiftDay(today(), -10);
+    for (const d of Object.keys(all)) if (d < oldest) delete all[d];
+    const cur = { ...(all[day] || {}), ...patch };
+    for (const k of Object.keys(cur)) if (cur[k] === '' || cur[k] == null) delete cur[k];
+    if (Object.keys(cur).length) all[day] = cur; else delete all[day];
+    state.settings.contestPlanOverrides = all;
+    renderPlanAdmin();
+    renderContestTile();
+    await saveSettings();
+  }
+  function renderPlanAdmin() {
+    $('#acV2').checked = contestV2();
+    const box = $('#acPlan');
+    box.innerHTML = '';
+    const rooms = contestRooms();
+    for (let i = 0; i < 7; i++) {
+      const day = shiftDay(today(), i);
+      const ov = (state.settings.contestPlanOverrides && state.settings.contestPlanOverrides[day]) || {};
+      const p = planOf(day);
+      const row = document.createElement('div');
+      row.className = 'ac-plan-row' + (ov.room || ov.kind ? ' forced' : '');
+      row.innerHTML = `<div class="ac-plan-head"><strong class="ac-plan-day"></strong><span class="ac-plan-sum"></span></div>
+        <div class="ac-plan-ctl">
+          <select class="coffre-select ac-plan-room" aria-label="Pièce"></select>
+          <select class="coffre-select ac-plan-kind" aria-label="Type de thème"></select>
+          <span class="ac-plan-value"></span>
+        </div>`;
+      row.querySelector('.ac-plan-day').textContent = i === 0 ? 'Aujourd\'hui' : i === 1 ? 'Demain' : dayLabel(day);
+      row.querySelector('.ac-plan-sum').textContent = `${p.room} · ${p.text}`;
+      const rs = row.querySelector('.ac-plan-room');
+      rs.add(new Option(`🎲 Pièce : ${p.room}`, ''));
+      const roomList = ov.room && !rooms.includes(ov.room) ? [ov.room, ...rooms] : rooms;
+      for (const r of roomList) rs.add(new Option(r, r));
+      rs.value = ov.room || '';
+      rs.addEventListener('change', () => setPlanOverride(day, { room: rs.value }));
+      const ks = row.querySelector('.ac-plan-kind');
+      ks.add(new Option(`🎲 Type : ${PLAN_KINDS[p.kind] || 'Thème général'}`, ''));
+      for (const [k, label] of Object.entries(PLAN_KINDS)) ks.add(new Option(label, k));
+      ks.value = ov.kind || '';
+      ks.addEventListener('change', () => setPlanOverride(day, { kind: ks.value, value: '', objectId: '' }));
+      const val = row.querySelector('.ac-plan-value');
+      if (p.kind === 'object') {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn ac-plan-obj';
+        const img = state.images.get(p.objectId);
+        b.innerHTML = '<img alt=""><span></span>';
+        if (img) b.querySelector('img').src = img.url;
+        b.querySelector('span').textContent = ov.objectId ? p.objectName : `🎲 ${p.objectName}`;
+        b.addEventListener('click', () => openObjectPicker(day));
+        val.appendChild(b);
+        if (ov.objectId) {
+          const auto = document.createElement('button');
+          auto.type = 'button'; auto.className = 'btn btn-ghost'; auto.textContent = '🎲';
+          auto.title = 'Revenir au tirage au sort';
+          auto.addEventListener('click', () => setPlanOverride(day, { objectId: '' }));
+          val.appendChild(auto);
+        }
+      } else {
+        const vs = document.createElement('select');
+        vs.className = 'coffre-select';
+        vs.setAttribute('aria-label', p.kind === 'color' ? 'Couleur' : 'Thème général');
+        const autoVal = p.kind === 'color' ? p.colorName : p.value;
+        vs.add(new Option(`🎲 ${autoVal}`, ''));
+        const opts = p.kind === 'color' ? contestColors().map((c) => c.name) : contestThemes();
+        for (const o of opts) vs.add(new Option(o, o));
+        vs.value = opts.includes(ov.value) ? ov.value : '';
+        vs.addEventListener('change', () => setPlanOverride(day, { value: vs.value }));
+        val.appendChild(vs);
+      }
+      box.appendChild(row);
+    }
+    $('#acRooms').value = rooms.join('\n');
+    $('#acColors').value = contestColors().map((c) => `${c.name} ${c.hex}`).join('\n');
+  }
+  // Choix d'un objet précis pour un jour.
+  const acObjPicker = $('#acObjPicker');
+  let acObjDay = null;
+  function openObjectPicker(day) {
+    acObjDay = day;
+    $('#acObjSearch').value = '';
+    renderObjectPicker();
+    acObjPicker.hidden = false;
+  }
+  function renderObjectPicker() {
+    const q = normalizeText($('#acObjSearch').value);
+    const pool = contestObjectPool().filter((i) => !q || normalizeText(i.name).includes(q));
+    $('#acObjCount').textContent = `${plural(pool.length, 'objet')} possible${pool.length > 1 ? 's' : ''}${pool.length > 60 ? ' (les 60 premiers sont affichés : précise ta recherche)' : ''}`;
+    const list = $('#acObjList');
+    list.innerHTML = '';
+    for (const img of pool.slice(0, 60)) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ac-obj-item';
+      b.innerHTML = '<img alt=""><span></span>';
+      b.querySelector('img').src = img.url;
+      b.querySelector('span').textContent = img.name;
+      b.addEventListener('click', () => { acObjPicker.hidden = true; setPlanOverride(acObjDay, { kind: 'object', objectId: img.id, value: '' }); });
+      list.appendChild(b);
+    }
+  }
+  $('#acObjSearch').addEventListener('input', renderObjectPicker);
+  $('#acObjPickClose').addEventListener('click', () => { acObjPicker.hidden = true; });
+  acObjPicker.addEventListener('click', (e) => { if (e.target === acObjPicker) acObjPicker.hidden = true; });
+  $('#acV2').addEventListener('change', (e) => {
+    store(CONTEST_V2_KEY, e.target.checked ? '1' : null);
+    renderPlanAdmin();
+    renderContestTile();
+    refreshAdminContest();
+    toast(e.target.checked ? 'Nouveau concept activé sur ton compte (test) : ouvre le Concours depuis l\'accueil pour le voir.' : 'Retour à l\'ancien fonctionnement sur ton compte.');
+  });
+  $('#acListsSave').addEventListener('click', async () => {
+    const rooms = $('#acRooms').value.split('\n').map((x) => x.trim()).filter(Boolean);
+    const colors = [];
+    for (const line of $('#acColors').value.split('\n').map((x) => x.trim()).filter(Boolean)) {
+      const m = line.match(/^(.*?)\s*(#[0-9a-fA-F]{6})?$/);
+      const name = (m && m[1] ? m[1] : line).trim();
+      if (name) colors.push({ name, hex: m && m[2] ? m[2].toLowerCase() : '#cccccc' });
+    }
+    state.settings.contestRooms = rooms;
+    state.settings.contestColors = colors;
+    await saveSettings(`Listes enregistrées ✓ ${plural(rooms.length || DEFAULT_CONTEST_ROOMS.length, 'pièce')}, ${plural(colors.length || DEFAULT_CONTEST_COLORS.length, 'couleur')}.`);
+    renderPlanAdmin();
+  });
+
   let acTimer = null;
   async function openAdminContest() {
     if (!state.isAdmin) return;
     showScreen('adminContest');
     $('#acThemes').value = (Array.isArray(state.settings.contestThemes) && state.settings.contestThemes.length ? state.settings.contestThemes : DEFAULT_THEMES).join('\n');
     renderThemePick();
+    renderPlanAdmin();
     await refreshAdminContest();
     clearInterval(acTimer);
     // Mise à jour automatique pendant que l'écran est ouvert.
