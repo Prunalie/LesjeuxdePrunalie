@@ -76,8 +76,8 @@
     { group: 'Pièces et étoiles', key: 'starPrice', label: 'Prix d\'une étoile', unit: '🪙', def: () => STAR_PRICE, min: 1, max: 1000000, step: 50 },
     { group: 'Pièces et étoiles', key: 'stampsPerStar', label: 'Tampons pour gagner une étoile', unit: 'tampons', def: () => STAMPS_PER_STAR, min: 1, max: 100, step: 1 },
     { group: 'Boutique', key: 'defaultEnvPrice', label: 'Prix d\'une nouvelle enveloppe', unit: '🪙', def: () => DEFAULT_PRICE, max: 100000, step: 10 },
-    { group: 'Boutique', key: 'dailyEnvCount', label: 'Enveloppes du jour (prix normal, 0 = toutes)', unit: 'enveloppes', def: () => 5, max: 100, step: 1 },
-    { group: 'Boutique', key: 'sundayAllNormal', type: 'bool', label: 'Le dimanche, toutes les enveloppes sont au prix normal', def: () => true },
+    { group: 'Boutique', key: 'dailyEnvCount', label: 'Enveloppes du jour (prix réduit, 0 = toutes)', unit: 'enveloppes', def: () => 5, max: 100, step: 1 },
+    { group: 'Boutique', key: 'sundayAllNormal', type: 'bool', label: 'Le dimanche, toutes les enveloppes à prix réduit', def: () => true },
     { group: 'Boutique', key: 'offPricePct', label: 'Hausse du prix des autres enveloppes', unit: '%', def: () => 100, max: 1000, step: 10 },
     { group: 'Boutique', key: 'packDiscountPct', label: 'Réduction sur le paquet « ×5 » (enveloppes du jour seulement)', unit: '% moins cher', def: () => 0, max: 90, step: 5 },
     { group: 'Boutique', key: 'multiBuy', label: 'Enveloppes du bouton « ×… »', unit: 'enveloppes', def: () => MULTI_BUY, min: 2, max: 50, step: 1 },
@@ -3249,7 +3249,7 @@
     return el;
   }
 
-  // Enveloppes du jour : quelques-unes au prix normal (les mêmes pour tout le monde,
+  // Enveloppes du jour : quelques-unes à prix réduit (les mêmes pour tout le monde,
   // tirées au sort chaque jour), les autres sont plus chères.
   function seededRank(str) {
     let h = 2166136261;
@@ -3262,7 +3262,7 @@
     const all = state.settings.dailyEnvPicks;
     return (all && Array.isArray(all[day]) ? all[day] : []);
   };
-  // Le dimanche, toutes les enveloppes sont au prix normal (réglable dans Paramétrage).
+  // Le dimanche, toutes les enveloppes sont à prix réduit (réglable dans Paramétrage).
   const allNormalDay = (day = today()) => setting('sundayAllNormal') && new Date(day + 'T12:00:00').getDay() === 0;
   function dailyEnvelopeIds(day = today(), ignoreSunday = false) {
     const shop = liveEnvelopes().filter((env) => stickersOf(env.id).length);
@@ -3319,8 +3319,8 @@
     $('#shopChoiceEnvNew').textContent = nNew > 1 ? `✨ NEW · ${nNew} nouvelles enveloppes` : '✨ NEW · une nouvelle enveloppe';
     const daily = setting('dailyEnvCount');
     const nDaily = dailyEnvelopeIds().size;
-    $('#shopChoiceEnvChip').textContent = !shop.length ? 'Reviens bientôt' : (allNormalDay() ? '☀️ Dimanche : toutes au prix normal !' : !daily || shop.length <= daily
-      ? '⭐ Toutes au prix normal aujourd\'hui' : `⭐ ${plural(nDaily, 'enveloppe')} du jour au prix normal`);
+    $('#shopChoiceEnvChip').textContent = !shop.length ? 'Reviens bientôt' : (allNormalDay() ? '☀️ Dimanche : toutes à prix réduit !' : !daily || shop.length <= daily
+      ? '⭐ Toutes à prix réduit aujourd\'hui' : `⭐ ${plural(nDaily, 'enveloppe')} du jour à prix réduit`);
     const walls = [...state.decos.values()].filter((d) => d.kind === 'wall').length;
     const floors = [...state.decos.values()].filter((d) => d.kind === 'floor').length;
     $('#shopChoiceDecoSub').textContent = walls + floors
@@ -3357,11 +3357,11 @@
     };
     const envs = [];
     if (others.length) {
-      heading('⭐ Les enveloppes du jour', 'Au prix normal aujourd\'hui · elles changent à minuit');
+      heading('⭐ Les enveloppes du jour', 'Prix réduit aujourd\'hui · elles changent à minuit');
       envs.push(...featured, 'toggle');
       if (shopShowOthers) envs.push(null, ...others);
     } else {
-      if (allNormalDay() && featured.length && setting('dailyEnvCount')) heading('☀️ Dimanche : toutes les enveloppes au prix normal !', 'Profites-en pour compléter ta collection · retour des enveloppes du jour demain');
+      if (allNormalDay() && featured.length && setting('dailyEnvCount')) heading('☀️ Dimanche : toutes les enveloppes à prix réduit !', 'Profites-en pour compléter ta collection · retour des enveloppes du jour demain');
       envs.push(...featured);
     }
     for (const env of envs) {
@@ -4531,7 +4531,7 @@
     const shop = liveEnvelopes().filter((env) => stickersOf(env.id).length);
     const head = document.createElement('div');
     head.className = 'atelier-daily-head';
-    // Nombre d'enveloppes du jour mises à disposition (0 = toutes au prix normal).
+    // Nombre d'enveloppes du jour mises à disposition (0 = toutes à prix réduit).
     const count = document.createElement('div');
     count.className = 'atelier-daily-count';
     count.innerHTML = `<span>Enveloppes du jour à mettre à disposition</span>
@@ -4546,7 +4546,7 @@
     }));
     listEl.appendChild(count);
     if (!n) {
-      head.innerHTML = '<p class="muted">Toutes les enveloppes sont au prix normal. Ajoute-en avec « ＋ » pour n\'en mettre que quelques-unes à disposition chaque jour.</p>';
+      head.innerHTML = '<p class="muted">Toutes les enveloppes sont à prix réduit. Ajoute-en avec « ＋ » pour n\'en mettre que quelques-unes à disposition chaque jour.</p>';
       listEl.appendChild(head);
       return;
     }
@@ -4561,7 +4561,7 @@
     head.querySelector('.atelier-daily-info').textContent = picks.length
       ? `Ton choix : ${picks.length}/${n}${picks.length < n ? ` (les ${n - picks.length} autres sont tirées au sort)` : ''}. Touche une enveloppe pour l'ajouter ou la retirer.`
       : `Tirage au sort en ce moment. Touche une enveloppe pour choisir toi-même (jusqu'à ${n}).`;
-    if (allNormalDay(day)) head.querySelector('.atelier-daily-info').textContent = `☀️ Ce jour-là est un dimanche : toutes les enveloppes sont au prix normal, ce choix ne sert pas. ${head.querySelector('.atelier-daily-info').textContent}`;
+    if (allNormalDay(day)) head.querySelector('.atelier-daily-info').textContent = `☀️ Ce jour-là est un dimanche : toutes les enveloppes sont à prix réduit, ce choix ne sert pas. ${head.querySelector('.atelier-daily-info').textContent}`;
     head.querySelector('.atelier-daily-random').hidden = !picks.length;
     head.querySelectorAll('[data-off]').forEach((b) => b.addEventListener('click', () => { dailyDayOffset = Number(b.dataset.off); renderAtelier(); }));
     head.querySelector('.atelier-daily-random').addEventListener('click', () => setDailyPicks(day, []));
@@ -5119,9 +5119,9 @@
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
     {
-      id: 'n-2026-10-29a', date: Date.UTC(2026, 9, 29, 8, 0), title: 'Le dimanche, tout est au prix normal ☀️',
+      id: 'n-2026-10-29a', date: Date.UTC(2026, 9, 29, 8, 0), title: 'Le dimanche, tout est à prix réduit ☀️',
       items: [
-        'Chaque dimanche, toutes les enveloppes de la boutique sont au prix normal, pas seulement celles du jour.',
+        'Chaque dimanche, toutes les enveloppes de la boutique sont à prix réduit, pas seulement celles du jour.',
         'Profites-en pour compléter ta collection : le paquet ×5 est aussi moins cher sur toutes les enveloppes ce jour-là.',
         'Dès le lundi, les enveloppes du jour reviennent.',
       ],
@@ -5159,7 +5159,7 @@
     {
       id: 'n-2026-10-22a', date: Date.UTC(2026, 9, 22, 8, 0), title: 'Les enveloppes du jour ⭐',
       items: [
-        'Chaque jour, quelques enveloppes de la boutique sont au prix normal : ce sont les enveloppes du jour, les mêmes pour tout le monde.',
+        'Chaque jour, quelques enveloppes de la boutique sont à prix réduit : ce sont les enveloppes du jour, les mêmes pour tout le monde.',
         'Les autres restent en vente, mais plus chères. Reviens demain : la sélection change à minuit !',
       ],
     },
@@ -7054,7 +7054,7 @@
     ['todo', 1, '**Remplacer l\'image d\'un sticker** : pouvoir réimporter une nouvelle image sur un sticker existant (pour améliorer son dessin) sans le perdre : les joueurs qui l\'ont et les pièces où il est posé gardent le sticker, avec le nouveau dessin.'],
     ['todo', 1, 'Atelier réorganisé : liste des enveloppes, recherche, une enveloppe à la fois.'],
     ['todo', 1, 'Offrir des stickers et des pièces aux joueurs.'],
-    ['todo', 1, '**Enveloppes du jour** : 5 enveloppes au prix normal chaque jour, les autres plus chères (réglable dans Paramétrage).'],
+    ['todo', 1, '**Enveloppes du jour** : 5 enveloppes à prix réduit chaque jour, les autres plus chères (réglable dans Paramétrage).'],
     ['todo', 1, 'Message de bienvenue et cadeau de bienvenue (réglable dans Paramétrage) pour les nouveaux joueurs.'],
     ['todo', 1, 'Messages aux joueurs avec un titre et un texte long (à un joueur ou à tous).'],
     ['todo', 1, 'Coffre : onglet « À ranger » et archives.'],
