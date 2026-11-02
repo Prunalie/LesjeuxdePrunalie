@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611021901">
+  <link rel="stylesheet" href="style.css?v=202611022000">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -524,7 +524,7 @@
     </header>
     <div id="houseView" class="house-view">
       <svg id="housePlan" class="house-plan" viewBox="0 0 1000 560" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Plan de ma maison"></svg>
-      <p class="house-empty">Aucune pièce dans la maison : place un brouillon ci-dessous.</p>
+      <p class="house-empty">Aucune pièce dans la maison : touche « Pièces » pour en placer.</p>
       <p class="house-hint">Touche une pièce pour la choisir · glisse pour te déplacer · pince pour zoomer</p>
       <div class="house-zoom" role="group" aria-label="Zoom">
         <button id="houseGear" type="button" title="Réglages de la maison" aria-label="Réglages de la maison">⚙️</button>
@@ -533,9 +533,10 @@
         <button id="houseFit" type="button" title="Tout voir" aria-label="Tout voir">⤢</button>
       </div>
       <div id="houseSettings" class="house-settings" hidden></div>
-      <div id="houseSheet" class="house-sheet">
-        <button id="houseSheetToggle" class="house-sheet-toggle" type="button" aria-expanded="true" title="Réduire le bandeau">Tout ▾</button>
-        <div id="houseControls" class="house-controls"></div>
+      <div id="houseControls" class="house-float"></div>
+      <button id="houseRoomsBtn" class="house-rooms-btn" type="button" title="Mes pièces et brouillons">🏠 Pièces <span id="houseRoomsCount"></span></button>
+      <div id="housePanel" class="house-panel" hidden>
+        <div class="house-panel-head"><strong>Mes pièces</strong><button id="housePanelClose" class="house-panel-close" type="button" aria-label="Fermer">✕</button></div>
         <div id="houseDrafts" class="house-drafts"></div>
       </div>
     </div>
@@ -1207,7 +1208,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611021901"></script>
-  <script src="game.js?v=202611021901"></script>
+  <script src="firebase-config.js?v=202611022000"></script>
+  <script src="game.js?v=202611022000"></script>
 </body>
 </html>

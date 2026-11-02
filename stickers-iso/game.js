@@ -7696,7 +7696,9 @@
     }
     renderHouseSettings(entries);
     const used = new Set(entries.map((e) => e.id));
-    renderHouseDrafts(realRooms().filter((r) => !used.has(r.id)));
+    const freeRooms = realRooms().filter((r) => !used.has(r.id));
+    $('#houseRoomsCount').textContent = freeRooms.length ? `· ${plural(freeRooms.length, 'brouillon')}` : '';
+    if (!$('#housePanel').hidden) renderHouseDrafts(freeRooms);
   }
   let houseStep = 1;
   let houseTool = null, houseToolFor = null; // outil ouvert dans la barre : 'size' | 'move'
@@ -7787,6 +7789,7 @@
     getHouse().floors[0].rooms.push({ id, gu: sp.gu, gv: sp.gv });
     houseFocus = id;
     saveProfile();
+    setHousePanel(false);
     renderHouse();
     fitHouse();
   }
@@ -7877,10 +7880,10 @@
     const rect = houseStageEl.getBoundingClientRect();
     if (!b || !rect.width) return;
     const pad = 40;
-    hv.upp = Math.max((b.maxX - b.minX + pad * 2) / rect.width, (b.maxY - b.minY + pad * 2) / (rect.height * 0.7));
+    hv.upp = Math.max((b.maxX - b.minX + pad * 2) / rect.width, (b.maxY - b.minY + pad * 2) / (rect.height * 0.85));
     hv.fit = hv.upp;
     hv.cx = (b.minX + b.maxX) / 2;
-    hv.cy = (b.minY + b.maxY) / 2 + (rect.height * 0.12) * hv.upp; // un peu plus haut : la place des commandes est en bas
+    hv.cy = (b.minY + b.maxY) / 2 + (rect.height * 0.04) * hv.upp; // un peu plus haut : la barre flottante est en bas
     applyHouseView();
   }
   function zoomHouse(factor, clientX, clientY) {
@@ -7897,7 +7900,7 @@
   const hPointers = new Map();
   let hMoved = false, hPinch = 0;
   houseStageEl.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.house-sheet, .house-zoom, .house-settings')) return;
+    if (e.target.closest('.house-float, .house-zoom, .house-settings, .house-panel, .house-rooms-btn')) return;
     houseStageEl.setPointerCapture(e.pointerId);
     hPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (hPointers.size === 1) hMoved = false;
@@ -7938,6 +7941,7 @@
       // Toucher à côté des pièces : plus aucune pièce n'est choisie (et les réglages se referment).
       houseFocus = found;
       $('#houseSettings').hidden = true;
+      setHousePanel(false);
       renderHouse();
     }
     if (hPointers.size < 2) hPinch = 0;
@@ -7948,26 +7952,18 @@
   $('#houseZoomIn').addEventListener('click', () => zoomHouse(1.4));
   $('#houseZoomOut').addEventListener('click', () => zoomHouse(1 / 1.4));
   $('#houseFit').addEventListener('click', fitHouse);
-  // Le bandeau du bas a 3 niveaux : 0 = commandes + brouillons, 1 = commandes seules, 2 = rien (juste la poignée).
-  let houseSheetLevel = 0;
-  function setHouseSheet(level) {
-    houseSheetLevel = level;
-    const sheet = $('#houseSheet');
-    sheet.classList.toggle('level-1', level === 1);
-    sheet.classList.toggle('level-2', level === 2);
-    const t = $('#houseSheetToggle');
-    t.textContent = ['Tout ▾', 'Barre seule ▾', 'Afficher ▴'][level];
-    t.setAttribute('aria-expanded', String(level < 2));
-    t.title = level < 2 ? 'Réduire le bandeau' : 'Agrandir le bandeau';
-    applyHouseView();
-  }
-  $('#houseSheetToggle').addEventListener('click', () => setHouseSheet((houseSheetLevel + 1) % 3));
+  // Les pièces (brouillons) : un bouton ouvre la liste, qui se referme d'un toucher ailleurs.
+  const setHousePanel = (open) => { $('#housePanel').hidden = !open; };
+  $('#houseRoomsBtn').addEventListener('click', () => { setHousePanel($('#housePanel').hidden); $('#houseSettings').hidden = true; renderHouse(); });
+  $('#housePanelClose').addEventListener('click', () => setHousePanel(false));
   if (window.ResizeObserver) new ResizeObserver(() => { if (!screens.house.hidden) applyHouseView(); }).observe(houseStageEl);
   let houseFrom = 'home';
   function openHouse(focusId = null, from = 'home') {
     if (!houseOn()) return;
     houseFrom = from;
     houseFocus = focusId;
+    setHousePanel(false);
+    $('#houseSettings').hidden = true;
     showScreen('house');
     renderHouse();
     fitHouse();
