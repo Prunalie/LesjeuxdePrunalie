@@ -426,6 +426,13 @@
   const SIZE_MIN = 3, SIZE_MAX = 16, WALL_MIN = 2, WALL_MAX = 10, LEVELS_MAX = 3;
   const GARDEN_COLORS = { wallLeft: '#86b86b', wallRight: '#74a85b', floor: '#9fd07f', background: '#d4ecf7' };
 
+  // Hauteur des murs commune à toute la maison (admin) : elle remplace celle de chaque pièce de la maison.
+  function houseShape(id, shape) {
+    const h = state.isAdmin && state.profile && state.profile.house;
+    if (!h || !h.wallH || !Array.isArray(h.floors)) return shape;
+    if (!h.floors.some((f) => (f.rooms || []).some((e) => e.id === id))) return shape;
+    return { ...(shape || {}), h: h.wallH };
+  }
   function normShape(sh) {
     const s = { ...DEFAULT_SHAPE, ...(sh || {}) };
     s.kind = s.kind === 'garden' ? 'garden' : 'room';
@@ -2931,7 +2938,7 @@
     state.roomName = r.name;
     view.zoom = 1; view.x = 0; view.y = 0;
     state.colors = { ...DEFAULT_COLORS, ...r.colors };
-    state.shape = normShape(r.shape);
+    state.shape = normShape(houseShape(r.id, r.shape));
     state.stickers = (r.stickers || [])
       .filter((s) => state.images.has(s.imageId))
       .map((s) => ({ ...s }));
@@ -3102,7 +3109,11 @@
     section('size', 'Taille', (inner) => {
       slider(inner, 'Largeur', sh.w, SIZE_MIN, SIZE_MAX, (v) => changeShape('w', (x) => { x.w = v; }));
       slider(inner, 'Profondeur', sh.d, SIZE_MIN, SIZE_MAX, (v) => changeShape('d', (x) => { x.d = v; }));
-      if (sh.kind !== 'garden') slider(inner, 'Hauteur des murs', sh.h, WALL_MIN, WALL_MAX, (v) => changeShape('h', (x) => { x.h = v; }));
+      const cr = currentRoom();
+      if (sh.kind !== 'garden') {
+        if (cr && houseShape(cr.id, {}).h) { const p = document.createElement('p'); p.className = 'muted shape-hint'; p.textContent = 'Hauteur des murs : réglée pour toute la maison (dans « Ma maison »).'; inner.appendChild(p); }
+        else slider(inner, 'Hauteur des murs', sh.h, WALL_MIN, WALL_MAX, (v) => changeShape('h', (x) => { x.h = v; }));
+      }
     });
 
     section('levels', 'Étages', (inner) => {
@@ -7500,7 +7511,8 @@
   }
   // Une pièce (murs, sol, objets) dessinée à l'échelle kw, son coin du fond en `origin`. Dans le noir si dim.
   function houseRoomSvg(r, kw, origin, dim) {
-    const g0 = roomGeom(r.shape);
+    const shp = houseShape(r.id, r.shape);
+    const g0 = roomGeom(shp);
     const f = kw / g0.k;
     const stickers = (r.stickers || []).map((st) => {
       const img = state.images.get(st.imageId);
@@ -7509,7 +7521,7 @@
       const x = origin.x + (st.x - g0.C.x) * f, y = origin.y + (st.y - g0.C.y) * f;
       return `<image href="${img.url}" x="${(x - w / 2).toFixed(1)}" y="${(y - h / 2).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" preserveAspectRatio="none" transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${st.rot || 0}) scale(${st.flip ? -1 : 1} 1) translate(${(-x).toFixed(1)} ${(-y).toFixed(1)})"/>`;
     }).join('');
-    return `<g class="nb-room" data-room="${escXml(r.id)}"${dim ? ' filter="url(#houseDim)"' : ''}>${roomSvg(r.colors || {}, r.shape, { k: kw, origin })}${stickers}</g>`;
+    return `<g class="nb-room" data-room="${escXml(r.id)}"${dim ? ' filter="url(#houseDim)"' : ''}>${roomSvg(r.colors || {}, shp, { k: kw, origin })}${stickers}</g>`;
   }
   // Dans une pièce : les voisines autour, dans le noir (dessinées derrière la pièce, hors de l'export en image).
   function drawHouseNeighbors() {
@@ -7584,6 +7596,20 @@
       t.className = 'house-focus-name';
       t.textContent = `Pièce allumée : ${room.name} · ${f.w} × ${f.d} carreaux`;
       box.appendChild(t);
+      // Hauteur des murs : une seule pour toute la maison.
+      const hh = document.createElement('div');
+      hh.className = 'house-step';
+      const cur = getHouse().wallH || normShape(room.shape).h;
+      const setH = (v) => { getHouse().wallH = clamp(v, WALL_MIN, WALL_MAX); saveProfile(); renderHouse(); fitHouse(); };
+      hh.innerHTML = `<span class="muted">Hauteur des murs (toute la maison) :</span>`;
+      for (const [lab, d] of [['−', -1], ['+', 1]]) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn'; b.textContent = lab; b.setAttribute('aria-label', d < 0 ? 'Murs plus bas' : 'Murs plus hauts');
+        b.addEventListener('click', () => setH(cur + d));
+        hh.appendChild(b);
+        if (d < 0) { const v = document.createElement('strong'); v.textContent = cur + (getHouse().wallH ? '' : ' (au choix)'); hh.appendChild(v); }
+      }
+      box.appendChild(hh);
       btn('✏️ Entrer dans cette pièce', 'btn-primary', () => goHouseRoom(room.id));
       // Déplacer la pièce le long des deux directions du plan (comme les murs de la pièce).
       const pad = document.createElement('div');
@@ -7684,7 +7710,7 @@
     if (!entries.length) return null;
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     for (const e of entries) {
-      const sh = normShape(roomById(e.id).shape);
+      const sh = normShape(houseShape(e.id, roomById(e.id).shape));
       const X = (e.gu - e.gv) * TILE_X, Y = (e.gu + e.gv) * TILE_Y;
       minX = Math.min(minX, X - sh.d * TILE_X); maxX = Math.max(maxX, X + sh.w * TILE_X);
       minY = Math.min(minY, Y - Math.max(sh.h, 3) * TILE_Z); maxY = Math.max(maxY, Y + (sh.w + sh.d) * TILE_Y);
