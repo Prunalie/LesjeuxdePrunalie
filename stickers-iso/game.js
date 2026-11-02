@@ -7653,10 +7653,13 @@
       bar.className = 'house-bar';
       box.appendChild(bar);
       const btn = (label, cls, fn, title, host = bar) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + cls; b.innerHTML = label; if (title) b.title = title; b.addEventListener('click', fn); host.appendChild(b); return b; };
-      btn('✏️ Entrer dans la pièce', 'btn-primary', () => goHouseRoom(room.id), 'Décorer cette pièce');
-      btn('Retirer', 'btn-ghost', () => { getHouse().floors[0].rooms = entries.filter((e) => e !== me); houseFocus = null; saveProfile(); renderHouse(); fitHouse(); }, 'La pièce n\'est pas supprimée : elle reste dans les brouillons.');
-      btn('📐 Taille', houseTool === 'size' ? 'active' : '', () => { houseTool = houseTool === 'size' ? null : 'size'; renderHouse(); }, 'Changer la taille de la pièce');
-      btn('✥ Déplacer', houseTool === 'move' ? 'active' : '', () => { houseTool = houseTool === 'move' ? null : 'move'; renderHouse(); }, 'Déplacer la pièce');
+      const row1 = document.createElement('div'), row2 = document.createElement('div');
+      row1.className = row2.className = 'house-bar-row';
+      bar.append(row1, row2);
+      btn('✏️ Entrer dans la pièce', 'btn-primary', () => goHouseRoom(room.id), 'Décorer cette pièce', row1);
+      btn('Retirer', 'btn-ghost', () => { getHouse().floors[0].rooms = entries.filter((e) => e !== me); houseFocus = null; saveProfile(); renderHouse(); fitHouse(); }, 'La pièce n\'est pas supprimée : elle reste dans les brouillons.', row1);
+      btn('📐 Taille', houseTool === 'size' ? 'active' : '', () => { houseTool = houseTool === 'size' ? null : 'size'; renderHouse(); }, 'Changer la taille de la pièce', row2);
+      btn('✥ Déplacer', houseTool === 'move' ? 'active' : '', () => { houseTool = houseTool === 'move' ? null : 'move'; renderHouse(); }, 'Déplacer la pièce', row2);
       if (houseTool === 'size') {
         // Taille : les voisines s'écartent toutes seules si besoin.
         const sz = normShape(room.shape);

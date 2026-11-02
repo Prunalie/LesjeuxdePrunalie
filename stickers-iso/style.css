@@ -2540,7 +2540,8 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 
 .house-settings { position: absolute; right: 62px; top: 10px; width: min(300px, calc(100% - 80px)); padding: 10px 12px; border-radius: 16px; border: 2.5px solid var(--chunk); background: var(--panel); box-shadow: 0 4px 0 var(--chunk); display: flex; flex-direction: column; gap: 8px; }
 .house-settings[hidden] { display: none; }
-.house-bar { display: flex; flex-wrap: wrap; gap: 6px; }
+.house-bar { display: flex; flex-direction: column; gap: 6px; flex-basis: 100%; }
+.house-bar-row { display: flex; gap: 6px; }
 .house-bar .btn { padding: 4px 12px; font-size: .9rem; }
 .house-bar .btn.active { background: var(--chunk); color: #fff; }
 .house-float:empty { display: none; }
