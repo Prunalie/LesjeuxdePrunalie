@@ -7617,7 +7617,7 @@
   function renderHouse() {
     const entries = houseEntries();
     const svg = $('#housePlan');
-    if (!entries.some((e) => e.id === houseFocus)) houseFocus = entries.length ? entries[0].id : null;
+    if (!entries.some((e) => e.id === houseFocus)) houseFocus = null; // rien n'est choisi tant qu'on ne touche pas une pièce
     $('#houseView').classList.toggle('empty', !entries.length);
     if (!entries.length) svg.innerHTML = '';
     else {
@@ -7637,85 +7637,97 @@
       svg.innerHTML = all.map((e) => draw(e, false).replace('<g class="nb-room"', e.id === houseFocus ? '<g class="nb-room sel"' : '<g class="nb-room"')).join('') + labels;
     }
     applyHouseView();
-    // Commandes de la pièce allumée
+    // Barre de la pièce choisie : Entrer, Taille, Déplacer… (rien n'est affiché si aucune pièce n'est choisie)
+    if (houseFocus !== houseToolFor) { houseTool = null; houseToolFor = houseFocus; }
     const box = $('#houseControls');
     box.innerHTML = '';
-    const btn = (label, cls, fn, title) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + cls; b.innerHTML = label; if (title) b.title = title; b.addEventListener('click', fn); box.appendChild(b); return b; };
     const me = entries.find((e) => e.id === houseFocus);
     const room = me && roomById(me.id);
     if (room) {
       const f = footprint(room.id);
       const t = document.createElement('p');
       t.className = 'house-focus-name';
-      t.textContent = `Pièce choisie : ${room.name} · ${f.w} × ${f.d} carreaux`;
+      t.textContent = `${room.name} · ${f.w} × ${f.d} carreaux`;
       box.appendChild(t);
-      // Hauteur des murs : une seule pour toute la maison.
-      const hh = document.createElement('div');
-      hh.className = 'house-step';
-      const cur = getHouse().wallH || normShape(room.shape).h;
-      const setH = (v) => { getHouse().wallH = clamp(v, WALL_MIN, WALL_MAX); saveProfile(); renderHouse(); fitHouse(); };
-      hh.innerHTML = `<span class="muted">Hauteur des murs (toute la maison) :</span>`;
-      for (const [lab, d] of [['−', -1], ['+', 1]]) {
-        const b = document.createElement('button');
-        b.type = 'button'; b.className = 'btn'; b.textContent = lab; b.setAttribute('aria-label', d < 0 ? 'Murs plus bas' : 'Murs plus hauts');
-        b.addEventListener('click', () => setH(cur + d));
-        hh.appendChild(b);
-        if (d < 0) { const v = document.createElement('strong'); v.textContent = cur; hh.appendChild(v); }
-      }
-      box.appendChild(hh);
-      // Taille de la pièce : les voisines s'écartent toutes seules si besoin.
-      const sz = normShape(room.shape);
-      for (const [axis, lab] of [['w', 'Largeur'], ['d', 'Profondeur']]) {
-        const row = document.createElement('div');
-        row.className = 'house-step';
-        row.innerHTML = `<span class="muted">${lab} :</span>`;
-        for (const d of [-1, 1]) {
-          const b = document.createElement('button');
-          b.type = 'button'; b.className = 'btn'; b.textContent = d < 0 ? '−' : '+';
-          b.setAttribute('aria-label', `${lab} ${d < 0 ? 'moins' : 'plus'}`);
-          b.addEventListener('click', () => resizeHouseRoom(me, axis, d));
-          row.appendChild(b);
-          if (d < 0) { const v = document.createElement('strong'); v.textContent = `${sz[axis]}`; row.appendChild(v); }
-        }
-        box.appendChild(row);
-      }
-      btn('✏️ Entrer dans cette pièce', 'btn-primary', () => goHouseRoom(room.id));
-      // Déplacer la pièce le long des deux directions du plan (comme les murs de la pièce).
-      const pad = document.createElement('div');
-      pad.className = 'house-pad';
-      pad.innerHTML = '<span class="muted">Déplacer :</span>';
-      const step = houseStep;
-      const dirs = [['↖', -1, 0, 'vers le haut à gauche'], ['↗', 0, -1, 'vers le haut à droite'], ['↙', 0, 1, 'vers le bas à gauche'], ['↘', 1, 0, 'vers le bas à droite']];
-      for (const [label, du, dv, title] of dirs) {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'btn';
-        b.textContent = label;
-        b.title = `Déplacer ${title}`;
-        b.setAttribute('aria-label', `Déplacer la pièce ${title}`);
-        b.addEventListener('click', () => moveHouseRoom(me, du * step, dv * step));
-        pad.appendChild(b);
-      }
-      const st = document.createElement('div');
-      st.className = 'house-step';
-      st.innerHTML = '<span class="muted">Pas :</span>';
-      for (const n of [1, 4]) {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'deco-tab' + (houseStep === n ? ' active' : '');
-        b.textContent = `${n} carreau${n > 1 ? 'x' : ''}`;
-        b.addEventListener('click', () => { houseStep = n; renderHouse(); });
-        st.appendChild(b);
-      }
-      box.appendChild(pad);
-      box.appendChild(st);
+      const bar = document.createElement('div');
+      bar.className = 'house-bar';
+      box.appendChild(bar);
+      const btn = (label, cls, fn, title, host = bar) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + cls; b.innerHTML = label; if (title) b.title = title; b.addEventListener('click', fn); host.appendChild(b); return b; };
+      btn('✏️ Entrer', 'btn-primary', () => goHouseRoom(room.id), 'Décorer cette pièce');
+      btn('📐 Taille', houseTool === 'size' ? 'active' : '', () => { houseTool = houseTool === 'size' ? null : 'size'; renderHouse(); }, 'Changer la taille de la pièce');
+      btn('✥ Déplacer', houseTool === 'move' ? 'active' : '', () => { houseTool = houseTool === 'move' ? null : 'move'; renderHouse(); }, 'Déplacer la pièce');
       btn('Rapprocher', '', () => snapHouseRoom(me), 'Colle la pièce contre ses voisines');
-      btn('Retirer de la maison', 'btn-ghost', () => { getHouse().floors[0].rooms = entries.filter((e) => e !== me); houseFocus = null; saveProfile(); renderHouse(); fitHouse(); }, 'La pièce n\'est pas supprimée : elle reste dans « Mes pièces ».');
+      btn('Retirer', 'btn-ghost', () => { getHouse().floors[0].rooms = entries.filter((e) => e !== me); houseFocus = null; saveProfile(); renderHouse(); fitHouse(); }, 'La pièce n\'est pas supprimée : elle reste dans les brouillons.');
+      if (houseTool === 'size') {
+        // Taille : les voisines s'écartent toutes seules si besoin.
+        const sz = normShape(room.shape);
+        for (const [axis, lab] of [['w', 'Largeur'], ['d', 'Profondeur']]) {
+          const row = document.createElement('div');
+          row.className = 'house-step';
+          row.innerHTML = `<span class="muted">${lab} :</span>`;
+          for (const d of [-1, 1]) {
+            const b = document.createElement('button');
+            b.type = 'button'; b.className = 'btn'; b.textContent = d < 0 ? '−' : '+';
+            b.setAttribute('aria-label', `${lab} ${d < 0 ? 'moins' : 'plus'}`);
+            b.addEventListener('click', () => resizeHouseRoom(me, axis, d));
+            row.appendChild(b);
+            if (d < 0) { const v = document.createElement('strong'); v.textContent = `${sz[axis]}`; row.appendChild(v); }
+          }
+          box.appendChild(row);
+        }
+      } else if (houseTool === 'move') {
+        // Les flèches suivent les deux directions du plan (comme les murs de la pièce).
+        const pad = document.createElement('div');
+        pad.className = 'house-pad';
+        pad.innerHTML = `<span class="muted">Déplacer (${houseStep} carreau${houseStep > 1 ? 'x' : ''}) :</span>`;
+        const dirs = [['↖', -1, 0, 'vers le haut à gauche'], ['↗', 0, -1, 'vers le haut à droite'], ['↙', 0, 1, 'vers le bas à gauche'], ['↘', 1, 0, 'vers le bas à droite']];
+        for (const [label, du, dv, title] of dirs) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'btn';
+          b.textContent = label;
+          b.title = `Déplacer ${title}`;
+          b.setAttribute('aria-label', `Déplacer la pièce ${title}`);
+          b.addEventListener('click', () => moveHouseRoom(me, du * houseStep, dv * houseStep));
+          pad.appendChild(b);
+        }
+        box.appendChild(pad);
+      }
     }
+    renderHouseSettings(entries);
     const used = new Set(entries.map((e) => e.id));
     renderHouseDrafts(realRooms().filter((r) => !used.has(r.id)));
   }
   let houseStep = 1;
+  let houseTool = null, houseToolFor = null; // outil ouvert dans la barre : 'size' | 'move'
+  // Roue crantée : réglages communs à toute la maison (pas de déplacement, hauteur des murs).
+  function renderHouseSettings(entries) {
+    const box = $('#houseSettings');
+    if (box.hidden) return;
+    box.innerHTML = '<strong>Réglages</strong>';
+    const row = (label) => { const d = document.createElement('div'); d.className = 'house-step'; d.innerHTML = `<span class="muted">${label}</span>`; box.appendChild(d); return d; };
+    const st = row('Pas de déplacement :');
+    for (const n of [1, 4]) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'deco-tab' + (houseStep === n ? ' active' : '');
+      b.textContent = `${n} carreau${n > 1 ? 'x' : ''}`;
+      b.addEventListener('click', () => { houseStep = n; renderHouse(); });
+      st.appendChild(b);
+    }
+    const hh = row('Hauteur des murs (toute la maison) :');
+    const first = entries[0] && roomById(entries[0].id);
+    const cur = getHouse().wallH || (first ? normShape(first.shape).h : 5);
+    const setH = (v) => { getHouse().wallH = clamp(v, WALL_MIN, WALL_MAX); saveProfile(); renderHouse(); fitHouse(); };
+    for (const d of [-1, 1]) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn'; b.textContent = d < 0 ? '−' : '+'; b.setAttribute('aria-label', d < 0 ? 'Murs plus bas' : 'Murs plus hauts');
+      b.addEventListener('click', () => setH(cur + d));
+      hh.appendChild(b);
+      if (d < 0) { const v = document.createElement('strong'); v.textContent = cur; hh.appendChild(v); }
+    }
+  }
+  $('#houseGear').addEventListener('click', () => { const box = $('#houseSettings'); box.hidden = !box.hidden; renderHouse(); });
   // Une pièce ne peut pas en recouvrir une autre.
   function moveHouseRoom(e, du, dv) {
     const moved = { ...e, gu: e.gu + du, gv: e.gv + dv };
@@ -7885,7 +7897,7 @@
   const hPointers = new Map();
   let hMoved = false, hPinch = 0;
   houseStageEl.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.house-sheet, .house-zoom')) return;
+    if (e.target.closest('.house-sheet, .house-zoom, .house-settings')) return;
     houseStageEl.setPointerCapture(e.pointerId);
     hPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (hPointers.size === 1) hMoved = false;
@@ -7918,10 +7930,15 @@
     if (!had) return;
     if (!hPointers.size && !hMoved && e.type === 'pointerup') {
       // Simple toucher : on choisit la pièce touchée.
+      let found = null;
       for (const el of document.elementsFromPoint(e.clientX, e.clientY)) {
         const g = el.closest && el.closest('.nb-room');
-        if (g && g.closest('#housePlan')) { houseFocus = g.dataset.room; renderHouse(); break; }
+        if (g && g.closest('#housePlan')) { found = g.dataset.room; break; }
       }
+      // Toucher à côté des pièces : plus aucune pièce n'est choisie (et les réglages se referment).
+      houseFocus = found;
+      $('#houseSettings').hidden = true;
+      renderHouse();
     }
     if (hPointers.size < 2) hPinch = 0;
   };
@@ -7939,7 +7956,7 @@
     sheet.classList.toggle('level-1', level === 1);
     sheet.classList.toggle('level-2', level === 2);
     const t = $('#houseSheetToggle');
-    t.textContent = ['Commandes + brouillons ▾', 'Commandes ▾', 'Afficher ▴'][level];
+    t.textContent = ['Tout ▾', 'Barre seule ▾', 'Afficher ▴'][level];
     t.setAttribute('aria-expanded', String(level < 2));
     t.title = level < 2 ? 'Réduire le bandeau' : 'Agrandir le bandeau';
     applyHouseView();
