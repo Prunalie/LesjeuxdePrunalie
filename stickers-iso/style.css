@@ -2523,3 +2523,15 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .house-draft-actions button:not(.btn-primary) { background: var(--panel); }
 .house-draft-actions .btn { padding: 2px 8px; font-size: .8rem; }
 .house-draft-new { align-items: center; justify-content: center; border-style: dashed; cursor: pointer; font: inherit; font-weight: 800; color: var(--ink); min-height: 150px; }
+
+/* Boutique (le stand) en thème foncé : fond, étagères et bouton Décor assombris */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .stand-wrap svg [fill="#FFEFE0"] { fill: #3b2e32; }
+  :root:not([data-theme="light"]) .stand-wrap svg rect[fill="#E8B98A"] { fill: #b07a50; }
+  :root:not([data-theme="light"]) .stand-circle { background: #5b2e3f; opacity: .7; }
+  :root:not([data-theme="light"]) .stand-deco { background: #34455c; color: #f3e7e2; }
+}
+:root[data-theme="dark"] .stand-wrap svg [fill="#FFEFE0"] { fill: #3b2e32; }
+:root[data-theme="dark"] .stand-wrap svg rect[fill="#E8B98A"] { fill: #b07a50; }
+:root[data-theme="dark"] .stand-circle { background: #5b2e3f; opacity: .7; }
+:root[data-theme="dark"] .stand-deco { background: #34455c; color: #f3e7e2; }
