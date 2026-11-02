@@ -3368,10 +3368,13 @@
     // Les nouvelles enveloppes d'abord, puis l'ordre de la boutique.
     const fresh = (e) => (standAlt && realSunday ? e.publishAt === shiftDay(today(), 1) : isNewEnvelope(e));
     list = [...list].sort((a, b) => Number(fresh(b)) - Number(fresh(a)));
-    return { list, sunday, realSunday, live, nNew };
+    const newIds = new Set(standAlt && realSunday
+      ? list.filter((e) => e.publishAt === shiftDay(today(), 1)).map((e) => e.id)
+      : live.filter(isNewEnvelope).map((e) => e.id));
+    return { list, sunday, realSunday, live, nNew, newIds };
   }
 
-  function standEnvelope(env, i) {
+  function standEnvelope(env, i, isNew = false) {
     const col = i % 3, row = Math.floor(i / 3);
     const x = [36.7, 134, 231.3][col], y = [164, 300][row];
     const rot = [-4, 3, -3, 3, -3, 4][i], lrot = [-1.5, 1.2, -1, 1.4, -1.3, 1][i];
@@ -3384,15 +3387,18 @@
       + `<g class="st-env"><g transform="translate(${x} ${y}) rotate(${rot} 36 0)"><rect x="0" y="-52" width="72" height="52" rx="7" fill="${body}" stroke="#5A3E3A" stroke-width="2.8"/>`
       + `<path d="M3 -49 L36 -22 L69 -49" fill="${flap}" stroke="#5A3E3A" stroke-width="2.8" stroke-linejoin="round"/>`
       + `<circle cx="36" cy="-22" r="9" fill="${seal}" stroke="#5A3E3A" stroke-width="2.4"/>`
-      + `<path transform="translate(36 -22) scale(1.15)" d="M0 -4 L1.2 -1.2 L4 -1 L1.9 0.9 L2.5 3.7 L0 2.2 L-2.5 3.7 L-1.9 0.9 L-4 -1 L-1.2 -1.2 Z" fill="#fff"/></g></g>`
+      + `<path transform="translate(36 -22) scale(1.15)" d="M0 -4 L1.2 -1.2 L4 -1 L1.9 0.9 L2.5 3.7 L0 2.2 L-2.5 3.7 L-1.9 0.9 L-4 -1 L-1.2 -1.2 Z" fill="#fff"/>`
+      // Étiquette NEW sur l'enveloppe sortie aujourd'hui
+      + (isNew ? `<g transform="translate(44 -63) rotate(9 17 9)"><rect x="0" y="0" width="36" height="19" rx="9.5" fill="#F0658A" stroke="#5A3E3A" stroke-width="2.4"/><text x="18" y="14" text-anchor="middle" font-family="Fredoka,sans-serif" font-weight="700" font-size="12" fill="#fff">NEW</text></g>` : '')
+      + `</g></g>`
       + `<g transform="rotate(${lrot} ${cx} ${ly})"><path d="M${cx - 28} ${ly} V${ly + 8} M${cx + 28} ${ly} V${ly + 8}" stroke="#5A3E3A" stroke-width="2" stroke-linecap="round"/>`
       + `<circle cx="${cx - 28}" cy="${ly}" r="2.4" fill="#5A3E3A"/><circle cx="${cx + 28}" cy="${ly}" r="2.4" fill="#5A3E3A"/>`
       + `<rect x="${cx - 46}" y="${ly + 8}" width="92" height="25" rx="9" fill="#FFF8EF" stroke="#5A3E3A" stroke-width="2.4"/>`
       + `<text x="${cx}" y="${ly + 25.5}" text-anchor="middle" font-family="Fredoka,sans-serif" font-weight="600" font-size="13.5" fill="#5A3E3A"${fit}>${escXml(shown)}</text></g></g>`;
   }
 
-  function standSvg(pageItems, { nNew, sunday, priceMin, priceMax }) {
-    const slots = pageItems.map((env, i) => standEnvelope(env, i)).join('');
+  function standSvg(pageItems, { nNew, sunday, priceMin, priceMax, newIds }) {
+    const slots = pageItems.map((env, i) => standEnvelope(env, i, newIds.has(env.id))).join('');
     const newSign = nNew > 0
       ? STAND_NEW_SIGN.replace('2 nouvelles', `${nNew} nouvelle${nNew > 1 ? 's' : ''}`).replace('>enveloppes<', `>enveloppe${nNew > 1 ? 's' : ''}<`) : '';
     const sunSign = sunday ? STAND_SUN_SIGN : '';
@@ -3418,7 +3424,7 @@
   function renderShopChoice() {
     if (!shopV2()) return;
     renderStampCard();
-    const { list, sunday, realSunday, live, nNew } = standModel();
+    const { list, sunday, realSunday, live, nNew, newIds } = standModel();
     const pages = Math.max(1, Math.ceil(list.length / STAND_PER_PAGE));
     standPage = Math.min(Math.max(0, standPage), pages - 1);
     const items = list.slice(standPage * STAND_PER_PAGE, (standPage + 1) * STAND_PER_PAGE);
@@ -3426,7 +3432,7 @@
     $('#standTitle').textContent = sunday ? 'Enveloppes du dimanche' : 'Enveloppes du jour';
     const wrap = $('#standSvg');
     wrap.innerHTML = items.length
-      ? standSvg(items, { nNew, sunday, priceMin: commonPrice(prices), priceMax: commonPrice(prices) })
+      ? standSvg(items, { nNew, sunday, priceMin: commonPrice(prices), priceMax: commonPrice(prices), newIds })
       : '<p class="muted stand-empty">Aucune enveloppe en vente pour l\'instant. Reviens bientôt !</p>';
     $('#standPrev').hidden = standPage <= 0;
     $('#standNext').hidden = standPage >= pages - 1;
