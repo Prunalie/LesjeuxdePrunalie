@@ -2362,6 +2362,7 @@
     contest: $('#screenContest'),
     ctHistory: $('#screenCtHistory'),
     todo: $('#screenTodo'),
+    house: $('#screenHouse'),
     settings: $('#screenSettings'),
     adminContest: $('#screenAdminContest'),
     maintenance: $('#screenMaintenance'),
@@ -2571,6 +2572,7 @@
     $('#homeAtelier').hidden = !state.isAdmin;
     $('#homeDecoAtelier').hidden = !state.isAdmin;
     $('#homeTodo').hidden = !state.isAdmin;
+    $('#homeHouse').hidden = !houseOn();
     $('#homeAdmin').hidden = !state.isAdmin;
     state.images = new Map();
     state.decos = new Map();
@@ -2689,7 +2691,7 @@
     try {
       const fresh = await db.getPlayer(playerDocId(state.player.key));
       if (!fresh) return;
-      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'joinRewardDay', 'contestCount', 'contestMilestones', 'stairsGift', 'decos']) {
+      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'joinRewardDay', 'contestCount', 'contestMilestones', 'stairsGift', 'decos', 'house']) {
         if (fresh[k] !== undefined) state.profile[k] = fresh[k];
       }
       state.profile.inventory = state.profile.inventory || {};
@@ -2920,6 +2922,7 @@
     ensureDecos().then(() => { if (state.decos.size && state.roomId === id) { drawRoom(); syncDecoSwatches(); } });
     roomScreenActive = true;
     state.roomId = r.id;
+    renderHouseNav();
     state.roomName = r.name;
     view.zoom = 1; view.x = 0; view.y = 0;
     state.colors = { ...DEFAULT_COLORS, ...r.colors };
@@ -7444,6 +7447,157 @@
     renderCoffre();
   }
 
+
+
+  // ---------------------------------------------------------------------------
+  // Ma maison (test administratrice) : des pièces assemblées côte à côte, comme une maison de poupée vue de face.
+  // La pièce où l'on est est allumée, les autres sont dans le noir. Les étages viendront dans un second temps :
+  // les données sont déjà rangées par étage (house.floors[0] = le rez-de-chaussée).
+  // ---------------------------------------------------------------------------
+  const houseOn = () => state.isAdmin;
+  const HOUSE_SIZES = { 1: 'Petite', 2: 'Moyenne', 3: 'Grande' };
+  let houseFocus = null; // pièce allumée dans l'écran de la maison
+  function getHouse() {
+    const p = state.profile;
+    if (!p.house || !Array.isArray(p.house.floors) || !p.house.floors.length) p.house = { floors: [{ rooms: [] }] };
+    return p.house;
+  }
+  const houseRooms = () => getHouse().floors[0].rooms; // [{ id, size }]
+  // Taille de départ d'après la pièce : petite, moyenne ou grande.
+  function houseAutoSize(r) {
+    const sh = normShape(r.shape);
+    const sum = sh.w + sh.d;
+    return sum <= 10 ? 1 : sum <= 18 ? 2 : 3;
+  }
+  // Retire de la maison les pièces qui n'existent plus.
+  function houseClean() {
+    const ids = new Set(realRooms().map((r) => r.id));
+    const list = getHouse().floors[0].rooms;
+    const kept = list.filter((e) => ids.has(e.id));
+    if (kept.length !== list.length) { getHouse().floors[0].rooms = kept; saveProfile(); }
+  }
+  const houseNeighbor = (id, dir) => {
+    const list = houseRooms();
+    const i = list.findIndex((e) => e.id === id);
+    return i < 0 || !list[i + dir] ? null : list[i + dir].id;
+  };
+  // Boutons ‹ › et 🏠 de la barre d'une pièce (administratrice).
+  function renderHouseNav() {
+    const r = currentRoom();
+    const inHouse = houseOn() && r && !r.contestDay;
+    $('#btnHouse').hidden = !inHouse;
+    $('#btnPrevRoom').hidden = !(inHouse && houseNeighbor(r.id, -1));
+    $('#btnNextRoom').hidden = !(inHouse && houseNeighbor(r.id, 1));
+  }
+  async function goHouseRoom(id) {
+    if (!id) return;
+    select(null);
+    await saveRoom();
+    openRoom(id);
+  }
+  function houseCell(r, entry) {
+    const lit = r.id === houseFocus;
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = 'house-cell' + (lit ? ' lit' : ' dark');
+    cell.dataset.id = r.id;
+    // Plus la pièce est grande, plus sa case est large et haute.
+    cell.style.setProperty('--hs', entry.size);
+    cell.setAttribute('aria-label', `${r.name}${lit ? ', allumée' : ', dans le noir : toucher pour l\'allumer'}`);
+    cell.innerHTML = (r.thumb ? '<img class="house-thumb" alt="">'
+      : `<svg class="house-thumb" viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg">${roomSvg(r.colors, r.shape)}</svg>`)
+      + '<span class="house-name"></span><span class="house-shade"></span>';
+    if (r.thumb) cell.querySelector('img').src = r.thumb;
+    cell.querySelector('.house-name').textContent = r.name;
+    cell.addEventListener('click', () => { houseFocus = r.id; renderHouse(); });
+    cell.addEventListener('dblclick', () => goHouseRoom(r.id));
+    return cell;
+  }
+  function renderHouse() {
+    houseClean();
+    const list = houseRooms();
+    const row = $('#houseRow');
+    row.innerHTML = '';
+    if (!list.some((e) => e.id === houseFocus)) houseFocus = list.length ? list[0].id : null;
+    for (const entry of list) {
+      const r = state.rooms.find((x) => x.id === entry.id);
+      if (r) row.appendChild(houseCell(r, entry));
+    }
+    $('#houseView').classList.toggle('empty', !list.length);
+    // Commandes de la pièce allumée
+    const box = $('#houseControls');
+    box.innerHTML = '';
+    const btn = (label, cls, fn, title) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + cls; b.textContent = label; if (title) b.title = title; b.addEventListener('click', fn); box.appendChild(b); return b; };
+    const entry = list.find((e) => e.id === houseFocus);
+    const room = entry && state.rooms.find((x) => x.id === entry.id);
+    if (room) {
+      const i = list.indexOf(entry);
+      const title = document.createElement('p');
+      title.className = 'house-focus-name';
+      title.textContent = `Pièce allumée : ${room.name}`;
+      box.appendChild(title);
+      btn('✏️ Entrer dans cette pièce', 'btn-primary', () => goHouseRoom(room.id));
+      const move = (d) => { const j = i + d; if (j < 0 || j >= list.length) return; [list[i], list[j]] = [list[j], list[i]]; saveProfile(); renderHouse(); };
+      btn('◀ Déplacer à gauche', '', () => move(-1)).disabled = i === 0;
+      btn('Déplacer à droite ▶', '', () => move(1)).disabled = i === list.length - 1;
+      const sizes = document.createElement('div');
+      sizes.className = 'house-sizes';
+      sizes.innerHTML = '<span class="muted">Taille dans la maison :</span>';
+      for (const [k, label] of Object.entries(HOUSE_SIZES)) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'deco-tab' + (entry.size === Number(k) ? ' active' : '');
+        b.textContent = label;
+        b.addEventListener('click', () => { entry.size = Number(k); saveProfile(); renderHouse(); });
+        sizes.appendChild(b);
+      }
+      box.appendChild(sizes);
+      btn('Retirer de la maison', 'btn-ghost', () => { getHouse().floors[0].rooms = list.filter((e) => e !== entry); houseFocus = null; saveProfile(); renderHouse(); }, 'La pièce n\'est pas supprimée : elle reste dans « Mes pièces ».');
+    }
+    const free = realRooms().filter((r) => !list.some((e) => e.id === r.id));
+    const add = btn(`＋ Ajouter une pièce${free.length ? '' : ' (aucune de libre)'}`, list.length ? '' : 'btn-primary', openHousePicker);
+    add.disabled = !free.length;
+    $('#houseIntro').hidden = false;
+    $('#homeHouseSub').textContent = list.length ? plural(list.length, 'pièce') + ' assemblée' + (list.length > 1 ? 's' : '') : 'Assemble tes pièces';
+  }
+  function openHousePicker() {
+    const list = houseRooms();
+    const free = realRooms().filter((r) => !list.some((e) => e.id === r.id)).sort((a, b) => (b.updated || 0) - (a.updated || 0));
+    const box = $('#housePickList');
+    box.innerHTML = '';
+    for (const r of free) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ct-start-room';
+      b.innerHTML = (r.thumb ? '<img class="room-thumb" alt="">' : `<svg class="room-thumb" viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg">${roomSvg(r.colors, r.shape)}</svg>`) + '<span class="ct-start-name"></span>';
+      if (r.thumb) b.querySelector('img').src = r.thumb;
+      b.querySelector('.ct-start-name').textContent = r.name;
+      b.addEventListener('click', () => {
+        houseRooms().push({ id: r.id, size: houseAutoSize(r) });
+        houseFocus = r.id;
+        saveProfile();
+        $('#housePicker').hidden = true;
+        renderHouse();
+      });
+      box.appendChild(b);
+    }
+    $('#housePicker').hidden = false;
+  }
+  $('#housePickClose').addEventListener('click', () => { $('#housePicker').hidden = true; });
+  $('#housePicker').addEventListener('click', (e) => { if (e.target.id === 'housePicker') $('#housePicker').hidden = true; });
+  let houseFrom = 'home';
+  function openHouse(focusId = null, from = 'home') {
+    if (!houseOn()) return;
+    houseFrom = from;
+    houseFocus = focusId;
+    renderHouse();
+    showScreen('house');
+  }
+  $('#homeHouse').addEventListener('click', () => openHouse(null, 'home'));
+  $('#btnHouse').addEventListener('click', async () => { const id = state.roomId; select(null); await saveRoom(); state.roomId = null; openHouse(id, 'room'); });
+  $('#houseBack').addEventListener('click', () => { if (houseFrom === 'room' && houseFocus && state.rooms.some((r) => r.id === houseFocus)) openRoom(houseFocus); else goHome(); });
+  $('#btnPrevRoom').addEventListener('click', () => goHouseRoom(houseNeighbor(state.roomId, -1)));
+  $('#btnNextRoom').addEventListener('click', () => goHouseRoom(houseNeighbor(state.roomId, 1)));
 
   // ---------------------------------------------------------------------------
   // To-do (administratrice) : idées et tâches, qu'on peut ajouter, modifier, ranger et cocher

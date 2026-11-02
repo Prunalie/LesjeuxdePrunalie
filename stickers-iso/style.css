@@ -2481,3 +2481,29 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .ac-obj-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: 2px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); font: inherit; font-size: .75rem; line-height: 1.15; cursor: pointer; text-align: center; }
 .ac-obj-item img { width: 56px; height: 56px; object-fit: contain; }
 .ac-obj-item:hover, .ac-obj-item:focus-visible { border-color: var(--accent); }
+
+/* Ma maison (test administratrice) */
+.house-nav { font-size: 1.5rem; line-height: 1; padding: 2px 10px; }
+.screen-house .rooms-body { max-width: 980px; margin: 0 auto; }
+.house-scroll { overflow-x: auto; padding: 8px 4px 14px; }
+.house-view { position: relative; display: inline-flex; flex-direction: column; min-width: 100%; align-items: stretch; }
+.house-roof { display: block; width: 100%; height: 58px; margin-bottom: -2px; }
+.house-row { display: flex; align-items: flex-end; gap: 0; border: 3px solid var(--chunk); border-bottom-width: 0; background: #E8B98A; padding: 6px 6px 0; min-height: 120px; }
+.house-view.empty .house-row { align-items: center; justify-content: center; color: #5A3E3A; font-weight: 700; }
+.house-view.empty .house-row::before { content: "Aucune pièce pour l'instant : ajoute-en pour construire ta maison."; padding: 24px 12px; text-align: center; }
+.house-ground { height: 16px; border: 3px solid var(--chunk); background: #9fd07f; border-radius: 0 0 12px 12px; }
+.house-cell { position: relative; flex: none; width: calc(var(--hs) * 96px + 10px); aspect-ratio: 1000 / 760; margin: 0 3px; padding: 0; border: 3px solid var(--chunk); border-radius: 6px; background: #FFF0E4; overflow: hidden; cursor: pointer; transition: box-shadow .25s, transform .12s; }
+.house-thumb { display: block; width: 100%; height: 100%; object-fit: contain; }
+.house-name { position: absolute; left: 4px; bottom: 4px; max-width: calc(100% - 8px); padding: 0 8px; border-radius: 999px; background: #FFF8EF; border: 2px solid var(--chunk); color: #5A3E3A; font-weight: 800; font-size: 11px; line-height: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.house-shade { position: absolute; inset: 0; background: rgba(12, 8, 28, .82); transition: opacity .35s; pointer-events: none; }
+.house-cell.lit .house-shade { opacity: 0; }
+.house-cell.lit { box-shadow: 0 0 0 3px #FFD96B, 0 0 26px rgba(255, 217, 107, .75); z-index: 1; }
+.house-cell.dark:hover { transform: translateY(-2px); }
+.house-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
+.house-focus-name { flex-basis: 100%; margin: 0; font-weight: 800; }
+.house-sizes { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; flex-basis: 100%; }
+.house-later { margin: 6px 0 24px; font-size: .85rem; }
+@media (max-width: 600px) { .house-cell { width: calc(var(--hs) * 70px + 10px); } .house-roof { height: 44px; } }
+
+.room-tools .tool-house { font-size: 1.1rem; }
+.room-tools .tool-house[hidden] { display: none; }
