@@ -2622,7 +2622,7 @@
     $('#homeAtelier').hidden = !state.isAdmin;
     $('#homeDecoAtelier').hidden = !state.isAdmin;
     $('#homeTodo').hidden = !state.isAdmin;
-    $('#homeHouse').hidden = !houseOn();
+    $('#homeHouse').hidden = true; // fusionnée avec « Mes pièces » : l'entrée s'appelle « Ma maison »
     $('#homeAdmin').hidden = !state.isAdmin;
     state.images = new Map();
     state.decos = new Map();
@@ -2962,6 +2962,7 @@
       db.deleteRoom(r.id).catch(() => toast('La pièce n\'a pas pu être supprimée.'));
     }
     renderRoomList();
+    if (houseOn() && !screens.house.hidden) renderHouse();
   }
 
   function openRoom(id) {
@@ -2997,8 +2998,9 @@
     $('#btnContestPublish').hidden = !r.contestDay;
     $('#btnContestPublish2').hidden = !r.contestDay;
     $('#btnContestDraft').hidden = !r.contestDay;
-    $('#btnBack').title = r.contestDay ? 'Retour au concours' : 'Retour à mes pièces';
-    $('#btnBack .label-long').innerHTML = r.contestDay ? '&nbsp;Concours' : '&nbsp;Mes pièces';
+    const backName = houseOn() ? 'Ma maison' : 'Mes pièces';
+    $('#btnBack').title = r.contestDay ? 'Retour au concours' : `Retour à ${backName.toLowerCase()}`;
+    $('#btnBack .label-long').innerHTML = r.contestDay ? '&nbsp;Concours' : `&nbsp;${backName}`;
     $('#contestBanner').hidden = !r.contestDay;
     if (r.contestDay) $('#contestBannerText').textContent = contestBannerText(r.contestDay);
     setSaveStatus('Sauvegardé ✓');
@@ -3267,6 +3269,7 @@
     await saveRoom();
     state.roomId = null;
     if (contest) { openContest(); return; }
+    if (houseOn()) { openHouse(null, 'home'); return; }
     renderRoomList();
     showScreen('rooms');
   });
@@ -5018,7 +5021,11 @@
     const got = all.filter((img) => owned(img.id) > 0).length;
     const envs = liveEnvelopes().filter((env) => stickersOf(env.id).length).length;
     const nRooms = realRooms().length;
-    $('#homeRoomsSub').textContent = nRooms ? plural(nRooms, 'pièce') : 'Crée ta première pièce';
+    // L'administratrice a une seule entrée : « Ma maison » (pièces placées + brouillons).
+    $('#homeRooms .card-title').textContent = houseOn() ? 'Ma maison' : 'Mes pièces';
+    const placed = houseOn() ? houseEntries().length : 0;
+    $('#homeRoomsSub').textContent = !nRooms ? (houseOn() ? 'Crée ta première pièce' : 'Crée ta première pièce')
+      : houseOn() ? `${plural(placed, 'pièce')} placée${placed > 1 ? 's' : ''}${nRooms > placed ? ` · ${plural(nRooms - placed, 'brouillon')}` : ''}` : plural(nRooms, 'pièce');
     const stars = state.profile.stars || 0;
     if (stars) $('#homeShopSub').innerHTML = `${STAR_SVG(15)} ${plural(stars, 'étoile')} à utiliser !`;
     else $('#homeShopSub').textContent = envs ? `${plural(envs, 'enveloppe')} en vente` : 'Bientôt des enveloppes';
@@ -5038,6 +5045,7 @@
 
   function openRooms() {
     if (maintBlocked('rooms')) return;
+    if (houseOn()) { openHouse(null, 'home'); return; }
     renderRoomList();
     showScreen('rooms');
   }
@@ -7689,10 +7697,7 @@
       btn('Retirer de la maison', 'btn-ghost', () => { getHouse().floors[0].rooms = entries.filter((e) => e !== me); houseFocus = null; saveProfile(); renderHouse(); fitHouse(); }, 'La pièce n\'est pas supprimée : elle reste dans « Mes pièces ».');
     }
     const used = new Set(entries.map((e) => e.id));
-    const free = realRooms().filter((r) => !used.has(r.id));
-    const add = btn(`＋ Ajouter une pièce${free.length ? '' : ' (aucune de libre)'}`, entries.length ? '' : 'btn-primary', openHousePicker);
-    add.disabled = !free.length;
-    $('#homeHouseSub').textContent = entries.length ? `${plural(entries.length, 'pièce')} assemblée${entries.length > 1 ? 's' : ''}` : 'Assemble tes pièces';
+    renderHouseDrafts(realRooms().filter((r) => !used.has(r.id)));
   }
   let houseStep = 1;
   // Une pièce ne peut pas en recouvrir une autre.
@@ -7719,6 +7724,47 @@
     }
     saveProfile();
     renderHouse();
+  }
+  function addToHouse(id) {
+    const sp = houseSpot(id, houseEntries());
+    getHouse().floors[0].rooms.push({ id, gu: sp.gu, gv: sp.gv });
+    houseFocus = id;
+    saveProfile();
+    renderHouse();
+    fitHouse();
+  }
+  // Les pièces pas encore placées sont des brouillons : on peut les ouvrir, les placer, les renommer, les copier ou les supprimer.
+  function renderHouseDrafts(free) {
+    const box = $('#houseDrafts');
+    box.innerHTML = `<h3 class="house-drafts-title">Brouillons <span class="muted">(pas encore dans la maison)</span></h3>`;
+    const row = document.createElement('div');
+    row.className = 'house-drafts-row';
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'house-draft house-draft-new';
+    add.innerHTML = '<span class="room-new-plus">＋</span><span>Nouvelle pièce</span>';
+    add.addEventListener('click', createRoom);
+    row.appendChild(add);
+    for (const r of free.sort((a, b) => (b.updated || 0) - (a.updated || 0))) {
+      const card = document.createElement('article');
+      card.className = 'house-draft';
+      const preview = r.thumb ? '<img class="room-thumb" alt="">' : `<svg class="room-thumb" viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg">${roomSvg(r.colors, r.shape)}</svg>`;
+      card.innerHTML = `<button class="room-open" title="Ouvrir">${preview}</button><p class="house-draft-name"></p>
+        <div class="house-draft-actions"><button data-act="place" class="btn btn-primary" title="Placer dans la maison">＋ Maison</button>
+        <button data-room-act="rename" title="Renommer">✏️</button><button data-room-act="duplicate" title="Dupliquer">⧉</button><button data-room-act="delete" title="Supprimer" class="danger">🗑️</button></div>`;
+      if (r.thumb) card.querySelector('img').src = r.thumb;
+      if (r.colors && r.colors.background) card.querySelector('.room-open').style.background = r.colors.background;
+      card.querySelector('.house-draft-name').textContent = `${r.name || 'Sans nom'} · ${footprint(r.id).w}×${footprint(r.id).d}`;
+      card.querySelector('.room-open').addEventListener('click', () => openRoom(r.id));
+      card.querySelector('.house-draft-actions').addEventListener('click', (e) => {
+        const b = e.target.closest('button');
+        if (!b) return;
+        if (b.dataset.act === 'place') addToHouse(r.id);
+        else if (b.dataset.roomAct) roomAction(b.dataset.roomAct, r);
+      });
+      row.appendChild(card);
+    }
+    box.appendChild(row);
   }
   function openHousePicker() {
     const used = new Set(houseEntries().map((e) => e.id));
