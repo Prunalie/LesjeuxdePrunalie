@@ -7558,32 +7558,20 @@
     $('#houseView').classList.toggle('empty', !entries.length);
     if (!entries.length) svg.innerHTML = '';
     else {
-      // Cadre : toutes les pièces à l'échelle 1, puis réduit pour tenir dans le plan.
-      const ext = entries.map((e) => {
-        const r = roomById(e.id), sh = normShape(r.shape);
-        const X = (e.gu - e.gv) * TILE_X, Y = (e.gu + e.gv) * TILE_Y;
-        return { minX: X - sh.d * TILE_X, maxX: X + sh.w * TILE_X, minY: Y - Math.max(sh.h, 3) * TILE_Z, maxY: Y + (sh.w + sh.d) * TILE_Y };
-      });
-      const minX = Math.min(...ext.map((x) => x.minX)), maxX = Math.max(...ext.map((x) => x.maxX));
-      const minY = Math.min(...ext.map((x) => x.minY)), maxY = Math.max(...ext.map((x) => x.maxY));
-      const k = Math.min(1, 900 / (maxX - minX), 560 / (maxY - minY));
-      const draw = (e, dim) => {
-        const r = roomById(e.id);
-        return houseRoomSvg(r, k, { x: (e.gu - e.gv) * TILE_X * k, y: (e.gu + e.gv) * TILE_Y * k }, dim);
-      };
+      // Toutes les pièces à l'échelle 1 ; la caméra (zoom, déplacement) agit sur le viewBox.
+      const draw = (e, dim) => houseRoomSvg(roomById(e.id), 1, { x: (e.gu - e.gv) * TILE_X, y: (e.gu + e.gv) * TILE_Y }, dim);
       const back = [...entries].filter((e) => e.id !== houseFocus).sort((a, b) => (a.gu + a.gv) - (b.gu + b.gv));
       const lit = entries.find((e) => e.id === houseFocus);
       const labels = entries.map((e) => {
         const r = roomById(e.id), sh = normShape(r.shape);
-        const x = (e.gu - e.gv + (sh.w - sh.d) / 2) * TILE_X * k, y = (e.gu + e.gv + (sh.w + sh.d) / 2) * TILE_Y * k;
+        const x = (e.gu - e.gv + (sh.w - sh.d) / 2) * TILE_X, y = (e.gu + e.gv + (sh.w + sh.d) / 2) * TILE_Y;
         const on = e.id === houseFocus;
         const name = escXml(r.name.length > 16 ? r.name.slice(0, 15) + '…' : r.name);
-        return `<g class="house-label${on ? ' on' : ''}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)})" pointer-events="none"><rect x="-${(name.length * 4.6 + 12).toFixed(0)}" y="-11" width="${(name.length * 9.2 + 24).toFixed(0)}" height="22" rx="11" fill="${on ? '#FFF8EF' : '#2c2433'}" stroke="${on ? '#5A3E3A' : '#6b5c78'}" stroke-width="2"/><text y="5" text-anchor="middle" font-family="Fredoka,sans-serif" font-weight="600" font-size="13" fill="${on ? '#5A3E3A' : '#cbbfd6'}">${name}</text></g>`;
+        return `<g class="house-label${on ? ' on' : ''}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)})" pointer-events="none"><rect x="-${(name.length * 5.6 + 14).toFixed(0)}" y="-14" width="${(name.length * 11.2 + 28).toFixed(0)}" height="28" rx="14" fill="${on ? '#FFF8EF' : '#2c2433'}" stroke="${on ? '#5A3E3A' : '#6b5c78'}" stroke-width="2.5"/><text y="6" text-anchor="middle" font-family="Fredoka,sans-serif" font-weight="600" font-size="16" fill="${on ? '#5A3E3A' : '#cbbfd6'}">${name}</text></g>`;
       }).join('');
-      const pad = 40;
-      svg.setAttribute('viewBox', `${(minX * k - pad).toFixed(0)} ${(minY * k - pad).toFixed(0)} ${((maxX - minX) * k + pad * 2).toFixed(0)} ${((maxY - minY) * k + pad * 2).toFixed(0)}`);
       svg.innerHTML = HOUSE_DIM + back.map((e) => draw(e, true)).join('') + (lit ? draw(lit, false) : '') + labels;
     }
+    applyHouseView();
     // Commandes de la pièce allumée
     const box = $('#houseControls');
     box.innerHTML = '';
@@ -7627,7 +7615,7 @@
       box.appendChild(pad);
       box.appendChild(st);
       btn('Rapprocher', '', () => snapHouseRoom(me), 'Colle la pièce contre ses voisines');
-      btn('Retirer de la maison', 'btn-ghost', () => { getHouse().floors[0].rooms = entries.filter((e) => e !== me); houseFocus = null; saveProfile(); renderHouse(); }, 'La pièce n\'est pas supprimée : elle reste dans « Mes pièces ».');
+      btn('Retirer de la maison', 'btn-ghost', () => { getHouse().floors[0].rooms = entries.filter((e) => e !== me); houseFocus = null; saveProfile(); renderHouse(); fitHouse(); }, 'La pièce n\'est pas supprimée : elle reste dans « Mes pièces ».');
     }
     const used = new Set(entries.map((e) => e.id));
     const free = realRooms().filter((r) => !used.has(r.id));
@@ -7680,6 +7668,7 @@
         saveProfile();
         $('#housePicker').hidden = true;
         renderHouse();
+        fitHouse();
       });
       box.appendChild(b);
     }
@@ -7687,18 +7676,114 @@
   }
   $('#housePickClose').addEventListener('click', () => { $('#housePicker').hidden = true; });
   $('#housePicker').addEventListener('click', (e) => { if (e.target.id === 'housePicker') $('#housePicker').hidden = true; });
-  // Toucher une pièce du plan : on l'allume.
-  $('#housePlan').addEventListener('click', (e) => {
-    const g = e.target.closest && e.target.closest('.nb-room');
-    if (g) { houseFocus = g.dataset.room; renderHouse(); }
+  // Caméra du plan (plein écran) : on déplace avec un doigt ou la souris, on zoome en pinçant ou avec la molette.
+  const hv = { cx: 0, cy: 0, upp: 1, fit: 1 }; // upp = unités du dessin par pixel d'écran
+  const houseStageEl = $('#houseView');
+  function houseBounds() {
+    const entries = houseEntries();
+    if (!entries.length) return null;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const e of entries) {
+      const sh = normShape(roomById(e.id).shape);
+      const X = (e.gu - e.gv) * TILE_X, Y = (e.gu + e.gv) * TILE_Y;
+      minX = Math.min(minX, X - sh.d * TILE_X); maxX = Math.max(maxX, X + sh.w * TILE_X);
+      minY = Math.min(minY, Y - Math.max(sh.h, 3) * TILE_Z); maxY = Math.max(maxY, Y + (sh.w + sh.d) * TILE_Y);
+    }
+    return { minX, maxX, minY, maxY };
+  }
+  function applyHouseView() {
+    const rect = houseStageEl.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const w = rect.width * hv.upp, h = rect.height * hv.upp;
+    $('#housePlan').setAttribute('viewBox', `${(hv.cx - w / 2).toFixed(1)} ${(hv.cy - h / 2).toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`);
+  }
+  // Tout voir : toute la maison dans l'écran.
+  function fitHouse() {
+    const b = houseBounds();
+    const rect = houseStageEl.getBoundingClientRect();
+    if (!b || !rect.width) return;
+    const pad = 40;
+    hv.upp = Math.max((b.maxX - b.minX + pad * 2) / rect.width, (b.maxY - b.minY + pad * 2) / (rect.height * 0.7));
+    hv.fit = hv.upp;
+    hv.cx = (b.minX + b.maxX) / 2;
+    hv.cy = (b.minY + b.maxY) / 2 + (rect.height * 0.12) * hv.upp; // un peu plus haut : la place des commandes est en bas
+    applyHouseView();
+  }
+  function zoomHouse(factor, clientX, clientY) {
+    const rect = houseStageEl.getBoundingClientRect();
+    const px = (clientX ?? rect.left + rect.width / 2) - (rect.left + rect.width / 2);
+    const py = (clientY ?? rect.top + rect.height / 2) - (rect.top + rect.height / 2);
+    const upp = Math.min(Math.max(hv.upp / factor, 0.2), Math.max(hv.fit * 2.4, 0.5));
+    // Le point sous le doigt reste en place.
+    hv.cx += px * (hv.upp - upp);
+    hv.cy += py * (hv.upp - upp);
+    hv.upp = upp;
+    applyHouseView();
+  }
+  const hPointers = new Map();
+  let hMoved = false, hPinch = 0;
+  houseStageEl.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.house-sheet, .house-zoom')) return;
+    houseStageEl.setPointerCapture(e.pointerId);
+    hPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (hPointers.size === 1) hMoved = false;
+    if (hPointers.size === 2) { const [a, b] = [...hPointers.values()]; hPinch = Math.hypot(a.x - b.x, a.y - b.y); hMoved = true; }
   });
+  houseStageEl.addEventListener('pointermove', (e) => {
+    const p = hPointers.get(e.pointerId);
+    if (!p) return;
+    if (hPointers.size === 2) {
+      const before = [...hPointers.values()];
+      hPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const now = [...hPointers.values()];
+      const d = Math.hypot(now[0].x - now[1].x, now[0].y - now[1].y);
+      const mx = (now[0].x + now[1].x) / 2, my = (now[0].y + now[1].y) / 2;
+      const pmx = (before[0].x + before[1].x) / 2, pmy = (before[0].y + before[1].y) / 2;
+      hv.cx -= (mx - pmx) * hv.upp; hv.cy -= (my - pmy) * hv.upp; // déplacement des deux doigts
+      if (hPinch) zoomHouse(d / hPinch, mx, my);
+      hPinch = d;
+      return;
+    }
+    const dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.tx = (p.tx || 0) + Math.abs(dx); p.ty = (p.ty || 0) + Math.abs(dy);
+    if (p.tx + p.ty > 8) hMoved = true;
+    if (hMoved) { hv.cx -= dx * hv.upp; hv.cy -= dy * hv.upp; applyHouseView(); }
+    p.x = e.clientX; p.y = e.clientY;
+  });
+  const hEnd = (e) => {
+    const had = hPointers.has(e.pointerId);
+    hPointers.delete(e.pointerId);
+    if (!had) return;
+    if (!hPointers.size && !hMoved && e.type === 'pointerup') {
+      // Simple toucher : on allume la pièce touchée.
+      for (const el of document.elementsFromPoint(e.clientX, e.clientY)) {
+        const g = el.closest && el.closest('.nb-room');
+        if (g && g.closest('#housePlan')) { houseFocus = g.dataset.room; renderHouse(); break; }
+      }
+    }
+    if (hPointers.size < 2) hPinch = 0;
+  };
+  houseStageEl.addEventListener('pointerup', hEnd);
+  houseStageEl.addEventListener('pointercancel', hEnd);
+  houseStageEl.addEventListener('wheel', (e) => { e.preventDefault(); zoomHouse(Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY); }, { passive: false });
+  $('#houseZoomIn').addEventListener('click', () => zoomHouse(1.4));
+  $('#houseZoomOut').addEventListener('click', () => zoomHouse(1 / 1.4));
+  $('#houseFit').addEventListener('click', fitHouse);
+  $('#houseSheetToggle').addEventListener('click', () => {
+    const sheet = $('#houseSheet');
+    const closed = sheet.classList.toggle('collapsed');
+    $('#houseSheetToggle').setAttribute('aria-expanded', String(!closed));
+    $('#houseSheetToggle').textContent = closed ? 'Commandes ▴' : 'Commandes ▾';
+  });
+  if (window.ResizeObserver) new ResizeObserver(() => { if (!screens.house.hidden) applyHouseView(); }).observe(houseStageEl);
   let houseFrom = 'home';
   function openHouse(focusId = null, from = 'home') {
     if (!houseOn()) return;
     houseFrom = from;
     houseFocus = focusId;
-    renderHouse();
     showScreen('house');
+    renderHouse();
+    fitHouse();
   }
   $('#homeHouse').addEventListener('click', () => openHouse(null, 'home'));
   $('#btnHouse').addEventListener('click', async () => { const id = state.roomId; select(null); await saveRoom(); state.roomId = null; openHouse(id, 'room'); });
