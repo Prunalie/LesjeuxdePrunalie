@@ -7911,7 +7911,7 @@
   const hPointers = new Map();
   let hMoved = false, hPinch = 0;
   houseStageEl.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.house-float, .house-zoom, .house-settings, .house-panel, .house-rooms-btn')) return;
+    if (e.target.closest('.house-float, .house-zoom, .house-settings, .house-panel, .house-rooms-btn, .house-info-btn, .house-info')) return;
     houseStageEl.setPointerCapture(e.pointerId);
     hPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (hPointers.size === 1) hMoved = false;
@@ -7952,6 +7952,7 @@
       // Toucher à côté des pièces : plus aucune pièce n'est choisie (et les réglages se referment).
       houseFocus = found;
       $('#houseSettings').hidden = true;
+      $('#houseInfo').hidden = true;
       setHousePanel(false);
       renderHouse();
     }
@@ -7964,6 +7965,11 @@
   $('#houseZoomOut').addEventListener('click', () => zoomHouse(1 / 1.4));
   $('#houseFit').addEventListener('click', fitHouse);
   // Les pièces (brouillons) : un bouton ouvre la liste, qui se referme d'un toucher ailleurs.
+  $('#houseInfoBtn').addEventListener('click', () => {
+    const box = $('#houseInfo');
+    box.hidden = !box.hidden;
+    $('#houseInfoBtn').setAttribute('aria-expanded', String(!box.hidden));
+  });
   const setHousePanel = (open) => { $('#housePanel').hidden = !open; };
   $('#houseRoomsBtn').addEventListener('click', () => { setHousePanel($('#housePanel').hidden); $('#houseSettings').hidden = true; renderHouse(); });
   $('#housePanelClose').addEventListener('click', () => setHousePanel(false));

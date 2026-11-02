@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611022011">
+  <link rel="stylesheet" href="style.css?v=202611022100">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -525,7 +525,19 @@
     <div id="houseView" class="house-view">
       <svg id="housePlan" class="house-plan" viewBox="0 0 1000 560" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Plan de ma maison"></svg>
       <p class="house-empty">Aucune pièce dans la maison : touche « Pièces » pour en placer.</p>
-      <p class="house-hint">Touche une pièce pour la choisir · glisse pour te déplacer · pince pour zoomer</p>
+      <button id="houseInfoBtn" class="house-info-btn" type="button" title="Comment ça marche ?" aria-label="Comment ça marche ?" aria-expanded="false">i</button>
+      <div id="houseInfo" class="house-info" hidden>
+        <strong>Comment ça marche ?</strong>
+        <ul>
+          <li>Touche une pièce pour la choisir : une barre s'ouvre. Touche à côté pour ne plus rien choisir.</li>
+          <li>Glisse un doigt pour te déplacer, pince pour zoomer (ou utilise + − ⤢).</li>
+          <li>« ✏️ Entrer dans la pièce » pour la décorer, « Retirer » pour la remettre dans les brouillons.</li>
+          <li>« 📐 Taille » change la largeur et la profondeur : les pièces voisines s'écartent toutes seules.</li>
+          <li>« ✥ Déplacer » pousse la pièce avec les flèches ; « Rapprocher » la colle à ses voisines.</li>
+          <li>⚙️ règle le pas de déplacement et la hauteur des murs de toute la maison.</li>
+          <li>🏠 Pièces : tes brouillons, à placer dans la maison.</li>
+        </ul>
+      </div>
       <div class="house-zoom" role="group" aria-label="Zoom">
         <button id="houseGear" type="button" title="Réglages de la maison" aria-label="Réglages de la maison">⚙️</button>
         <button id="houseZoomIn" type="button" title="Zoomer" aria-label="Zoomer">+</button>
@@ -1208,7 +1220,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611022011"></script>
-  <script src="game.js?v=202611022011"></script>
+  <script src="firebase-config.js?v=202611022100"></script>
+  <script src="game.js?v=202611022100"></script>
 </body>
 </html>
