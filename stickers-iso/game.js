@@ -7653,11 +7653,10 @@
       bar.className = 'house-bar';
       box.appendChild(bar);
       const btn = (label, cls, fn, title, host = bar) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + cls; b.innerHTML = label; if (title) b.title = title; b.addEventListener('click', fn); host.appendChild(b); return b; };
-      btn('✏️ Entrer', 'btn-primary', () => goHouseRoom(room.id), 'Décorer cette pièce');
+      btn('✏️ Entrer dans la pièce', 'btn-primary', () => goHouseRoom(room.id), 'Décorer cette pièce');
+      btn('Retirer', 'btn-ghost', () => { getHouse().floors[0].rooms = entries.filter((e) => e !== me); houseFocus = null; saveProfile(); renderHouse(); fitHouse(); }, 'La pièce n\'est pas supprimée : elle reste dans les brouillons.');
       btn('📐 Taille', houseTool === 'size' ? 'active' : '', () => { houseTool = houseTool === 'size' ? null : 'size'; renderHouse(); }, 'Changer la taille de la pièce');
       btn('✥ Déplacer', houseTool === 'move' ? 'active' : '', () => { houseTool = houseTool === 'move' ? null : 'move'; renderHouse(); }, 'Déplacer la pièce');
-      btn('Rapprocher', '', () => snapHouseRoom(me), 'Colle la pièce contre ses voisines');
-      btn('Retirer', 'btn-ghost', () => { getHouse().floors[0].rooms = entries.filter((e) => e !== me); houseFocus = null; saveProfile(); renderHouse(); fitHouse(); }, 'La pièce n\'est pas supprimée : elle reste dans les brouillons.');
       if (houseTool === 'size') {
         // Taille : les voisines s'écartent toutes seules si besoin.
         const sz = normShape(room.shape);
@@ -7676,21 +7675,33 @@
           box.appendChild(row);
         }
       } else if (houseTool === 'move') {
-        // Les flèches suivent les deux directions du plan (comme les murs de la pièce).
+        // Les flèches suivent les deux directions du plan (comme les murs de la pièce) : en croix, avec « Rapprocher » à côté.
         const pad = document.createElement('div');
-        pad.className = 'house-pad';
-        pad.innerHTML = `<span class="muted">Déplacer (${houseStep} carreau${houseStep > 1 ? 'x' : ''}) :</span>`;
+        pad.className = 'house-movebox';
+        const cross = document.createElement('div');
+        cross.className = 'house-cross';
+        const cell = { '↖': 'a1', '↗': 'a3', '↙': 'a7', '↘': 'a9' };
         const dirs = [['↖', -1, 0, 'vers le haut à gauche'], ['↗', 0, -1, 'vers le haut à droite'], ['↙', 0, 1, 'vers le bas à gauche'], ['↘', 1, 0, 'vers le bas à droite']];
         for (const [label, du, dv, title] of dirs) {
           const b = document.createElement('button');
           b.type = 'button';
-          b.className = 'btn';
+          b.className = 'btn ' + cell[label];
           b.textContent = label;
           b.title = `Déplacer ${title}`;
           b.setAttribute('aria-label', `Déplacer la pièce ${title}`);
           b.addEventListener('click', () => moveHouseRoom(me, du * houseStep, dv * houseStep));
-          pad.appendChild(b);
+          cross.appendChild(b);
         }
+        const mid = document.createElement('span');
+        mid.className = 'cross-mid';
+        mid.textContent = '✥';
+        cross.appendChild(mid);
+        pad.appendChild(cross);
+        const side = document.createElement('div');
+        side.className = 'house-moveside';
+        side.innerHTML = `<span class="muted">Pas : ${houseStep} carreau${houseStep > 1 ? 'x' : ''}</span>`;
+        btn('Rapprocher', '', () => snapHouseRoom(me), 'Colle la pièce contre ses voisines', side);
+        pad.appendChild(side);
         box.appendChild(pad);
       }
     }

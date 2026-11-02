@@ -2544,3 +2544,10 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .house-bar .btn { padding: 4px 12px; font-size: .9rem; }
 .house-bar .btn.active { background: var(--chunk); color: #fff; }
 .house-float:empty { display: none; }
+
+.house-movebox { flex-basis: 100%; display: flex; align-items: center; gap: 14px; }
+.house-cross { display: grid; grid-template-columns: repeat(3, 46px); grid-template-rows: repeat(3, 40px); gap: 2px; }
+.house-cross .btn { padding: 0; font-size: 1.15rem; min-width: 0; display: grid; place-items: center; }
+.house-cross .a1 { grid-area: 1 / 1; } .house-cross .a3 { grid-area: 1 / 3; } .house-cross .a7 { grid-area: 3 / 1; } .house-cross .a9 { grid-area: 3 / 3; }
+.house-cross .cross-mid { grid-area: 2 / 2; display: grid; place-items: center; color: var(--muted); font-size: 1.2rem; }
+.house-moveside { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
