@@ -7886,12 +7886,20 @@
   $('#houseZoomIn').addEventListener('click', () => zoomHouse(1.4));
   $('#houseZoomOut').addEventListener('click', () => zoomHouse(1 / 1.4));
   $('#houseFit').addEventListener('click', fitHouse);
-  $('#houseSheetToggle').addEventListener('click', () => {
+  // Le bandeau du bas a 3 niveaux : 0 = commandes + brouillons, 1 = commandes seules, 2 = rien (juste la poignée).
+  let houseSheetLevel = 0;
+  function setHouseSheet(level) {
+    houseSheetLevel = level;
     const sheet = $('#houseSheet');
-    const closed = sheet.classList.toggle('collapsed');
-    $('#houseSheetToggle').setAttribute('aria-expanded', String(!closed));
-    $('#houseSheetToggle').textContent = closed ? 'Commandes ▴' : 'Commandes ▾';
-  });
+    sheet.classList.toggle('level-1', level === 1);
+    sheet.classList.toggle('level-2', level === 2);
+    const t = $('#houseSheetToggle');
+    t.textContent = ['Commandes + brouillons ▾', 'Commandes ▾', 'Afficher ▴'][level];
+    t.setAttribute('aria-expanded', String(level < 2));
+    t.title = level < 2 ? 'Réduire le bandeau' : 'Agrandir le bandeau';
+    applyHouseView();
+  }
+  $('#houseSheetToggle').addEventListener('click', () => setHouseSheet((houseSheetLevel + 1) % 3));
   if (window.ResizeObserver) new ResizeObserver(() => { if (!screens.house.hidden) applyHouseView(); }).observe(houseStageEl);
   let houseFrom = 'home';
   function openHouse(focusId = null, from = 'home') {
