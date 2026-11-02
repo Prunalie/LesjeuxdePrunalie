@@ -7663,6 +7663,22 @@
         if (d < 0) { const v = document.createElement('strong'); v.textContent = cur; hh.appendChild(v); }
       }
       box.appendChild(hh);
+      // Taille de la pièce : les voisines s'écartent toutes seules si besoin.
+      const sz = normShape(room.shape);
+      for (const [axis, lab] of [['w', 'Largeur'], ['d', 'Profondeur']]) {
+        const row = document.createElement('div');
+        row.className = 'house-step';
+        row.innerHTML = `<span class="muted">${lab} :</span>`;
+        for (const d of [-1, 1]) {
+          const b = document.createElement('button');
+          b.type = 'button'; b.className = 'btn'; b.textContent = d < 0 ? '−' : '+';
+          b.setAttribute('aria-label', `${lab} ${d < 0 ? 'moins' : 'plus'}`);
+          b.addEventListener('click', () => resizeHouseRoom(me, axis, d));
+          row.appendChild(b);
+          if (d < 0) { const v = document.createElement('strong'); v.textContent = `${sz[axis]}`; row.appendChild(v); }
+        }
+        box.appendChild(row);
+      }
       btn('✏️ Entrer dans cette pièce', 'btn-primary', () => goHouseRoom(room.id));
       // Déplacer la pièce le long des deux directions du plan (comme les murs de la pièce).
       const pad = document.createElement('div');
@@ -7705,6 +7721,35 @@
     const moved = { ...e, gu: e.gu + du, gv: e.gv + dv };
     if (houseEntries().some((o) => o.id !== e.id && boxesOverlap(boxOf(moved), boxOf(o)))) { toast('Il y a déjà une pièce à cet endroit : elles ne peuvent pas se chevaucher.'); return; }
     e.gu = moved.gu; e.gv = moved.gv;
+    saveProfile();
+    renderHouse();
+  }
+  // Change la taille d'une pièce depuis le plan. Les voisines qui se retrouvent recouvertes sont repoussées (et ainsi de suite).
+  function resizeHouseRoom(e, axis, delta) {
+    const r = roomById(e.id);
+    if (!r) return;
+    const sh = normShape(r.shape);
+    const nv = clamp(sh[axis] + delta, SIZE_MIN, SIZE_MAX);
+    if (nv === sh[axis]) return;
+    r.shape = normShape({ ...sh, [axis]: nv });
+    r.thumb = '';
+    r.updated = Date.now();
+    db.putRoom(r).catch(() => toast('La nouvelle taille n\'a pas pu être enregistrée.'));
+    if (delta > 0) {
+      const entries = houseEntries();
+      const key = axis === 'w' ? 'gu' : 'gv';
+      const queue = [e];
+      let guard = 0;
+      while (queue.length && guard++ < 300) {
+        const a = queue.shift();
+        for (const o of entries) {
+          if (o === a || o === e || !boxesOverlap(boxOf(a), boxOf(o))) continue;
+          const b = boxOf(a);
+          o[key] = axis === 'w' ? b.u1 : b.v1;
+          queue.push(o);
+        }
+      }
+    }
     saveProfile();
     renderHouse();
   }
