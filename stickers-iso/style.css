@@ -2508,3 +2508,5 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .house-nb .nb-room { pointer-events: all; cursor: pointer; }
 .room-tools .tool-house { font-size: 1.1rem; }
 .room-tools .tool-house[hidden] { display: none; }
+
+.house-plan .nb-room.sel { filter: drop-shadow(0 0 14px rgba(255, 216, 107, .95)); }

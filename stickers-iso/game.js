@@ -7586,7 +7586,9 @@
         const name = escXml(r.name.length > 16 ? r.name.slice(0, 15) + '…' : r.name);
         return `<g class="house-label${on ? ' on' : ''}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)})" pointer-events="none"><rect x="-${(name.length * 5.6 + 14).toFixed(0)}" y="-14" width="${(name.length * 11.2 + 28).toFixed(0)}" height="28" rx="14" fill="${on ? '#FFF8EF' : '#2c2433'}" stroke="${on ? '#5A3E3A' : '#6b5c78'}" stroke-width="2.5"/><text y="6" text-anchor="middle" font-family="Fredoka,sans-serif" font-weight="600" font-size="16" fill="${on ? '#5A3E3A' : '#cbbfd6'}">${name}</text></g>`;
       }).join('');
-      svg.innerHTML = HOUSE_DIM + back.map((e) => draw(e, true)).join('') + (lit ? draw(lit, false) : '') + labels;
+      // Au plan, tout est allumé (on assemble) ; la pièce choisie a juste un halo. Le noir est réservé à l'intérieur d'une pièce.
+      const all = [...entries].sort((a, b) => (a.gu + a.gv) - (b.gu + b.gv));
+      svg.innerHTML = all.map((e) => draw(e, false).replace('<g class="nb-room"', e.id === houseFocus ? '<g class="nb-room sel"' : '<g class="nb-room"')).join('') + labels;
     }
     applyHouseView();
     // Commandes de la pièce allumée
@@ -7599,7 +7601,7 @@
       const f = footprint(room.id);
       const t = document.createElement('p');
       t.className = 'house-focus-name';
-      t.textContent = `Pièce allumée : ${room.name} · ${f.w} × ${f.d} carreaux`;
+      t.textContent = `Pièce choisie : ${room.name} · ${f.w} × ${f.d} carreaux`;
       box.appendChild(t);
       // Hauteur des murs : une seule pour toute la maison.
       const hh = document.createElement('div');
@@ -7786,7 +7788,7 @@
     hPointers.delete(e.pointerId);
     if (!had) return;
     if (!hPointers.size && !hMoved && e.type === 'pointerup') {
-      // Simple toucher : on allume la pièce touchée.
+      // Simple toucher : on choisit la pièce touchée.
       for (const el of document.elementsFromPoint(e.clientX, e.clientY)) {
         const g = el.closest && el.closest('.nb-room');
         if (g && g.closest('#housePlan')) { houseFocus = g.dataset.room; renderHouse(); break; }
