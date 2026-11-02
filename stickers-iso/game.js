@@ -561,7 +561,7 @@
       defs.push(`<pattern id="${id}" patternUnits="userSpaceOnUse" x="0" y="0" width="${d.w}" height="${d.h}" patternTransform="matrix(${m})"><image href="${d.data}" width="${d.w}" height="${d.h}" preserveAspectRatio="none"/></pattern>`);
       return `url(#${id})`;
     };
-    const decoWL = decoFor('wallLeftDeco'), decoWR = decoFor('wallRightDeco'), decoF = decoFor('floorDeco');
+    const decoWL = decoFor('wallLeftDeco'), decoWR = decoFor('wallRightDeco'), decoF = decoFor('floorDeco'), decoLF = decoFor('levelFloorDeco');
     const W = sh.w, D = sh.d, Z = g.wallTiles;
     const C = P(0, 0), R = P(W, 0), L = P(0, D), B = P(W, D);
     const up = (p) => ({ x: p.x, y: p.y - g.wallPx });
@@ -606,14 +606,15 @@
     sh.levels.forEach((lv) => {
       const z1 = z + lv.h;
       const lc = levelColors(colors || {}, shape);
-      const top = lc.levelFloor;
+      // Sol à motif de l'étage (plate-forme) : le motif part du coin du fond, à la hauteur du dessus.
+      const top = decoLF ? texture(decoLF, { x: TILE_X * k, y: TILE_Y * k }, { x: -TILE_X * k, y: TILE_Y * k }, P(0, 0, z1)) : lc.levelFloor;
       // Face avant gauche (côté v = d) et face avant droite (côté u = w).
       parts.push(`<polygon points="${pts(P(0, lv.d, z), P(lv.w, lv.d, z), P(lv.w, lv.d, z1), P(0, lv.d, z1))}" fill="${lc.levelLeft}"/>`);
       parts.push(`<polygon points="${pts(P(lv.w, 0, z), P(lv.w, lv.d, z), P(lv.w, lv.d, z1), P(lv.w, 0, z1))}" fill="${lc.levelRight}"/>`);
       parts.push(`<polygon points="${pts(P(0, 0, z1), P(lv.w, 0, z1), P(lv.w, lv.d, z1), P(0, lv.d, z1))}" fill="${top}"/>`);
-      floorPattern(parts, P, lv.w, lv.d, z1, top, garden, k);
+      if (!decoLF) floorPattern(parts, P, lv.w, lv.d, z1, lc.levelFloor, garden, k);
       // Petite bordure sur l'arête avant.
-      parts.push(`<polyline points="${pts(P(0, lv.d, z1), P(lv.w, lv.d, z1), P(lv.w, 0, z1))}" fill="none" stroke="${shade(top, -0.45)}" stroke-opacity=".5" stroke-width="2"/>`);
+      parts.push(`<polyline points="${pts(P(0, lv.d, z1), P(lv.w, lv.d, z1), P(lv.w, 0, z1))}" fill="none" stroke="${shade(lc.levelFloor, -0.45)}" stroke-opacity=".5" stroke-width="2"/>`);
       z = z1;
     });
 
@@ -4288,6 +4289,7 @@
     wallLeftDeco: { kind: 'wall', title: 'Papier peint · mur gauche', other: 'wallRightDeco', otherName: 'mur droit' },
     wallRightDeco: { kind: 'wall', title: 'Papier peint · mur droit', other: 'wallLeftDeco', otherName: 'mur gauche' },
     floorDeco: { kind: 'floor', title: 'Sol à motif', other: null },
+    levelFloorDeco: { kind: 'floor', title: 'Sol à motif · étage (plate-forme)', other: null },
   };
   let decoSlot = 'wallLeftDeco';
   const decoSwatches = [...document.querySelectorAll('.deco-swatch')];
@@ -4299,7 +4301,7 @@
       b.classList.toggle('empty', !d);
       b.style.backgroundImage = d ? `url("${d.url}")` : '';
       b.textContent = d ? '' : '🖼️';
-      b.title = d ? `${d.name} (touche pour changer)` : (b.dataset.deco === 'floorDeco' ? 'Choisir un sol à motif' : 'Choisir un papier peint');
+      b.title = d ? `${d.name} (touche pour changer)` : (b.dataset.deco.endsWith('floorDeco') || b.dataset.deco === 'levelFloorDeco' ? 'Choisir un sol à motif' : 'Choisir un papier peint');
     }
   }
   for (const b of decoSwatches) b.addEventListener('click', () => openDecoPicker(b.dataset.deco));
