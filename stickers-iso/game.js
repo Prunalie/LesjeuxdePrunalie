@@ -482,7 +482,9 @@
   }
 
   function drawRoom() {
-    room.innerHTML = roomSvg(state.colors, state.shape);
+    const curR = currentRoom();
+    const inHouse = !!(houseOn() && curR && !curR.contestDay && houseEntries().some((e) => e.id === curR.id));
+    room.innerHTML = roomSvg(state.colors, state.shape, inHouse ? { flat: true } : null);
     drawHouseNeighbors();
     // Couleurs des étages : seulement quand la pièce en a.
     const hasLevels = !!(state.shape && state.shape.levels.length);
@@ -604,6 +606,9 @@
       z = z1;
     });
 
+    // Dans la maison : pas d'épaisseur ni de tranche de sol qui dépassent, pour que les sols des pièces voisines restent au même niveau.
+    const flat = !!(geomOpts && geomOpts.flat);
+    if (flat) return (defs.length ? `<defs>${defs.join('')}</defs>` : '') + parts.join('');
     // Épaisseur des murs (tranche du dessus) et du sol
     if (!garden) {
       parts.push(`<polygon points="${pts(up(L), up(C), off(up(C), 0, -T / 2), off(up(L), -T, -T / 2))}" fill="${shade(wallLeft, 0.35)}"/>`);
@@ -7526,7 +7531,7 @@
       const x = origin.x + (st.x - g0.C.x) * f, y = origin.y + (st.y - g0.C.y) * f;
       return `<image href="${img.url}" x="${(x - w / 2).toFixed(1)}" y="${(y - h / 2).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" preserveAspectRatio="none" transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${st.rot || 0}) scale(${st.flip ? -1 : 1} 1) translate(${(-x).toFixed(1)} ${(-y).toFixed(1)})"/>`;
     }).join('');
-    return `<g class="nb-room" data-room="${escXml(r.id)}"${dim ? ' filter="url(#houseDim)"' : ''}>${roomSvg(r.colors || {}, shp, { k: kw, origin })}${stickers}</g>`;
+    return `<g class="nb-room" data-room="${escXml(r.id)}"${dim ? ' filter="url(#houseDim)"' : ''}>${roomSvg(r.colors || {}, shp, { k: kw, origin, flat: true })}${stickers}</g>`;
   }
   // Dans une pièce : les voisines autour, dans le noir (dessinées derrière la pièce, hors de l'export en image).
   function drawHouseNeighbors() {
