@@ -7493,6 +7493,11 @@
       delete e.size;
       placed.push(e);
     }
+    // Toutes les pièces partagent une même hauteur de murs : à défaut, la plus haute de celles déjà posées.
+    if (kept.length && !getHouse().wallH) {
+      getHouse().wallH = Math.max(...kept.map((e) => normShape((roomById(e.id) || {}).shape).h));
+      changed = true;
+    }
     if (changed) { getHouse().floors[0].rooms = kept; saveProfile(); }
     return kept;
   }
@@ -7607,7 +7612,7 @@
         b.type = 'button'; b.className = 'btn'; b.textContent = lab; b.setAttribute('aria-label', d < 0 ? 'Murs plus bas' : 'Murs plus hauts');
         b.addEventListener('click', () => setH(cur + d));
         hh.appendChild(b);
-        if (d < 0) { const v = document.createElement('strong'); v.textContent = cur + (getHouse().wallH ? '' : ' (au choix)'); hh.appendChild(v); }
+        if (d < 0) { const v = document.createElement('strong'); v.textContent = cur; hh.appendChild(v); }
       }
       box.appendChild(hh);
       btn('✏️ Entrer dans cette pièce', 'btn-primary', () => goHouseRoom(room.id));
