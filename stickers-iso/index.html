@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611021400">
+  <link rel="stylesheet" href="style.css?v=202611021500">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -207,6 +207,7 @@
     <section class="stage-area" id="stageArea">
       <div class="stage-scaler" id="stageScaler">
         <div class="stage" id="stage">
+          <svg id="houseNb" class="room house-nb" viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
           <svg id="room" class="room" viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg"></svg>
           <div id="stickerLayer" class="sticker-layer"></div>
           <div id="lightLayer" class="light-layer" aria-hidden="true"></div>
@@ -230,9 +231,7 @@
           <button id="btnColors" aria-controls="colorsPanel" aria-expanded="false" title="Couleurs des murs, du sol et du fond">🎨<span class="label-long">&nbsp;Couleurs</span></button>
           <button id="btnLight" title="Lumière (test)" aria-controls="ambientBar" aria-expanded="false" hidden>💡<span class="label-long">&nbsp;Lumière</span></button>
           <button id="btnShape" title="Aménager : jardin, taille, étages">🏗️<span class="label-long">&nbsp;Aménager</span></button>
-          <button id="btnPrevRoom" class="tool-house" type="button" hidden title="Pièce précédente de ma maison" aria-label="Pièce précédente">‹</button>
           <button id="btnHouse" class="tool-house" type="button" hidden title="Voir ma maison">🏠<span class="label-long">&nbsp;Maison</span></button>
-          <button id="btnNextRoom" class="tool-house" type="button" hidden title="Pièce suivante de ma maison" aria-label="Pièce suivante">›</button>
           <button id="btnExport2" class="tool-export" title="Exporter la pièce en image">📷<span class="label-long">&nbsp;Exporter</span></button>
           <button id="btnContestDraft" class="tool-draft" hidden title="Enregistrer en brouillon et revenir plus tard">💾<span class="label-long">&nbsp;Brouillon</span></button>
           <button id="btnContestPublish2" class="tool-publish" hidden title="Publier cette pièce au concours du jour">🏆<span class="label-long">&nbsp;Publier</span></button>
@@ -524,12 +523,8 @@
       </div>
     </header>
     <div class="rooms-body">
-      <p id="houseIntro" class="admin-intro muted">Assemble tes pièces côte à côte, comme une maison de poupée vue de face. La pièce où tu te trouves est allumée, les autres sont dans le noir : touche-en une pour l'allumer.</p>
-      <div class="house-scroll"><div id="houseView" class="house-view">
-        <svg class="house-roof" viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true"><polygon points="0,26 50,2 100,26" fill="#F0658A" stroke="#5A3E3A" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>
-        <div id="houseRow" class="house-row"></div>
-        <div class="house-ground"></div>
-      </div></div>
+      <p id="houseIntro" class="admin-intro muted">Assemble tes pièces comme dans un plan de maison : elles se posent côte à côte et peuvent avoir des tailles différentes. La pièce où tu es est allumée, les autres sont dans le noir. Touche une pièce du plan pour l'allumer, puis entre dedans. Dans une pièce, touche une voisine dans le noir pour y aller.</p>
+      <div id="houseView" class="house-view"><svg id="housePlan" class="house-plan" viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Plan de ma maison"></svg><p class="house-empty">Aucune pièce pour l'instant : ajoute-en pour construire ta maison.</p></div>
       <div id="houseControls" class="house-controls"></div>
       <p class="house-later muted">Bientôt : des étages reliés par des escaliers.</p>
     </div>
@@ -1201,7 +1196,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611021400"></script>
-  <script src="game.js?v=202611021400"></script>
+  <script src="firebase-config.js?v=202611021500"></script>
+  <script src="game.js?v=202611021500"></script>
 </body>
 </html>
