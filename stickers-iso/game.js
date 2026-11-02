@@ -197,12 +197,22 @@
       };
       const clean = (v) => JSON.parse(JSON.stringify(v));
       const all = async (query) => (await query.get()).docs.map((d) => ({ ...d.data(), id: d.id }));
+      // Listes lourdes qui changent peu (catalogue, décor, enveloppes, nouveautés) : on affiche tout de suite
+      // la copie gardée sur l'appareil, puis on la remet à jour en arrière-plan (cloudDb.onFresh).
+      const docsOf = (snap) => snap.docs.map((d) => ({ ...d.data(), id: d.id }));
+      const allFast = async (query, key) => {
+        let cached = null;
+        try { const c = await query.get({ source: 'cache' }); if (c.size) cached = docsOf(c); } catch (e) { /* pas de copie locale */ }
+        if (!cached) return all(query);
+        query.get().then((snap) => { if (api.onFresh) api.onFresh(key, docsOf(snap)); }).catch(() => {});
+        return cached;
+      };
       // Les règles Firestore n'autorisent que deux collections : les pièces, joueurs et
       // enveloppes partagent « ma-petite-piece » (champ type), les stickers l'autre.
-      return {
-        listCatalog: () => all(images.where('catalog', '==', true)),
+      const api = {
+        listCatalog: () => allFast(images.where('catalog', '==', true), 'catalog'),
         // Papiers peints et sols (en test chez l'administratrice)
-        listDecos: () => all(images.where('deco', '==', true)),
+        listDecos: () => allFast(images.where('deco', '==', true), 'decos'),
         putImage: ({ id, url, ...rec }) => images.doc(id).set(clean(rec)),
         deleteImage: (id) => images.doc(id).delete(),
         // Les participations au concours ont aussi un « owner » : ce ne sont pas des pièces.
@@ -215,7 +225,7 @@
         },
         putPlayer: ({ id, ...p }) => rooms.doc(id).set(clean({ ...p, type: 'player' })),
         deletePlayer: (id) => rooms.doc(id).delete(),
-        listEnvelopes: () => all(rooms.where('type', '==', 'envelope')),
+        listEnvelopes: () => allFast(rooms.where('type', '==', 'envelope'), 'envelopes'),
         putEnvelope: ({ id, ...env }) => rooms.doc(id).set(clean({ ...env, type: 'envelope' })),
         deleteEnvelope: (id) => rooms.doc(id).delete(),
         // Propositions de stickers des joueurs (dans la collection des stickers, proposal: true)
@@ -258,7 +268,7 @@
         listTodos: () => all(rooms.where('type', '==', 'todo')),
         putTodo: ({ id, ...t }) => rooms.doc(id).set(clean({ ...t, type: 'todo' })),
         deleteTodo: (id) => rooms.doc(id).delete(),
-        listNews: () => all(rooms.where('type', '==', 'news')),
+        listNews: () => allFast(rooms.where('type', '==', 'news'), 'news'),
         putNews: ({ id, ...n }) => rooms.doc(id).set(clean({ ...n, type: 'news' })),
         deleteNews: (id) => rooms.doc(id).delete(),
         // Concours du jour : participations et votes d'un jour donné (champ contestDay)
@@ -269,6 +279,7 @@
         listAllEntries: async () => (await all(rooms.where('type', '==', 'contest'))).filter((c) => c.kind === 'entry'),
         listMyContest: async (owner) => (await all(rooms.where('owner', '==', owner))).filter((c) => c.type === 'contest' && c.kind === 'entry'),
       };
+      return api;
     } catch (e) {
       console.warn('Firebase indisponible', e);
       return null;
@@ -2526,10 +2537,13 @@
     $('#pseudoError').hidden = true;
     const btn = $('#startBtn');
     btn.disabled = true;
+    const label = btn.textContent;
+    btn.textContent = 'Chargement…';
     try {
       await login(name);
     } finally {
       btn.disabled = false;
+      btn.textContent = label;
     }
   });
 
@@ -2573,6 +2587,25 @@
     }
     for (const m of await d.listMail(OLD_ADMIN)) await d.putMail({ ...m, to: key });
     await d.deletePlayer(playerDocId(OLD_ADMIN));
+  }
+
+  // Les listes affichées depuis la copie de l'appareil sont remises à jour dès que le serveur répond.
+  if (cloudDb) {
+    cloudDb.onFresh = (key, docs) => {
+      if (!state.player) return;
+      if (key === 'catalog') {
+        const ids = new Set(docs.map((d) => d.id));
+        for (const [id, img] of [...state.images]) if (img.catalog && !ids.has(id)) state.images.delete(id);
+        docs.forEach(addImageToLibrary);
+      } else if (key === 'decos') {
+        if (shopV2()) docs.forEach(addDeco);
+      } else if (key === 'envelopes') {
+        state.envelopes = sortEnvelopes(docs);
+      } else if (key === 'news') {
+        setNews(docs);
+        renderNewsBadge();
+      }
+    };
   }
 
   async function login(name) {
