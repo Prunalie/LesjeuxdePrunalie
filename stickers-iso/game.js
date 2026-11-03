@@ -4533,7 +4533,6 @@
         card.querySelector('.deco-preview').style.backgroundSize = decoBgSize(d);
       });
       card.querySelector('.deco-admin-test').addEventListener('click', () => openDecoTest(d));
-      card.querySelector('.deco-admin-test').hidden = d.kind === 'halfwall'; // pas d'aperçu pour les demi-murs (jardins)
       card.querySelector('.deco-admin-del').addEventListener('click', async () => {
         if (!(await askConfirm(`Supprimer « ${d.name} » ? Les pièces qui l'utilisent reprennent leur couleur unie.`, 'Supprimer'))) return;
         state.decos.delete(d.id);
@@ -4576,9 +4575,11 @@
   function renderDecoTest() {
     const d = decoTestFor;
     if (!d) return;
-    const wall = d.kind === 'wall';
+    const half = d.kind === 'halfwall'; // demi-mur : testé dans un jardin
+    const wall = d.kind === 'wall' || half;
     $('#decoTestTitle').textContent = `Tester : ${d.name}`;
     $('#decoTestTargetRow').hidden = !wall;
+    $('#decoTestTargetRow span').textContent = half ? 'Demi-mur sur' : 'Papier peint sur';
     $('#decoTestSize').textContent = String(d.size || 2);
     $('#decoPadWall').hidden = !wall;
     $('#decoPadFloor').hidden = wall;
@@ -4594,15 +4595,17 @@
     const target = $('#decoTestTarget').value;
     const other = withSel.value;
     if (wall) {
-      if (target !== 'right') colors.wallLeftDeco = d.id;
-      if (target !== 'left') colors.wallRightDeco = d.id;
+      if (target !== 'right') colors[half ? 'halfLeftDeco' : 'wallLeftDeco'] = d.id;
+      if (target !== 'left') colors[half ? 'halfRightDeco' : 'wallRightDeco'] = d.id;
       if (other) colors.floorDeco = other;
     } else {
       colors.floorDeco = d.id;
       if (other) { colors.wallLeftDeco = other; colors.wallRightDeco = other; }
     }
     // Quelques meubles du jeu posés au sol (tirés au hasard, comme dans une vraie pièce).
-    const g = roomGeom(null);
+    const testShape = half ? { kind: 'garden', w: 8, d: 8, h: 5, levels: [] } : null;
+    if (half) Object.assign(colors, GARDEN_COLORS);
+    const g = roomGeom(testShape);
     const pool = [...state.images.values()].filter((i) => i.catalog && i.url && i.w && i.h);
     let seed = decoTestSeed * 9301 + 49297;
     const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
@@ -4614,7 +4617,7 @@
       const k = Math.min(190 / img.w, 170 / img.h) * Math.max(g.k, 0.6);
       return { img, x: p.x, y: p.y, w: img.w * k, h: img.h * k };
     }).sort((a, b) => a.y - b.y);
-    $('#decoTestStage').innerHTML = roomSvg(colors, null)
+    $('#decoTestStage').innerHTML = roomSvg(colors, testShape)
       + items.map((it) => `<image href="${it.img.url}" x="${(it.x - it.w / 2).toFixed(1)}" y="${(it.y - it.h).toFixed(1)}" width="${it.w.toFixed(1)}" height="${it.h.toFixed(1)}" preserveAspectRatio="xMidYMid meet"/>`).join('');
     $('#decoTestShuffle').hidden = !pool.length && picks.length < 2;
   }
