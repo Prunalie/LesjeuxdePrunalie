@@ -2557,3 +2557,5 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .house-info { position: absolute; left: 10px; top: 62px; width: min(340px, calc(100% - 80px)); padding: 12px 14px; border-radius: 16px; border: 2.5px solid var(--chunk); background: var(--panel); box-shadow: 0 4px 0 var(--chunk); font-size: .88rem; line-height: 1.35; z-index: 2; }
 .house-info[hidden] { display: none; }
 .house-info ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+
+.news-readers { margin: 8px 0 0; font-weight: 700; font-size: .85rem; }

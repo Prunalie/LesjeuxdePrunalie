@@ -5523,6 +5523,17 @@
     ul.hidden = !(n.items || []).length;
     el.querySelector('.mail-text').textContent = n.text || '';
     el.querySelector('.mail-text').hidden = !n.text;
+    // Administratrice : combien de joueurs ont lu cette nouveauté (ceux arrivés après sa sortie ne comptent pas).
+    if (withDelete && n.date && n.date <= Date.now()) {
+      const info = document.createElement('p');
+      info.className = 'news-readers muted';
+      if (newsReaders) {
+        const eligible = newsReaders.filter((p) => !(p.firstSeen && p.firstSeen > n.date));
+        const read = eligible.filter((p) => (p.newsSeen || 0) >= n.date).length;
+        info.textContent = eligible.length ? `👁️ ${read} joueur${read > 1 ? 's' : ''} sur ${eligible.length} ${read > 1 ? 'l\'ont' : 'l\'a'} lue` : '👁️ Aucun joueur concerné pour l\'instant';
+      } else info.textContent = '👁️ Lecture : chargement…';
+      el.appendChild(info);
+    }
     if (withDelete && !n.id.startsWith('n-')) {
       const del = document.createElement('button');
       del.className = 'btn btn-ghost news-del';
@@ -5553,11 +5564,18 @@
   $('#newsDialogOk').addEventListener('click', () => { newsDialog.hidden = true; markNewsSeen(); });
   $('#newsDialogAll').addEventListener('click', () => { newsDialog.hidden = true; openNews(); });
 
+  let newsReaders = null; // joueurs (sans l'administratrice) avec leur dernière nouveauté lue
   function openNews() {
     if (maintBlocked('news')) return;
     renderNews();
     showScreen('news');
     markNewsSeen();
+    if (state.isAdmin) {
+      db.listPlayers().then((l) => {
+        newsReaders = l.filter((p) => !ADMIN_PSEUDOS.includes(String(p.key || '').toLowerCase()));
+        if (!screens.news.hidden) renderNews();
+      }).catch((e) => { console.warn('Lecteurs des nouveautés indisponibles', e); });
+    }
   }
   function renderNews() {
     renderPoints();
