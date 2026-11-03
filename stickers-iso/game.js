@@ -547,7 +547,8 @@
     const { wallLeft, wallRight, floor } = { ...base, ...colors };
     const defs = [];
     const decoFor = (key) => {
-      const d = colors && colors[key] && (!garden || key === 'floorDeco' || key === 'levelFloorDeco') ? state.decos.get(colors[key]) : null;
+      const half = key === 'halfLeftDeco' || key === 'halfRightDeco';
+      const d = colors && colors[key] && (garden ? (half || key === 'floorDeco' || key === 'levelFloorDeco') : !half) ? state.decos.get(colors[key]) : null;
       return d && d.w && d.h ? d : null;
     };
     // along : vecteur écran d'un carreau vers la droite du motif ; down : vers le bas du motif.
@@ -561,7 +562,7 @@
       defs.push(`<pattern id="${id}" patternUnits="userSpaceOnUse" x="0" y="0" width="${d.w}" height="${d.h}" patternTransform="matrix(${m})"><image href="${d.data}" width="${d.w}" height="${d.h}" preserveAspectRatio="none"/></pattern>`);
       return `url(#${id})`;
     };
-    const decoWL = decoFor('wallLeftDeco'), decoWR = decoFor('wallRightDeco'), decoF = decoFor('floorDeco'), decoLF = decoFor('levelFloorDeco');
+    const decoWL = decoFor(garden ? 'halfLeftDeco' : 'wallLeftDeco'), decoWR = decoFor(garden ? 'halfRightDeco' : 'wallRightDeco'), decoF = decoFor('floorDeco'), decoLF = decoFor('levelFloorDeco');
     const W = sh.w, D = sh.d, Z = g.wallTiles;
     const C = P(0, 0), R = P(W, 0), L = P(0, D), B = P(W, D);
     const up = (p) => ({ x: p.x, y: p.y - g.wallPx });
@@ -584,8 +585,9 @@
           parts.push(`<ellipse cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" rx="${(30 * k).toFixed(1)}" ry="${(14 * k).toFixed(1)}" fill="${fill}"/>`);
         }
       };
-      bumps(L, C, D, shade(wallLeft, 0.12));
-      bumps(C, R, W, shade(wallRight, 0.12));
+      // Un demi-mur à motif (barrière, haie…) remplace le feuillage de son côté.
+      if (!decoWL) bumps(L, C, D, shade(wallLeft, 0.12));
+      if (!decoWR) bumps(C, R, W, shade(wallRight, 0.12));
     } else {
       // Plinthes
       const BASE = 14 * Math.max(k, 0.5);
@@ -793,7 +795,7 @@
 
   function addDeco(rec) {
     if (!rec.data) return;
-    if (rec.adminOnly && !state.isAdmin) return; // décor privé : les joueurs ne le voient pas
+    if ((rec.adminOnly || rec.kind === 'halfwall') && !state.isAdmin) return; // décor privé : les joueurs ne le voient pas
     state.decos.set(rec.id, { ...rec, url: rec.data });
   }
 
@@ -4255,7 +4257,7 @@
   const decoOwned = (id) => (state.isAdmin && !decoAsPlayer) || !!(state.profile && state.profile.decos && state.profile.decos[id]);
   const decoByName = (a, b) => (a.collection || '').localeCompare(b.collection || '', 'fr') || (a.name || '').localeCompare(b.name || '', 'fr');
   // Les décors privés (🔒) ne sont ni en vente ni chez les joueurs : l'administratrice les pose gratuitement.
-  const decoList = (kind, forShop = false) => [...state.decos.values()].filter((d) => d.kind === kind && (!d.adminOnly || (!forShop && state.isAdmin && !decoAsPlayer))).sort(decoByName);
+  const decoList = (kind, forShop = false) => [...state.decos.values()].filter((d) => d.kind === kind && ((!d.adminOnly && d.kind !== 'halfwall') || (!forShop && state.isAdmin && !decoAsPlayer))).sort(decoByName);
   // Aperçu à plat : la largeur de la vignette représente 4 carreaux de pièce, donc un motif de « taille 2 »
   // y apparaît deux fois, un motif de « taille 1 » quatre fois (au plus un motif entier si la taille est grande).
   const decoBgSize = (d) => `${Math.min(100, Math.max(8, ((Number(d.size) || 2) / 4) * 100))}% auto`;
@@ -4288,6 +4290,8 @@
     wallLeftDeco: { kind: 'wall', title: 'Papier peint · mur gauche', other: 'wallRightDeco', otherName: 'mur droit' },
     wallRightDeco: { kind: 'wall', title: 'Papier peint · mur droit', other: 'wallLeftDeco', otherName: 'mur gauche' },
     floorDeco: { kind: 'floor', title: 'Sol à motif', other: null },
+    halfLeftDeco: { kind: 'halfwall', title: 'Demi-mur · côté gauche', other: 'halfRightDeco', otherName: 'côté droit' },
+    halfRightDeco: { kind: 'halfwall', title: 'Demi-mur · côté droit', other: 'halfLeftDeco', otherName: 'côté gauche' },
     levelFloorDeco: { kind: 'floor', title: 'Sol à motif · étage (plate-forme)', other: null },
   };
   let decoSlot = 'wallLeftDeco';
@@ -4297,12 +4301,13 @@
     const show = state.isAdmin || (shopV2() && decorUnlocked());
     for (const b of decoSwatches) {
       // Jardin : seulement le sol à motif, et côté administratrice pour l'instant.
-      b.hidden = !show || (garden && !(state.isAdmin && b.dataset.deco === 'floorDeco'));
+      const half = b.dataset.deco.startsWith('half');
+      b.hidden = !show || (garden ? !(state.isAdmin && (half || b.dataset.deco === 'floorDeco')) : half);
       const d = state.decos.get(state.colors[b.dataset.deco] || '');
       b.classList.toggle('empty', !d);
       b.style.backgroundImage = d ? `url("${d.url}")` : '';
       b.textContent = d ? '' : '🖼️';
-      b.title = d ? `${d.name} (touche pour changer)` : (b.dataset.deco.endsWith('floorDeco') || b.dataset.deco === 'levelFloorDeco' ? 'Choisir un sol à motif' : 'Choisir un papier peint');
+      b.title = d ? `${d.name} (touche pour changer)` : (b.dataset.deco.endsWith('floorDeco') ? 'Choisir un sol à motif' : half ? 'Choisir un demi-mur' : 'Choisir un papier peint');
     }
   }
   for (const b of decoSwatches) b.addEventListener('click', () => openDecoPicker(b.dataset.deco));
@@ -4346,7 +4351,7 @@
     if (!owned.length) {
       const p = document.createElement('p');
       p.className = 'muted deco-empty';
-      p.textContent = slot.kind === 'floor' ? 'Aucun sol pour l\'instant : il y en a à la boutique (🎨 Décor).' : 'Aucun papier peint pour l\'instant : il y en a à la boutique (🎨 Décor).';
+      p.textContent = slot.kind === 'halfwall' ? 'Aucun demi-mur pour l\'instant : importe-en dans l\'Atelier décor.' : slot.kind === 'floor' ? 'Aucun sol pour l\'instant : il y en a à la boutique (🎨 Décor).' : 'Aucun papier peint pour l\'instant : il y en a à la boutique (🎨 Décor).';
       list.appendChild(p);
     }
   }
@@ -4471,7 +4476,7 @@
     const everything = [...state.decos.values()].sort((a, b) => a.kind.localeCompare(b.kind) || decoByName(a, b));
     const collections = [...new Set(everything.map((d) => d.collection).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
     // Compteurs des onglets, liste des collections.
-    const counts = { all: everything.length, wall: everything.filter((d) => d.kind === 'wall').length, floor: everything.filter((d) => d.kind === 'floor').length };
+    const counts = { all: everything.length, halfwall: everything.filter((d) => d.kind === 'halfwall').length, wall: everything.filter((d) => d.kind === 'wall').length, floor: everything.filter((d) => d.kind === 'floor').length };
     document.querySelectorAll('#decoAdminTabs .deco-tab').forEach((t) => {
       t.classList.toggle('active', t.dataset.kind === decoAdminKind);
       t.querySelector('span').textContent = counts[t.dataset.kind];
@@ -4495,7 +4500,7 @@
         <div class="deco-preview"></div>
         <div class="deco-admin-fields">
           <label><span>Nom</span><input class="field" data-f="name" maxlength="40"></label>
-          <label><span>Type</span><select class="field" data-f="kind"><option value="wall">Papier peint</option><option value="floor">Sol</option></select></label>
+          <label><span>Type</span><select class="field" data-f="kind"><option value="wall">Papier peint</option><option value="floor">Sol</option><option value="halfwall">Demi-mur (jardin)</option></select></label>
           <label><span>Collection</span><input class="field" data-f="collection" maxlength="40" list="decoCollections"></label>
           <label><span>Prix 🪙</span><input class="field" data-f="price" type="number" min="0" step="10"></label>
           <label><span>Taille (carreaux)</span><input class="field" data-f="size" type="number" min="0.5" max="12" step="0.5"></label>
@@ -4528,6 +4533,7 @@
         card.querySelector('.deco-preview').style.backgroundSize = decoBgSize(d);
       });
       card.querySelector('.deco-admin-test').addEventListener('click', () => openDecoTest(d));
+      card.querySelector('.deco-admin-test').hidden = d.kind === 'halfwall'; // pas d'aperçu pour les demi-murs (jardins)
       card.querySelector('.deco-admin-del').addEventListener('click', async () => {
         if (!(await askConfirm(`Supprimer « ${d.name} » ? Les pièces qui l'utilisent reprennent leur couleur unie.`, 'Supprimer'))) return;
         state.decos.delete(d.id);

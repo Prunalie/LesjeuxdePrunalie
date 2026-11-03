@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611030300">
+  <link rel="stylesheet" href="style.css?v=202611030400">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -263,10 +263,12 @@
         <div class="color-row">
           <label class="color-pick" title="Couleur du mur gauche">Mur G <button type="button" class="swatch-btn" id="colorWallLeft" aria-haspopup="dialog"></button></label>
           <button type="button" class="swatch-btn deco-swatch" data-deco="wallLeftDeco" title="Papier peint du mur gauche" hidden></button>
+          <button type="button" class="swatch-btn deco-swatch" data-deco="halfLeftDeco" title="Demi-mur gauche" hidden></button>
         </div>
         <div class="color-row">
           <label class="color-pick" title="Couleur du mur droit">Mur D <button type="button" class="swatch-btn" id="colorWallRight" aria-haspopup="dialog"></button></label>
           <button type="button" class="swatch-btn deco-swatch" data-deco="wallRightDeco" title="Papier peint du mur droit" hidden></button>
+          <button type="button" class="swatch-btn deco-swatch" data-deco="halfRightDeco" title="Demi-mur droit" hidden></button>
         </div>
         <div class="color-row">
           <label class="color-pick" title="Couleur du sol">Sol <button type="button" class="swatch-btn" id="colorFloor" aria-haspopup="dialog"></button></label>
@@ -817,6 +819,7 @@
           <select id="decoImportKind" class="coffre-select" aria-label="Type">
             <option value="wall">Papier peint</option>
             <option value="floor">Sol</option>
+            <option value="halfwall">Demi-mur (jardin, admin)</option>
           </select>
           <label class="deco-private" title="Les décors privés ne sont pas en vente et les joueurs ne les voient pas"><input id="decoImportPrivate" type="checkbox"><span>🔒 Privé (que pour moi)</span></label>
           <label class="btn btn-primary">＋ Importer des motifs<input id="decoImportFile" type="file" accept="image/*" multiple hidden></label>
@@ -827,6 +830,7 @@
           <button class="deco-tab active" type="button" data-kind="all">Tout <span></span></button>
           <button class="deco-tab" type="button" data-kind="wall">🖼️ Papiers peints <span></span></button>
           <button class="deco-tab" type="button" data-kind="floor">🟫 Sols <span></span></button>
+          <button class="deco-tab" type="button" data-kind="halfwall">🌿 Demi-murs <span></span></button>
         </div>
         <input id="decoAdminSearch" class="field" type="search" placeholder="Chercher un décor" aria-label="Chercher un décor">
         <select id="decoAdminCollection" class="coffre-select" aria-label="Collection"><option value="">Toutes les collections</option></select>
@@ -1222,7 +1226,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611030300"></script>
-  <script src="game.js?v=202611030300"></script>
+  <script src="firebase-config.js?v=202611030400"></script>
+  <script src="game.js?v=202611030400"></script>
 </body>
 </html>
