@@ -547,7 +547,7 @@
     const { wallLeft, wallRight, floor } = { ...base, ...colors };
     const defs = [];
     const decoFor = (key) => {
-      const d = !garden && colors && colors[key] ? state.decos.get(colors[key]) : null;
+      const d = colors && colors[key] && (!garden || key === 'floorDeco' || key === 'levelFloorDeco') ? state.decos.get(colors[key]) : null;
       return d && d.w && d.h ? d : null;
     };
     // along : vecteur écran d'un carreau vers la droite du motif ; down : vers le bas du motif.
@@ -793,6 +793,7 @@
 
   function addDeco(rec) {
     if (!rec.data) return;
+    if (rec.adminOnly && !state.isAdmin) return; // décor privé : les joueurs ne le voient pas
     state.decos.set(rec.id, { ...rec, url: rec.data });
   }
 
@@ -3499,8 +3500,8 @@
     const pill = $('#standDecoPill');
     if (decorUnlocked()) pill.innerHTML = `<svg width="12" height="12" viewBox="0 0 32 32" aria-hidden="true"><path d="M13 4 L17 14 L27 18 L17 22 L13 32 L9 22 L-1 18 L9 14 Z" transform="translate(3 -3) scale(.85)" fill="#FFD96B" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/></svg>Nouveau`;
     else pill.innerHTML = `${unlockCost('decor')}<svg width="13" height="13" viewBox="0 0 28 28" aria-hidden="true"><path d="M14 3 L17.5 10.5 L25.5 11.5 L19.5 17 L21.2 25 L14 21 L6.8 25 L8.5 17 L2.5 11.5 L10.5 10.5 Z" fill="#FFD96B" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>`;
-    const walls = [...state.decos.values()].filter((d) => d.kind === 'wall').length;
-    const floors = [...state.decos.values()].filter((d) => d.kind === 'floor').length;
+    const walls = decoList('wall', true).length;
+    const floors = decoList('floor', true).length;
     $('#standDeco').setAttribute('aria-label', `Décor : ${plural(walls, 'papier peint')} et ${plural(floors, 'sol')} en vente${decorUnlocked() ? ', nouveau' : `, à débloquer pour ${unlockCost('decor')} étoiles`}`);
     $('#decoRelock').hidden = !(state.isAdmin && decoAsPlayer && state.profile.unlocks && state.profile.unlocks.decor);
     // Administratrice : voir aussi le visuel de l'autre type de jour.
@@ -4253,7 +4254,8 @@
   let decoAsPlayer = false; // admin : ne voir que ses achats, comme un joueur
   const decoOwned = (id) => (state.isAdmin && !decoAsPlayer) || !!(state.profile && state.profile.decos && state.profile.decos[id]);
   const decoByName = (a, b) => (a.collection || '').localeCompare(b.collection || '', 'fr') || (a.name || '').localeCompare(b.name || '', 'fr');
-  const decoList = (kind) => [...state.decos.values()].filter((d) => d.kind === kind).sort(decoByName);
+  // Les décors privés (🔒) ne sont ni en vente ni chez les joueurs : l'administratrice les pose gratuitement.
+  const decoList = (kind, forShop = false) => [...state.decos.values()].filter((d) => d.kind === kind && (!d.adminOnly || (!forShop && state.isAdmin && !decoAsPlayer))).sort(decoByName);
   // Aperçu à plat : la largeur de la vignette représente 4 carreaux de pièce, donc un motif de « taille 2 »
   // y apparaît deux fois, un motif de « taille 1 » quatre fois (au plus un motif entier si la taille est grande).
   const decoBgSize = (d) => `${Math.min(100, Math.max(8, ((Number(d.size) || 2) / 4) * 100))}% auto`;
@@ -4291,9 +4293,11 @@
   let decoSlot = 'wallLeftDeco';
   const decoSwatches = [...document.querySelectorAll('.deco-swatch')];
   function syncDecoSwatches() {
-    const show = (state.isAdmin || (shopV2() && decorUnlocked())) && normShape(state.shape).kind !== 'garden';
+    const garden = normShape(state.shape).kind === 'garden';
+    const show = state.isAdmin || (shopV2() && decorUnlocked());
     for (const b of decoSwatches) {
-      b.hidden = !show;
+      // Jardin : seulement le sol à motif, et côté administratrice pour l'instant.
+      b.hidden = !show || (garden && !(state.isAdmin && b.dataset.deco === 'floorDeco'));
       const d = state.decos.get(state.colors[b.dataset.deco] || '');
       b.classList.toggle('empty', !d);
       b.style.backgroundImage = d ? `url("${d.url}")` : '';
@@ -4372,7 +4376,7 @@
   function renderDecoShop() {
     const list = $('#decoShopList');
     list.innerHTML = '';
-    const kinds = ['wall', 'floor'].filter((k) => decoList(k).length);
+    const kinds = ['wall', 'floor'].filter((k) => decoList(k, true).length);
     $('#decoTabs').hidden = kinds.length < 2;
     if (!kinds.length) { list.innerHTML = '<p class="muted deco-empty">Rien en vente pour l\'instant.</p>'; return; }
     for (const kind of kinds) {
@@ -4383,7 +4387,7 @@
       sec.innerHTML = `<div class="dv-sec-head"><span class="dv-sec-icon" style="background:${meta.bg}">${meta.icon}</span><h2></h2></div>`;
       sec.querySelector('h2').textContent = meta.title;
       let grid = null, last = null;
-      for (const d of decoList(kind)) {
+      for (const d of decoList(kind, true)) {
         const col = d.collection || 'Sans collection';
         if (col !== last) {
           const pill = document.createElement('div');
@@ -4495,6 +4499,7 @@
           <label><span>Collection</span><input class="field" data-f="collection" maxlength="40" list="decoCollections"></label>
           <label><span>Prix 🪙</span><input class="field" data-f="price" type="number" min="0" step="10"></label>
           <label><span>Taille (carreaux)</span><input class="field" data-f="size" type="number" min="0.5" max="12" step="0.5"></label>
+          <label class="deco-private"><input type="checkbox" data-f="adminOnly"><span>🔒 Privé : visible seulement par moi, pas en vente</span></label>
         </div>
         <div class="deco-admin-btns">
           <button class="btn btn-primary deco-admin-test" type="button" title="Voir ce décor dans une pièce, avec des meubles">👁️<span class="label-long">&nbsp;Tester</span></button>
@@ -4512,6 +4517,8 @@
       f('collection').value = d.collection || '';
       f('price').value = d.price ?? 100;
       f('size').value = d.size || 2;
+      f('adminOnly').checked = !!d.adminOnly;
+      f('adminOnly').addEventListener('change', () => save('adminOnly', f('adminOnly').checked));
       f('name').addEventListener('change', () => save('name', f('name').value.trim() || 'Décor'));
       f('kind').addEventListener('change', () => save('kind', f('kind').value));
       f('collection').addEventListener('change', () => save('collection', f('collection').value.trim()));
@@ -4545,7 +4552,7 @@
         const el = await loadImageEl(src);
         URL.revokeObjectURL(src);
         const { data, w, h } = encodeImage(el);
-        const rec = { id: uid(), deco: true, kind, name: file.name.replace(/\.[^.]+$/, '').slice(0, 40) || 'Décor', collection: '', price: kind === 'floor' ? 150 : 100, size: 2, data, w, h, created: Date.now() };
+        const rec = { id: uid(), deco: true, kind, name: file.name.replace(/\.[^.]+$/, '').slice(0, 40) || 'Décor', collection: '', price: kind === 'floor' ? 150 : 100, size: 2, data, w, h, created: Date.now(), ...($('#decoImportPrivate').checked ? { adminOnly: true } : {}) };
         await db.putImage(rec);
         addDeco(rec);
         n++;

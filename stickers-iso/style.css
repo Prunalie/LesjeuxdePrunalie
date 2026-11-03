@@ -2559,3 +2559,6 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .house-info ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
 
 .news-readers { margin: 8px 0 0; font-weight: 700; font-size: .85rem; }
+
+.deco-private { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: .85rem; cursor: pointer; }
+.deco-private input { width: 18px; height: 18px; }

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611030201">
+  <link rel="stylesheet" href="style.css?v=202611030300">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -818,6 +818,7 @@
             <option value="wall">Papier peint</option>
             <option value="floor">Sol</option>
           </select>
+          <label class="deco-private" title="Les décors privés ne sont pas en vente et les joueurs ne les voient pas"><input id="decoImportPrivate" type="checkbox"><span>🔒 Privé (que pour moi)</span></label>
           <label class="btn btn-primary">＋ Importer des motifs<input id="decoImportFile" type="file" accept="image/*" multiple hidden></label>
         </div>
       </div>
@@ -1221,7 +1222,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611030201"></script>
-  <script src="game.js?v=202611030201"></script>
+  <script src="firebase-config.js?v=202611030300"></script>
+  <script src="game.js?v=202611030300"></script>
 </body>
 </html>
