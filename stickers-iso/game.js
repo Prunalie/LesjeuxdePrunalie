@@ -1187,7 +1187,7 @@
       g.style.background = glowCss(l, state.ambient);
       let h = handleEls.get(l.id);
       // La poignée de déplacement n'apparaît que pour le point qu'on est en train de régler.
-      if (state.isAdmin && lightBarOpen && l.id === lightSel) {
+      if (lightBarOpen && l.id === lightSel) {
         if (!h) {
           h = document.createElement('div');
           h.className = 'light-handle';
@@ -1249,7 +1249,6 @@
     $('#ambientOut').textContent = `${state.ambient} %`;
   }
   function openAmbientBar() {
-    if (!state.isAdmin) return;
     if (!colorsPanel.hidden) setColorsPanel(false);
     if (!layersPanel.hidden) closeLayers();
     ambientBar.hidden = false;
@@ -1654,7 +1653,6 @@
       }
       case 'delete': arr.splice(i, 1); state.selectedId = null; break;
       case 'light': {
-        if (!state.isAdmin) return;
         // Un point lumineux par objet : l'ampoule le crée, puis ouvre (ou ferme) sa barre de réglage.
         const existing = lightOfSticker(s);
         if (existing && lightBarOpen && lightSel === existing.id) { closeLightBar(); return; }
@@ -2990,9 +2988,8 @@
     closeAmbientBar();
     resetHistory();
     layersPanel.hidden = true;
-    // La lumière est en test : seulement pour l'administratrice.
-    $('#btnLight').hidden = !state.isAdmin;
-    toolbar.querySelector('[data-act="light"]').hidden = !state.isAdmin;
+    $('#btnLight').hidden = false;
+    toolbar.querySelector('[data-act="light"]').hidden = false;
     $('#roomName').value = r.name;
     // Pièce du concours : bouton « Publier », et retour vers le concours.
     screens.room.classList.toggle('contest-mode', !!r.contestDay);
@@ -5352,6 +5349,14 @@
   // ---------------------------------------------------------------------------
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
+    {
+      id: 'n-2026-11-03a', date: Date.UTC(2026, 10, 3, 0, 30), title: 'Nouveau : la lumière 💡',
+      items: [
+        'Dans ta pièce, le bouton 💡 règle la lumière : de plein jour jusqu\'à la nuit.',
+        'Touche un objet puis 💡 pour y ajouter un point lumineux : choisis sa couleur, son intensité et déplace-le où tu veux.',
+        'Les objets éclairés restent bien visibles, même quand la pièce est dans le noir. À toi de créer de belles ambiances !',
+      ],
+    },
     {
       // Programmée : visible des joueurs à partir de 7 h le 2 novembre (heure de leur appareil), comme l'ouverture de la nouvelle boutique.
       id: 'n-2026-11-02a', date: launchAt(), title: 'Grosse mise à jour : la nouvelle boutique ! 🛍️',
@@ -8000,7 +8005,6 @@
   const TODO_CATS = { todo: 'À faire', later: 'Peut-être plus tard', bug: 'Petit défaut' };
   // Liste de départ : reprise de IDEES.md (importée une seule fois, à la première ouverture).
   const TODO_SEED = [
-    ['todo', 0, '**Lumière** (en test chez l\'administratrice) : lumière de la pièce et points lumineux sur des objets. À ouvrir aux joueurs une fois testée (peut-être en l\'achetant avec des étoiles, comme les étages).'],
     ['todo', 0, '**Papiers peints et sols** (en test chez l\'administratrice) : motifs plats importés dans l\'Atelier décor, vendus un par un dans la boutique (2 étoiles pour débloquer), choisis par pièce. À ouvrir aux joueurs une fois testé.'],
     ['todo', 0, '**Troc** : échanger des stickers entre joueurs.'],
     ['todo', 0, '**Mini-jeux pour gagner des pièces** (par exemple un Memory avec les stickers).'],

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611022200">
+  <link rel="stylesheet" href="style.css?v=202611030100">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -229,7 +229,7 @@
         <button id="btnLayers" class="layers-btn" aria-controls="layersPanel" title="Objets posés : sélectionner, verrouiller">☰<span class="label-long">&nbsp;Objets</span></button>
         <div class="room-tools" role="group" aria-label="Pièce">
           <button id="btnColors" aria-controls="colorsPanel" aria-expanded="false" title="Couleurs des murs, du sol et du fond">🎨<span class="label-long">&nbsp;Couleurs</span></button>
-          <button id="btnLight" title="Lumière (test)" aria-controls="ambientBar" aria-expanded="false" hidden>💡<span class="label-long">&nbsp;Lumière</span></button>
+          <button id="btnLight" title="Lumière" aria-controls="ambientBar" aria-expanded="false" hidden>💡<span class="label-long">&nbsp;Lumière</span></button>
           <button id="btnShape" title="Aménager : jardin, taille, étages">🏗️<span class="label-long">&nbsp;Aménager</span></button>
           <button id="btnHouse" class="tool-house" type="button" hidden title="Voir ma maison">🏠<span class="label-long">&nbsp;Maison</span></button>
           <button id="btnExport2" class="tool-export" title="Exporter la pièce en image">📷<span class="label-long">&nbsp;Exporter</span></button>
@@ -317,7 +317,7 @@
         <span class="sep"></span>
         <button data-act="flip" title="Retourner (miroir)">↔️</button>
         <button data-act="duplicate" title="Dupliquer">⧉</button>
-        <button data-act="light" title="Ajouter un point lumineux sur cet objet (test)" hidden>💡</button>
+        <button data-act="light" title="Ajouter un point lumineux sur cet objet" hidden>💡</button>
         <button data-act="lock" title="Verrouiller (ne plus pouvoir le toucher dans la pièce)">🔒</button>
         <button data-act="delete" title="Supprimer" class="danger">🗑️</button>
       </div>
@@ -1221,7 +1221,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611022200"></script>
-  <script src="game.js?v=202611022200"></script>
+  <script src="firebase-config.js?v=202611030100"></script>
+  <script src="game.js?v=202611030100"></script>
 </body>
 </html>

@@ -5,7 +5,6 @@ Coche une case (`- [x]`) quand c'est fait.
 
 ## À faire
 
-- [ ] **Lumière** (en test chez l'administratrice) : lumière de la pièce et points lumineux sur des objets. À ouvrir aux joueurs une fois testée (peut-être en l'achetant avec des étoiles, comme les étages).
 - [ ] **Papiers peints et sols** (en test chez l'administratrice) : motifs plats importés dans l'Atelier (🎨 Décor), vendus un par un dans la boutique, choisis par pièce (les deux murs ou un seul). À ouvrir aux joueurs une fois testé.
 - [ ] **Troc** : échanger des stickers entre joueurs.
 - [ ] **Mini-jeux pour gagner des pièces** (par exemple un Memory avec les stickers).
