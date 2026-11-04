@@ -5933,7 +5933,373 @@
     return el;
   }
 
+  // ---------------------------------------------------------------------------
+  // Nouveau design du concours (côté administratrice) : 3 pages — Créer, Voter, Résultats —
+  // avec les flèches rondes en bas. Le thème peut être une pièce + un thème / une couleur / un objet.
+  // ---------------------------------------------------------------------------
+  const cv3On = () => state.isAdmin;
+  let cv3Step = 0;
+  let cv3Pick = null; // pièce choisie dans le duel en cours
+  const CV_INK = '#5A3E3A';
+  const CV_ICON = {
+    swords: `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3 L16 16 M21 3 L8 16 M12 19 L19 12 M12 19 L5 12 M16 16 L21 21 M8 16 L3 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>`,
+    clock: `<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M12 7 V12 L15.5 14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>`,
+    trophy: `<svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M9 4 H23 V13 A7 7 0 0 1 9 13 Z" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M9 7 H4 V10 A5 5 0 0 0 9 15 M23 7 H28 V10 A5 5 0 0 1 23 15" fill="none" stroke="#5A3E3A" stroke-width="2.4"/><rect x="13" y="20" width="6" height="5" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.4"/><rect x="9" y="25" width="14" height="4" rx="1.5" fill="#B08AD8" stroke="#5A3E3A" stroke-width="2.4"/></svg>`,
+    left: `<svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 L8 12 L15 19" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    right: `<svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 L16 12 L9 19" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    chev: `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 L16 12 L9 19" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    palette: `<svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4 C8 4 3 9 3 15 C3 22 9 27 15 27 C18 27 18 24 16.500 22.500 C15 21 16 19 18 19 H23 C26 19 29 17 29 14 C29 8 23 4 16 4 Z" fill="#FFF8EF" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><circle cx="10" cy="13" r="2.4" fill="#E8527C"/><circle cx="16" cy="9.500" r="2.400" fill="#FFC84A"/><circle cx="22" cy="12" r="2.400" fill="#5FB27F"/><circle cx="10" cy="20" r="2.400" fill="#6FB5E0"/></svg>`,
+    scroll: `<svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4 H18 V17 A3 3 0 0 1 15 20 H6 A3 3 0 0 0 9 17 V6 A2 2 0 0 0 7 4 Z" fill="#FFE08A" stroke="#5A3E3A" stroke-width="2.200" stroke-linejoin="round"/><path d="M12 9 H15 M12 13 H15" stroke="#5A3E3A" stroke-width="2" stroke-linecap="round"/></svg>`,
+    hero: `<svg viewBox="0 0 160 110" width="150" aria-hidden="true"><ellipse cx="80" cy="100" rx="58" ry="7" fill="#5A3E3A" opacity=".13"/><path d="M80 12 L134 38 V66 L80 92 L26 66 V38 Z" fill="#CDE8F4" stroke="#5A3E3A" stroke-width="3" stroke-linejoin="round"/><path d="M80 12 V64 L26 38 M80 64 L134 38" fill="none" stroke="#5A3E3A" stroke-width="3" stroke-linejoin="round"/><path d="M26 66 L80 92 L134 66 L80 40 Z" fill="#E1AE6C" stroke="#5A3E3A" stroke-width="3" stroke-linejoin="round"/><path d="M62 62 L80 52 L98 62 L80 72 Z" fill="#6FB5E0" stroke="#5A3E3A" stroke-width="2.400" stroke-linejoin="round"/><rect x="38" y="44" width="16" height="14" rx="3" fill="#E8906B" stroke="#5A3E3A" stroke-width="2.400"/><path d="M46 44 C40 36 44 28 46 26 C50 30 52 38 46 44 Z" fill="#5FB27F" stroke="#5A3E3A" stroke-width="2.400" stroke-linejoin="round"/><rect x="106" y="52" width="16" height="14" rx="3" fill="#F7A8B8" stroke="#5A3E3A" stroke-width="2.400"/><path d="M114 52 C108 44 112 36 114 34 C118 38 120 46 114 52 Z" fill="#5FB27F" stroke="#5A3E3A" stroke-width="2.400" stroke-linejoin="round"/></svg>`,
+  };
+  const cvInfo = (html, label) => `<details class="cv3-info"><summary aria-label="${label}"><span aria-hidden="true">i</span></summary><div class="cv3-bubble">${html}</div></details>`;
+  const cvEsc = (t) => escXml(String(t == null ? '' : t));
+  function openCtImage(e) {
+    $('#ctViewImg').src = e.image;
+    $('#ctViewTitle').textContent = `${e.ownerName || e.owner}${e.roomName ? ' · ' + e.roomName : ''}`;
+    $('#ctView').hidden = false;
+  }
+  // Le thème d'un jour, pour l'affichage : pièce (si le nouveau fonctionnement est actif) + thème, couleur ou objet.
+  function cvThemeBlock(day, label) {
+    const el = document.createElement('div');
+    el.className = 'cv3-theme-block';
+    if (!contestV2()) {
+      el.innerHTML = `<div class="cv3-k">${label}</div><h2 class="cv3-big"></h2>`;
+      el.querySelector('h2').textContent = themeOf(day);
+      return el;
+    }
+    const p = planOf(day);
+    let theme;
+    if (p.kind === 'object') {
+      const img = state.images.get(p.objectId);
+      theme = `${img ? `<img class="cv3-obj" src="${cvEsc(img.url)}" alt="">` : ''}<span>${cvEsc(p.objectName)}</span>`;
+    } else if (p.kind === 'color') {
+      theme = `<span class="cv3-swatch" style="background:${cvEsc(p.colorHex)}"></span><span>${cvEsc(p.colorName)}</span>`;
+    } else theme = `<span>${cvEsc(p.value)}</span>`;
+    const kindLabel = p.kind === 'object' ? 'Objet à placer' : p.kind === 'color' ? 'Couleur imposée' : 'Thème';
+    el.innerHTML = `<div class="cv3-k">${label}</div><h2 class="cv3-big cv3-room-name"></h2>
+      <div class="cv3-k cv3-k2">${kindLabel}</div><div class="cv3-theme">${theme}</div>`;
+    el.querySelector('.cv3-room-name').textContent = p.room;
+    return el;
+  }
+
+  function renderContestV3() {
+    const body = $('#ctBody');
+    body.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'cv3';
+    body.appendChild(wrap);
+    const steps = [
+      { name: 'Créer', sub: 'avant minuit', tint: 'pink' },
+      { name: 'Voter', sub: 'jusqu\'à 20 h', tint: 'butter' },
+      { name: 'Résultats', sub: 'dévoilés à 20 h', tint: 'mint' },
+    ];
+    const nav = document.createElement('nav');
+    nav.className = 'cv3-steps';
+    nav.setAttribute('aria-label', 'Les 3 étapes du concours');
+    steps.forEach((s, i) => {
+      if (i) nav.insertAdjacentHTML('beforeend', `<span class="cv3-sep" aria-hidden="true">${CV_ICON.chev}</span>`);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `cv3-step ${s.tint}${i === cv3Step ? ' on' : ''}`;
+      b.innerHTML = `<span class="cv3-num">${i + 1}</span><span class="cv3-step-name">${s.name}</span><span class="cv3-step-sub">${s.sub}</span>`;
+      if (i === cv3Step) b.setAttribute('aria-current', 'step');
+      b.addEventListener('click', () => { cv3Step = i; renderContestV3(); });
+      nav.appendChild(b);
+    });
+    wrap.appendChild(nav);
+    const page = document.createElement('div');
+    page.className = 'cv3-page';
+    wrap.appendChild(page);
+    [cvPageCreate, cvPageVote, cvPageResults][cv3Step](page);
+    // Flèches du bas
+    const foot = document.createElement('footer');
+    foot.className = 'cv3-foot';
+    const arrow = (dir, enabled) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'cv3-arrow';
+      b.disabled = !enabled;
+      b.setAttribute('aria-label', dir < 0 ? 'Étape précédente' : 'Étape suivante');
+      b.innerHTML = dir < 0 ? CV_ICON.left : CV_ICON.right;
+      b.addEventListener('click', () => { cv3Step += dir; renderContestV3(); window.scrollTo(0, 0); });
+      return b;
+    };
+    foot.appendChild(arrow(-1, cv3Step > 0));
+    const mid = document.createElement('div');
+    mid.className = 'cv3-foot-mid';
+    mid.innerHTML = `<span class="cv3-dots">${steps.map((_, i) => `<i class="${i === cv3Step ? 'on' : ''}"></i>`).join('')}</span><span>Étape ${cv3Step + 1} sur 3 · ${steps[cv3Step].name}</span>`;
+    foot.appendChild(mid);
+    foot.appendChild(arrow(1, cv3Step < 2));
+    wrap.appendChild(foot);
+  }
+
+  // Page 1 : créer sa pièce du concours
+  function cvPageCreate(page) {
+    const me = state.player.key;
+    const t = contestData.today;
+    const card = document.createElement('section');
+    card.className = 'cv3-card';
+    card.setAttribute('aria-label', 'Thème du jour');
+    const joinR = setting('contestJoinReward'), winR = contestReward();
+    const every = setting('contestMilestoneEvery'), prize = setting('contestMilestoneReward');
+    const rewards = [];
+    if (joinR > 0) rewards.push([`+${joinR}`, 'Pour ta participation', 'c1']);
+    rewards.push([`+${winR}`, 'Pour le gagnant du concours', 'c2']);
+    if (prize > 0) rewards.push([`+${prize}`, `Toutes les ${every} participations`, 'c3']);
+    const infoText = contestV2()
+      ? 'Chaque jour, une pièce à décorer (chambre, salon…) avec un thème : un thème général, une couleur ou un objet. Décore-la avec tous les meubles que tu as obtenus, même ceux posés dans tes autres pièces. Quand tu quittes, elle s\'enregistre automatiquement en brouillon. Clique sur « Publier » pour participer avant minuit. Les votes auront lieu demain. Si le thème est un objet, il est prêté à tous aujourd\'hui, dans la pièce du concours.'
+      : 'Pour participer au concours, décore une pièce sur le thème du jour avec tous les meubles que tu as obtenus, même ceux posés dans tes autres pièces. Quand tu quittes, elle s\'enregistre automatiquement en brouillon. Clique sur « Publier » pour participer au concours du jour avant minuit. Les votes de ce thème auront lieu demain.';
+    card.innerHTML = `<div class="cv3-hero">${CV_ICON.hero}</div>
+      <div class="cv3-head"><div class="cv3-head-main"></div>${cvInfo(cvEsc(infoText), 'Plus d\'infos : comment créer ma pièce')}</div>
+      <h3 class="cv3-h3">Récompenses</h3>
+      <div class="cv3-rewards">${rewards.map(([v, l, c]) => `<div class="cv3-reward"><span class="cv3-pill ${c}">${v} ${COIN_SVG(20)}</span><span>${l}</span></div>`).join('')}</div>
+      <div class="cv3-cta-zone"></div>
+      <div class="cv3-tiles"></div>`;
+    card.querySelector('.cv3-head-main').appendChild(cvThemeBlock(t.day, contestV2() ? 'Pièce du jour' : 'Thème du jour'));
+    // Bouton principal, ou brouillon / participation en cours
+    const zone = card.querySelector('.cv3-cta-zone');
+    const mine = t.entries.find((e) => e.owner === me);
+    const myRoom = state.rooms.find((r) => r.contestDay === t.day);
+    if (mine) {
+      const p = document.createElement('p');
+      p.className = 'cv3-note ok';
+      p.innerHTML = `Ta participation est publiée <b>✓</b> Tu peux encore modifier ta pièce et la republier jusqu'à minuit.`;
+      zone.appendChild(p);
+    }
+    if (myRoom && !(blankContestRoom(myRoom) && !mine)) {
+      const pending = !mine || !myRoom.publishedAt || (myRoom.updated || 0) - myRoom.publishedAt > 3000;
+      const hour = (ts) => new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      const dr = document.createElement('div');
+      dr.className = 'cv3-draft';
+      dr.innerHTML = `<button type="button" class="cv3-draft-img" aria-label="Reprendre ma pièce">${myRoom.thumb ? '<img alt="">' : `<svg viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg">${roomSvg(myRoom.colors, myRoom.shape)}</svg>`}</button>
+        <div class="cv3-draft-info"><strong></strong><span></span></div>`;
+      if (myRoom.thumb) dr.querySelector('img').src = myRoom.thumb;
+      dr.querySelector('strong').textContent = mine ? (pending ? 'Modifications pas encore publiées' : 'Pièce publiée, à jour') : 'Mon brouillon';
+      dr.querySelector('span').textContent = `Enregistré à ${hour(myRoom.updated || Date.now())} · ${plural((myRoom.stickers || []).length, 'sticker')}${pending ? ' · « Publier » dans la pièce quand elle est prête' : ''}`;
+      dr.querySelector('.cv3-draft-img').addEventListener('click', openContestRoom);
+      zone.appendChild(dr);
+      const go = document.createElement('button');
+      go.type = 'button';
+      go.className = 'cv3-cta';
+      go.innerHTML = `${CV_ICON.palette}<span>Reprendre ma pièce</span>`;
+      go.addEventListener('click', openContestRoom);
+      zone.appendChild(go);
+      const reset = document.createElement('button');
+      reset.type = 'button';
+      reset.className = 'cv3-link-btn';
+      reset.textContent = 'Recommencer à zéro';
+      reset.addEventListener('click', async () => {
+        const msg = mine
+          ? 'Effacer ton brouillon et repartir d\'une autre pièce ? Ta participation déjà publiée reste en place tant que tu n\'en publies pas une nouvelle.'
+          : 'Effacer ton brouillon et repartir de zéro ou d\'une autre pièce ?';
+        if (!(await askConfirm(msg, 'Recommencer'))) return;
+        state.rooms = state.rooms.filter((x) => x.id !== myRoom.id);
+        db.deleteRoom(myRoom.id).catch(() => {});
+        openContestRoom();
+      });
+      zone.appendChild(reset);
+    } else {
+      const go = document.createElement('button');
+      go.type = 'button';
+      go.className = 'cv3-cta';
+      go.innerHTML = `${CV_ICON.palette}<span>Créer ma pièce du concours</span>`;
+      go.addEventListener('click', openContestRoom);
+      zone.appendChild(go);
+    }
+    // Deux tuiles : mes participations, aujourd'hui
+    const tiles = card.querySelector('.cv3-tiles');
+    const cnt = state.profile.contestCount || 0;
+    let mineTile = `<div class="cv3-tile"><div class="cv3-k">Mes participations</div><div class="cv3-count"><b>${cnt}</b>${prize > 0 ? `<span>sur ${every}</span>` : ''}</div>`;
+    if (prize > 0) {
+      const filled = cnt % every;
+      mineTile += `<div class="cv3-dots2" aria-hidden="true">${Array.from({ length: every }, (_, i) => `<i class="${i < filled ? 'on' : ''}"></i>`).join('')}</div>
+        <div class="cv3-tile-sub">Encore ${every - filled} pour +${prize} ${COIN_SVG(16)}</div>`;
+    } else mineTile += '<div class="cv3-tile-sub">participations au total</div>';
+    mineTile += '</div>';
+    const n = t.entries.length;
+    tiles.innerHTML = mineTile + `<div class="cv3-tile"><div class="cv3-k">Aujourd'hui</div><div class="cv3-count"><b>${n}</b><span>participation${n > 1 ? 's' : ''}</span></div><div class="cv3-tile-sub">de joueurs au concours</div></div>`;
+    page.appendChild(card);
+    // Admin : les pièces publiées aujourd'hui, avec « Retirer »
+    if (t.entries.length) {
+      const det = document.createElement('details');
+      det.className = 'cv3-admin';
+      det.innerHTML = `<summary>Participations du jour (admin) · ${t.entries.length}</summary><div class="ct-grid"></div>`;
+      const grid = det.querySelector('.ct-grid');
+      t.entries.forEach((e) => grid.appendChild(entryCard(e, { canModerate: true })));
+      page.appendChild(det);
+    }
+    const hist = document.createElement('button');
+    hist.type = 'button';
+    hist.className = 'cv3-hist';
+    hist.innerHTML = `${CV_ICON.scroll}<span>Mon historique des concours</span>${CV_ICON.chev}`;
+    hist.addEventListener('click', openContestHistory);
+    page.appendChild(hist);
+  }
+
+  // Page 2 : voter en duels
+  function cvPageVote(page) {
+    const me = state.player.key;
+    const v = contestData.vote;
+    const card = document.createElement('section');
+    card.className = 'cv3-card';
+    card.setAttribute('aria-label', 'Vote');
+    const head = document.createElement('div');
+    head.className = 'cv3-head';
+    const main = document.createElement('div');
+    main.className = 'cv3-head-main';
+    main.appendChild(cvThemeBlock(v.day, 'Vote'));
+    head.appendChild(main);
+    head.insertAdjacentHTML('beforeend', cvInfo(`Dans chaque duel, clique sur ta pièce préférée en fonction du thème imposé. Remporte ${voteReward()} pièces à la fin des votes.`, 'Plus d\'infos : comment voter'));
+    card.appendChild(head);
+    page.appendChild(card);
+    const msg = (text, cls = '') => { const p = document.createElement('p'); p.className = 'cv3-note ' + cls; p.textContent = text; card.appendChild(p); };
+    if (voteMaintenance()) { msg('Le vote est momentanément fermé pour maintenance. Tu peux toujours créer et publier ta pièce du concours : le vote reviendra bientôt !'); return; }
+    if (votingOver()) {
+      msg('Le vote d\'hier est terminé : le gagnant est dévoilé !', 'ok');
+      const go = document.createElement('button');
+      go.type = 'button'; go.className = 'cv3-cta';
+      go.innerHTML = `${CV_ICON.trophy}<span>Voir les résultats</span>`;
+      go.addEventListener('click', () => { cv3Step = 2; renderContestV3(); });
+      card.appendChild(go);
+      return;
+    }
+    if (voteMaintenanceOn()) msg('Test admin : le vote est en maintenance pour les joueurs.');
+    const plan = duelPlan(v, me);
+    if (!v.entries.length) { msg('Personne n\'a participé hier : rien à voter aujourd\'hui.'); return; }
+    if (v.entries.length === 1) { msg(`Une seule participation hier : pas de vote aujourd'hui. ${v.entries[0].owner === me ? 'Tu gagnes' : `${v.entries[0].ownerName || v.entries[0].owner} gagne`} d'office à 20 h !`); return; }
+    if (!plan.total) { msg('Tu as participé hier et il n\'y a qu\'une autre pièce : tu ne peux pas voter aujourd\'hui. Les autres joueurs départagent !'); return; }
+    const chips = document.createElement('div');
+    chips.className = 'cv3-chips';
+    chips.innerHTML = `<span class="cv3-chip b">${CV_ICON.swords} ${plan.total} duel${plan.total > 1 ? 's' : ''}</span><span class="cv3-chip">+${voteReward()} ${COIN_SVG(18)} en récompense</span>`;
+    card.appendChild(chips);
+    const finished = plan.done >= plan.total;
+    const dots = document.createElement('div');
+    dots.className = 'cv3-progress';
+    dots.innerHTML = `<span class="cv3-dots2">${Array.from({ length: Math.min(plan.total, 12) }, (_, i) => `<i class="${i < plan.done ? 'on' : i === plan.done ? 'cur' : ''}"></i>`).join('')}</span><span>${finished ? 'Duels terminés' : `Duel ${plan.done + 1} sur ${plan.total}`}</span>`;
+    card.appendChild(dots);
+    if (finished) {
+      msg(`Merci ! Tu as fait ${plan.total > 1 ? `tes ${plan.total} duels` : 'ton duel'} du jour.${(state.profile.voteRewardDay || '') === v.day ? ` (+${voteReward()} pièces reçues)` : ''}`, 'ok');
+    } else {
+      // La paire du duel en cours : on touche sa préférée, puis « Voter ».
+      if (!duelCurrent || duelCurrent.day !== v.day || !plan.left.some((p) => p.join('|') === [...duelCurrent.pair].sort().join('|'))) {
+        duelCurrent = { day: v.day, pair: nextDuel(v, plan) };
+        cv3Pick = null;
+      }
+      const [a, b] = duelCurrent.pair;
+      const arena = document.createElement('div');
+      arena.className = 'cv3-arena';
+      [a, b].forEach((owner, i) => {
+        const e = v.entries.find((x) => x.owner === owner);
+        const pick = document.createElement('button');
+        pick.type = 'button';
+        pick.className = 'cv3-pick' + (i ? ' r' : ' l') + (cv3Pick === owner ? ' on' : '');
+        pick.setAttribute('aria-label', 'Pièce du concours ' + (i + 1));
+        pick.setAttribute('aria-pressed', String(cv3Pick === owner));
+        pick.innerHTML = '<img alt="Pièce du concours">';
+        pick.querySelector('img').src = e.image;
+        pick.addEventListener('click', () => { cv3Pick = owner; renderContestV3(); });
+        arena.appendChild(pick);
+      });
+      arena.insertBefore(Object.assign(document.createElement('span'), { className: 'cv3-vs', textContent: 'VS' }), arena.children[1]);
+      card.appendChild(arena);
+      const when = document.createElement('p');
+      when.className = 'cv3-when';
+      when.innerHTML = `${CV_ICON.clock}<span>Gagnant dévoilé à 20 h !</span>`;
+      card.appendChild(when);
+      const vote = document.createElement('button');
+      vote.type = 'button';
+      vote.className = 'cv3-cta cv3-vote';
+      vote.disabled = !cv3Pick;
+      vote.innerHTML = `${CV_ICON.swords}<span>${cv3Pick ? 'Voter' : 'Choisis ta pièce préférée'}</span>`;
+      vote.addEventListener('click', async () => {
+        if (!cv3Pick) return;
+        const pickedWinner = cv3Pick;
+        cv3Pick = null;
+        await castDuel(v, a, b, pickedWinner, vote);
+        renderContestV3();
+      });
+      card.appendChild(vote);
+    }
+    if (plan.done) {
+      const r = document.createElement('button');
+      r.type = 'button';
+      r.className = 'cv3-link-btn';
+      r.textContent = 'Recommencer mes votes (test admin)';
+      r.addEventListener('click', () => resetMyDuels(v));
+      card.appendChild(r);
+    }
+    if (v.duels.length) {
+      const det = document.createElement('details');
+      det.className = 'cv3-admin';
+      det.innerHTML = '<summary>Classement provisoire (admin)</summary>';
+      det.appendChild(provisionalRanking(v));
+      page.appendChild(det);
+    }
+  }
+
+  // Page 3 : résultats, podium
+  function cvPageResults(page) {
+    const me = state.player.key;
+    const r = contestData.results;
+    const card = document.createElement('section');
+    card.className = 'cv3-card';
+    card.setAttribute('aria-label', 'Derniers résultats');
+    const head = document.createElement('div');
+    head.className = 'cv3-head';
+    const main = document.createElement('div');
+    main.className = 'cv3-head-main';
+    main.appendChild(cvThemeBlock(r.day, r.day === shiftDay(today(), -1) ? 'Résultats de ce soir' : 'Derniers résultats'));
+    head.appendChild(main);
+    head.insertAdjacentHTML('beforeend', cvInfo('Le score indique les duels gagnés sur les duels disputés.', 'Plus d\'infos : le score'));
+    card.appendChild(head);
+    page.appendChild(card);
+    const msg = (html, cls = '') => { const p = document.createElement('p'); p.className = 'cv3-note ' + cls; p.innerHTML = html; card.appendChild(p); };
+    if (!r.entries.length) { msg('Pas de participation ce jour-là.'); return; }
+    msg(r.solo ? `Une seule participation : gagnante d'office, avec ${soloReward()} ${COIN_SVG(18)}`
+      : r.winners.length ? `Bravo ! ${r.winners.length > 1 ? 'Les gagnants reçoivent' : 'Le gagnant reçoit'} ${contestReward()} ${COIN_SVG(18)}` : 'Aucun vote : pas de gagnant cette fois.');
+    const ranked = [...r.entries].sort((a, b) => r.rate(b.owner) - r.rate(a.owner) || (r.wins[b.owner] || 0) - (r.wins[a.owner] || 0));
+    const score = (e) => (r.seen[e.owner] ? `${CV_ICON.swords}<span>${r.wins[e.owner] || 0}/${r.seen[e.owner]} · ${Math.round(r.rate(e.owner) * 100)} %</span>` : '');
+    const top = ranked.slice(0, 3);
+    const order = top.length === 1 ? [[top[0], 1]] : top.length === 2 ? [[top[1], 2], [top[0], 1]] : [[top[1], 2], [top[0], 1], [top[2], 3]];
+    const pod = document.createElement('div');
+    pod.className = 'cv3-podium';
+    for (const [e, rank] of order) {
+      const col = document.createElement('div');
+      col.className = 'cv3-col r' + rank;
+      col.innerHTML = `${rank === 1 && r.winners.includes(e.owner) ? `<span class="cv3-trophy">${CV_ICON.trophy}</span>` : ''}
+        <button type="button" class="cv3-pod-img" aria-label="Agrandir la pièce"><img alt=""></button>
+        <div class="cv3-pod-name"><b></b>${e.owner === me ? '<i class="cv3-toi">toi</i>' : ''}</div>
+        <div class="cv3-pod-score">${score(e)}</div>
+        <div class="cv3-block"><span>${rank}</span></div>`;
+      col.querySelector('img').src = e.image;
+      col.querySelector('b').textContent = e.ownerName || e.owner;
+      col.querySelector('.cv3-pod-img').addEventListener('click', () => openCtImage(e));
+      pod.appendChild(col);
+    }
+    card.appendChild(pod);
+    const rest = ranked.slice(3);
+    if (rest.length) {
+      const list = document.createElement('div');
+      list.className = 'cv3-rest';
+      rest.forEach((e, i) => {
+        const row = document.createElement('div');
+        row.className = 'cv3-row';
+        row.innerHTML = `<button type="button" class="cv3-row-img" aria-label="Agrandir la pièce"><img alt=""></button>
+          <div class="cv3-row-info"><b></b>${e.owner === me ? '<i class="cv3-toi">toi</i>' : ''}<span class="cv3-pod-score">${score(e)}</span></div><span class="cv3-rank">${i + 4}</span>`;
+        row.querySelector('img').src = e.image;
+        row.querySelector('b').textContent = e.ownerName || e.owner;
+        row.querySelector('.cv3-row-img').addEventListener('click', () => openCtImage(e));
+        list.appendChild(row);
+      });
+      card.appendChild(list);
+    }
+  }
+
   function renderContest() {
+    // Côté administratrice : nouveau design en 3 pages.
+    screens.contest.classList.toggle('cv3-on', cv3On());
+    if (cv3On()) { renderContestV3(); return; }
     const body = $('#ctBody');
     body.innerHTML = '';
     const me = state.player.key;
