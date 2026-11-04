@@ -5398,6 +5398,13 @@
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
     {
+      id: 'n-2026-11-04a', date: Date.UTC(2026, 10, 4, 22, 0), title: 'Déplacer un objet : à toi de choisir ✥',
+      items: [
+        'Dans ⚙️ Paramètres, tu peux choisir de quel côté se trouve la croix ✥ qui déplace un objet sans le cacher avec ton doigt : à gauche ou à droite.',
+        'L\'agrandissement de l\'objet passe automatiquement de l\'autre côté.',
+      ],
+    },
+    {
       // Programmée : visible des joueurs à partir de 5 h le 5 novembre (heure de leur appareil), comme l'ouverture du nouveau concours.
       id: 'n-2026-11-05a', date: new Date(2026, 10, 5, 5, 0, 0).getTime(), title: 'Le concours change : une pièce et un thème 🏆',
       items: [
