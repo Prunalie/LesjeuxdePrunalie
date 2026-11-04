@@ -2743,7 +2743,7 @@
     try {
       const fresh = await db.getPlayer(playerDocId(state.player.key));
       if (!fresh) return;
-      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'joinRewardDay', 'contestCount', 'contestMilestones', 'stairsGift', 'decos', 'house']) {
+      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'joinRewardDay', 'contestCount', 'contestMilestones', 'stairsGift', 'decos', 'house', 'nightPlayer']) {
         if (fresh[k] !== undefined) state.profile[k] = fresh[k];
       }
       state.profile.inventory = state.profile.inventory || {};
@@ -6368,7 +6368,22 @@
     const t = contestData.today;
     // Fermé jusqu'à l'ouverture du nouveau concours (5 h) : un message à la place de la création, le vote et les résultats restent là.
     const closed = ctPreLaunch();
-    if (closed) section('ct-today', '🔒 Le nouveau concours ouvre à 5 h', 'Reviens tout à l\'heure : une nouvelle pièce et un nouveau thème t\'attendent !');
+    if (closed) {
+      const cc = section('ct-today', '🔒 Le nouveau concours ouvre à 5 h', 'Reviens tout à l\'heure : une nouvelle pièce et un nouveau thème t\'attendent !');
+      // Pour que l'administratrice sache à qui cet horaire pose problème.
+      const night = document.createElement('button');
+      night.type = 'button';
+      night.className = 'btn night-btn';
+      const done = !!(state.profile && state.profile.nightPlayer);
+      night.textContent = done ? '🌙 C\'est noté, merci !' : '🌙 Je joue d\'habitude à cette heure-là';
+      night.disabled = done;
+      night.addEventListener('click', reportNightPlayer);
+      cc.appendChild(night);
+      const hint = document.createElement('p');
+      hint.className = 'muted ct-small-text';
+      hint.textContent = 'Un petit signe à l\'administratrice pour qu\'elle adapte l\'heure des mises à jour.';
+      cc.appendChild(hint);
+    }
     const c1 = closed ? document.createElement('div') : section('ct-today', `Thème du jour : ${themeOf(t.day)}`,
       `Décore une pièce sur ce thème et publie-la avant minuit${setting('contestJoinReward') > 0 ? ` (+${setting('contestJoinReward')} 🪙 pour ta participation)` : ''}. Demain, tout le monde vote jusqu'à 20 h, puis on dévoile le gagnant : il reçoit ${contestReward()} 🪙.`);
     if (contestV2()) c1.insertBefore(planCardEl(t.day), c1.firstChild);
@@ -6729,6 +6744,21 @@
     const c = { ...DEFAULT_COLORS, ...(r.colors || {}) };
     const sameColors = Object.keys(c).every((k) => c[k] === DEFAULT_COLORS[k]);
     return sameColors && JSON.stringify(normShape(r.shape)) === JSON.stringify(normShape(null));
+  }
+
+  // « Je joue d'habitude à cette heure-là » : un message dans la boîte aux lettres de l'administratrice, une seule fois par joueur.
+  async function reportNightPlayer() {
+    if (!state.profile || state.profile.nightPlayer) return;
+    state.profile.nightPlayer = Date.now();
+    saveProfile();
+    const m = {
+      id: `night-${state.player.key}`, to: ADMIN_PSEUDOS[0], title: `🌙 ${state.player.name} joue la nuit`,
+      text: `${state.player.name} a signalé jouer d'habitude entre minuit et 5 h : la mise à jour de 5 h peut interrompre ses parties.`,
+      reward: 0, read: false, claimed: false, created: Date.now(),
+    };
+    try { await db.createMail(m); } catch (e) { console.warn('Signalement impossible', e); }
+    toast('C\'est noté, merci ! 🌙');
+    renderContest();
   }
 
   async function openContestRoom() {
@@ -8751,9 +8781,11 @@
     const real = players.filter((p) => !ADMIN_PSEUDOS.includes(playerKey(p)));
     $('#playersUnlocks').textContent = `Options débloquées : ${Object.keys(UNLOCKS).map((k) =>
       `${UNLOCK_ICONS[k]} ${UNLOCKS[k].label} ${real.filter((p) => p.unlocks && p.unlocks[k]).length}/${real.length}`).join(' · ')}`;
+    const nights = players.filter((p) => p.nightPlayer).length;
     const active7 = players.filter((p) => (p.lastSeen || 0) > Date.now() - 7 * 86400000).length;
     $('#playersCount').textContent = `${plural(players.length, 'joueur')} · ${active7} venu${active7 > 1 ? 's' : ''} ces 7 derniers jours`
-      + (Object.keys(contestStats).length ? ` · ${plural(Object.values(contestStats).reduce((a, c) => a + c.count, 0), 'participation')} aux concours` : '');
+      + (Object.keys(contestStats).length ? ` · ${plural(Object.values(contestStats).reduce((a, c) => a + c.count, 0), 'participation')} aux concours` : '')
+      + (nights ? ` · 🌙 ${nights} jou${nights > 1 ? 'ent' : 'e'} d'habitude la nuit (minuit-5 h)` : '');
     const body = $('#playersList');
     body.innerHTML = '';
     $('#playersEmpty').hidden = list.length > 0;
@@ -8778,7 +8810,8 @@
           <button class="btn player-write" title="Envoyer un message dans sa boîte aux lettres">✉️<span class="label-long">&nbsp;Écrire</span></button>
           ${ADMIN_PSEUDOS.includes(key) ? '' : '<button class="btn player-delete" title="Supprimer le compte de ce joueur">🗑️</button>'}
         </div>`;
-      row.querySelector('.player-name').textContent = ADMIN_PSEUDOS.includes(key) ? `${ADMIN_DISPLAY_NAME} 🛡️` : (p.pseudo || key);
+      row.querySelector('.player-name').textContent = (ADMIN_PSEUDOS.includes(key) ? `${ADMIN_DISPLAY_NAME} 🛡️` : (p.pseudo || key)) + (p.nightPlayer ? ' 🌙' : '');
+      if (p.nightPlayer) row.querySelector('.player-name').title = 'A signalé jouer d\'habitude entre minuit et 5 h';
       row.querySelector('.player-seen').textContent = `Vu ${relDays(lastSeen)}` + (p.firstSeen ? ` · depuis le ${dateFmt.format(p.firstSeen).replace(/ à .*/, '')}` : '');
       row.querySelector('.s-points').textContent = `${p.points || 0} 🪙`;
       row.querySelector('.s-coll').textContent = total ? `${distinct}/${total}` : `${distinct}`;
