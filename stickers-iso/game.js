@@ -3557,7 +3557,12 @@
       grid.appendChild(h);
     };
     const envs = [];
-    if (others.length) {
+    if (shopV2()) {
+      // Liste complète : les dernières sorties en haut (les enveloppes du jour sont déjà au stand).
+      const newest = [...all].sort((a, b) => (envSlotDay(b) || '').localeCompare(envSlotDay(a) || '') || (b.created || 0) - (a.created || 0));
+      heading('Toutes les enveloppes', 'Les dernières sorties en premier.');
+      envs.push(...newest);
+    } else if (others.length) {
       heading('⭐ Les enveloppes du jour', 'Prix réduit aujourd\'hui · elles changent à minuit');
       envs.push(...featured, 'toggle');
       if (shopShowOthers) envs.push(null, ...others);
