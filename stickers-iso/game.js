@@ -5009,9 +5009,13 @@
 
   // Compte à rebours de la grosse mise à jour (jusqu'à minuit, heure de l'appareil, le jour d'ouverture).
   let countdownTimer = 0;
+  // Prochaine mise à jour annoncée : la nouvelle boutique, puis le nouveau concours (sans dire ce que c'est).
+  const countdownTarget = () => [launchAt(), contestLaunchAt()].find((t) => t > Date.now()) || 0;
+  let countdownGoal = 0;
   function renderCountdown() {
     const box = $('#homeCountdown');
-    const left = launchAt() - Date.now();
+    if (!countdownGoal) countdownGoal = countdownTarget();
+    const left = countdownGoal - Date.now();
     if (left <= 0) {
       box.hidden = true;
       clearInterval(countdownTimer);
@@ -5024,15 +5028,16 @@
     const s = Math.floor(left / 1000), dd = Math.floor(s / 86400), hh = Math.floor((s % 86400) / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60;
     const two = (n) => String(n).padStart(2, '0');
     $('#cdTimer').textContent = `${dd ? `${dd} j ` : ''}${two(hh)} h ${two(mm)} min ${two(ss)} s`;
-    const sameDay = new Date().toDateString() === new Date(launchAt()).toDateString();
-    const dayWord = sameDay ? 'aujourd\'hui' : (new Date(Date.now() + 86400000).toDateString() === new Date(launchAt()).toDateString() ? 'demain' : `dans ${dd + 1} jours`);
-    $('#cdWhen').textContent = `${dayWord} à ${SHOP_V2_HOUR} h`;
+    const sameDay = new Date().toDateString() === new Date(countdownGoal).toDateString();
+    const dayWord = sameDay ? 'aujourd\'hui' : (new Date(Date.now() + 86400000).toDateString() === new Date(countdownGoal).toDateString() ? 'demain' : `dans ${dd + 1} jours`);
+    $('#cdWhen').textContent = `${dayWord} à ${new Date(countdownGoal).getHours()} h`;
   }
   function startCountdown() {
     clearInterval(countdownTimer);
     countdownTimer = 0;
     $('#homeCountdown').hidden = true;
-    if (Date.now() >= launchAt()) return;
+    countdownGoal = countdownTarget();
+    if (!countdownGoal) return;
     renderCountdown();
     countdownTimer = setInterval(() => { if (!screens.home.hidden) renderCountdown(); }, 1000);
   }
