@@ -4997,7 +4997,7 @@
   // Duels restant à voter pour le concours d'hier (mis en valeur sur la tuile du menu).
   let homeVote = { day: null, at: 0, left: 0 };
   function renderContestTile() {
-    $('#homeContestTheme').textContent = themeOf(today());
+    $('#homeContestTheme').textContent = ctPreLaunch() ? 'Nouveau concours à 5 h !' : themeOf(today());
     const tile = $('#homeContest');
     const yesterday = shiftDay(today(), -1);
     const left = !voteMaintenance() && !votingOver() && homeVote.day === yesterday ? homeVote.left : 0;
@@ -5734,6 +5734,8 @@
   const contestLaunchAt = () => { const [y, m, d] = CONTEST_NEW_FROM.split('-').map(Number); return new Date(y, m - 1, d, CONTEST_NEW_HOUR, 0, 0).getTime(); };
   const contestLaunched = () => Date.now() >= contestLaunchAt();
   const contestV2 = () => { try { return contestLaunched() || (state.isAdmin && localStorage.getItem(CONTEST_V2_KEY) === '1'); } catch (e) { return contestLaunched(); } };
+  // Entre minuit et l'ouverture (5 h), le concours du 5 novembre est fermé pour les joueurs : le nouveau thème n'est pas encore là.
+  const ctPreLaunch = () => !state.isAdmin && !contestLaunched() && today() >= CONTEST_NEW_FROM;
   const v2Day = (day) => contestV2() && (!contestLaunched() || day >= CONTEST_NEW_FROM);
   // Objets que le jeu peut imposer : ceux des enveloppes en vente, avec un vrai nom (pas un simple numéro).
   // Nom présentable d'un objet (certains n'ont qu'un numéro).
@@ -6364,7 +6366,10 @@
 
     // 1. Thème du jour : publier une pièce
     const t = contestData.today;
-    const c1 = section('ct-today', `Thème du jour : ${themeOf(t.day)}`,
+    // Fermé jusqu'à l'ouverture du nouveau concours (5 h) : un message à la place de la création, le vote et les résultats restent là.
+    const closed = ctPreLaunch();
+    if (closed) section('ct-today', '🔒 Le nouveau concours ouvre à 5 h', 'Reviens tout à l\'heure : une nouvelle pièce et un nouveau thème t\'attendent !');
+    const c1 = closed ? document.createElement('div') : section('ct-today', `Thème du jour : ${themeOf(t.day)}`,
       `Décore une pièce sur ce thème et publie-la avant minuit${setting('contestJoinReward') > 0 ? ` (+${setting('contestJoinReward')} 🪙 pour ta participation)` : ''}. Demain, tout le monde vote jusqu'à 20 h, puis on dévoile le gagnant : il reçoit ${contestReward()} 🪙.`);
     if (contestV2()) c1.insertBefore(planCardEl(t.day), c1.firstChild);
     const mine = t.entries.find((e) => e.owner === me);
@@ -6727,6 +6732,7 @@
   }
 
   async function openContestRoom() {
+    if (ctPreLaunch()) { toast('Le nouveau concours ouvre à 5 h : reviens tout à l\'heure !'); return; }
     const day = today();
     const existing = state.rooms.find((x) => x.contestDay === day);
     if (existing && !blankContestRoom(existing)) { openRoom(existing.id); return; }
@@ -6797,6 +6803,7 @@
   async function publishContestRoom() {
     const r = currentRoom();
     if (!r || !r.contestDay) return;
+    if (ctPreLaunch()) { toast('Le nouveau concours ouvre à 5 h : reviens tout à l\'heure !'); return; }
     if (r.contestDay !== today()) {
       toast('Ce concours est terminé : publie plutôt une pièce pour le thème du jour.');
       return;
