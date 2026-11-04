@@ -5690,7 +5690,14 @@
   };
   // Activé sur le compte de l'administratrice seulement, pour l'instant (case à cocher dans le menu Concours).
   const CONTEST_V2_KEY = 'ma-petite-piece:concours-v2';
-  const contestV2 = () => { try { return state.isAdmin && localStorage.getItem(CONTEST_V2_KEY) === '1'; } catch (e) { return false; } };
+  // Nouveau concours (pièce + thème, couleur ou objet) et nouvelle page en 3 étapes : pour tout le monde à partir de
+  // 5 h le 5 novembre (heure de l'appareil). Avant, seulement chez l'administratrice. Les jours d'avant gardent leur ancien thème.
+  const CONTEST_NEW_FROM = '2026-11-05';
+  const CONTEST_NEW_HOUR = 5;
+  const contestLaunchAt = () => { const [y, m, d] = CONTEST_NEW_FROM.split('-').map(Number); return new Date(y, m - 1, d, CONTEST_NEW_HOUR, 0, 0).getTime(); };
+  const contestLaunched = () => Date.now() >= contestLaunchAt();
+  const contestV2 = () => { try { return contestLaunched() || (state.isAdmin && localStorage.getItem(CONTEST_V2_KEY) === '1'); } catch (e) { return contestLaunched(); } };
+  const v2Day = (day) => contestV2() && (!contestLaunched() || day >= CONTEST_NEW_FROM);
   // Objets que le jeu peut imposer : ceux des enveloppes en vente, avec un vrai nom (pas un simple numéro).
   // Nom présentable d'un objet (certains n'ont qu'un numéro).
   const objectLabel = (i) => (/\p{L}{3}/u.test(i.name || '') && !/^[0-9a-f]{16,}$/i.test(i.name || '') ? i.name : 'Objet sans nom');
@@ -5736,21 +5743,21 @@
   // Objet prêté à tous aujourd'hui, dans la pièce du concours seulement : en plus de ceux qu'on possède.
   let roomScreenActive = false; // vrai pendant qu'une pièce est ouverte (pas dans la collection, la boutique…)
   function lentId() {
-    if (!contestV2() || !roomScreenActive) return null;
+    if (!v2Day(today()) || !roomScreenActive) return null;
     const r = currentRoom();
     if (!r || !r.contestDay || r.contestDay !== today()) return null;
     const p = planOf(today());
     return p.kind === 'object' ? p.objectId : null;
   }
   function contestBannerText(day) {
-    if (!contestV2()) return `Pièce du concours · thème « ${themeOf(day)} » · tous tes stickers sont disponibles ici`;
+    if (!v2Day(day)) return `Pièce du concours · thème « ${themeOf(day)} » · tous tes stickers sont disponibles ici`;
     const p = planOf(day);
     return `Pièce du concours · ${p.room} · ${p.text}${p.kind === 'object' ? ' (prêté à tous aujourd\'hui)' : ''}`;
   }
 
   // Thème choisi à la main par l'administratrice pour ce jour (sinon la rotation de la liste).
   function themeOf(day) {
-    if (contestV2()) { const p = planOf(day); return `${p.room} · ${p.text}`; }
+    if (v2Day(day)) { const p = planOf(day); return `${p.room} · ${p.text}`; }
     const o = state.settings.contestThemeOverrides && state.settings.contestThemeOverrides[day];
     return typeof o === 'string' && o.trim() ? o : autoThemeOf(day);
   }
@@ -5952,7 +5959,7 @@
   // Nouveau design du concours (côté administratrice) : 3 pages — Créer, Voter, Résultats —
   // avec les flèches rondes en bas. Le thème peut être une pièce + un thème / une couleur / un objet.
   // ---------------------------------------------------------------------------
-  const cv3On = () => state.isAdmin;
+  const cv3On = () => state.isAdmin || contestLaunched();
   let cv3Step = 0;
   const CV_INK = '#5A3E3A';
   const CV_ICON = {
@@ -5977,7 +5984,7 @@
   function cvThemeBlock(day, label) {
     const el = document.createElement('div');
     el.className = 'cv3-theme-block';
-    if (!contestV2()) {
+    if (!v2Day(day)) {
       el.innerHTML = `<div class="cv3-k">${label}</div><h2 class="cv3-big"></h2>`;
       el.querySelector('h2').textContent = themeOf(day);
       return el;
@@ -6061,7 +6068,7 @@
     if (joinR > 0) rewards.push([`+${joinR}`, 'Pour ta participation', 'c1']);
     rewards.push([`+${winR}`, 'Pour le gagnant du concours', 'c2']);
     if (prize > 0) rewards.push([`+${prize}`, `Toutes les ${every} participations`, 'c3']);
-    const infoText = contestV2()
+    const infoText = v2Day(t.day)
       ? 'Chaque jour, une pièce à décorer (chambre, salon…) avec un thème : un thème général, une couleur ou un objet. Décore-la avec tous les meubles que tu as obtenus, même ceux posés dans tes autres pièces. Quand tu quittes, elle s\'enregistre automatiquement en brouillon. Clique sur « Publier » pour participer avant minuit. Les votes auront lieu demain. Si le thème est un objet, il est prêté à tous aujourd\'hui, dans la pièce du concours.'
       : 'Pour participer au concours, décore une pièce sur le thème du jour avec tous les meubles que tu as obtenus, même ceux posés dans tes autres pièces. Quand tu quittes, elle s\'enregistre automatiquement en brouillon. Clique sur « Publier » pour participer au concours du jour avant minuit. Les votes de ce thème auront lieu demain.';
     card.innerHTML = `<div class="cv3-hero">${CV_ICON.hero}</div>
@@ -6070,7 +6077,7 @@
       <div class="cv3-rewards">${rewards.map(([v, l, c]) => `<div class="cv3-reward"><span class="cv3-pill ${c}">${v} ${COIN_SVG(20)}</span><span>${l}</span></div>`).join('')}</div>
       <div class="cv3-cta-zone"></div>
       <div class="cv3-tiles"></div>`;
-    card.querySelector('.cv3-head-main').appendChild(cvThemeBlock(t.day, contestV2() ? 'Pièce du jour' : 'Thème du jour'));
+    card.querySelector('.cv3-head-main').appendChild(cvThemeBlock(t.day, v2Day(t.day) ? 'Pièce du jour' : 'Thème du jour'));
     // Bouton principal, ou brouillon / participation en cours
     const zone = card.querySelector('.cv3-cta-zone');
     const mine = t.entries.find((e) => e.owner === me);
@@ -6135,7 +6142,7 @@
     tiles.innerHTML = mineTile + `<div class="cv3-tile"><div class="cv3-k">Aujourd'hui</div><div class="cv3-count"><b>${n}</b><span>participation${n > 1 ? 's' : ''}</span></div><div class="cv3-tile-sub">de joueurs au concours</div></div>`;
     page.appendChild(card);
     // Admin : les pièces publiées aujourd'hui, avec « Retirer »
-    if (t.entries.length) {
+    if (state.isAdmin && t.entries.length) {
       const det = document.createElement('details');
       det.className = 'cv3-admin';
       det.innerHTML = `<summary>Participations du jour (admin) · ${t.entries.length}</summary><div class="ct-grid"></div>`;
@@ -6178,7 +6185,7 @@
       card.appendChild(go);
       return;
     }
-    if (voteMaintenanceOn()) msg('Test admin : le vote est en maintenance pour les joueurs.');
+    if (state.isAdmin && voteMaintenanceOn()) msg('Test admin : le vote est en maintenance pour les joueurs.');
     const plan = duelPlan(v, me);
     if (!v.entries.length) { msg('Personne n\'a participé hier : rien à voter aujourd\'hui.'); return; }
     if (v.entries.length === 1) { msg(`Une seule participation hier : pas de vote aujourd'hui. ${v.entries[0].owner === me ? 'Tu gagnes' : `${v.entries[0].ownerName || v.entries[0].owner} gagne`} d'office à 20 h !`); return; }
@@ -6226,7 +6233,7 @@
       vote.addEventListener('click', () => openDuelView(v));
       card.appendChild(vote);
     }
-    if (plan.done) {
+    if (state.isAdmin && plan.done) {
       const r = document.createElement('button');
       r.type = 'button';
       r.className = 'cv3-link-btn';
@@ -6234,7 +6241,7 @@
       r.addEventListener('click', () => resetMyDuels(v));
       card.appendChild(r);
     }
-    if (v.duels.length) {
+    if (state.isAdmin && v.duels.length) {
       const det = document.createElement('details');
       det.className = 'cv3-admin';
       det.innerHTML = '<summary>Classement provisoire (admin)</summary>';
