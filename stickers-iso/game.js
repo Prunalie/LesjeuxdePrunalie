@@ -5377,6 +5377,15 @@
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
     {
+      // Programmée : visible des joueurs à partir de 5 h le 5 novembre (heure de leur appareil), comme l'ouverture du nouveau concours.
+      id: 'n-2026-11-05a', date: new Date(2026, 10, 5, 5, 0, 0).getTime(), title: 'Le concours change : une pièce et un thème 🏆',
+      items: [
+        'La page du Concours a un nouveau look : 3 étapes, Créer, Voter et Résultats, avec les flèches du bas pour passer de l\'une à l\'autre.',
+        'Chaque jour, une pièce à décorer (chambre, salon…) avec un thème : un thème, une couleur ou un objet.',
+        'Quand le thème est un objet, il est prêté à tous pour la journée : tu peux le poser dans la pièce du concours, même si tu ne l\'as pas.',
+      ],
+    },
+    {
       id: 'n-2026-11-03a', date: Date.UTC(2026, 10, 3, 0, 30), title: 'Nouveau : la lumière 💡',
       items: [
         'Dans ta pièce, le bouton 💡 règle la lumière : de plein jour jusqu\'à la nuit.',
