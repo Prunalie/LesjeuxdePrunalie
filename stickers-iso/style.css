@@ -2709,3 +2709,11 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .cv3-dots { display: flex; gap: 8px; }
 .cv3-dots i { width: 16px; height: 16px; border-radius: 999px; border: 2.5px solid var(--c-line); background: var(--c-surface); }
 .cv3-dots i.on { width: 34px; background: var(--c-pink); }
+
+.duel-cell { position: relative; display: flex; flex-direction: column; min-width: 0; }
+.duel-cell .duel-pick { flex: 1; }
+.duel-zoom-btn { position: absolute; right: 10px; top: 10px; width: 44px; height: 44px; border-radius: 50%; border: 2.5px solid var(--chunk); background: var(--panel); color: var(--ink); font: inherit; font-size: 1.3rem; font-weight: 800; box-shadow: 0 3px 0 var(--chunk); cursor: pointer; z-index: 2; }
+.duel-zoom { z-index: 3100; padding: 0; }
+.duel-zoom .modal-box { max-width: 100vw; width: 100vw; max-height: 100vh; max-height: 100dvh; height: 100dvh; border-radius: 0; display: flex; flex-direction: column; gap: 12px; padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)); background: #1b1417; }
+.duel-zoom img { flex: 1; min-height: 0; width: 100%; object-fit: contain; border-radius: 12px; }
+.duel-zoom-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }

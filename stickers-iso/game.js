@@ -5681,7 +5681,11 @@
   const CONTEST_V2_KEY = 'ma-petite-piece:concours-v2';
   const contestV2 = () => { try { return state.isAdmin && localStorage.getItem(CONTEST_V2_KEY) === '1'; } catch (e) { return false; } };
   // Objets que le jeu peut imposer : ceux des enveloppes en vente, avec un vrai nom (pas un simple numéro).
-  function contestObjectPool() {
+  // Nom présentable d'un objet (certains n'ont qu'un numéro).
+  const objectLabel = (i) => (/\p{L}{3}/u.test(i.name || '') && !/^[0-9a-f]{16,}$/i.test(i.name || '') ? i.name : 'Objet sans nom');
+  // all = vrai : tous les objets du catalogue (choix à la main) ; sinon seulement ceux tirés au sort automatiquement.
+  function contestObjectPool(all = false) {
+    if (all) return [...state.images.values()].filter((i) => i.catalog && i.url).sort((a, b) => objectLabel(a).localeCompare(objectLabel(b), 'fr') || a.id.localeCompare(b.id));
     const live = new Set(liveEnvelopes().map((e) => e.id));
     return [...state.images.values()]
       .filter((i) => i.catalog && live.has(i.envelope) && /\p{L}{3}/u.test(i.name || '') && !/^[0-9a-f]{16,}$/i.test(i.name || ''))
@@ -5705,7 +5709,7 @@
     const plan = { day, room, kind };
     if (kind === 'object') {
       const img = (ov.objectId && state.images.get(ov.objectId)) || (pool.length ? pool[seededRank(`${day}obj`) % pool.length] : null);
-      if (img) { plan.objectId = img.id; plan.objectName = img.name; plan.text = `objet : ${img.name}`; return plan; }
+      if (img) { plan.objectId = img.id; plan.objectName = objectLabel(img); plan.text = `objet : ${plan.objectName}`; return plan; }
       plan.kind = kind = 'general'; // aucun objet possible : on retombe sur un thème général
     }
     if (kind === 'color') {
@@ -6555,6 +6559,8 @@
     renderContest();
   }
   $('#duelClose').addEventListener('click', closeDuelView);
+  $('#duelZoomClose').addEventListener('click', () => { $('#duelZoom').hidden = true; });
+  $('#duelZoom').addEventListener('click', (e) => { if (e.target.id === 'duelZoom') $('#duelZoom').hidden = true; });
   function renderDuelView() {
     const v = duelDay;
     if (!v) return;
@@ -6593,13 +6599,28 @@
     arena.className = 'duel-arena';
     for (const owner of [a, b]) {
       const e = v.entries.find((x) => x.owner === owner);
+      const cell = document.createElement('div');
+      cell.className = 'duel-cell';
       const btn = document.createElement('button');
       btn.className = 'duel-pick';
       // Pas de nom pendant le duel : on vote pour la pièce, pas pour la personne.
       btn.innerHTML = '<img alt="Pièce du concours"><span class="duel-choose">❤️ Je préfère</span>';
       btn.querySelector('img').src = e.image;
       btn.addEventListener('click', () => castDuel(v, a, b, owner, btn));
-      arena.appendChild(btn);
+      // Agrandir la pièce en grand écran, pour mieux la voir avant de choisir.
+      const zoom = document.createElement('button');
+      zoom.type = 'button';
+      zoom.className = 'duel-zoom-btn';
+      zoom.title = 'Agrandir la pièce';
+      zoom.setAttribute('aria-label', 'Agrandir la pièce');
+      zoom.textContent = '⤢';
+      zoom.addEventListener('click', () => {
+        $('#duelZoomImg').src = e.image;
+        $('#duelZoomVote').onclick = () => { $('#duelZoom').hidden = true; castDuel(v, a, b, owner, btn); };
+        $('#duelZoom').hidden = false;
+      });
+      cell.append(btn, zoom);
+      arena.appendChild(cell);
     }
     const vs = document.createElement('span');
     vs.className = 'duel-vs';
@@ -7131,17 +7152,17 @@
   }
   function renderObjectPicker() {
     const q = normalizeText($('#acObjSearch').value);
-    const pool = contestObjectPool().filter((i) => !q || normalizeText(i.name).includes(q));
-    $('#acObjCount').textContent = `${plural(pool.length, 'objet')} possible${pool.length > 1 ? 's' : ''}${pool.length > 60 ? ' (les 60 premiers sont affichés : précise ta recherche)' : ''}`;
+    const pool = contestObjectPool(true).filter((i) => !q || normalizeText(objectLabel(i)).includes(q));
+    $('#acObjCount').textContent = `${plural(pool.length, 'objet')} possible${pool.length > 1 ? 's' : ''}${pool.length > 400 ? ' (les 400 premiers sont affichés : précise ta recherche)' : ''}`;
     const list = $('#acObjList');
     list.innerHTML = '';
-    for (const img of pool.slice(0, 60)) {
+    for (const img of pool.slice(0, 400)) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'ac-obj-item';
-      b.innerHTML = '<img alt=""><span></span>';
+      b.innerHTML = '<img alt="" loading="lazy"><span></span>';
       b.querySelector('img').src = img.url;
-      b.querySelector('span').textContent = img.name;
+      b.querySelector('span').textContent = objectLabel(img);
       b.addEventListener('click', () => { acObjPicker.hidden = true; setPlanOverride(acObjDay, { kind: 'object', objectId: img.id, value: '' }); });
       list.appendChild(b);
     }

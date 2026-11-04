@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611040103">
+  <link rel="stylesheet" href="style.css?v=202611040200">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -953,6 +953,17 @@
     </div>
   </div>
 
+  <!-- Duel : une pièce en grand écran (sans le nom du joueur : on vote pour la pièce) -->
+  <div id="duelZoom" class="modal duel-zoom" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-label="Pièce en grand">
+      <img id="duelZoomImg" alt="Pièce du concours">
+      <div class="duel-zoom-actions">
+        <button id="duelZoomVote" class="btn btn-primary" type="button">❤️ Je préfère celle-ci</button>
+        <button id="duelZoomClose" class="btn" type="button">Fermer</button>
+      </div>
+    </div>
+  </div>
+
   <div id="unfiledDialog" class="modal" hidden>
     <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="unfiledTitle">
       <div class="modal-head">
@@ -1226,7 +1237,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611040103"></script>
-  <script src="game.js?v=202611040103"></script>
+  <script src="firebase-config.js?v=202611040200"></script>
+  <script src="game.js?v=202611040200"></script>
 </body>
 </html>
