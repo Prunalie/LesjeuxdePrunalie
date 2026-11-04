@@ -2814,6 +2814,12 @@
   const themeMode = () => { const t = read(THEME_KEY); return t === 'light' || t === 'dark' ? t : 'auto'; };
   applyTheme(themeMode());
 
+  // Côté de la croix qui déplace un objet : au choix, gardé sur cet appareil (à droite par défaut).
+  const MOVE_SIDE_KEY = 'ma-petite-piece:move-side';
+  const moveSide = () => (read(MOVE_SIDE_KEY) === 'left' ? 'left' : 'right');
+  const applyMoveSide = () => { document.documentElement.dataset.moveSide = moveSide(); };
+  applyMoveSide();
+
   const prefsDialog = $('#prefsDialog');
   function renderPrefs() {
     const mode = themeMode();
@@ -2826,8 +2832,18 @@
     $('#themeHint').textContent = mode === 'auto'
       ? `Automatique : le jeu suit ton appareil (en ce moment : ${device}).`
       : `Le jeu reste ${mode === 'dark' ? 'sombre' : 'clair'}, quel que soit ton appareil.`;
+    document.querySelectorAll('.move-choice').forEach((b) => {
+      const on = b.dataset.moveSide === moveSide();
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on);
+    });
     $('#prefsName').textContent = state.player ? state.player.name : '';
   }
+  document.querySelectorAll('.move-choice').forEach((b) => b.addEventListener('click', () => {
+    store(MOVE_SIDE_KEY, b.dataset.moveSide === 'left' ? 'left' : null);
+    applyMoveSide();
+    renderPrefs();
+  }));
   document.querySelectorAll('.theme-choice').forEach((b) => b.addEventListener('click', () => {
     const mode = b.dataset.themeMode;
     store(THEME_KEY, mode === 'auto' ? null : mode);

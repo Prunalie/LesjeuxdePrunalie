@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611041200">
+  <link rel="stylesheet" href="style.css?v=202611041300">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -1034,6 +1034,14 @@
         <p id="themeHint" class="muted prefs-hint"></p>
       </section>
       <section class="prefs-section">
+        <h3>Déplacer un objet</h3>
+        <div class="move-choices" role="group" aria-label="Côté de la croix de déplacement">
+          <button type="button" class="btn move-choice" data-move-side="left"><span class="move-ico" aria-hidden="true">✥</span><span>À gauche</span></button>
+          <button type="button" class="btn move-choice" data-move-side="right"><span class="move-ico" aria-hidden="true">✥</span><span>À droite</span></button>
+        </div>
+        <p class="muted prefs-hint">Côté de la croix ✥ qui permet de déplacer un objet sans le cacher avec ton doigt. L'agrandissement passe de l'autre côté.</p>
+      </section>
+      <section class="prefs-section">
         <h3>Compte</h3>
         <p class="muted prefs-hint">Tu joues en tant que <strong id="prefsName"></strong>.</p>
         <button id="btnLogout" class="btn" type="button">🚪 Se déconnecter</button>
@@ -1238,7 +1246,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611041200"></script>
-  <script src="game.js?v=202611041200"></script>
+  <script src="firebase-config.js?v=202611041300"></script>
+  <script src="game.js?v=202611041300"></script>
 </body>
 </html>
