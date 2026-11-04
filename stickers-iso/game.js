@@ -3352,12 +3352,15 @@
     const shop = liveEnvelopes().filter((env) => stickersOf(env.id).length);
     const n = setting('dailyEnvCount');
     if (!n || shop.length <= n || (!ignoreSunday && allNormalDay(day))) return new Set(shop.map((e) => e.id));
-    const chosen = dailyPicks(day).filter((id) => shop.some((e) => e.id === id)).slice(0, n);
+    // Les nouvelles enveloppes du jour sont toujours dans les enveloppes du jour, avant les autres.
+    const fresh = shop.filter((e) => envSlotDay(e) === day).map((e) => e.id);
+    const room = Math.max(0, n - fresh.length);
+    const chosen = dailyPicks(day).filter((id) => !fresh.includes(id) && shop.some((e) => e.id === id)).slice(0, room);
     // S'il en manque (aucun choix, ou moins de n), on complète au hasard.
-    const rest = shop.filter((e) => !chosen.includes(e.id))
+    const rest = shop.filter((e) => !fresh.includes(e.id) && !chosen.includes(e.id))
       .sort((a, b) => seededRank(day + a.id) - seededRank(day + b.id))
-      .slice(0, n - chosen.length).map((e) => e.id);
-    return new Set([...chosen, ...rest]);
+      .slice(0, room - chosen.length).map((e) => e.id);
+    return new Set([...fresh, ...chosen, ...rest]);
   }
   const isDailyEnvelope = (env) => dailyEnvelopeIds().has(env.id);
   const basePrice = (env) => env.price ?? DEFAULT_PRICE;
@@ -4789,7 +4792,7 @@
       b.querySelector('.atelier-tile-art').appendChild(envelopeArt(env));
       b.querySelector('strong').textContent = env.name || 'Enveloppe';
       const content = stickersOf(env.id);
-      b.querySelector('.muted').textContent = `${env.price ?? DEFAULT_PRICE} 🪙 · ${plural(content.length, 'sticker')}` + (mine ? ' · choisie par toi' : on ? ' · tirée au sort' : '');
+      b.querySelector('.muted').textContent = `${env.price ?? DEFAULT_PRICE} 🪙 · ${plural(content.length, 'sticker')}` + (mine ? ' · choisie par toi' : on ? (envSlotDay(env) === day ? ' · nouvelle : toujours à disposition' : ' · tirée au sort') : '');
       // Contenu de la collection : tous les stickers, les plus rares d'abord.
       const rank = { epic: 0, rare: 1, common: 2 };
       const strip = b.querySelector('.daily-strip');
