@@ -4851,7 +4851,10 @@
       grid.appendChild(b);
     };
     let shown = 0;
-    for (const env of state.envelopes) {
+    // Les dernières sorties (ou prévues) en haut ; l'ordre de la boutique se règle à part (↕️).
+    const dayKey = (e) => envSlotDay(e) || (e.created ? new Date(e.created).toLocaleDateString('fr-CA') : '');
+    const newestFirst = [...state.envelopes].sort((a, b) => dayKey(b).localeCompare(dayKey(a)) || (b.created || 0) - (a.created || 0));
+    for (const env of newestFirst) {
       const list = stickersOf(env.id);
       const hits = q ? list.filter((img) => normalizeText(img.name).includes(q)) : [];
       if (q && !normalizeText(env.name).includes(q) && !hits.length) continue;
