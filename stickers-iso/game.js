@@ -7545,6 +7545,18 @@
     }
   }
 
+  // Archive un sticker accepté qui n'est dans aucune enveloppe (onglet « À ranger »).
+  async function archiveProposal(p) {
+    const rec = catalogOf(p);
+    if (rec) { await archiveSticker(rec); return !!rec.archived; }
+    const nrec = {
+      id: uid(), catalog: true, envelope: null, archived: true, rarity: 'common',
+      name: p.name, data: p.data, w: p.w, h: p.h, created: Date.now(),
+      author: p.ownerName || p.owner, fromProposal: p.id,
+    };
+    try { await db.putImage(nrec); addImageToLibrary(nrec); return true; } catch (e) { console.warn('Archivage impossible', e); toast('Le sticker n\'a pas pu être archivé. Vérifie ta connexion.'); return false; }
+  }
+
   async function openCoffre() {
     if (!state.isAdmin) return;
     showScreen('coffre');
@@ -7694,8 +7706,11 @@
           const sel = envSelect(null);
           button(rec && rec.archived ? 'Remettre dans l\'enveloppe' : 'Ajouter à l\'enveloppe', 'btn-primary',
             () => (rec ? moveSticker(p, rec, sel.value) : addProposalToEnvelope(p, sel.value)));
+          // Un sticker à ranger qu'on ne veut pas ranger maintenant : on l'archive.
+          if (!(rec && rec.archived)) button('📦 Archiver', '', async () => { if (await archiveProposal(p)) { toast(`« ${p.name} » est archivé 📦`); renderCoffre(); } });
         } else {
           if (rec && rec.archived) note('📦 Archivé', 'coffre-archived');
+          else button('📦 Archiver', '', async () => { if (await archiveProposal(p)) { toast(`« ${p.name} » est archivé 📦`); renderCoffre(); } });
           note('Crée une enveloppe dans l\'atelier pour l\'y ranger.', 'muted');
         }
         button('Supprimer', 'btn-ghost', () => deleteProposal(p));
@@ -7848,6 +7863,7 @@
     const n = unfiledPick.size;
     $('#unfiledAdd').disabled = !n;
     $('#unfiledAdd').textContent = n ? `Ajouter ${plural(n, 'sticker')}` : 'Choisis des stickers';
+    $('#unfiledArchive').disabled = !n;
     $('#unfiledAll').textContent = unfiledPick.size === unfiledProposals().length ? 'Tout désélectionner' : 'Tout sélectionner';
   }
   $('#unfiledAll').addEventListener('click', () => {
@@ -7861,6 +7877,17 @@
     renderUnfiledButton();
   });
   $('#unfiledClose').addEventListener('click', () => { unfiledDialog.hidden = true; });
+  // Archiver la sélection plutôt que de la ranger dans cette enveloppe.
+  $('#unfiledArchive').addEventListener('click', async () => {
+    const list = unfiledProposals().filter((p) => unfiledPick.has(p.id));
+    if (!list.length) return;
+    $('#unfiledArchive').disabled = true;
+    let ok = 0;
+    for (const p of list) if (await archiveProposal(p)) ok++;
+    unfiledDialog.hidden = true;
+    toast(`${plural(ok, 'sticker')} archivé${ok > 1 ? 's' : ''} 📦 : retrouve-${ok > 1 ? 'les' : 'le'} dans les Archives de l'atelier.`);
+    renderAtelier();
+  });
   $('#unfiledAdd').addEventListener('click', async () => {
     const env = unfiledEnv;
     const list = unfiledProposals().filter((p) => unfiledPick.has(p.id));
