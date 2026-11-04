@@ -5939,7 +5939,6 @@
   // ---------------------------------------------------------------------------
   const cv3On = () => state.isAdmin;
   let cv3Step = 0;
-  let cv3Pick = null; // pièce choisie dans le duel en cours
   const CV_INK = '#5A3E3A';
   const CV_ICON = {
     swords: `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3 L16 16 M21 3 L8 16 M12 19 L19 12 M12 19 L5 12 M16 16 L21 21 M8 16 L3 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>`,
@@ -6181,27 +6180,25 @@
     if (finished) {
       msg(`Merci ! Tu as fait ${plan.total > 1 ? `tes ${plan.total} duels` : 'ton duel'} du jour.${(state.profile.voteRewardDay || '') === v.day ? ` (+${voteReward()} pièces reçues)` : ''}`, 'ok');
     } else {
-      // La paire du duel en cours : on touche sa préférée, puis « Voter ».
+      // Aperçu du duel en cours ; « Voter » ouvre la page de vote en grand (une pièce à toucher, images plus grandes).
       if (!duelCurrent || duelCurrent.day !== v.day || !plan.left.some((p) => p.join('|') === [...duelCurrent.pair].sort().join('|'))) {
         duelCurrent = { day: v.day, pair: nextDuel(v, plan) };
-        cv3Pick = null;
       }
       const [a, b] = duelCurrent.pair;
-      const arena = document.createElement('div');
+      const arena = document.createElement('button');
+      arena.type = 'button';
       arena.className = 'cv3-arena';
+      arena.setAttribute('aria-label', 'Ouvrir le vote');
       [a, b].forEach((owner, i) => {
         const e = v.entries.find((x) => x.owner === owner);
-        const pick = document.createElement('button');
-        pick.type = 'button';
-        pick.className = 'cv3-pick' + (i ? ' r' : ' l') + (cv3Pick === owner ? ' on' : '');
-        pick.setAttribute('aria-label', 'Pièce du concours ' + (i + 1));
-        pick.setAttribute('aria-pressed', String(cv3Pick === owner));
-        pick.innerHTML = '<img alt="Pièce du concours">';
+        const pick = document.createElement('span');
+        pick.className = 'cv3-pick' + (i ? ' r' : ' l');
+        pick.innerHTML = '<img alt="">';
         pick.querySelector('img').src = e.image;
-        pick.addEventListener('click', () => { cv3Pick = owner; renderContestV3(); });
         arena.appendChild(pick);
       });
       arena.insertBefore(Object.assign(document.createElement('span'), { className: 'cv3-vs', textContent: 'VS' }), arena.children[1]);
+      arena.addEventListener('click', () => openDuelView(v));
       card.appendChild(arena);
       const when = document.createElement('p');
       when.className = 'cv3-when';
@@ -6210,15 +6207,8 @@
       const vote = document.createElement('button');
       vote.type = 'button';
       vote.className = 'cv3-cta cv3-vote';
-      vote.disabled = !cv3Pick;
-      vote.innerHTML = `${CV_ICON.swords}<span>${cv3Pick ? 'Voter' : 'Choisis ta pièce préférée'}</span>`;
-      vote.addEventListener('click', async () => {
-        if (!cv3Pick) return;
-        const pickedWinner = cv3Pick;
-        cv3Pick = null;
-        await castDuel(v, a, b, pickedWinner, vote);
-        renderContestV3();
-      });
+      vote.innerHTML = `${CV_ICON.swords}<span>Voter${plan.done ? ` · ${plan.done}/${plan.total}` : ''}</span>`;
+      vote.addEventListener('click', () => openDuelView(v));
       card.appendChild(vote);
     }
     if (plan.done) {

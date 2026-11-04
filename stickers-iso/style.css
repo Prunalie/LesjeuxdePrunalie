@@ -2669,10 +2669,9 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .cv3-chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; border: 2.5px solid var(--c-line); padding: 4px 12px 4px 10px; font-weight: 800; font-size: 13.5px; line-height: 1.2; background: var(--c-cream); }
 .cv3-chip.b { background: var(--c-butter); }
 .cv3-progress { display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 800; font-size: 14.5px; }
-.cv3-arena { position: relative; display: flex; align-items: center; justify-content: center; gap: 0; border-radius: 22px; border: 3px solid var(--c-line); background: var(--c-cream2); padding: 14px 8px; }
+.cv3-arena { width: 100%; cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center; gap: 0; border-radius: 22px; border: 3px solid var(--c-line); background: var(--c-cream2); padding: 14px 8px; }
 .cv3-pick { flex: 1; min-width: 0; border-radius: 22px; border: 3px solid var(--c-line); background: var(--c-photo); padding: 6px; box-shadow: 0 4px 0 var(--c-line); transition: transform .12s; }
 .cv3-pick.l { transform: rotate(-3deg); margin-right: -10px; } .cv3-pick.r { transform: rotate(3deg); margin-left: -10px; }
-.cv3-pick.on { background: var(--c-butter); transform: scale(1.03) rotate(0deg); z-index: 1; box-shadow: 0 0 0 4px var(--c-accent), 0 4px 0 var(--c-line); }
 .cv3-pick img { display: block; width: 100%; height: auto; border-radius: 14px; }
 .cv3-vs { position: absolute; z-index: 2; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 54px; height: 54px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 3px solid var(--c-line); background: var(--c-btn); color: #fff; font-family: var(--font-title); font-weight: 700; font-size: 21px; box-shadow: 0 3px 0 var(--c-btn-sh); }
 .cv3-when { margin: 0; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; font-size: 14.5px; }
