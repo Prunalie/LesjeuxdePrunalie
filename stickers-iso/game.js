@@ -200,21 +200,32 @@
       // Listes lourdes qui changent peu (catalogue, décor, enveloppes, nouveautés) : on affiche tout de suite
       // la copie gardée sur l'appareil, puis on la remet à jour en arrière-plan (cloudDb.onFresh).
       const docsOf = (snap) => snap.docs.map((d) => ({ ...d.data(), id: d.id }));
+      // Le catalogue et le décor (~30 Mo) ne sont retéléchargés que si l'administratrice y a touché depuis la dernière fois
+      // (réglage « catalogRev »). Les autres listes se remettent à jour à chaque connexion.
+      const stale = {}; // clés dont la copie de l'appareil a servi : elles restent à vérifier
+      const revalidators = {};
+      const BIG = { catalog: true, decos: true };
       const allFast = async (query, key) => {
         let cached = null;
         try { const c = await query.get({ source: 'cache' }); if (c.size) cached = docsOf(c); } catch (e) { /* pas de copie locale */ }
         if (!cached) return all(query);
-        query.get().then((snap) => { if (api.onFresh) api.onFresh(key, docsOf(snap)); }).catch(() => {});
+        const check = () => query.get().then((snap) => { if (api.onFresh) api.onFresh(key, docsOf(snap)); });
+        if (BIG[key]) { stale[key] = true; revalidators[key] = check; } else check().catch(() => {});
         return cached;
       };
+      // Pour l'administratrice : un changement du catalogue ou du décor prévient les joueurs qu'il y a du nouveau.
+      const bumpRev = () => { if (state.isAdmin) fsRooms().doc('settings').set({ catalogRev: Date.now() }, { merge: true }).catch(() => {}); };
+      const fsRooms = () => rooms;
       // Les règles Firestore n'autorisent que deux collections : les pièces, joueurs et
       // enveloppes partagent « ma-petite-piece » (champ type), les stickers l'autre.
       const api = {
         listCatalog: () => allFast(images.where('catalog', '==', true), 'catalog'),
         // Papiers peints et sols (en test chez l'administratrice)
         listDecos: () => allFast(images.where('deco', '==', true), 'decos'),
-        putImage: ({ id, url, ...rec }) => images.doc(id).set(clean(rec)),
-        deleteImage: (id) => images.doc(id).delete(),
+        putImage: ({ id, url, ...rec }) => images.doc(id).set(clean(rec)).then((r) => { bumpRev(); return r; }),
+        deleteImage: (id) => images.doc(id).delete().then((r) => { bumpRev(); return r; }),
+        isStale: () => !!(stale.catalog || stale.decos),
+        revalidate: () => Promise.all(Object.keys(revalidators).map((k) => revalidators[k]().then(() => { delete stale[k]; }))),
         // Les participations au concours ont aussi un « owner » : ce ne sont pas des pièces.
         listRooms: async (owner) => (await byOwner(rooms, owner)).filter((r) => r.type !== 'contest'),
         putRoom: ({ id, ...room }) => rooms.doc(id).set(clean(room)),
@@ -234,7 +245,7 @@
         // Seulement celles en attente : bien plus léger que toutes les propositions (avec leurs images).
         listPendingProposals: () => all(images.where('proposal', '==', true).where('status', '==', 'pending')),
         // Change quelques champs sans renvoyer l'image.
-        updateImage: (id, fields) => images.doc(id).set(clean(fields), { merge: true }),
+        updateImage: (id, fields) => images.doc(id).set(clean(fields), { merge: true }).then((r) => { bumpRev(); return r; }),
         // Boîte aux lettres : messages (type « mail ») adressés à un pseudo
         listMail: (to) => all(rooms.where('to', '==', to)),
         listPlayers: () => all(rooms.where('type', '==', 'player')),
@@ -2751,6 +2762,12 @@
       setNews(news);
       if (shopV2()) (await withFallback((d) => d.listDecos()).catch(() => [])).forEach(addDeco);
       state.settings = { dailyPoints: DAILY_POINTS, ...(settings || {}) };
+      if (cloudDb && db === cloudDb && cloudDb.isStale) {
+        const REV_KEY = 'ma-petite-piece:catalogRev';
+        const rev = Number(settings && settings.catalogRev) || 0;
+        if (cloudDb.isStale() && (!rev || String(rev) !== read(REV_KEY))) cloudDb.revalidate().then(() => store(REV_KEY, String(rev))).catch(() => {});
+        else if (!cloudDb.isStale()) store(REV_KEY, String(rev));
+      }
       state.mails = mails;
       state.myProposals = mine;
       images.sort((a, b) => (a.created || 0) - (b.created || 0)).forEach(addImageToLibrary);
@@ -2803,7 +2820,6 @@
     }
     renderPoints();
     goHome();
-    warmThumbs();
     if (isNew) {
       // Premier passage : un message de bienvenue (pas les nouveautés) et un cadeau dans la boîte aux lettres.
       await sendWelcome();
