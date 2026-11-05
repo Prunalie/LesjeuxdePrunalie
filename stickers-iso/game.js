@@ -414,9 +414,12 @@
     savePending = false;
     let thumb = '';
     try {
+      crumb(`sauvegarde : dessin de la miniature (${state.stickers.length} stickers)`);
       const cv = await renderScene(0.3, state.colors.background || null);
+      crumb('sauvegarde : miniature dessinée');
       thumb = cv.toDataURL('image/webp', 0.8);
       if (!thumb.startsWith('data:image/webp')) thumb = cv.toDataURL('image/png');
+      crumb(`sauvegarde : miniature prête (${Math.round(thumb.length / 1024)} Ko)`);
     } catch (e) {
       console.warn('Miniature impossible', e);
     }
@@ -438,7 +441,9 @@
     const i = state.rooms.findIndex((r) => r.id === room.id);
     if (i >= 0) state.rooms[i] = { ...room, stickers: [...room.stickers], colors: { ...room.colors }, shape: JSON.parse(JSON.stringify(room.shape)), ...(room.lights ? { lights: room.lights.map((l) => ({ ...l })) } : {}) };
     try {
+      crumb('sauvegarde : envoi en ligne');
       await db.putRoom(room);
+      crumb('sauvegarde : terminée');
       if (!savePending) setSaveStatus('Sauvegardé ✓');
     } catch (e) {
       console.warn('Sauvegarde impossible', e);
@@ -1775,7 +1780,7 @@
         state.selectedId = copy.id;
         break;
       }
-      case 'delete': arr.splice(i, 1); state.selectedId = null; break;
+      case 'delete': crumb('suppression d\'un sticker'); arr.splice(i, 1); state.selectedId = null; break;
       case 'light': {
         // Un point lumineux par objet : l'ampoule le crée, puis ouvre (ou ferme) sa barre de réglage.
         const existing = lightOfSticker(s);
@@ -9102,6 +9107,15 @@
   // Démarrage
   // ---------------------------------------------------------------------------
   // Après un plantage : proposer de prévenir l'administratrice, avec les dernières étapes (pour qu'elle trouve la cause).
+  // Témoin « vivant » : posé au démarrage, retiré quand la page passe en arrière-plan ou se ferme. S'il est encore là au démarrage suivant,
+  // la page s'est arrêtée alors qu'elle était affichée (plantage).
+  const ALIVE_KEY = 'ma-petite-piece:vivant';
+  const diedVisible = !!read(ALIVE_KEY);
+  const markAlive = () => store(ALIVE_KEY, String(Date.now()));
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') store(ALIVE_KEY, null); else markAlive(); });
+  window.addEventListener('pagehide', () => store(ALIVE_KEY, null));
+  markAlive();
+
   async function offerCrashReport() {
     if (!state.player || state.isAdmin) return;
     let traces = '';
@@ -9147,7 +9161,7 @@
       btn.disabled = false;
       btn.textContent = 'Jouer';
     }
-    if (crashed) setTimeout(offerCrashReport, 1500);
+    if (crashed || diedVisible) setTimeout(offerCrashReport, 1500);
     if (place.screen === 'room' && state.rooms.some((r) => r.id === place.roomId)) openRoom(place.roomId);
     else if (place.screen === 'rooms') openRooms();
     else if (place.screen === 'shop') openShop(false);
