@@ -6170,7 +6170,7 @@
     // Deux tuiles : mes participations, aujourd'hui
     const tiles = card.querySelector('.cv3-tiles');
     const cnt = state.profile.contestCount || 0;
-    let mineTile = `<div class="cv3-tile"><div class="cv3-k">Mes participations</div><div class="cv3-count"><b>${cnt}</b>${prize > 0 ? `<span>sur ${every}</span>` : ''}</div>`;
+    let mineTile = `<div class="cv3-tile"><div class="cv3-k">Mes participations</div><div class="cv3-count"><b>${cnt}</b>${prize > 0 ? `<span>sur ${(Math.floor(cnt / every) + 1) * every}</span>` : ''}</div>`;
     if (prize > 0) {
       const filled = cnt % every;
       mineTile += `<div class="cv3-dots2" aria-hidden="true">${Array.from({ length: every }, (_, i) => `<i class="${i < filled ? 'on' : ''}"></i>`).join('')}</div>
