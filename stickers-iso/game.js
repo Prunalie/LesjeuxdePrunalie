@@ -603,12 +603,6 @@
     const fillF = decoF ? texture(decoF, { x: TILE_X * k, y: TILE_Y * k }, { x: -TILE_X * k, y: TILE_Y * k }, C) : floor;
     parts.push(`<polygon points="${pts(C, R, B, L)}" fill="${fillF}"/>`);
     if (!decoF) floorPattern(parts, P, W, D, 0, floor, garden, k);
-    // Demi-murs à motif (jardin) : une ombre douce sur la pelouse, au pied du mur, pour donner du volume.
-    if (garden && (decoWL || decoWR)) {
-      const sh = 0.5;
-      if (decoWL) parts.push(`<polygon points="${pts(P(0, 0), P(sh, 0), P(sh, D), P(0, D))}" fill="#24401f" opacity=".2"/>`);
-      if (decoWR) parts.push(`<polygon points="${pts(P(0, 0), P(W, 0), P(W, sh), P(0, sh))}" fill="#24401f" opacity=".2"/>`);
-    }
 
     // Étages : chacun est un bloc collé au coin du fond, posé sur le précédent.
     let z = 0;
@@ -629,18 +623,14 @@
 
     // Dans la maison : pas d'épaisseur ni de tranche de sol qui dépassent, pour que les sols des pièces voisines restent au même niveau.
     const flat = !!(geomOpts && geomOpts.flat);
-    // Demi-mur à motif : le dessus (plus clair) prend la couleur moyenne du motif, pour qu'il aille avec n'importe quel demi-mur.
-    const avgL = garden && decoWL ? (decoWL.avg || wallLeft) : null, avgR = garden && decoWR ? (decoWR.avg || wallRight) : null;
-    if (avgL) parts.push(`<polygon points="${pts(up(L), up(C), off(up(C), 0, -T / 2), off(up(L), -T, -T / 2))}" fill="${shade(avgL, 0.3)}"/>`);
-    if (avgR) parts.push(`<polygon points="${pts(up(C), up(R), off(up(R), T, -T / 2), off(up(C), 0, -T / 2))}" fill="${shade(avgR, 0.3)}"/>`);
     if (flat) return (defs.length ? `<defs>${defs.join('')}</defs>` : '') + parts.join('');
     // Épaisseur des murs (tranche du dessus) et du sol
     if (!garden) {
       parts.push(`<polygon points="${pts(up(L), up(C), off(up(C), 0, -T / 2), off(up(L), -T, -T / 2))}" fill="${shade(wallLeft, 0.35)}"/>`);
       parts.push(`<polygon points="${pts(up(C), up(R), off(up(R), T, -T / 2), off(up(C), 0, -T / 2))}" fill="${shade(wallRight, 0.35)}"/>`);
     }
-    parts.push(`<polygon points="${pts(L, off(L, -T, -T / 2), off(up(L), -T, -T / 2), up(L))}" fill="${shade(avgL || wallLeft, -0.25)}"/>`);
-    parts.push(`<polygon points="${pts(R, off(R, T, -T / 2), off(up(R), T, -T / 2), up(R))}" fill="${shade(avgR || wallRight, -0.3)}"/>`);
+    parts.push(`<polygon points="${pts(L, off(L, -T, -T / 2), off(up(L), -T, -T / 2), up(L))}" fill="${shade(wallLeft, -0.25)}"/>`);
+    parts.push(`<polygon points="${pts(R, off(R, T, -T / 2), off(up(R), T, -T / 2), up(R))}" fill="${shade(wallRight, -0.3)}"/>`);
     const SLAB = 18 * Math.max(k, 0.5);
     const slabColor = garden ? '#9b7653' : floor;
     const LT = off(L, -T, -T / 2), RT = off(R, T, -T / 2);
@@ -807,31 +797,7 @@
   function addDeco(rec) {
     if (!rec.data) return;
     if ((rec.adminOnly || rec.kind === 'halfwall') && !state.isAdmin) return; // décor privé : les joueurs ne le voient pas
-    const d = { ...rec, url: rec.data };
-    state.decos.set(rec.id, d);
-    if (d.kind === 'halfwall') decoAverage(d);
-  }
-  // Couleur moyenne d'un motif (demi-murs) : sert au dessus et aux bouts du mur, quel que soit le motif.
-  function decoAverage(d) {
-    if (d.avg || d.avgTried) return;
-    d.avgTried = true;
-    const im = new Image();
-    im.onload = () => {
-      try {
-        const c = document.createElement('canvas');
-        c.width = c.height = 12;
-        const x = c.getContext('2d');
-        x.drawImage(im, 0, 0, 12, 12);
-        const px = x.getImageData(0, 0, 12, 12).data;
-        let r = 0, g = 0, b = 0, n = 0;
-        for (let i = 0; i < px.length; i += 4) if (px[i + 3] > 128) { r += px[i]; g += px[i + 1]; b += px[i + 2]; n++; }
-        if (!n) return;
-        const hx = (v) => Math.round(v / n).toString(16).padStart(2, '0');
-        d.avg = `#${hx(r)}${hx(g)}${hx(b)}`;
-        if (screens.room && !screens.room.hidden) drawRoom();
-      } catch (e) { /* motif illisible : on garde la couleur du mur */ }
-    };
-    im.src = d.url;
+    state.decos.set(rec.id, { ...rec, url: rec.data });
   }
 
   function addImageToLibrary(rec) {
