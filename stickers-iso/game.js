@@ -407,6 +407,7 @@
       shape: state.shape,
       ...(currentRoom() && currentRoom().contestDay ? { contestDay: currentRoom().contestDay } : {}),
       ...(currentRoom() && currentRoom().publishedAt ? { publishedAt: currentRoom().publishedAt } : {}),
+      ...(currentRoom() && currentRoom().lentPlaced ? { lentPlaced: currentRoom().lentPlaced } : {}),
       ...(state.ambient < 100 ? { ambient: state.ambient } : {}),
       ...(state.lights.length ? { lights: state.lights.map((l) => ({ ...l })) } : {}),
       thumb,
@@ -881,7 +882,10 @@
     libraryGrid.innerHTML = '';
     const all = [...state.images.values()].filter((img) => ownedHere(img.id) > 0);
     updateLibFilterButton();
-    const mine = libFilter ? all.filter((img) => collectionOf(img) === libFilter) : all;
+    const mineAll = libFilter ? all.filter((img) => collectionOf(img) === libFilter) : all;
+    // L'objet imposé du concours (prêté) passe en premier.
+    const lentNow = lentId();
+    const mine = lentNow ? [...mineAll].sort((a, b) => Number(b.id === lentNow) - Number(a.id === lentNow)) : mineAll;
     libraryEmpty.hidden = all.length > 0;
     for (const img of mine) {
       const left = available(img.id);
@@ -3024,6 +3028,15 @@
     syncColorInputs();
     drawRoom();
     renderStickers();
+    // Objet imposé du jour : posé au milieu de la pièce à la première ouverture (si on l'enlève, on ne le remet pas).
+    const lent = lentId();
+    if (lent && r.lentPlaced !== lent && !state.stickers.some((s) => s.imageId === lent)) {
+      addSticker(lent, STAGE_W / 2, 430);
+      state.selectedId = null;
+      renderStickers();
+      resetHistory();
+    }
+    if (lent) r.lentPlaced = lent;
     showScreen('room');
   }
 
@@ -6032,7 +6045,8 @@
     let theme;
     if (p.kind === 'object') {
       const img = state.images.get(p.objectId);
-      theme = `${img ? `<img class="cv3-obj" src="${cvEsc(img.url)}" alt="">` : ''}<span>${cvEsc(p.objectName)}</span>`;
+      // L'objet imposé est mis en avant : grande image dans un cadre, et ce qu'il faut en faire.
+      theme = `<div class="cv3-objcard">${img ? `<img class="cv3-obj" src="${cvEsc(img.url)}" alt="">` : ''}<div class="cv3-objinfo"><span class="cv3-objname">${cvEsc(p.objectName)}</span>${day === today() ? '<span class="cv3-objnote">Prêté à tous aujourd\'hui : il t\'attend déjà au milieu de ta pièce, en premier dans ta liste.</span>' : ''}</div></div>`;
     } else if (p.kind === 'color') {
       theme = `<span class="cv3-swatch" style="background:${cvEsc(p.colorHex)}"></span><span>${cvEsc(p.colorName)}</span>`;
     } else theme = `<span>${cvEsc(p.value)}</span>`;

@@ -2726,3 +2726,10 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .move-choice .move-ico { font-size: 1.4rem; }
 .move-choice span:last-child { font-size: .85rem; font-weight: 700; }
 .move-choice.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); background: var(--hover); }
+
+.cv3-theme:has(.cv3-objcard) { display: block; }
+.cv3-objcard { display: flex; align-items: center; gap: 12px; margin-top: 4px; padding: 10px; border-radius: 20px; border: 3px solid var(--c-line); background: var(--c-butter); box-shadow: 0 4px 0 var(--c-line); }
+.cv3-objcard .cv3-obj { flex: none; width: 84px; height: 84px; padding: 6px; border-radius: 16px; border: 2.5px solid var(--c-line); background: var(--c-surface); object-fit: contain; }
+.cv3-objinfo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cv3-objname { font-family: var(--font-title); font-weight: 700; font-size: 20px; line-height: 1.1; overflow-wrap: anywhere; }
+.cv3-objnote { font-family: var(--font-body, inherit); font-weight: 700; font-size: 12.5px; line-height: 1.3; }
