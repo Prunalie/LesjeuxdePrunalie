@@ -6046,7 +6046,7 @@
     if (p.kind === 'object') {
       const img = state.images.get(p.objectId);
       // L'objet imposé est mis en avant : grande image dans un cadre, et ce qu'il faut en faire.
-      theme = `<div class="cv3-objcard">${img ? `<img class="cv3-obj" src="${cvEsc(img.url)}" alt="">` : ''}<div class="cv3-objinfo"><span class="cv3-objname">${cvEsc(p.objectName)}</span>${day === today() ? '<span class="cv3-objnote">Prêté à tous aujourd\'hui : il t\'attend déjà au milieu de ta pièce, en premier dans ta liste.</span>' : ''}</div></div>`;
+      theme = `<div class="cv3-objcard">${img ? `<img class="cv3-obj" src="${cvEsc(img.url)}" alt="">` : ''}<div class="cv3-objinfo"><span class="cv3-objname">${cvEsc(p.objectName)}</span>${day === today() ? '<span class="cv3-objnote">Prêté pour aujourd\'hui</span>' : ''}</div></div>`;
     } else if (p.kind === 'color') {
       theme = `<span class="cv3-swatch" style="background:${cvEsc(p.colorHex)}"></span><span>${cvEsc(p.colorName)}</span>`;
     } else theme = `<span>${cvEsc(p.value)}</span>`;
