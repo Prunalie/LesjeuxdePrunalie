@@ -5739,14 +5739,13 @@
     return l.length ? l : DEFAULT_CONTEST_COLORS;
   };
   // Activé sur le compte de l'administratrice seulement, pour l'instant (case à cocher dans le menu Concours).
-  const CONTEST_V2_KEY = 'ma-petite-piece:concours-v2';
   // Nouveau concours (pièce + thème, couleur ou objet) et nouvelle page en 3 étapes : pour tout le monde à partir de
   // 5 h le 5 novembre (heure de l'appareil). Avant, seulement chez l'administratrice. Les jours d'avant gardent leur ancien thème.
   const CONTEST_NEW_FROM = '2026-11-05';
   const CONTEST_NEW_HOUR = 5;
   const contestLaunchAt = () => { const [y, m, d] = CONTEST_NEW_FROM.split('-').map(Number); return new Date(y, m - 1, d, CONTEST_NEW_HOUR, 0, 0).getTime(); };
   const contestLaunched = () => Date.now() >= contestLaunchAt();
-  const contestV2 = () => { try { return contestLaunched() || (state.isAdmin && localStorage.getItem(CONTEST_V2_KEY) === '1'); } catch (e) { return contestLaunched(); } };
+  const contestV2 = () => contestLaunched();
   // Entre minuit et l'ouverture (5 h), le concours du 5 novembre est fermé pour les joueurs : le nouveau thème n'est pas encore là.
   const ctPreLaunch = () => !state.isAdmin && !contestLaunched() && today() >= CONTEST_NEW_FROM;
   const v2Day = (day) => contestV2() && (!contestLaunched() || day >= CONTEST_NEW_FROM);
@@ -7124,51 +7123,7 @@
   // ---------------------------------------------------------------------------
   // Concours (administratrice) : thèmes et résultats en direct
   // ---------------------------------------------------------------------------
-  // Choisir le thème des prochains jours parmi la liste (ou laisser la rotation automatique).
-  function renderThemePick() {
-    const box = $('#acThemePick');
-    box.innerHTML = '';
-    const overrides = state.settings.contestThemeOverrides || {};
-    const labels = ['Hier', 'Aujourd\'hui', 'Demain', 'Après-demain'];
-    labels.forEach((label, i) => {
-      const day = shiftDay(today(), i - 1);
-      const auto = autoThemeOf(day);
-      const row = document.createElement('label');
-      row.className = 'ac-theme-row';
-      row.innerHTML = '<span class="ac-theme-day"></span><select class="field ac-theme-select"></select>';
-      row.querySelector('.ac-theme-day').textContent = label;
-      const sel = row.querySelector('select');
-      sel.add(new Option(`🎲 Automatique : « ${auto} »`, ''));
-      const list = contestThemes().slice();
-      if (overrides[day] && !list.includes(overrides[day])) list.unshift(overrides[day]);
-      for (const t of list) sel.add(new Option(t, t));
-      sel.value = overrides[day] || '';
-      sel.addEventListener('change', () => setThemeOverride(day, sel.value, label));
-      box.appendChild(row);
-    });
-  }
-  async function setThemeOverride(day, theme, label) {
-    if (day === today() && theme !== (state.settings.contestThemeOverrides || {})[day]) {
-      try {
-        const t = await loadContestDay(day);
-        if (t.entries.length && !(await askConfirm(`${t.entries.length === 1 ? '1 joueur a déjà publié sa pièce' : `${t.entries.length} joueurs ont déjà publié leur pièce`} pour le thème du jour. Changer le thème maintenant peut les surprendre. Continuer ?`, 'Changer'))) {
-          renderThemePick();
-          return;
-        }
-      } catch (e) { /* hors ligne : on laisse faire */ }
-    }
-    const all = { ...(state.settings.contestThemeOverrides || {}) };
-    // On garde les derniers jours (les résultats d'un concours passé affichent encore son thème).
-    const oldest = shiftDay(today(), -10);
-    for (const d of Object.keys(all)) if (d < oldest) delete all[d];
-    if (theme) all[day] = theme; else delete all[day];
-    state.settings.contestThemeOverrides = all;
-    renderThemePick();
-    renderContestTile();
-    await saveSettings(theme ? `${label} : thème « ${theme} » ✓` : `${label} : thème automatique ✓`);
-  }
-
-  // Nouveau concept (test) : plan des 7 prochains jours, que l'on peut forcer jour par jour.
+  // Plan des 7 prochains jours (pièce + thème), que l'on peut forcer jour par jour.
   const PLAN_KINDS = { object: 'Objet', color: 'Couleur', general: 'Thème général' };
   async function setPlanOverride(day, patch) {
     const all = { ...(state.settings.contestPlanOverrides || {}) };
@@ -7183,7 +7138,6 @@
     await saveSettings();
   }
   function renderPlanAdmin() {
-    $('#acV2').checked = contestV2();
     const box = $('#acPlan');
     box.innerHTML = '';
     const rooms = contestRooms();
@@ -7276,13 +7230,6 @@
   $('#acObjSearch').addEventListener('input', renderObjectPicker);
   $('#acObjPickClose').addEventListener('click', () => { acObjPicker.hidden = true; });
   acObjPicker.addEventListener('click', (e) => { if (e.target === acObjPicker) acObjPicker.hidden = true; });
-  $('#acV2').addEventListener('change', (e) => {
-    store(CONTEST_V2_KEY, e.target.checked ? '1' : null);
-    renderPlanAdmin();
-    renderContestTile();
-    refreshAdminContest();
-    toast(e.target.checked ? 'Nouveau concept activé sur ton compte (test) : ouvre le Concours depuis l\'accueil pour le voir.' : 'Retour à l\'ancien fonctionnement sur ton compte.');
-  });
   $('#acListsSave').addEventListener('click', async () => {
     const rooms = $('#acRooms').value.split('\n').map((x) => x.trim()).filter(Boolean);
     const colors = [];
@@ -7291,10 +7238,25 @@
       const name = (m && m[1] ? m[1] : line).trim();
       if (name) colors.push({ name, hex: m && m[2] ? m[2].toLowerCase() : '#cccccc' });
     }
+    const themes = $('#acThemes').value.split('\n').map((x) => x.trim()).filter(Boolean);
+    // Modifier la liste décale le tirage au sort : on fige d'abord les jours déjà joués et aujourd'hui,
+    // pour que seuls les jours à venir suivent la nouvelle liste.
+    const frozen = { ...(state.settings.contestThemeOverrides || {}) };
+    const plans = { ...(state.settings.contestPlanOverrides || {}) };
+    for (let i = -10; i <= 0; i++) {
+      const day = shiftDay(today(), i);
+      if (day < CONTEST_NEW_FROM) { if (!frozen[day]) frozen[day] = themeOf(day); continue; }
+      const p = planOf(day);
+      if (p.kind === 'general' && !(plans[day] && plans[day].value)) plans[day] = { ...(plans[day] || {}), value: p.value };
+    }
+    state.settings.contestThemeOverrides = frozen;
+    state.settings.contestPlanOverrides = plans;
     state.settings.contestRooms = rooms;
     state.settings.contestColors = colors;
-    await saveSettings(`Listes enregistrées ✓ ${plural(rooms.length || DEFAULT_CONTEST_ROOMS.length, 'pièce')}, ${plural(colors.length || DEFAULT_CONTEST_COLORS.length, 'couleur')}.`);
+    state.settings.contestThemes = themes;
+    await saveSettings(`Listes enregistrées ✓ ${plural(rooms.length || DEFAULT_CONTEST_ROOMS.length, 'pièce')}, ${themes.length ? plural(themes.length, 'thème') : 'thèmes par défaut'}, ${plural(colors.length || DEFAULT_CONTEST_COLORS.length, 'couleur')}.`);
     renderPlanAdmin();
+    renderContestTile();
   });
 
   let acTimer = null;
@@ -7302,7 +7264,6 @@
     if (!state.isAdmin) return;
     showScreen('adminContest');
     $('#acThemes').value = (Array.isArray(state.settings.contestThemes) && state.settings.contestThemes.length ? state.settings.contestThemes : DEFAULT_THEMES).join('\n');
-    renderThemePick();
     renderPlanAdmin();
     await refreshAdminContest();
     clearInterval(acTimer);
@@ -7411,20 +7372,6 @@
     }
     $('#acRefreshed').textContent = `Mis à jour à ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · actualisation automatique toutes les 15 s.`;
   }
-  $('#acThemesSave').addEventListener('click', async () => {
-    const themes = $('#acThemes').value.split('\n').map((x) => x.trim()).filter(Boolean);
-    // Modifier la liste décale la rotation : on fige d'abord les jours déjà joués et aujourd'hui,
-    // pour que seuls les jours à venir suivent la nouvelle liste.
-    const frozen = { ...(state.settings.contestThemeOverrides || {}) };
-    for (let i = -10; i <= 0; i++) {
-      const day = shiftDay(today(), i);
-      if (!frozen[day]) frozen[day] = themeOf(day);
-    }
-    state.settings.contestThemeOverrides = frozen;
-    state.settings.contestThemes = themes;
-    await saveSettings(`Thèmes enregistrés ✓ ${themes.length ? plural(themes.length, 'thème') : 'Thèmes par défaut'} · aujourd'hui : « ${themeOf(today())} ».`);
-    renderThemePick();
-  });
   $('#homeAdminContest').addEventListener('click', openAdminContest);
   $('#adminContestBack').addEventListener('click', () => { clearInterval(acTimer); goHome(); });
 

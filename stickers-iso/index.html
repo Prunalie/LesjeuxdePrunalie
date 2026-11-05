@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611050300">
+  <link rel="stylesheet" href="style.css?v=202611050400">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -622,15 +622,15 @@
     <div class="rooms-body">
       <div class="admin-cols">
         <section class="admin-card-box" id="acPlanBox">
-          <h2>Nouveau concept : pièce + thème <span class="ac-test-tag">test</span></h2>
-          <label class="deco-asplayer"><input id="acV2" type="checkbox"><span>Activer sur mon compte pour le tester (les joueurs gardent l'ancien fonctionnement)</span></label>
+          <h2>Pièce + thème du jour</h2>
           <p class="muted">Chaque jour : une pièce tirée au sort, et un thème qui peut être un <strong>objet</strong> (prêté à tous ce jour-là), une <strong>couleur</strong> ou un <strong>thème général</strong>. Tu peux forcer ce que tu veux pour les prochains jours.</p>
           <div id="acPlan" class="ac-plan"></div>
-          <details class="ac-lists">
-            <summary>Modifier mes listes (pièces, couleurs)</summary>
+          <details class="ac-lists" open>
+            <summary>Mes listes (pièces, thèmes, couleurs)</summary>
             <label class="contest-themes"><span class="muted">Pièces possibles, une par ligne :</span><textarea id="acRooms" class="field" rows="6"></textarea></label>
+            <label class="contest-themes"><span class="muted">Thèmes généraux possibles, un par ligne (ex : Été, Halloween…) :</span><textarea id="acThemes" class="field" rows="8"></textarea></label>
             <label class="contest-themes"><span class="muted">Couleurs possibles, une par ligne, avec le code couleur (ex : Vert #6a9f58) :</span><textarea id="acColors" class="field" rows="8"></textarea></label>
-            <p class="muted ct-small-text">Les thèmes généraux sont la liste « Thèmes » plus bas. Les objets sont pris dans tes enveloppes en vente.</p>
+            <p class="muted ct-small-text">Pour un objet, tu peux choisir n'importe quel objet du jeu. Si tu laisses faire le tirage au sort, il est pris dans les enveloppes en vente.</p>
             <button id="acListsSave" class="btn btn-primary" type="button">Enregistrer les listes</button>
           </details>
         </section>
@@ -639,13 +639,6 @@
           <p id="acLiveInfo" class="muted"></p>
           <div id="acLive"></div>
           <p id="acRefreshed" class="muted ct-small-text"></p>
-        </section>
-        <section class="admin-card-box">
-          <h2>Thèmes</h2>
-          <p class="muted">Choisis le thème des prochains jours dans la liste. Sinon, ils tournent tout seuls.</p>
-          <div id="acThemePick" class="ac-theme-pick"></div>
-          <label class="contest-themes"><span class="muted">Un thème par ligne : ils reviennent à tour de rôle, un par jour.</span><textarea id="acThemes" class="field" rows="10"></textarea></label>
-          <button id="acThemesSave" class="btn btn-primary">Enregistrer les thèmes</button>
         </section>
         <section class="admin-card-box">
           <h2>Participations d'aujourd'hui</h2>
@@ -1246,7 +1239,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611050300"></script>
-  <script src="game.js?v=202611050300"></script>
+  <script src="firebase-config.js?v=202611050400"></script>
+  <script src="game.js?v=202611050400"></script>
 </body>
 </html>
