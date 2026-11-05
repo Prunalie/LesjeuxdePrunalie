@@ -3052,17 +3052,19 @@
     if (r.contestDay) $('#contestBannerText').textContent = contestBannerText(r.contestDay);
     setSaveStatus('Sauvegardé ✓');
     syncColorInputs();
-    drawRoom();
-    renderStickers();
     // Objet imposé du jour : posé au milieu de la pièce à la première ouverture (si on l'enlève, on ne le remet pas).
     const lent = lentId();
     if (lent && r.lentPlaced !== lent && !state.stickers.some((s) => s.imageId === lent)) {
-      addSticker(lent, STAGE_W / 2, 430);
-      state.selectedId = null;
-      renderStickers();
-      resetHistory();
+      const img = state.images.get(lent);
+      if (img) {
+        const k = STICKER_DEFAULT_SIZE / Math.max(img.w, img.h);
+        state.stickers.push({ id: uid(), imageId: lent, x: STAGE_W / 2, y: 430, w: img.w * k, h: img.h * k, rot: 0, flip: false });
+        scheduleSave();
+      }
     }
     if (lent) r.lentPlaced = lent;
+    drawRoom();
+    renderStickers();
     showScreen('room');
   }
 
@@ -5800,12 +5802,12 @@
       const order = [...rooms].sort((a, b) => seededRank(`${cycle}r${a}`) - seededRank(`${cycle}r${b}`));
       room = order[((idx % rooms.length) + rooms.length) % rooms.length];
     }
-    const pool = contestObjectPool();
     let kind = ov.kind;
     if (!kind) { const k = seededRank(`${day}kind`) % 10; kind = k < 4 ? 'object' : k < 6 ? 'color' : 'general'; }
     const plan = { day, room, kind };
     if (kind === 'object') {
-      const img = (ov.objectId && state.images.get(ov.objectId)) || (pool.length ? pool[seededRank(`${day}obj`) % pool.length] : null);
+      let img = ov.objectId && state.images.get(ov.objectId);
+      if (!img) { const pool = contestObjectPool(); img = pool.length ? pool[seededRank(`${day}obj`) % pool.length] : null; }
       if (img) { plan.objectId = img.id; plan.objectName = objectLabel(img); plan.text = `objet : ${plan.objectName}`; return plan; }
       plan.kind = kind = 'general'; // aucun objet possible : on retombe sur un thème général
     }
@@ -5821,12 +5823,19 @@
   }
   // Objet prêté à tous aujourd'hui, dans la pièce du concours seulement : en plus de ceux qu'on possède.
   let roomScreenActive = false; // vrai pendant qu'une pièce est ouverte (pas dans la collection, la boutique…)
+  // Appelée très souvent (pour chaque sticker de la liste) : on garde le résultat tant que rien n'a changé.
+  let lentCache = { key: '', val: null };
   function lentId() {
     if (!v2Day(today()) || !roomScreenActive) return null;
     const r = currentRoom();
     if (!r || !r.contestDay || r.contestDay !== today()) return null;
-    const p = planOf(today());
-    return p.kind === 'object' ? p.objectId : null;
+    const day = today();
+    const key = `${r.id}|${day}|${JSON.stringify((state.settings.contestPlanOverrides || {})[day] || {})}|${state.images.size}|${liveEnvelopes().length}`;
+    if (lentCache.key !== key) {
+      const p = planOf(day);
+      lentCache = { key, val: p.kind === 'object' ? p.objectId : null };
+    }
+    return lentCache.val;
   }
   function contestBannerText(day) {
     if (!v2Day(day)) return `Pièce du concours · thème « ${themeOf(day)} » · tous tes stickers sont disponibles ici`;
