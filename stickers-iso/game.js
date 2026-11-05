@@ -405,7 +405,18 @@
     saveTimer = setTimeout(saveRoom, 700);
   }
 
+  // Traces : les dernières étapes du jeu, gardées sur l'appareil. Si la page plante, elles disent où (envoyées à l'administratrice si le joueur le veut).
+  const TRACE_KEY = 'ma-petite-piece:traces';
+  function crumb(msg) {
+    try {
+      const list = JSON.parse(localStorage.getItem(TRACE_KEY) || '[]');
+      list.push(`${new Date().toLocaleTimeString('fr-FR')} ${msg}`);
+      localStorage.setItem(TRACE_KEY, JSON.stringify(list.slice(-18)));
+    } catch (e) { /* stockage indisponible */ }
+  }
+
   async function saveRoom() {
+    crumb('sauvegarde de la pièce');
     clearTimeout(saveTimer);
     if (!savePending || !state.roomId) return;
     savePending = false;
@@ -834,6 +845,7 @@
   // Un joueur connecté avant l'ouverture du décor le charge à l'ouverture de la boutique ou d'une pièce.
   let decosTried = false;
   async function ensureDecos() {
+    crumb('chargement du décor');
     if (!shopV2() || decosTried || state.decos.size) return;
     decosTried = true;
     try { (await withFallback((d) => d.listDecos())).forEach(addDeco); } catch (e) { decosTried = false; console.warn('Décor indisponible', e); }
@@ -966,6 +978,7 @@
   // Après la connexion, on prépare doucement les vignettes des stickers du joueur (une toutes les 80 ms), pour que la liste soit instantanée.
   let warmTimer = 0;
   function warmThumbs() {
+    crumb('préparation des vignettes');
     clearTimeout(warmTimer);
     const todo = [...state.images.values()].filter((i) => i.url && owned(i.id) > 0 && !thumbCache.has(i.id));
     let i = 0;
@@ -988,6 +1001,7 @@
   }, { rootMargin: '300px' }) : null;
 
   function renderLibrary() {
+    crumb(`liste des stickers (${state.images.size} images)`);
     if (thumbObserver) thumbObserver.disconnect();
     libraryGrid.innerHTML = '';
     const all = [...state.images.values()].filter((img) => ownedHere(img.id) > 0);
@@ -3111,6 +3125,7 @@
   function openRoom(id) {
     const r = state.rooms.find((x) => x.id === id);
     if (!r) return;
+    crumb(`ouverture de la pièce ${r.contestDay ? 'du concours' : 'normale'} (${(r.stickers || []).length} stickers)`);
     if (maintBlocked(r.contestDay ? 'contest' : 'rooms')) return;
     // Décor chargé à la demande si besoin (joueur connecté avant l'ouverture du décor).
     ensureDecos().then(() => { if (state.decos.size && state.roomId === id) { drawRoom(); syncDecoSwatches(); } });
@@ -6061,6 +6076,7 @@
 
   let contestData = { today: null, vote: null, results: null };
   async function openContest() {
+    crumb('ouverture du concours');
     if (maintBlocked('contest')) return;
     showScreen('contest');
     renderPoints();
@@ -9097,6 +9113,20 @@
   // ---------------------------------------------------------------------------
   // Démarrage
   // ---------------------------------------------------------------------------
+  // Après un plantage : proposer de prévenir l'administratrice, avec les dernières étapes (pour qu'elle trouve la cause).
+  async function offerCrashReport() {
+    if (!state.player || state.isAdmin) return;
+    let traces = '';
+    try { traces = (JSON.parse(read(TRACE_KEY) || '[]') || []).join('\n'); } catch (e) { /* rien */ }
+    if (!(await askConfirm('Le jeu s\'est arrêté la dernière fois. Prévenir l\'administratrice pour qu\'elle puisse corriger ?', 'Oui, la prévenir'))) return;
+    const m = {
+      id: `crash-${state.player.key}-${Date.now()}`, to: ADMIN_PSEUDOS[0], title: `⚠️ Plantage chez ${state.player.name}`,
+      text: `${state.player.name} a eu un plantage. Dernières étapes :\n${traces || '(aucune)'}\n\nAppareil : ${navigator.userAgent}`,
+      reward: 0, read: false, claimed: false, created: Date.now(),
+    };
+    try { await db.createMail(m); toast('Merci, c\'est envoyé ✉️'); } catch (e) { toast('Le message n\'a pas pu être envoyé.'); }
+  }
+
   async function init() {
     window.addEventListener('resize', fitStage);
     new ResizeObserver(fitStage).observe(stageArea);
@@ -9116,11 +9146,12 @@
     btn.disabled = true;
     btn.textContent = 'Connexion…';
     let place = {};
+    let crashed = false;
     try { place = JSON.parse(read(PLACE_KEY)) || {}; } catch (e) { /* écran inconnu */ }
     // Si la dernière réouverture d'un écran a fait planter la page, on ne la refait pas : on arrive sur l'accueil (sinon le joueur
     // ne peut plus se connecter, la page replante à chaque fois).
     const RESTORE_KEY = 'ma-petite-piece:restauration';
-    if (read(RESTORE_KEY)) { store(RESTORE_KEY, null); store(PLACE_KEY, null); place = {}; }
+    if (read(RESTORE_KEY)) { store(RESTORE_KEY, null); store(PLACE_KEY, null); place = {}; crashed = true; }
     else if (place.screen && place.screen !== 'home') { store(RESTORE_KEY, place.screen); setTimeout(() => store(RESTORE_KEY, null), 8000); }
     try {
       await login(session);
@@ -9128,6 +9159,7 @@
       btn.disabled = false;
       btn.textContent = 'Jouer';
     }
+    if (crashed) setTimeout(offerCrashReport, 1500);
     if (place.screen === 'room' && state.rooms.some((r) => r.id === place.roomId)) openRoom(place.roomId);
     else if (place.screen === 'rooms') openRooms();
     else if (place.screen === 'shop') openShop(false);
