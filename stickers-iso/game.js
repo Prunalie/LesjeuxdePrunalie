@@ -904,7 +904,42 @@
   $('#libFilterClose').addEventListener('click', () => { $('#libFilterDialog').hidden = true; });
   $('#libFilterDialog').addEventListener('click', (e) => { if (e.target.id === 'libFilterDialog') $('#libFilterDialog').hidden = true; });
 
+  // Vignettes de la liste : petites copies des stickers, créées seulement quand elles s'affichent. Avec une grosse collection,
+  // des centaines d'images pleine taille saturent la mémoire d'un téléphone (iPhone : « un problème est survenu »).
+  const thumbCache = new Map();
+  const BLANK_GIF = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+  function smallUrl(img, cb) {
+    if (thumbCache.has(img.id)) { cb(thumbCache.get(img.id)); return; }
+    if (Math.max(img.w || 0, img.h || 0) <= 160) { thumbCache.set(img.id, img.url); cb(img.url); return; }
+    const el = new Image();
+    el.onload = () => {
+      try {
+        const k = 160 / Math.max(el.naturalWidth, el.naturalHeight);
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(el.naturalWidth * k));
+        c.height = Math.max(1, Math.round(el.naturalHeight * k));
+        c.getContext('2d').drawImage(el, 0, 0, c.width, c.height);
+        let url = c.toDataURL('image/webp', 0.85);
+        if (!url.startsWith('data:image/webp')) url = c.toDataURL('image/png');
+        thumbCache.set(img.id, url);
+        cb(url);
+      } catch (e) { cb(img.url); }
+    };
+    el.onerror = () => cb(img.url);
+    el.src = img.url;
+  }
+  const thumbObserver = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => {
+    for (const en of entries) {
+      if (!en.isIntersecting) continue;
+      const im = en.target;
+      thumbObserver.unobserve(im);
+      const img = state.images.get(im.dataset.imgId);
+      if (img) smallUrl(img, (url) => { if (im.isConnected) im.src = url; });
+    }
+  }, { rootMargin: '300px' }) : null;
+
   function renderLibrary() {
+    if (thumbObserver) thumbObserver.disconnect();
     libraryGrid.innerHTML = '';
     const all = [...state.images.values()].filter((img) => ownedHere(img.id) > 0);
     updateLibFilterButton();
@@ -921,7 +956,8 @@
       el.dataset.rarity = img.rarity || 'common';
       el.title = `${img.name} : ${left} à poser sur ${ownedHere(img.id)}${lent ? ' (1 prêté pour le concours)' : ''}`;
       el.innerHTML = `<img alt=""><span class="thumb-count"></span>`;
-      el.querySelector('img').src = img.url;
+      const tim = el.querySelector('img');
+      if (thumbObserver) { tim.dataset.imgId = img.id; tim.src = thumbCache.get(img.id) || BLANK_GIF; if (!thumbCache.has(img.id)) thumbObserver.observe(tim); } else tim.src = img.url;
       el.querySelector('.thumb-count').textContent = `${Math.max(0, left)}/${ownedHere(img.id)}`;
       el.addEventListener('pointerdown', (e) => startSpawnDrag(e, img.id));
       libraryGrid.appendChild(el);
@@ -3053,10 +3089,11 @@
     setSaveStatus('Sauvegardé ✓');
     syncColorInputs();
     // Objet imposé du jour : posé au milieu de la pièce à la première ouverture (si on l'enlève, on ne le remet pas).
-    const lent = lentId();
+    let lent = null;
+    try { lent = lentId(); } catch (e) { console.warn('Objet prêté indisponible', e); }
     if (lent && r.lentPlaced !== lent && !state.stickers.some((s) => s.imageId === lent)) {
       const img = state.images.get(lent);
-      if (img) {
+      if (img && img.w && img.h) {
         const k = STICKER_DEFAULT_SIZE / Math.max(img.w, img.h);
         state.stickers.push({ id: uid(), imageId: lent, x: STAGE_W / 2, y: 430, w: img.w * k, h: img.h * k, rot: 0, flip: false });
         scheduleSave();
