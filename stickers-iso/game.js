@@ -621,14 +621,12 @@
       z = z1;
     });
 
-    // Jardin avec demi-mur à motif : des poteaux aux deux bouts et dans le coin (ils cachent la tranche du mur).
+    // Jardin (côté administratrice) : des poteaux aux deux bouts et dans le coin des murs, avec ou sans demi-mur à motif.
     // Par défaut, un poteau en bois ; on peut en choisir un autre dans l'Atelier décor (type « Poteau »).
     const postsSvg = () => {
-      if (!garden || !(decoWL || decoWR)) return '';
+      if (!garden || !state.isAdmin) return ''; // côté administratrice pour l'instant
       const decoP = decoFor('postDeco');
-      const spots = [[0, 0]];
-      if (decoWL) spots.push([0, D]);
-      if (decoWR) spots.push([W, 0]);
+      const spots = [[0, 0], [0, D], [W, 0]];
       const hpx = g.wallPx * 1.15;
       const lw = 2.5 * Math.max(k, 0.6);
       return spots.map(([u, v]) => {
