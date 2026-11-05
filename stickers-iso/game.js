@@ -2360,6 +2360,23 @@
 
   // Dessine la pièce et ses stickers dans un canvas (export et miniatures).
   // data (facultatif) : une autre pièce { colors, shape, stickers } à dessiner que celle ouverte.
+  // Images des stickers pour le dessin de la pièce : une seule image décodée par sticker (et par taille), gardée d'une sauvegarde
+  // à l'autre. Avant, chaque sauvegarde (toutes les ~3 s) décodait de nouveau chaque sticker en pleine taille : sur iPhone la
+  // mémoire montait jusqu'au plantage. Pour la miniature, on prend la petite vignette (160 px) au lieu de l'image pleine taille.
+  const sceneImgs = new Map();
+  function sceneImage(img, small) {
+    const key = img.id + (small ? '#s' : '');
+    if (sceneImgs.has(key)) return Promise.resolve(sceneImgs.get(key));
+    return new Promise((resolve, reject) => {
+      const load = (url) => loadImageEl(url).then((el) => {
+        if (sceneImgs.size >= 40) sceneImgs.delete(sceneImgs.keys().next().value);
+        sceneImgs.set(key, el);
+        resolve(el);
+      }, reject);
+      if (small) smallUrl(img, load); else load(img.url);
+    });
+  }
+
   async function renderScene(K, background, data = null) {
     const cv = document.createElement('canvas');
     cv.width = Math.round(STAGE_W * K);
@@ -2415,7 +2432,7 @@
       const img = state.images.get(s.imageId);
       if (!img) continue;
       let el;
-      try { el = await loadImageEl(img.url); } catch (e) { console.warn('Sticker illisible, ignoré', img.name); continue; }
+      try { el = await sceneImage(img, K <= 0.5); } catch (e) { console.warn('Sticker illisible, ignoré', img.name); continue; }
       const f = ambient < 100 ? stickerBrightness(s.id, lights, ambient) : 1;
       // Le sticker est dessiné sur un petit calque à part s'il doit être assombri.
       const D = Math.ceil(Math.hypot(s.w, s.h) + 24);
