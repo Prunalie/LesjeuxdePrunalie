@@ -586,9 +586,9 @@
           parts.push(`<ellipse cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" rx="${(30 * k).toFixed(1)}" ry="${(14 * k).toFixed(1)}" fill="${fill}"/>`);
         }
       };
-      // Un demi-mur à motif (barrière, haie…) remplace le feuillage de son côté.
-      if (!decoWL) bumps(L, C, D, shade(wallLeft, 0.12));
-      if (!decoWR) bumps(C, R, W, shade(wallRight, 0.12));
+      // Un demi-mur à motif (barrière, haie…) remplace le feuillage de son côté. Côté administratrice : plus de ronds du tout.
+      if (!decoWL && !state.isAdmin) bumps(L, C, D, shade(wallLeft, 0.12));
+      if (!decoWR && !state.isAdmin) bumps(C, R, W, shade(wallRight, 0.12));
     } else {
       // Plinthes
       const BASE = 14 * Math.max(k, 0.5);
