@@ -906,27 +906,57 @@
 
   // Vignettes de la liste : petites copies des stickers, créées seulement quand elles s'affichent. Avec une grosse collection,
   // des centaines d'images pleine taille saturent la mémoire d'un téléphone (iPhone : « un problème est survenu »).
-  const thumbCache = new Map();
+  const thumbCache = new Map();   // id -> adresse de la petite vignette (en mémoire)
+  const thumbPending = new Map(); // id -> fonctions à rappeler quand la vignette est prête
   const BLANK_GIF = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+  // Les vignettes sont aussi gardées sur l'appareil (stockage du navigateur) : après la première fois, elles s'affichent tout de suite.
+  let thumbStore = null;
+  if ('caches' in window) caches.open('mpp-thumbs-v1').then((c) => { thumbStore = c; }).catch(() => {});
+  const thumbKey = (img) => `/vignette/${encodeURIComponent(img.id)}-${img.created || 0}`;
   function smallUrl(img, cb) {
     if (thumbCache.has(img.id)) { cb(thumbCache.get(img.id)); return; }
     if (Math.max(img.w || 0, img.h || 0) <= 160) { thumbCache.set(img.id, img.url); cb(img.url); return; }
-    const el = new Image();
-    el.onload = () => {
-      try {
-        const k = 160 / Math.max(el.naturalWidth, el.naturalHeight);
-        const c = document.createElement('canvas');
-        c.width = Math.max(1, Math.round(el.naturalWidth * k));
-        c.height = Math.max(1, Math.round(el.naturalHeight * k));
-        c.getContext('2d').drawImage(el, 0, 0, c.width, c.height);
-        let url = c.toDataURL('image/webp', 0.85);
-        if (!url.startsWith('data:image/webp')) url = c.toDataURL('image/png');
-        thumbCache.set(img.id, url);
-        cb(url);
-      } catch (e) { cb(img.url); }
+    if (thumbPending.has(img.id)) { thumbPending.get(img.id).push(cb); return; }
+    thumbPending.set(img.id, [cb]);
+    const done = (url) => { thumbCache.set(img.id, url); const list = thumbPending.get(img.id) || []; thumbPending.delete(img.id); list.forEach((f) => f(url)); };
+    const make = () => {
+      const el = new Image();
+      el.onload = () => {
+        try {
+          const k = 160 / Math.max(el.naturalWidth, el.naturalHeight);
+          const c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(el.naturalWidth * k));
+          c.height = Math.max(1, Math.round(el.naturalHeight * k));
+          c.getContext('2d').drawImage(el, 0, 0, c.width, c.height);
+          c.toBlob((blob) => {
+            if (!blob) { done(img.url); return; }
+            if (thumbStore) thumbStore.put(thumbKey(img), new Response(blob)).catch(() => {});
+            done(URL.createObjectURL(blob));
+          }, 'image/png');
+        } catch (e) { done(img.url); }
+      };
+      el.onerror = () => done(img.url);
+      el.src = img.url;
     };
-    el.onerror = () => cb(img.url);
-    el.src = img.url;
+    if (thumbStore) {
+      thumbStore.match(thumbKey(img)).then((res) => (res ? res.blob() : null))
+        .then((blob) => { if (blob) done(URL.createObjectURL(blob)); else make(); })
+        .catch(make);
+    } else make();
+  }
+  // Après la connexion, on prépare doucement les vignettes des stickers du joueur (une toutes les 80 ms), pour que la liste soit instantanée.
+  let warmTimer = 0;
+  function warmThumbs() {
+    clearTimeout(warmTimer);
+    const todo = [...state.images.values()].filter((i) => i.url && owned(i.id) > 0 && !thumbCache.has(i.id));
+    let i = 0;
+    const step = () => {
+      if (i >= todo.length || !state.player) return;
+      if (document.hidden) { warmTimer = setTimeout(step, 1000); return; }
+      const img = todo[i++];
+      smallUrl(img, () => { warmTimer = setTimeout(step, 80); });
+    };
+    warmTimer = setTimeout(step, 1500);
   }
   const thumbObserver = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => {
     for (const en of entries) {
@@ -2759,6 +2789,7 @@
     }
     renderPoints();
     goHome();
+    warmThumbs();
     if (isNew) {
       // Premier passage : un message de bienvenue (pas les nouveautés) et un cadeau dans la boîte aux lettres.
       await sendWelcome();
