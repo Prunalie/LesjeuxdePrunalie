@@ -548,7 +548,7 @@
     const { wallLeft, wallRight, floor } = { ...base, ...colors };
     const defs = [];
     const decoFor = (key) => {
-      const half = key === 'halfLeftDeco' || key === 'halfRightDeco';
+      const half = key === 'halfLeftDeco' || key === 'halfRightDeco' || key === 'postDeco';
       const d = colors && colors[key] && (garden ? (half || key === 'floorDeco' || key === 'levelFloorDeco') : !half) ? state.decos.get(colors[key]) : null;
       return d && d.w && d.h ? d : null;
     };
@@ -621,9 +621,36 @@
       z = z1;
     });
 
+    // Jardin avec demi-mur à motif : des poteaux aux deux bouts et dans le coin (ils cachent la tranche du mur).
+    // Par défaut, un poteau en bois ; on peut en choisir un autre dans l'Atelier décor (type « Poteau »).
+    const postsSvg = () => {
+      if (!garden || !(decoWL || decoWR)) return '';
+      const decoP = decoFor('postDeco');
+      const spots = [[0, 0]];
+      if (decoWL) spots.push([0, D]);
+      if (decoWR) spots.push([W, 0]);
+      const hpx = g.wallPx * 1.15;
+      const lw = 2.5 * Math.max(k, 0.6);
+      return spots.map(([u, v]) => {
+        const b = P(u, v);
+        if (decoP) {
+          const wpx = hpx * decoP.w / decoP.h;
+          return `<image href="${decoP.url}" x="${(b.x - wpx / 2).toFixed(1)}" y="${(b.y + TILE_Y * k * 0.2 - hpx).toFixed(1)}" width="${wpx.toFixed(1)}" height="${hpx.toFixed(1)}" preserveAspectRatio="xMidYMax meet"/>`;
+        }
+        // Poteau par défaut : un petit bloc de bois avec un chapeau un peu plus large.
+        const wood = '#C9976A', ink = '#5A3E3A', zh = hpx / (TILE_Z * k);
+        const box = (s, z0, z1) => {
+          const A = (du, dv, z) => P(u + du * s, v + dv * s, z);
+          return `<polygon points="${pts(A(-1, 1, z0), A(1, 1, z0), A(1, 1, z1), A(-1, 1, z1))}" fill="${shade(wood, -0.12)}" stroke="${ink}" stroke-width="${lw}" stroke-linejoin="round"/>`
+            + `<polygon points="${pts(A(1, -1, z0), A(1, 1, z0), A(1, 1, z1), A(1, -1, z1))}" fill="${shade(wood, -0.3)}" stroke="${ink}" stroke-width="${lw}" stroke-linejoin="round"/>`
+            + `<polygon points="${pts(A(-1, -1, z1), A(1, -1, z1), A(1, 1, z1), A(-1, 1, z1))}" fill="${shade(wood, 0.28)}" stroke="${ink}" stroke-width="${lw}" stroke-linejoin="round"/>`;
+        };
+        return box(0.17, 0, zh * 0.9) + box(0.24, zh * 0.9, zh);
+      }).join('');
+    };
     // Dans la maison : pas d'épaisseur ni de tranche de sol qui dépassent, pour que les sols des pièces voisines restent au même niveau.
     const flat = !!(geomOpts && geomOpts.flat);
-    if (flat) return (defs.length ? `<defs>${defs.join('')}</defs>` : '') + parts.join('');
+    if (flat) return (defs.length ? `<defs>${defs.join('')}</defs>` : '') + parts.join('') + postsSvg();
     // Épaisseur des murs (tranche du dessus) et du sol
     if (!garden) {
       parts.push(`<polygon points="${pts(up(L), up(C), off(up(C), 0, -T / 2), off(up(L), -T, -T / 2))}" fill="${shade(wallLeft, 0.35)}"/>`);
@@ -641,7 +668,7 @@
     parts.push(`<polygon points="${pts(RT, R, B)}" fill="${floor}"/>`);
 
 
-    return (defs.length ? `<defs>${defs.join('')}</defs>` : '') + parts.join('');
+    return (defs.length ? `<defs>${defs.join('')}</defs>` : '') + parts.join('') + postsSvg();
   }
 
   // ---------------------------------------------------------------------------
@@ -797,7 +824,7 @@
 
   function addDeco(rec) {
     if (!rec.data) return;
-    if ((rec.adminOnly || rec.kind === 'halfwall') && !state.isAdmin) return; // décor privé : les joueurs ne le voient pas
+    if ((rec.adminOnly || rec.kind === 'halfwall' || rec.kind === 'post') && !state.isAdmin) return; // décor privé : les joueurs ne le voient pas
     state.decos.set(rec.id, { ...rec, url: rec.data });
   }
 
@@ -4295,7 +4322,7 @@
   const decoOwned = (id) => (state.isAdmin && !decoAsPlayer) || !!(state.profile && state.profile.decos && state.profile.decos[id]);
   const decoByName = (a, b) => (a.collection || '').localeCompare(b.collection || '', 'fr') || (a.name || '').localeCompare(b.name || '', 'fr');
   // Les décors privés (🔒) ne sont ni en vente ni chez les joueurs : l'administratrice les pose gratuitement.
-  const decoList = (kind, forShop = false) => [...state.decos.values()].filter((d) => d.kind === kind && ((!d.adminOnly && d.kind !== 'halfwall') || (!forShop && state.isAdmin && !decoAsPlayer))).sort(decoByName);
+  const decoList = (kind, forShop = false) => [...state.decos.values()].filter((d) => d.kind === kind && ((!d.adminOnly && d.kind !== 'halfwall' && d.kind !== 'post') || (!forShop && state.isAdmin && !decoAsPlayer))).sort(decoByName);
   // Aperçu à plat : la largeur de la vignette représente 4 carreaux de pièce, donc un motif de « taille 2 »
   // y apparaît deux fois, un motif de « taille 1 » quatre fois (au plus un motif entier si la taille est grande).
   const decoBgSize = (d) => `${Math.min(100, Math.max(8, ((Number(d.size) || 2) / 4) * 100))}% auto`;
@@ -4330,6 +4357,7 @@
     floorDeco: { kind: 'floor', title: 'Sol à motif', other: null },
     halfLeftDeco: { kind: 'halfwall', title: 'Demi-mur · côté gauche', other: 'halfRightDeco', otherName: 'côté droit' },
     halfRightDeco: { kind: 'halfwall', title: 'Demi-mur · côté droit', other: 'halfLeftDeco', otherName: 'côté gauche' },
+    postDeco: { kind: 'post', title: 'Poteaux du jardin', other: null },
     levelFloorDeco: { kind: 'floor', title: 'Sol à motif · étage (plate-forme)', other: null },
   };
   let decoSlot = 'wallLeftDeco';
@@ -4339,7 +4367,7 @@
     const show = state.isAdmin || (shopV2() && decorUnlocked());
     for (const b of decoSwatches) {
       // Jardin : seulement le sol à motif, et côté administratrice pour l'instant.
-      const half = b.dataset.deco.startsWith('half');
+      const half = b.dataset.deco.startsWith('half') || b.dataset.deco === 'postDeco';
       b.hidden = !show || (garden ? !(state.isAdmin && (half || b.dataset.deco === 'floorDeco')) : half);
       const d = state.decos.get(state.colors[b.dataset.deco] || '');
       b.classList.toggle('empty', !d);
@@ -4389,7 +4417,7 @@
     if (!owned.length) {
       const p = document.createElement('p');
       p.className = 'muted deco-empty';
-      p.textContent = slot.kind === 'halfwall' ? 'Aucun demi-mur pour l\'instant : importe-en dans l\'Atelier décor.' : slot.kind === 'floor' ? 'Aucun sol pour l\'instant : il y en a à la boutique (🎨 Décor).' : 'Aucun papier peint pour l\'instant : il y en a à la boutique (🎨 Décor).';
+      p.textContent = slot.kind === 'post' ? 'Aucun poteau pour l\'instant : importe-en dans l\'Atelier décor (les poteaux par défaut restent en place).' : slot.kind === 'halfwall' ? 'Aucun demi-mur pour l\'instant : importe-en dans l\'Atelier décor.' : slot.kind === 'floor' ? 'Aucun sol pour l\'instant : il y en a à la boutique (🎨 Décor).' : 'Aucun papier peint pour l\'instant : il y en a à la boutique (🎨 Décor).';
       list.appendChild(p);
     }
   }
@@ -4514,7 +4542,7 @@
     const everything = [...state.decos.values()].sort((a, b) => a.kind.localeCompare(b.kind) || decoByName(a, b));
     const collections = [...new Set(everything.map((d) => d.collection).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
     // Compteurs des onglets, liste des collections.
-    const counts = { all: everything.length, halfwall: everything.filter((d) => d.kind === 'halfwall').length, wall: everything.filter((d) => d.kind === 'wall').length, floor: everything.filter((d) => d.kind === 'floor').length };
+    const counts = { all: everything.length, halfwall: everything.filter((d) => d.kind === 'halfwall').length, post: everything.filter((d) => d.kind === 'post').length, wall: everything.filter((d) => d.kind === 'wall').length, floor: everything.filter((d) => d.kind === 'floor').length };
     document.querySelectorAll('#decoAdminTabs .deco-tab').forEach((t) => {
       t.classList.toggle('active', t.dataset.kind === decoAdminKind);
       t.querySelector('span').textContent = counts[t.dataset.kind];
@@ -4538,7 +4566,7 @@
         <div class="deco-preview"></div>
         <div class="deco-admin-fields">
           <label><span>Nom</span><input class="field" data-f="name" maxlength="40"></label>
-          <label><span>Type</span><select class="field" data-f="kind"><option value="wall">Papier peint</option><option value="floor">Sol</option><option value="halfwall">Demi-mur (jardin)</option></select></label>
+          <label><span>Type</span><select class="field" data-f="kind"><option value="wall">Papier peint</option><option value="floor">Sol</option><option value="halfwall">Demi-mur (jardin)</option><option value="post">Poteau (jardin)</option></select></label>
           <label><span>Collection</span><input class="field" data-f="collection" maxlength="40" list="decoCollections"></label>
           <label><span>Prix 🪙</span><input class="field" data-f="price" type="number" min="0" step="10"></label>
           <label><span>Taille (carreaux)</span><input class="field" data-f="size" type="number" min="0.5" max="12" step="0.5"></label>
@@ -4571,6 +4599,7 @@
         card.querySelector('.deco-preview').style.backgroundSize = decoBgSize(d);
       });
       card.querySelector('.deco-admin-test').addEventListener('click', () => openDecoTest(d));
+      card.querySelector('.deco-admin-test').hidden = d.kind === 'post'; // pas d'aperçu pour les poteaux
       card.querySelector('.deco-admin-del').addEventListener('click', async () => {
         if (!(await askConfirm(`Supprimer « ${d.name} » ? Les pièces qui l'utilisent reprennent leur couleur unie.`, 'Supprimer'))) return;
         state.decos.delete(d.id);
