@@ -187,6 +187,9 @@
     try {
       if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
       const fs = firebase.firestore();
+      // Copie locale sans limite : le catalogue pèse ~30 Mo, au-delà de la limite par défaut (40 Mo, avec le reste) Firestore effaçait
+      // la copie et retéléchargeait tout à chaque connexion.
+      try { fs.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED }); } catch (e) { /* déjà configuré */ }
       fs.enablePersistence().catch(() => {});
       const images = fs.collection('ma-petite-piece-stickers');
       const rooms = fs.collection('ma-petite-piece');
@@ -207,12 +210,28 @@
         query.get().then((snap) => { if (api.onFresh) api.onFresh(key, docsOf(snap)); }).catch(() => {});
         return cached;
       };
+      // Catalogue et décor (très lourds) : un « écouteur » Firestore. Il rend tout de suite la copie gardée sur l'appareil, puis ne
+      // télécharge que ce qui a changé au lieu de tout retélécharger à chaque connexion (cloudDb.onChanges).
+      const liveStops = {};
+      const allLive = (query, key) => new Promise((resolve) => {
+        if (liveStops[key]) { try { liveStops[key](); } catch (e) { /* déjà arrêté */ } }
+        let first = true;
+        const fail = () => { if (first) { first = false; all(query).then(resolve, () => resolve([])); } };
+        try {
+          liveStops[key] = query.onSnapshot((snap) => {
+            if (first) { first = false; resolve(docsOf(snap)); return; }
+            const changes = snap.docChanges().map((c) => ({ type: c.type, doc: { ...c.doc.data(), id: c.doc.id } }));
+            if (changes.length && api.onChanges) api.onChanges(key, changes);
+          }, () => fail());
+        } catch (e) { fail(); }
+      });
       // Les règles Firestore n'autorisent que deux collections : les pièces, joueurs et
       // enveloppes partagent « ma-petite-piece » (champ type), les stickers l'autre.
       const api = {
-        listCatalog: () => allFast(images.where('catalog', '==', true), 'catalog'),
+        listCatalog: () => allLive(images.where('catalog', '==', true), 'catalog'),
+        stopLive: () => { for (const k of Object.keys(liveStops)) { try { liveStops[k](); } catch (e) { /* rien */ } delete liveStops[k]; } },
         // Papiers peints et sols (en test chez l'administratrice)
-        listDecos: () => allFast(images.where('deco', '==', true), 'decos'),
+        listDecos: () => allLive(images.where('deco', '==', true), 'decos'),
         putImage: ({ id, url, ...rec }) => images.doc(id).set(clean(rec)),
         deleteImage: (id) => images.doc(id).delete(),
         // Les participations au concours ont aussi un « owner » : ce ne sont pas des pièces.
@@ -956,7 +975,7 @@
       const img = todo[i++];
       smallUrl(img, () => { warmTimer = setTimeout(step, 80); });
     };
-    warmTimer = setTimeout(step, 1500);
+    warmTimer = setTimeout(step, 5000);
   }
   const thumbObserver = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => {
     for (const en of entries) {
@@ -2689,6 +2708,14 @@
 
   // Les listes affichées depuis la copie de l'appareil sont remises à jour dès que le serveur répond.
   if (cloudDb) {
+    // Changements reçus pendant la session (catalogue, décor) : on ne touche qu'à ce qui a changé.
+    cloudDb.onChanges = (key, changes) => {
+      if (!state.player) return;
+      for (const { type, doc } of changes) {
+        if (key === 'catalog') { if (type === 'removed') state.images.delete(doc.id); else addImageToLibrary(doc); }
+        else if (key === 'decos') { if (type === 'removed') state.decos.delete(doc.id); else if (shopV2()) addDeco(doc); }
+      }
+    };
     cloudDb.onFresh = (key, docs) => {
       if (!state.player) return;
       if (key === 'catalog') {
@@ -2956,6 +2983,7 @@
     prefsDialog.hidden = true;
     store(SESSION_KEY, null);
     store(PLACE_KEY, null);
+    if (cloudDb && cloudDb.stopLive) cloudDb.stopLive();
     state.player = null;
     state.profile = null;
     state.isAdmin = false;
