@@ -6076,7 +6076,12 @@
       $('#ctBody').innerHTML = '<p class="muted">Impossible de charger le concours. Vérifie ta connexion.</p>';
       return;
     }
-    renderContest();
+    try {
+      renderContest();
+    } catch (e) {
+      console.error('Concours', e);
+      $('#ctBody').innerHTML = `<p class="muted">Le concours n'a pas pu s'afficher (${cvEsc(String(e && e.message || e).slice(0, 120))}). Recharge la page ; si ça continue, envoie cette phrase à l'administratrice.</p>`;
+    }
   }
   $('#ctBack').addEventListener('click', goHome);
 
@@ -6494,9 +6499,15 @@
   }
 
   function renderContest() {
-    // Côté administratrice : nouveau design en 3 pages.
+    // Nouvelle page en 3 étapes ; si elle plante, on retombe sur l'ancienne page plutôt que de laisser un écran vide.
     screens.contest.classList.toggle('cv3-on', cv3On());
-    if (cv3On()) { renderContestV3(); return; }
+    if (cv3On()) {
+      try { renderContestV3(); return; } catch (e) {
+        console.error('Page du concours', e);
+        screens.contest.classList.remove('cv3-on');
+        toast('Le concours s\'affiche en version simple : ' + String(e && e.message || e).slice(0, 80));
+      }
+    }
     const body = $('#ctBody');
     body.innerHTML = '';
     const me = state.player.key;
@@ -9106,6 +9117,11 @@
     btn.textContent = 'Connexion…';
     let place = {};
     try { place = JSON.parse(read(PLACE_KEY)) || {}; } catch (e) { /* écran inconnu */ }
+    // Si la dernière réouverture d'un écran a fait planter la page, on ne la refait pas : on arrive sur l'accueil (sinon le joueur
+    // ne peut plus se connecter, la page replante à chaque fois).
+    const RESTORE_KEY = 'ma-petite-piece:restauration';
+    if (read(RESTORE_KEY)) { store(RESTORE_KEY, null); store(PLACE_KEY, null); place = {}; }
+    else if (place.screen && place.screen !== 'home') { store(RESTORE_KEY, place.screen); setTimeout(() => store(RESTORE_KEY, null), 8000); }
     try {
       await login(session);
     } finally {
