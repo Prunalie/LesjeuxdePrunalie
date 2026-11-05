@@ -4565,17 +4565,21 @@
     floor: { title: 'Sols', tag: 'Sol', bg: '#C9E8D9', icon: '<svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6 L21 11 L12 16 L3 11 Z" fill="#FFF8EF" stroke="#5A3E3A" stroke-width="2" stroke-linejoin="round"/><path d="M3 11 V14 L12 19 L21 14 V11" fill="#DDAB70" stroke="#5A3E3A" stroke-width="2" stroke-linejoin="round"/></svg>' },
   };
   const DV_CHECK = '<svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5 L8.5 15 L16 5.5" fill="none" stroke="#5A3E3A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  let decoShopKind = 'wall'; // onglet affiché : papiers peints ou sols, séparés
   function renderDecoShop() {
     const list = $('#decoShopList');
     list.innerHTML = '';
     const kinds = ['wall', 'floor'].filter((k) => decoList(k, true).length);
+    if (kinds.length && !kinds.includes(decoShopKind)) decoShopKind = kinds[0];
     $('#decoTabs').hidden = kinds.length < 2;
+    document.querySelectorAll('#decoTabs .dv-tab').forEach((t) => t.classList.toggle('active', t.dataset.kind === decoShopKind));
     if (!kinds.length) { list.innerHTML = '<p class="muted deco-empty">Rien en vente pour l\'instant.</p>'; return; }
     for (const kind of kinds) {
       const meta = DV_SECTION[kind];
       const sec = document.createElement('section');
       sec.className = 'dv-sec';
       sec.id = kind === 'wall' ? 'decoSecWall' : 'decoSecFloor';
+      sec.hidden = kind !== decoShopKind;
       sec.innerHTML = `<div class="dv-sec-head"><span class="dv-sec-icon" style="background:${meta.bg}">${meta.icon}</span><h2></h2></div>`;
       sec.querySelector('h2').textContent = meta.title;
       let grid = null, last = null;
@@ -4626,9 +4630,9 @@
     }
   }
   document.querySelectorAll('#decoTabs .dv-tab').forEach((tab) => tab.addEventListener('click', () => {
-    document.querySelectorAll('#decoTabs .dv-tab').forEach((t) => t.classList.toggle('active', t === tab));
-    const sec = document.getElementById(tab.dataset.kind === 'wall' ? 'decoSecWall' : 'decoSecFloor');
-    if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    decoShopKind = tab.dataset.kind === 'floor' ? 'floor' : 'wall';
+    renderDecoShop();
+    window.scrollTo(0, 0);
   }));
   // Aperçu d'un papier peint ou d'un sol dans une pièce vide (aucune pièce du joueur n'est touchée).
   function openDecoPreview(d) {

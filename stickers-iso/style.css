@@ -2737,3 +2737,5 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .dv-test { position: absolute; left: 6px; bottom: 6px; padding: 3px 10px; border-radius: 999px; border: 2px solid var(--chunk); background: var(--panel); color: var(--ink); font: inherit; font-weight: 800; font-size: .75rem; box-shadow: 0 2px 0 var(--chunk); cursor: pointer; }
 .deco-preview-svg { display: block; width: 100%; height: auto; border-radius: 12px; background: var(--bg); }
 .deco-preview-note { margin: 8px 0; font-size: .85rem; }
+
+.dv-sec[hidden] { display: none; }
