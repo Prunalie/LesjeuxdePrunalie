@@ -4598,6 +4598,14 @@
         card.querySelector('.dv-preview').style.backgroundImage = `url("${d.url}")`;
         card.querySelector('.dv-preview').style.backgroundSize = decoBgSize(d);
         card.querySelector('.dv-name').textContent = d.name;
+        // Tester : un aperçu dans une pièce vide, sans rien acheter ni modifier.
+        const test = document.createElement('button');
+        test.type = 'button';
+        test.className = 'dv-test';
+        test.textContent = '👁 Tester';
+        test.setAttribute('aria-label', `Voir ${d.name} dans une pièce`);
+        test.addEventListener('click', () => openDecoPreview(d));
+        card.querySelector('.dv-preview').appendChild(test);
         if (own) {
           const o = document.createElement('div');
           o.className = 'dv-own';
@@ -4622,6 +4630,26 @@
     const sec = document.getElementById(tab.dataset.kind === 'wall' ? 'decoSecWall' : 'decoSecFloor');
     if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }));
+  // Aperçu d'un papier peint ou d'un sol dans une pièce vide (aucune pièce du joueur n'est touchée).
+  function openDecoPreview(d) {
+    $('#decoPreviewTitle').textContent = d.name;
+    const colors = { ...DEFAULT_COLORS };
+    if (d.kind === 'wall') { colors.wallLeftDeco = d.id; colors.wallRightDeco = d.id; } else colors.floorDeco = d.id;
+    $('#decoPreviewSvg').innerHTML = roomSvg(colors, null);
+    const box = $('#decoPreviewActions');
+    box.innerHTML = '';
+    if (!decoOwned(d.id)) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-primary';
+      b.innerHTML = `Acheter · ${d.price}${COIN_SVG(18)}`;
+      b.addEventListener('click', () => { $('#decoPreview').hidden = true; buyDeco(d); });
+      box.appendChild(b);
+    }
+    $('#decoPreview').hidden = false;
+  }
+  $('#decoPreviewClose').addEventListener('click', () => { $('#decoPreview').hidden = true; });
+  $('#decoPreview').addEventListener('click', (e) => { if (e.target.id === 'decoPreview') $('#decoPreview').hidden = true; });
   async function buyDeco(d) {
     if (decoOwned(d.id)) return;
     if ((state.profile.points || 0) < d.price) { toast(`Il te manque ${d.price - (state.profile.points || 0)} 🪙.`); return; }

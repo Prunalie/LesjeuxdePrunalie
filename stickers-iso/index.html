@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611052000">
+  <link rel="stylesheet" href="style.css?v=202611052100">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -960,6 +960,19 @@
     </div>
   </div>
 
+  <!-- Boutique du décor : aperçu d'un papier peint ou d'un sol dans une pièce vide (rien n'est modifié) -->
+  <div id="decoPreview" class="modal" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="decoPreviewTitle">
+      <div class="modal-head">
+        <h2 id="decoPreviewTitle" class="modal-title"></h2>
+        <button id="decoPreviewClose" class="modal-x" type="button" title="Fermer" aria-label="Fermer">✕</button>
+      </div>
+      <svg id="decoPreviewSvg" class="deco-preview-svg" viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Aperçu dans une pièce vide"></svg>
+      <p class="muted deco-preview-note">Aperçu dans une pièce vide : rien n'est modifié dans tes pièces.</p>
+      <div id="decoPreviewActions" class="modal-actions"></div>
+    </div>
+  </div>
+
   <div id="unfiledDialog" class="modal" hidden>
     <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="unfiledTitle">
       <div class="modal-head">
@@ -1242,7 +1255,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611052000"></script>
-  <script src="game.js?v=202611052000"></script>
+  <script src="firebase-config.js?v=202611052100"></script>
+  <script src="game.js?v=202611052100"></script>
 </body>
 </html>
