@@ -6090,6 +6090,7 @@
     }
     plan.value = ov.value && contestThemes().includes(ov.value) ? ov.value : autoThemeOf(day);
     plan.text = plan.value;
+    plan.room = ''; // un thème général suffit : pas de type de pièce imposé
     return plan;
   }
   // Objet prêté à tous aujourd'hui, dans la pièce du concours seulement : en plus de ceux qu'on possède.
@@ -6111,12 +6112,12 @@
   function contestBannerText(day) {
     if (!v2Day(day)) return `Pièce du concours · thème « ${themeOf(day)} » · tous tes stickers sont disponibles ici`;
     const p = planOf(day);
-    return `Pièce du concours · ${p.room} · ${p.text}${p.kind === 'object' ? ' (prêté à tous aujourd\'hui)' : ''}`;
+    return `Pièce du concours · ${p.room ? `${p.room} · ` : ''}${p.text}${p.kind === 'object' ? ' (prêté à tous aujourd\'hui)' : ''}`;
   }
 
   // Thème choisi à la main par l'administratrice pour ce jour (sinon la rotation de la liste).
   function themeOf(day) {
-    if (v2Day(day)) { const p = planOf(day); return `${p.room} · ${p.text}`; }
+    if (v2Day(day)) { const p = planOf(day); return p.room ? `${p.room} · ${p.text}` : p.text; }
     const o = state.settings.contestThemeOverrides && state.settings.contestThemeOverrides[day];
     return typeof o === 'string' && o.trim() ? o : autoThemeOf(day);
   }
@@ -6300,6 +6301,7 @@
     el.className = 'ct-plan';
     el.innerHTML = '<div class="ct-plan-row"><span class="ct-plan-k">Pièce</span><strong class="ct-plan-room"></strong></div><div class="ct-plan-row"><span class="ct-plan-k">Thème</span><span class="ct-plan-theme"></span></div><p class="muted ct-small-text ct-plan-note" hidden></p>';
     el.querySelector('.ct-plan-room').textContent = p.room;
+    if (!p.room) el.querySelector('.ct-plan-row').hidden = true;
     const th = el.querySelector('.ct-plan-theme');
     const note = el.querySelector('.ct-plan-note');
     if (p.kind === 'object') {
@@ -6355,6 +6357,12 @@
       return el;
     }
     const p = planOf(day);
+    // Thème général : il suffit, pas de pièce imposée.
+    if (!p.room) {
+      el.innerHTML = `<div class="cv3-k">${label === 'Pièce du jour' ? 'Thème du jour' : label}</div><h2 class="cv3-big"></h2>`;
+      el.querySelector('h2').textContent = p.text;
+      return el;
+    }
     let theme;
     if (p.kind === 'object') {
       const img = state.images.get(p.objectId);
@@ -7474,12 +7482,13 @@
           <span class="ac-plan-value"></span>
         </div>`;
       row.querySelector('.ac-plan-day').textContent = i === 0 ? 'Aujourd\'hui' : i === 1 ? 'Demain' : dayLabel(day);
-      row.querySelector('.ac-plan-sum').textContent = `${p.room} · ${p.text}`;
+      row.querySelector('.ac-plan-sum').textContent = p.room ? `${p.room} · ${p.text}` : p.text;
       const rs = row.querySelector('.ac-plan-room');
-      rs.add(new Option(`🎲 Pièce : ${p.room}`, ''));
+      rs.add(new Option(p.room ? `🎲 Pièce : ${p.room}` : 'Pas de pièce imposée (thème général)', ''));
       const roomList = ov.room && !rooms.includes(ov.room) ? [ov.room, ...rooms] : rooms;
       for (const r of roomList) rs.add(new Option(r, r));
       rs.value = ov.room || '';
+      rs.disabled = !p.room; // avec un thème général, pas de type de pièce
       rs.addEventListener('change', () => setPlanOverride(day, { room: rs.value }));
       const ks = row.querySelector('.ac-plan-kind');
       ks.add(new Option(`🎲 Type : ${PLAN_KINDS[p.kind] || 'Thème général'}`, ''));
