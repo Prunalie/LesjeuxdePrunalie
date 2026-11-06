@@ -267,13 +267,25 @@
           tx.set(ref, clean({ ...m, type: 'mail' }));
           return true;
         }),
-        claimMail: (id) => fs.runTransaction(async (tx) => {
+        // Récupérer un cadeau une seule fois. Transaction d'abord ; si elle échoue (réseau, copie locale…), lecture directe
+        // sur le serveur puis écriture : un peu moins sûre si deux appareils cliquent en même temps, mais le cadeau est récupérable.
+        claimMail: async (id) => {
           const ref = rooms.doc(id);
-          const d = await tx.get(ref);
-          if (!d.exists || d.data().claimed) return false;
-          tx.set(ref, { claimed: true, read: true }, { merge: true });
-          return true;
-        }),
+          try {
+            return await fs.runTransaction(async (tx) => {
+              const d = await tx.get(ref);
+              if (!d.exists || d.data().claimed) return false;
+              tx.set(ref, { claimed: true, read: true }, { merge: true });
+              return true;
+            });
+          } catch (e) {
+            console.warn('Transaction impossible, lecture directe', e);
+            const d = await ref.get({ source: 'server' });
+            if (!d.exists || d.data().claimed) return false;
+            await ref.set({ claimed: true, read: true }, { merge: true });
+            return true;
+          }
+        },
         // Nouveautés écrites par l'administratrice (type « news »)
         // To-do de l'administratrice
         listTodos: () => all(rooms.where('type', '==', 'todo')),
@@ -7789,7 +7801,7 @@
           ok = await db.claimMail(m.id);
         } catch (e) {
           console.warn('Récupération impossible', e);
-          toast('Le cadeau n\'a pas pu être récupéré. Vérifie ta connexion.');
+          toast(`Le cadeau n'a pas pu être récupéré (${(e && (e.code || e.message) || 'erreur').toString().slice(0, 60)}). Vérifie ta connexion.`);
           claim.disabled = false;
           return;
         }
