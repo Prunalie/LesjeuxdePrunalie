@@ -8046,7 +8046,18 @@
       done.className = 'btn btn-ghost';
       done.textContent = '✓ C\'est bon, retirer le tag';
       done.addEventListener('click', async () => { await setToFix(img, false); renderCoffre(); });
-      actions.append(dl, rep, done);
+      // Pour tester le dessin dans une pièce : un exemplaire de plus dans les objets de l'administratrice.
+      const mine = document.createElement('button');
+      mine.className = 'btn';
+      mine.textContent = '➕ Dans mes objets';
+      mine.title = 'Ajouter un exemplaire de cet objet à ta collection, pour le poser dans une pièce';
+      mine.addEventListener('click', () => {
+        state.profile.inventory = state.profile.inventory || {};
+        state.profile.inventory[img.id] = (state.profile.inventory[img.id] || 0) + 1;
+        saveProfile();
+        toast(`« ${img.name} » est dans tes objets (${state.profile.inventory[img.id]} exemplaire${state.profile.inventory[img.id] > 1 ? 's' : ''}) ✓`);
+      });
+      actions.append(dl, rep, mine, done);
       list.appendChild(card);
     }
   }
