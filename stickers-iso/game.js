@@ -8027,11 +8027,12 @@
         if (!file) return;
         const before = img.updated;
         await replaceStickerImage(img, file);
-        if (img.updated !== before) { await setToFix(img, false); renderCoffre(); }
+        // Le tag reste : c'est à l'administratrice de vérifier le nouveau dessin et de retirer le tag elle-même.
+        if (img.updated !== before) { toast('Dessin remplacé ✓ Vérifie-le, puis retire le tag quand c\'est bon.'); renderCoffre(); }
       });
       const done = document.createElement('button');
       done.className = 'btn btn-ghost';
-      done.textContent = '✓ Retirer le tag';
+      done.textContent = '✓ C\'est bon, retirer le tag';
       done.addEventListener('click', async () => { await setToFix(img, false); renderCoffre(); });
       actions.append(dl, rep, done);
       list.appendChild(card);
