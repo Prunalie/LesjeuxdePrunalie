@@ -2785,10 +2785,13 @@
       if (shopV2()) (await withFallback((d) => d.listDecos()).catch(() => [])).forEach(addDeco);
       state.settings = { dailyPoints: DAILY_POINTS, ...(settings || {}) };
       if (cloudDb && db === cloudDb && cloudDb.isStale) {
-        const REV_KEY = 'ma-petite-piece:catalogRev';
+        const REV_KEY = 'ma-petite-piece:catalogRev', CHECK_KEY = 'ma-petite-piece:catalogCheck';
         const rev = Number(settings && settings.catalogRev) || 0;
-        if (cloudDb.isStale() && (!rev || String(rev) !== read(REV_KEY))) cloudDb.revalidate().then(() => store(REV_KEY, String(rev))).catch(() => {});
-        else if (!cloudDb.isStale()) store(REV_KEY, String(rev));
+        const done = () => { store(REV_KEY, String(rev)); store(CHECK_KEY, String(Date.now())); };
+        // Retéléchargement (~30 Mo) : seulement si le catalogue a changé, ou au plus une fois par jour.
+        const needed = String(rev) !== read(REV_KEY) || Date.now() - Number(read(CHECK_KEY) || 0) > 24 * 3600 * 1000;
+        if (cloudDb.isStale() && needed) cloudDb.revalidate().then(done).catch(() => {});
+        else if (!cloudDb.isStale()) done();
       }
       state.mails = mails;
       state.myProposals = mine;
@@ -9211,7 +9214,9 @@
       btn.textContent = 'Jouer';
     }
     if (crashed || diedVisible) setTimeout(offerCrashReport, 1500);
-    if (place.screen === 'room' && state.rooms.some((r) => r.id === place.roomId)) openRoom(place.roomId);
+    // iPhone / iPad : on ne rouvre pas une pièce automatiquement au démarrage (la mémoire est au plus haut juste après la connexion).
+    const appleDevice = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (place.screen === 'room' && !appleDevice && state.rooms.some((r) => r.id === place.roomId)) openRoom(place.roomId);
     else if (place.screen === 'rooms') openRooms();
     else if (place.screen === 'shop') openShop(false);
     else if (place.screen === 'collection') openCollection();
