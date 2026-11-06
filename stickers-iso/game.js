@@ -4266,6 +4266,8 @@
     if (!detail) {
       $('#atelierEmpty').hidden = state.envelopes.length > 0;
       $('#atelierSearch').hidden = atelierReorder || atelierDaily;
+      $('#atelierFilter').hidden = atelierReorder || atelierDaily;
+      if (!atelierReorder && !atelierDaily) renderAtelierFilter();
       $('#atelierOrder').textContent = atelierReorder ? '✓ Terminé' : '↕️ Ordre de la boutique';
       $('#atelierOrder').classList.toggle('btn-primary', atelierReorder);
       $('#atelierOrder').hidden = state.envelopes.length < 2 || atelierDaily;
@@ -5051,6 +5053,22 @@
   $('#atelierDaily').addEventListener('click', () => { atelierDaily = !atelierDaily; dailyDayOffset = 0; renderAtelier(); });
 
   // Liste des enveloppes en tuiles (avec recherche par nom d'enveloppe ou de sticker).
+  // Filtre de la liste : toutes, brouillons, programmées, en vente.
+  let atelierFilterKind = 'all';
+  function renderAtelierFilter() {
+    const box = $('#atelierFilter');
+    box.innerHTML = '';
+    const count = (k) => state.envelopes.filter((e) => envStatus(e) === k).length;
+    for (const [k, label] of [['all', 'Toutes'], ['draft', '📝 Brouillons'], ['scheduled', '📅 Programmées'], ['live', '🛍️ En vente']]) {
+      const n = k === 'all' ? state.envelopes.length : count(k);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'deco-tab' + (atelierFilterKind === k ? ' active' : '');
+      b.textContent = `${label} (${n})`;
+      b.addEventListener('click', () => { atelierFilterKind = k; renderAtelier(); });
+      box.appendChild(b);
+    }
+  }
   function renderAtelierTiles(listEl) {
     const q = normalizeText($('#atelierSearch').value);
     const grid = document.createElement('div');
@@ -5072,6 +5090,7 @@
     for (const env of newestFirst) {
       const list = stickersOf(env.id);
       const hits = q ? list.filter((img) => normalizeText(img.name).includes(q)) : [];
+      if (atelierFilterKind !== 'all' && envStatus(env) !== atelierFilterKind) continue;
       if (q && !normalizeText(env.name).includes(q) && !hits.length) continue;
       shown++;
       const st = envStatus(env);
@@ -5083,7 +5102,7 @@
     }
     const arch = archivedStickers();
     const archHits = q ? arch.filter((img) => normalizeText(img.name).includes(q)) : arch;
-    if (archHits.length) {
+    if (archHits.length && atelierFilterKind === 'all') {
       shown++;
       const art = document.createElement('div');
       art.className = 'atelier-tile-icon';

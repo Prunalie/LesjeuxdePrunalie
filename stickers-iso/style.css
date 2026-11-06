@@ -2739,3 +2739,5 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .deco-preview-note { margin: 8px 0; font-size: .85rem; }
 
 .dv-sec[hidden] { display: none; }
+
+.atelier-filter { flex-wrap: wrap; margin: 8px 0 10px; }
