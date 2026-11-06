@@ -2741,3 +2741,9 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .dv-sec[hidden] { display: none; }
 
 .atelier-filter { flex-wrap: wrap; margin: 8px 0 10px; }
+
+.report-grid { max-height: 38vh; overflow-y: auto; margin: 8px 0; }
+.report-pick.picked { outline: 3px solid var(--accent, #f0658a); border-radius: 12px; }
+.report-notes { margin: 4px 0 8px; padding-left: 18px; font-size: .85rem; }
+.report-text { margin: 4px 0 8px; white-space: pre-wrap; }
+.report-pre { max-height: 200px; overflow: auto; font-size: .72rem; white-space: pre-wrap; word-break: break-word; }

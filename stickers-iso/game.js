@@ -280,6 +280,10 @@
         putTodo: ({ id, ...t }) => rooms.doc(id).set(clean({ ...t, type: 'todo' })),
         deleteTodo: (id) => rooms.doc(id).delete(),
         listNews: () => allFast(rooms.where('type', '==', 'news'), 'news'),
+        // Signalements des joueurs (objets erronés, bugs)
+        putReport: ({ id, ...r }) => rooms.doc(id).set(clean({ ...r, type: 'report' })),
+        listReports: () => all(rooms.where('type', '==', 'report')),
+        deleteReport: (id) => rooms.doc(id).delete(),
         putNews: ({ id, ...n }) => rooms.doc(id).set(clean({ ...n, type: 'news' })),
         deleteNews: (id) => rooms.doc(id).delete(),
         // Concours du jour : participations et votes d'un jour donné (champ contestDay)
@@ -375,6 +379,9 @@
       putTodo: (t) => run('settings', 'readwrite', (s) => s.put({ ...t, type: 'todo' })),
       deleteTodo: (id) => run('settings', 'readwrite', (s) => s.delete(id)),
       listNews: () => getAll('news'),
+      putReport: (r) => run('contest', 'readwrite', (s) => s.put({ ...r, type: 'report' })),
+      listReports: async () => (await getAll('contest')).filter((c) => c.type === 'report'),
+      deleteReport: (id) => run('contest', 'readwrite', (s) => s.delete(id)),
       putNews: (n) => run('news', 'readwrite', (s) => s.put(n)),
       deleteNews: (id) => run('news', 'readwrite', (s) => s.delete(id)),
       listContest: async (day) => (await getAll('contest')).filter((c) => c.contestDay === day),
@@ -3005,6 +3012,83 @@
   $('#btnPrefs').addEventListener('click', () => { renderPrefs(); prefsDialog.hidden = false; });
   $('#prefsClose').addEventListener('click', () => { prefsDialog.hidden = true; });
   prefsDialog.addEventListener('click', (e) => { if (e.target === prefsDialog) prefsDialog.hidden = true; });
+
+  // Signaler un objet erroné ou un bug : le joueur écrit à l'administratrice (visible dans Coffre > Signalements).
+  const reportDialog = $('#reportDialog');
+  let reportKind = 'object', reportSticker = null;
+  function renderReportGrid() {
+    const q = normalizeText($('#reportSearch').value);
+    const grid = $('#reportGrid');
+    grid.innerHTML = '';
+    const list = [...state.images.values()].filter((i) => i.catalog && owned(i.id) > 0 && (!q || normalizeText(i.name || '').includes(q)))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+    for (const img of list.slice(0, 120)) {
+      const cell = document.createElement('button');
+      cell.type = 'button';
+      cell.className = 'env-item report-pick' + (reportSticker === img.id ? ' picked' : '');
+      cell.innerHTML = '<div class="env-item-img"><img alt=""></div><span class="env-item-name"></span>';
+      cell.querySelector('.env-item-name').textContent = img.name;
+      const im = cell.querySelector('img');
+      im.src = thumbCache.get(img.id) || BLANK_GIF;
+      if (!thumbCache.has(img.id)) smallUrl(img, (url) => { if (im.isConnected) im.src = url; });
+      cell.addEventListener('click', () => { reportSticker = reportSticker === img.id ? null : img.id; renderReportGrid(); renderReportSend(); });
+      grid.appendChild(cell);
+    }
+    if (!list.length) grid.innerHTML = '<p class="muted">Aucun objet trouvé.</p>';
+  }
+  function renderReportSend() {
+    $('#reportSend').disabled = reportKind === 'object' ? !reportSticker : $('#reportBugText').value.trim().length < 5;
+  }
+  function openReport() {
+    reportSticker = null;
+    $('#reportSearch').value = '';
+    $('#reportObjNote').value = '';
+    $('#reportBugText').value = '';
+    setReportTab('object');
+    prefsDialog.hidden = true;
+    reportDialog.hidden = false;
+  }
+  function setReportTab(kind) {
+    reportKind = kind;
+    document.querySelectorAll('#reportTabs .deco-tab').forEach((t) => t.classList.toggle('active', t.dataset.kind === kind));
+    $('#reportObject').hidden = kind !== 'object';
+    $('#reportBug').hidden = kind !== 'bug';
+    if (kind === 'object') renderReportGrid();
+    renderReportSend();
+  }
+  document.querySelectorAll('#reportTabs .deco-tab').forEach((t) => t.addEventListener('click', () => setReportTab(t.dataset.kind)));
+  $('#reportSearch').addEventListener('input', renderReportGrid);
+  $('#reportBugText').addEventListener('input', renderReportSend);
+  $('#btnReport').addEventListener('click', openReport);
+  $('#reportClose').addEventListener('click', () => { reportDialog.hidden = true; });
+  reportDialog.addEventListener('click', (e) => { if (e.target === reportDialog) reportDialog.hidden = true; });
+  $('#reportSend').addEventListener('click', async () => {
+    if (!state.player) return;
+    const me = state.player;
+    let r;
+    if (reportKind === 'object') {
+      const img = state.images.get(reportSticker);
+      if (!img) return;
+      r = { id: `rp-${me.key}-${img.id}`, kind: 'sticker', stickerId: img.id, stickerName: img.name || '', note: $('#reportObjNote').value.trim() };
+    } else {
+      let traces = '';
+      try { traces = (JSON.parse(read(TRACE_KEY) || '[]') || []).join('\n'); } catch (e) { /* rien */ }
+      r = { id: `rp-bug-${me.key}-${Date.now()}`, kind: 'bug', note: $('#reportBugText').value.trim(), traces, device: navigator.userAgent };
+    }
+    r.owner = me.key;
+    r.ownerName = me.name;
+    r.created = Date.now();
+    $('#reportSend').disabled = true;
+    try {
+      await db.putReport(r);
+      reportDialog.hidden = true;
+      toast('Merci, c\'est envoyé à l\'administratrice ✉️');
+    } catch (e) {
+      console.warn('Signalement impossible', e);
+      toast('Le message n\'a pas pu être envoyé. Vérifie ta connexion.');
+      renderReportSend();
+    }
+  });
 
   // Se déconnecter : le bouton d'avant, maintenant dans les paramètres.
   $('#btnLogout').addEventListener('click', () => {
@@ -7790,8 +7874,10 @@
     } catch (e) {
       return;
     }
+    try { state.reports = await db.listReports(); } catch (e) { /* signalements indisponibles */ }
     const n = state.proposals.filter((p) => p.status === 'pending').length;
-    $('#homeCoffreSub').textContent = n ? `${plural(n, 'proposition')} à regarder` : 'Rien à valider';
+    const nr = (state.reports || []).length;
+    $('#homeCoffreSub').textContent = (n ? `${plural(n, 'proposition')} à regarder` : 'Rien à valider') + (nr ? ` · 🚩 ${plural(nr, 'signalement')}` : '');
   }
 
   // Lien entre une proposition et le sticker du catalogue qu'on en a tiré.
@@ -7849,6 +7935,62 @@
     renderCoffre();
   }));
 
+  // Signalements des joueurs : objets erronés (regroupés par objet) et bugs.
+  function renderReports() {
+    const list = $('#coffreList');
+    const reports = state.reports || [];
+    $('#coffreEmpty').hidden = reports.length > 0;
+    $('#coffreEmpty').textContent = 'Aucun signalement pour l\'instant.';
+    const remove = async (ids) => {
+      await Promise.all(ids.map((id) => db.deleteReport(id).catch(() => {})));
+      state.reports = (state.reports || []).filter((r) => !ids.includes(r.id));
+      renderCoffre();
+      refreshCoffreCount();
+    };
+    const byStickers = new Map();
+    for (const r of reports.filter((x) => x.kind === 'sticker')) { if (!byStickers.has(r.stickerId)) byStickers.set(r.stickerId, []); byStickers.get(r.stickerId).push(r); }
+    for (const [sid, rs] of byStickers) {
+      const img = state.images.get(sid);
+      const card = document.createElement('article');
+      card.className = 'coffre-card';
+      card.innerHTML = '<div class="env-item-img"><img alt=""></div><div class="coffre-info"><h3></h3><p class="muted coffre-meta"></p><ul class="report-notes"></ul><div class="coffre-actions"></div></div>';
+      if (img) card.querySelector('img').src = img.url;
+      card.querySelector('h3').textContent = (img && img.name) || rs[0].stickerName || 'Objet';
+      card.querySelector('.coffre-meta').textContent = `🚩 ${plural(rs.length, 'signalement')}${img && img.toFix ? ' · déjà à modifier 🏷️' : ''}`;
+      const ul = card.querySelector('.report-notes');
+      for (const r of rs) { const li = document.createElement('li'); li.textContent = `${r.ownerName || r.owner}${r.note ? ` : ${r.note}` : ''}`; ul.appendChild(li); }
+      const actions = card.querySelector('.coffre-actions');
+      const ids = rs.map((r) => r.id);
+      if (img && !img.toFix) {
+        const fix = document.createElement('button');
+        fix.className = 'btn btn-primary';
+        fix.textContent = '🏷️ Mettre à modifier';
+        fix.addEventListener('click', async () => { await setToFix(img, true); toast(`« ${img.name} » est à modifier 🏷️`); remove(ids); });
+        actions.appendChild(fix);
+      }
+      const ignore = document.createElement('button');
+      ignore.className = 'btn btn-ghost';
+      ignore.textContent = img && img.toFix ? 'Effacer' : 'Ignorer';
+      ignore.addEventListener('click', () => remove(ids));
+      actions.appendChild(ignore);
+      list.appendChild(card);
+    }
+    for (const r of reports.filter((x) => x.kind === 'bug').sort((a, b) => (b.created || 0) - (a.created || 0))) {
+      const card = document.createElement('article');
+      card.className = 'coffre-card';
+      card.innerHTML = '<div class="coffre-info"><h3></h3><p class="report-text"></p><details class="report-details"><summary>Détails techniques</summary><pre class="report-pre"></pre></details><div class="coffre-actions"></div></div>';
+      card.querySelector('h3').textContent = `🐞 ${r.ownerName || r.owner} · ${r.created ? dateFmt.format(r.created) : ''}`;
+      card.querySelector('.report-text').textContent = r.note || '';
+      card.querySelector('.report-pre').textContent = `${r.device || ''}\n\n${r.traces || '(pas de traces)'}`;
+      const del = document.createElement('button');
+      del.className = 'btn btn-ghost';
+      del.textContent = 'Supprimer';
+      del.addEventListener('click', () => remove([r.id]));
+      card.querySelector('.coffre-actions').appendChild(del);
+      list.appendChild(card);
+    }
+  }
+
   const toFixList = () => [...state.images.values()].filter((i) => i.catalog && i.toFix);
 
   function renderToFix() {
@@ -7899,7 +8041,7 @@
   function renderCoffre() {
     if (document.activeElement !== coffreRewardInput) coffreRewardInput.value = proposalReward();
     document.querySelectorAll('.coffre-tab').forEach((tab) => {
-      const n = tab.dataset.filter === 'tofix' ? toFixList().length : state.proposals.filter((p) => coffreStatus(p) === tab.dataset.filter).length;
+      const n = tab.dataset.filter === 'tofix' ? toFixList().length : tab.dataset.filter === 'reports' ? (state.reports || []).length : state.proposals.filter((p) => coffreStatus(p) === tab.dataset.filter).length;
       tab.classList.toggle('active', tab.dataset.filter === coffreFilter);
       tab.querySelector('span').textContent = n;
     });
@@ -7907,6 +8049,7 @@
     list.innerHTML = '';
     $('#coffreEmpty').textContent = 'Rien ici pour l\'instant.';
     if (coffreFilter === 'tofix') { $('#coffreAcceptAll').hidden = true; renderToFix(); return; }
+    if (coffreFilter === 'reports') { $('#coffreAcceptAll').hidden = true; renderReports(); return; }
     const items = state.proposals
       .filter((p) => coffreStatus(p) === coffreFilter)
       .sort((a, b) => (b.created || 0) - (a.created || 0));

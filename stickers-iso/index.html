@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611060200">
+  <link rel="stylesheet" href="style.css?v=202611060300">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -756,6 +756,7 @@
         <button class="coffre-tab" data-filter="refused">Refusées <span></span></button>
         <button class="coffre-tab" data-filter="archived">📦 Archivées <span></span></button>
         <button class="coffre-tab" data-filter="tofix">🏷️ À modifier <span></span></button>
+        <button class="coffre-tab" data-filter="reports">🚩 Signalements <span></span></button>
       </div>
       <div class="coffre-bar"><button id="coffreAcceptAll" class="btn btn-primary" hidden>✓ Tout valider</button></div>
       <p id="coffreEmpty" class="empty" hidden>Rien ici pour l'instant.</p>
@@ -1052,10 +1053,40 @@
         <p class="muted prefs-hint">Côté de la croix ✥ qui permet de déplacer un objet sans le cacher avec ton doigt. L'agrandissement passe de l'autre côté.</p>
       </section>
       <section class="prefs-section">
+        <h3>Un souci ?</h3>
+        <p class="muted prefs-hint">Un objet mal découpé, une erreur ou un bug : dis-le à l'administratrice.</p>
+        <button id="btnReport" class="btn" type="button">🚩 Signaler un problème</button>
+      </section>
+      <section class="prefs-section">
         <h3>Compte</h3>
         <p class="muted prefs-hint">Tu joues en tant que <strong id="prefsName"></strong>.</p>
         <button id="btnLogout" class="btn" type="button">🚪 Se déconnecter</button>
       </section>
+    </div>
+  </div>
+
+  <!-- Signaler un objet erroné ou un bug à l'administratrice -->
+  <div id="reportDialog" class="modal" hidden>
+    <div class="modal-box modal-wide" role="dialog" aria-modal="true" aria-labelledby="reportTitle">
+      <div class="modal-head">
+        <h2 id="reportTitle" class="modal-title">Signaler un problème 🚩</h2>
+        <button id="reportClose" class="modal-x" type="button" title="Fermer" aria-label="Fermer">✕</button>
+      </div>
+      <div id="reportTabs" class="deco-tabs" role="tablist">
+        <button class="deco-tab active" type="button" data-kind="object">🖼️ Un objet</button>
+        <button class="deco-tab" type="button" data-kind="bug">🐞 Un bug</button>
+      </div>
+      <div id="reportObject">
+        <p class="muted">Touche l'objet qui pose problème (mal découpé, bords blancs, mauvaise image…).</p>
+        <input id="reportSearch" class="field" type="search" placeholder="Chercher un objet" aria-label="Chercher un objet">
+        <div id="reportGrid" class="env-grid env-grid-small report-grid"></div>
+        <textarea id="reportObjNote" class="field" rows="2" maxlength="300" placeholder="Qu'est-ce qui ne va pas ? (facultatif)"></textarea>
+      </div>
+      <div id="reportBug" hidden>
+        <p class="muted">Raconte ce qui s'est passé : où tu étais, ce que tu as fait, ce que tu as vu.</p>
+        <textarea id="reportBugText" class="field" rows="5" maxlength="800" placeholder="Par exemple : quand je supprime un objet, le jeu se ferme…"></textarea>
+      </div>
+      <div class="modal-actions"><button id="reportSend" class="btn btn-primary" type="button" disabled>Envoyer</button></div>
     </div>
   </div>
 
@@ -1256,7 +1287,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611060200"></script>
-  <script src="game.js?v=202611060200"></script>
+  <script src="firebase-config.js?v=202611060300"></script>
+  <script src="game.js?v=202611060300"></script>
 </body>
 </html>
