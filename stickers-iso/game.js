@@ -97,6 +97,8 @@
     { group: 'Concours', key: 'contestMilestoneEvery', label: 'Bonus de fidélité : tous les … concours auxquels on participe', unit: 'participations', def: () => 10, min: 1, max: 1000, step: 1 },
     { group: 'Concours', key: 'contestMilestoneReward', label: 'Bonus de fidélité (0 = pas de bonus)', unit: '🪙', def: () => 500, max: 1000000, step: 50 },
     { group: 'Concours', key: 'voteReward', label: 'Pour avoir fini ses duels', unit: '🪙', def: () => 20, max: 100000, step: 5 },
+    { group: 'Concours', key: 'themeProposeReward', label: 'Pièces pour une idée de thème proposée', unit: '🪙', def: () => 5, max: 100000, step: 1 },
+    { group: 'Concours', key: 'themeWinReward', label: 'Pièces quand l\'idée de thème d\'un joueur gagne', unit: '🪙', def: () => 100, max: 100000, step: 10 },
     { group: 'Concours', key: 'duelsMax', label: 'Duels par joueur et par jour', unit: 'au plus', def: () => 10, min: 1, max: 100, step: 1 },
   ];
   const SETTING_BY_KEY = Object.fromEntries(SETTINGS.map((x) => [x.key, x]));
@@ -6077,12 +6079,18 @@
       .filter((i) => i.catalog && live.has(i.envelope) && /\p{L}{3}/u.test(i.name || '') && !/^[0-9a-f]{16,}$/i.test(i.name || ''))
       .sort((a, b) => a.id.localeCompare(b.id));
   }
+  const planOfBase = (day) => { const w = themeWinners[day]; delete themeWinners[day]; try { return planOf(day); } finally { if (w) themeWinners[day] = w; } };
   function planOf(day) {
-    const ov = (state.settings.contestPlanOverrides && state.settings.contestPlanOverrides[day]) || {};
+    let ov = (state.settings.contestPlanOverrides && state.settings.contestPlanOverrides[day]) || {};
     const { y, m, dd } = parseDay(day);
     const idx = Math.round((Date.UTC(y, m - 1, dd) - Date.UTC(2026, 0, 1)) / 86400000);
-    // Thème élu par le vote de la veille (côté administratrice pour l'instant) : il remplace le tirage, sauf choix manuel.
-    if (themeVoteOn() && !ov.kind && !ov.value && themeWinners[day]) return { day, room: '', kind: 'general', value: themeWinners[day], text: themeWinners[day] };
+    // Idée élue par le vote de la veille (côté administratrice pour l'instant) : elle remplace le tirage, sauf choix manuel.
+    // Un thème n'impose pas de pièce ; un objet ou une couleur gardent la pièce tirée.
+    const win = themeVoteOn() && !ov.kind && !ov.value ? themeWinners[day] : null;
+    if (win) {
+      if (win.type === 'theme') return { day, room: '', kind: 'general', value: win.label, text: win.label };
+      ov = win.type === 'object' ? { ...ov, kind: 'object', objectId: win.imageId } : { ...ov, kind: 'color', value: win.label };
+    }
     const rooms = contestRooms();
     let room = ov.room;
     if (!room) {
@@ -6398,37 +6406,80 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Vote du thème du lendemain (côté administratrice pour l'instant) : on propose des thèmes (nombre limité), on vote,
-  // et celui qui a le plus de voix devient le thème du lendemain.
+  // Vote du thème du lendemain (côté administratrice pour l'instant).
+  // Chaque jour, une liste d'une dizaine d'idées est tirée dans la « Banque d'idées » (thèmes, objets, couleurs) ; chacun a
+  // 3 cœurs à distribuer. L'idée qui a le plus de cœurs devient le thème du lendemain. Les joueurs proposent des thèmes
+  // (2 par jour, validés par l'administratrice) ; l'idée d'un joueur qui gagne rejoint la liste officielle et lui rapporte des pièces.
   // ---------------------------------------------------------------------------
   const themeVoteOn = () => state.isAdmin;
-  const THEME_PROPS_MAX = 2, THEME_TEXT_MAX = 30, THEME_TOTAL_MAX = 15;
-  const themeWinners = {}; // jour -> thème élu la veille
+  const THEME_HEARTS = 3, THEME_PROPS_PER_DAY = 2, THEME_TEXT_MAX = 30, BALLOT = { theme: 4, object: 2, color: 2 };
+  const themeWinners = {}; // jour -> idée élue la veille { type, label, imageId?, propId?, owner? }
   let cv3Sub = null;       // 'themevote' : sous-page du concours
   let themeVoteData = null;
-  function themeTally(docs) {
-    const props = docs.filter((d) => d.kind === 'prop');
-    const votes = docs.filter((d) => d.kind === 'vote');
-    const count = {};
-    for (const v of votes) count[v.prop] = (count[v.prop] || 0) + 1;
-    const ranked = props.map((p) => ({ ...p, n: count[p.id] || 0 })).sort((a, b) => b.n - a.n || (a.created || 0) - (b.created || 0));
-    return { props: ranked, votes, winner: ranked.length && ranked[0].n > 0 ? ranked[0] : null };
+  const docSlug = (t) => `${String(t).replace(/[^a-zA-Z0-9]+/g, '_').slice(0, 24)}_${seededRank(String(t)).toString(36)}`;
+
+  // La banque d'idées : tout ce qui peut être proposé au vote.
+  function ideaBank(poolDocs) {
+    const accepted = poolDocs.filter((d) => d.kind === 'prop' && d.status === 'accepted');
+    const official = contestThemes();
+    const themes = official.map((t) => ({ id: `t:${t}`, type: 'theme', label: t, src: 'liste' }));
+    for (const p of accepted) if (!official.some((t) => normalizeText(t) === normalizeText(p.text))) themes.push({ id: `t:${p.text}`, type: 'theme', label: p.text, src: 'joueur', owner: p.owner, ownerName: p.ownerName, propId: p.id });
+    const objects = contestObjectPool().map((i) => ({ id: `o:${i.id}`, type: 'object', label: objectLabel(i), imageId: i.id, src: 'liste' }));
+    const colors = contestColors().map((c) => ({ id: `c:${c.name}`, type: 'color', label: c.name, hex: c.hex, src: 'liste' }));
+    return { themes, objects, colors };
   }
-  // Le thème élu pour un jour (voté la veille) : chargé pour que planOf puisse l'utiliser.
+  // Le choix du jour : le même pour tout le monde (tirage fixé par la date), sans l'idée déjà retenue aujourd'hui.
+  function ballotFor(day, poolDocs) {
+    const bank = ideaBank(poolDocs);
+    const todayPlan = planOfBase(shiftDay(day, -1));
+    const used = new Set([todayPlan && todayPlan.kind === 'general' ? `t:${todayPlan.value}` : '', todayPlan && todayPlan.objectId ? `o:${todayPlan.objectId}` : '', todayPlan && todayPlan.colorName ? `c:${todayPlan.colorName}` : '']);
+    const pick = (list, n, prefer = []) => {
+      const ok = list.filter((c) => !used.has(c.id)).sort((a, b) => seededRank(`${day}|${a.id}`) - seededRank(`${day}|${b.id}`));
+      const first = ok.filter((c) => prefer.includes(c.src)).slice(0, Math.min(2, n));
+      return [...first, ...ok.filter((c) => !first.includes(c))].slice(0, n);
+    };
+    return [...pick(bank.themes, BALLOT.theme, ['joueur']), ...pick(bank.objects, BALLOT.object), ...pick(bank.colors, BALLOT.color)];
+  }
+  function ballotTally(day, poolDocs, heartDocs) {
+    const ballot = ballotFor(day, poolDocs);
+    const count = {};
+    for (const h of heartDocs.filter((x) => x.kind === 'heart')) count[h.cand] = (count[h.cand] || 0) + 1;
+    const cands = ballot.map((c) => ({ ...c, n: count[c.id] || 0 }));
+    const ranked = [...cands].sort((a, b) => b.n - a.n || seededRank(`${day}|${a.id}`) - seededRank(`${day}|${b.id}`));
+    return { cands, hearts: heartDocs.filter((x) => x.kind === 'heart'), leader: ranked.length && ranked[0].n > 0 ? ranked[0] : null };
+  }
+  async function loadThemeVoteData(day) {
+    const [poolDocs, heartDocs] = await Promise.all([db.listThemeVote('pool'), db.listThemeVote(day)]);
+    return { day, pool: poolDocs.filter((d) => d.kind === 'prop'), ...ballotTally(day, poolDocs, heartDocs) };
+  }
+  // L'idée élue pour un jour (votée la veille) : chargée pour que planOf puisse l'utiliser. Si c'est l'idée d'un joueur :
+  // elle rejoint la liste officielle et son auteur reçoit des pièces (une seule fois).
   async function loadThemeWinner(day) {
     if (!themeVoteOn()) return;
     try {
-      const t = themeTally(await db.listThemeVote(day));
-      const before = themeWinners[day];
-      if (t.winner) themeWinners[day] = t.winner.text; else delete themeWinners[day];
-      if (before !== themeWinners[day]) { renderContestTile(); if (!screens.contest.hidden) renderContest(); }
+      const d = await loadThemeVoteData(day);
+      const w = d.leader;
+      const before = themeWinners[day] && themeWinners[day].id;
+      if (w) themeWinners[day] = w; else delete themeWinners[day];
+      if (w && w.propId) await rewardThemeWinner(day, w);
+      if (before !== (w && w.id)) { renderContestTile(); if (!screens.contest.hidden) renderContest(); }
     } catch (e) { /* vote indisponible : on garde le tirage */ }
+  }
+  async function rewardThemeWinner(day, w) {
+    const list = Array.isArray(state.settings.contestThemes) && state.settings.contestThemes.length ? state.settings.contestThemes : DEFAULT_THEMES;
+    if (!list.some((t) => normalizeText(t) === normalizeText(w.label))) {
+      state.settings.contestThemes = [...list, w.label];
+      await saveSettings();
+    }
+    const reward = setting('themeWinReward');
+    const m = { id: `theme-win-${w.propId}`, to: w.owner, title: '🏆 Ton thème a gagné !', text: `Bravo ! Ton idée de thème « ${w.label} » a été élue par les joueurs pour le concours du ${dateFmt.format(new Date(`${day}T12:00:00`)).replace(/ à .*/, '')}. Elle rejoint la liste officielle des thèmes.`, reward, read: false, claimed: false, created: Date.now() };
+    try { if (await db.createMail(m)) toast(`Le thème « ${w.label} » est élu : récompense envoyée à son auteur ✉️`); } catch (e) { /* on réessaiera */ }
   }
   async function openThemeVote() {
     cv3Sub = 'themevote';
     $('#ctBody').innerHTML = '<p class="muted">Chargement…</p>';
     const day = shiftDay(today(), 1);
-    try { themeVoteData = { day, ...themeTally(await db.listThemeVote(day)) }; } catch (e) { themeVoteData = { day, props: [], votes: [], winner: null }; toast('Le vote du thème n\'est pas disponible. Vérifie ta connexion.'); }
+    try { themeVoteData = await loadThemeVoteData(day); } catch (e) { themeVoteData = { day, pool: [], cands: [], hearts: [], leader: null }; toast('Le vote du thème n\'est pas disponible. Vérifie ta connexion.'); }
     renderContest();
   }
   function renderThemeVote(body) {
@@ -6444,77 +6495,109 @@
     back.textContent = '← Retour au concours';
     back.addEventListener('click', () => { cv3Sub = null; renderContest(); });
     wrap.appendChild(back);
+    const reload = async () => { try { themeVoteData = await loadThemeVoteData(d.day); } catch (e) { /* on garde l'affichage */ } renderContest(); };
+    const myHearts = d.hearts.filter((h) => h.voter === me);
+    const left = THEME_HEARTS - myHearts.length;
+    // --- Le choix du jour : 3 cœurs à distribuer
     const card = document.createElement('section');
     card.className = 'cv3-card';
-    const mine = d.props.filter((p) => p.owner === me);
-    const myVote = d.votes.find((v) => v.voter === me);
-    card.innerHTML = `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote jusqu'à minuit</div><h2 class="cv3-big">Thème de demain</h2></div>${cvInfo('Propose un thème (' + THEME_PROPS_MAX + ' au plus par personne) et vote pour celui que tu préfères. Le thème qui a le plus de voix est choisi pour le concours de demain. Tu ne peux pas voter pour ta propre idée.', 'Plus d\'infos : le vote du thème')}</div>
-      <div class="cv3-chips"><span class="cv3-chip b">${mine.length}/${THEME_PROPS_MAX} proposition${THEME_PROPS_MAX > 1 ? 's' : ''}</span><span class="cv3-chip">${myVote ? 'Tu as voté' : 'Pas encore voté'}</span></div>
-      <form class="tv-form"><input class="field tv-input" type="text" maxlength="${THEME_TEXT_MAX}" placeholder="Ton idée de thème (ex : Fête foraine)" aria-label="Ton idée de thème"><button class="btn btn-primary" type="submit">Proposer</button></form>
-      <div class="tv-list"></div>`;
+    card.innerHTML = `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote jusqu'à minuit</div><h2 class="cv3-big">Thème de demain</h2></div>${cvInfo('Distribue tes ' + THEME_HEARTS + ' cœurs entre les idées qui te plaisent : un thème, un objet ou une couleur. L\'idée qui a le plus de cœurs est choisie pour le concours de demain. Tu ne peux pas voter pour ta propre idée.', 'Plus d\'infos : le vote du thème')}</div>
+      <div class="cv3-chips"><span class="cv3-chip b">❤️ ${left} cœur${left > 1 ? 's' : ''} à donner</span></div><div class="tv-list"></div>`;
     wrap.appendChild(card);
-    const reload = async () => { try { themeVoteData = { day: d.day, ...themeTally(await db.listThemeVote(d.day)) }; } catch (e) { /* on garde l'affichage */ } renderContest(); };
-    card.querySelector('.tv-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const inp = card.querySelector('.tv-input');
-      const text = inp.value.trim().replace(/\s+/g, ' ');
-      if (text.length < 2) { toast('Écris un thème d\'au moins 2 lettres.'); return; }
-      if (mine.length >= THEME_PROPS_MAX) { toast(`Tu as déjà fait ${THEME_PROPS_MAX} propositions aujourd'hui.`); return; }
-      if (d.props.length >= THEME_TOTAL_MAX) { toast('Il y a déjà beaucoup de propositions : vote pour l\'une d\'elles !'); return; }
-      if (d.props.some((p) => normalizeText(p.text) === normalizeText(text))) { toast('Ce thème a déjà été proposé : tu peux voter pour lui.'); return; }
-      try {
-        await db.putThemeDoc({ id: `tp-${d.day}-${me}-${Date.now()}`, kind: 'prop', themeDay: d.day, text, owner: me, ownerName: state.player.name, created: Date.now() });
-        toast('Proposition envoyée 🗳️');
-      } catch (err) { toast('La proposition n\'a pas pu être envoyée. Vérifie ta connexion.'); return; }
-      reload();
-    });
     const list = card.querySelector('.tv-list');
-    if (!d.props.length) list.innerHTML = '<p class="muted">Aucune proposition pour l\'instant : lance la première !</p>';
-    const max = Math.max(1, ...d.props.map((p) => p.n));
-    d.props.forEach((p, i) => {
+    if (!d.cands.length) list.innerHTML = '<p class="muted">Pas d\'idées pour l\'instant : ajoute des thèmes à ta liste ou propose-en !</p>';
+    const max = Math.max(1, ...d.cands.map((c) => c.n));
+    for (const c of d.cands) {
       const row = document.createElement('div');
-      row.className = 'tv-row' + (d.winner && d.winner.id === p.id ? ' lead' : '');
-      row.innerHTML = '<div class="tv-main"><strong class="tv-text"></strong><span class="tv-by muted"></span><span class="tv-bar"><i></i></span></div><span class="tv-n"></span><div class="tv-act"></div>';
-      row.querySelector('.tv-text').textContent = `${d.winner && d.winner.id === p.id ? '🏆 ' : ''}${p.text}`;
-      row.querySelector('.tv-by').textContent = p.owner === me ? 'ton idée' : `par ${p.ownerName || p.owner}`;
-      row.querySelector('.tv-bar i').style.width = `${Math.round((p.n / max) * 100)}%`;
-      row.querySelector('.tv-n').textContent = `${p.n} voix`;
-      const act = row.querySelector('.tv-act');
-      if (p.owner !== me) {
+      row.className = 'tv-row' + (d.leader && d.leader.id === c.id ? ' lead' : '');
+      const kind = c.type === 'object' ? 'Objet' : c.type === 'color' ? 'Couleur' : 'Thème';
+      const img = c.imageId && state.images.get(c.imageId);
+      row.innerHTML = `<div class="tv-visual"></div><div class="tv-main"><span class="tv-kind"></span><strong class="tv-text"></strong><span class="tv-bar"><i></i></span></div><span class="tv-n"></span><div class="tv-act"></div>`;
+      const vis = row.querySelector('.tv-visual');
+      if (img) vis.innerHTML = `<img alt="" src="${cvEsc(img.url)}">`;
+      else if (c.hex) vis.innerHTML = `<span class="cv3-swatch" style="background:${cvEsc(c.hex)}"></span>`;
+      else vis.hidden = true;
+      row.querySelector('.tv-kind').textContent = c.src === 'joueur' ? `${kind} · idée de ${c.owner === me ? 'toi' : (c.ownerName || c.owner)}` : kind;
+      row.querySelector('.tv-text').textContent = `${d.leader && d.leader.id === c.id ? '🏆 ' : ''}${c.label}`;
+      row.querySelector('.tv-bar i').style.width = `${Math.round((c.n / max) * 100)}%`;
+      row.querySelector('.tv-n').textContent = `${c.n} ❤️`;
+      if (c.owner !== me) {
+        const mine = myHearts.find((h) => h.cand === c.id);
         const b = document.createElement('button');
-        const voted = myVote && myVote.prop === p.id;
-        b.className = 'btn ' + (voted ? '' : 'btn-primary');
-        b.textContent = voted ? '✓ Ton vote' : 'Voter';
+        b.className = 'btn ' + (mine ? '' : 'btn-primary');
+        b.textContent = mine ? '❤️ Donné' : '🤍 Donner';
+        b.disabled = !mine && left <= 0;
         b.addEventListener('click', async () => {
           try {
-            if (voted) await db.deleteThemeDoc(myVote.id);
-            else await db.putThemeDoc({ id: `tv-${d.day}-${me}`, kind: 'vote', themeDay: d.day, prop: p.id, voter: me, created: Date.now() });
+            if (mine) await db.deleteThemeDoc(mine.id);
+            else await db.putThemeDoc({ id: `th-${d.day}-${me}-${docSlug(c.id)}`, kind: 'heart', themeDay: d.day, cand: c.id, voter: me, created: Date.now() });
           } catch (err) { toast('Le vote n\'a pas pu être enregistré. Vérifie ta connexion.'); return; }
           reload();
         });
-        act.appendChild(b);
-      }
-      if (p.owner === me || state.isAdmin) {
-        const del = document.createElement('button');
-        del.className = 'btn btn-ghost';
-        del.textContent = '🗑️';
-        del.title = 'Retirer cette proposition';
-        del.addEventListener('click', async () => {
-          if (!(await askConfirm(`Retirer la proposition « ${p.text} » ?`, 'Retirer'))) return;
-          try {
-            await db.deleteThemeDoc(p.id);
-            await Promise.all(d.votes.filter((v) => v.prop === p.id).map((v) => db.deleteThemeDoc(v.id)));
-          } catch (err) { toast('La proposition n\'a pas pu être retirée.'); return; }
-          reload();
-        });
-        act.appendChild(del);
+        row.querySelector('.tv-act').appendChild(b);
       }
       list.appendChild(row);
+    }
+    // --- Proposer un thème (2 par jour, validé par l'administratrice)
+    const todayProps = d.pool.filter((p) => p.owner === me && p.proposedDay === today());
+    const propCard = document.createElement('section');
+    propCard.className = 'cv3-card';
+    propCard.innerHTML = `<h3 class="cv3-h3">Proposer un thème</h3>
+      <p class="cv3-note">${todayProps.length}/${THEME_PROPS_PER_DAY} aujourd'hui · +${setting('themeProposeReward')} 🪙 par idée envoyée, +${setting('themeWinReward')} 🪙 si elle gagne. Elle passe d'abord par l'administratrice.</p>
+      <form class="tv-form"><input class="field tv-input" type="text" maxlength="${THEME_TEXT_MAX}" placeholder="Ton idée de thème (ex : Fête foraine)" aria-label="Ton idée de thème"><button class="btn btn-primary" type="submit">Proposer</button></form>
+      <div class="tv-mine"></div>`;
+    wrap.appendChild(propCard);
+    propCard.querySelector('.tv-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const inp = propCard.querySelector('.tv-input');
+      const text = inp.value.trim().replace(/\s+/g, ' ');
+      if (text.length < 2) { toast('Écris un thème d\'au moins 2 lettres.'); return; }
+      if (todayProps.length >= THEME_PROPS_PER_DAY) { toast(`Tu as déjà fait ${THEME_PROPS_PER_DAY} propositions aujourd'hui : reviens demain !`); return; }
+      if (contestThemes().some((t) => normalizeText(t) === normalizeText(text)) || d.pool.some((p) => p.status !== 'refused' && normalizeText(p.text) === normalizeText(text))) { toast('Cette idée existe déjà.'); return; }
+      const id = `tp-${me}-${Date.now()}`;
+      try {
+        await db.putThemeDoc({ id, kind: 'prop', themeDay: 'pool', text, owner: me, ownerName: state.player.name, created: Date.now(), proposedDay: today(), status: 'pending' });
+      } catch (err) { toast('La proposition n\'a pas pu être envoyée. Vérifie ta connexion.'); return; }
+      const reward = setting('themeProposeReward');
+      if (reward > 0) { state.profile.points = (state.profile.points || 0) + reward; saveProfile(); renderPoints(); }
+      toast(`Idée envoyée 🗳️${reward > 0 ? ` +${reward} 🪙` : ''} : elle sera validée avant le vote.`);
+      reload();
     });
+    const mineBox = propCard.querySelector('.tv-mine');
+    for (const p of d.pool.filter((x) => x.owner === me).sort((a, b) => (b.created || 0) - (a.created || 0)).slice(0, 6)) {
+      const li = document.createElement('p');
+      li.className = 'tv-minerow';
+      li.textContent = `${p.status === 'accepted' ? '✅' : p.status === 'refused' ? '✕' : '⏳'} ${p.text}${p.status === 'pending' ? ' · en attente de validation' : p.status === 'refused' ? ' · refusée' : ' · acceptée'}`;
+      mineBox.appendChild(li);
+    }
+    // --- Administratrice : idées à valider
+    const pending = d.pool.filter((p) => p.status === 'pending').sort((a, b) => (a.created || 0) - (b.created || 0));
+    if (state.isAdmin && pending.length) {
+      const vc = document.createElement('section');
+      vc.className = 'cv3-card';
+      vc.innerHTML = `<h3 class="cv3-h3">Idées à valider (${pending.length})</h3><div class="tv-list"></div>`;
+      for (const p of pending) {
+        const row = document.createElement('div');
+        row.className = 'tv-row';
+        row.innerHTML = '<div class="tv-main"><strong class="tv-text"></strong><span class="tv-kind"></span></div><div class="tv-act"></div>';
+        row.querySelector('.tv-text').textContent = p.text;
+        row.querySelector('.tv-kind').textContent = `par ${p.ownerName || p.owner}`;
+        const act = row.querySelector('.tv-act');
+        const set = (status) => async () => {
+          try { await db.putThemeDoc({ ...p, status }); } catch (err) { toast('Le choix n\'a pas pu être enregistré.'); return; }
+          reload();
+        };
+        const ok = document.createElement('button'); ok.className = 'btn btn-primary'; ok.textContent = '✓ Accepter'; ok.addEventListener('click', set('accepted'));
+        const no = document.createElement('button'); no.className = 'btn btn-ghost'; no.textContent = '✕ Refuser'; no.addEventListener('click', set('refused'));
+        act.append(ok, no);
+        vc.querySelector('.tv-list').appendChild(row);
+      }
+      wrap.appendChild(vc);
+    }
     const tip = document.createElement('p');
     tip.className = 'cv3-note';
-    const today1 = themeWinners[today()];
-    tip.textContent = today1 ? `Thème d'aujourd'hui, élu hier : ${today1}.` : 'À minuit, le thème qui a le plus de voix devient le thème du concours.';
+    const w = themeWinners[today()];
+    tip.textContent = w ? `Idée élue pour aujourd'hui : ${w.label}.` : 'À minuit, l\'idée qui a le plus de cœurs devient le thème du concours.';
     wrap.appendChild(tip);
   }
 
@@ -6527,18 +6610,17 @@
     const ready = themeVoteData && themeVoteData.day === day;
     if (!ready && !themeVoteLoading) {
       themeVoteLoading = true;
-      db.listThemeVote(day).then((docs) => { themeVoteData = { day, ...themeTally(docs) }; })
-        .catch(() => { themeVoteData = { day, props: [], votes: [], winner: null }; })
+      loadThemeVoteData(day).then((data) => { themeVoteData = data; })
+        .catch(() => { themeVoteData = { day, pool: [], cands: [], hearts: [], leader: null }; })
         .finally(() => { themeVoteLoading = false; if (cv3Step === 1 && !cv3Sub && !screens.contest.hidden) renderContest(); });
     }
     const d = ready ? themeVoteData : null;
-    const lead = d && d.winner;
+    const lead = d && d.leader;
     card.innerHTML = `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote jusqu'à minuit</div><h3 class="cv3-h3 tv-card-title">Thème de demain</h3></div></div>
       <p class="cv3-note tv-card-lead"></p>
-      <button type="button" class="cv3-cta tv-card-btn"><span>Proposer / voter</span></button>`;
+      <button type="button" class="cv3-cta tv-card-btn"><span>Voter · proposer une idée</span></button>`;
     card.querySelector('.tv-card-lead').textContent = !d ? 'Chargement…'
-      : lead ? `🏆 En tête : ${lead.text} (${lead.n} voix)`
-        : d.props.length ? `${plural(d.props.length, 'proposition')}, pas encore de voix.` : 'Aucune proposition pour l\'instant : lance la première !';
+      : lead ? `🏆 En tête : ${lead.label} (${lead.n} ❤️)` : `${plural(d.cands.length, 'idée')} au choix, pas encore de cœurs.`;
     card.querySelector('.tv-card-btn').addEventListener('click', openThemeVote);
     page.appendChild(card);
   }
