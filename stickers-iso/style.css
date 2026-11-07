@@ -2762,3 +2762,6 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .tv-n { font-family: var(--font-title); font-weight: 600; font-size: 14px; white-space: nowrap; }
 .tv-act { display: flex; gap: 4px; flex-direction: column; }
 .tv-act .btn { padding: 4px 10px; font-size: .85rem; }
+
+.tv-card-title { margin: 0; font-size: 20px; }
+.cv3-themecard .cv3-cta { min-height: 52px; font-size: 18px; }

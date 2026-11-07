@@ -6518,6 +6518,31 @@
     wrap.appendChild(tip);
   }
 
+  // Étape 2 « Voter » : carte compacte du vote du thème de demain (le thème en tête, et l'accès aux propositions).
+  let themeVoteLoading = false;
+  function cvThemeCard(page) {
+    const day = shiftDay(today(), 1);
+    const card = document.createElement('section');
+    card.className = 'cv3-card cv3-themecard';
+    const ready = themeVoteData && themeVoteData.day === day;
+    if (!ready && !themeVoteLoading) {
+      themeVoteLoading = true;
+      db.listThemeVote(day).then((docs) => { themeVoteData = { day, ...themeTally(docs) }; })
+        .catch(() => { themeVoteData = { day, props: [], votes: [], winner: null }; })
+        .finally(() => { themeVoteLoading = false; if (cv3Step === 1 && !cv3Sub && !screens.contest.hidden) renderContest(); });
+    }
+    const d = ready ? themeVoteData : null;
+    const lead = d && d.winner;
+    card.innerHTML = `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote jusqu'à minuit</div><h3 class="cv3-h3 tv-card-title">Thème de demain</h3></div></div>
+      <p class="cv3-note tv-card-lead"></p>
+      <button type="button" class="cv3-cta tv-card-btn"><span>Proposer / voter</span></button>`;
+    card.querySelector('.tv-card-lead').textContent = !d ? 'Chargement…'
+      : lead ? `🏆 En tête : ${lead.text} (${lead.n} voix)`
+        : d.props.length ? `${plural(d.props.length, 'proposition')}, pas encore de voix.` : 'Aucune proposition pour l\'instant : lance la première !';
+    card.querySelector('.tv-card-btn').addEventListener('click', openThemeVote);
+    page.appendChild(card);
+  }
+
   function renderContestV3() {
     const body = $('#ctBody');
     if (cv3Sub === 'themevote' && themeVoteOn() && themeVoteData) { renderThemeVote(body); return; }
@@ -6549,6 +6574,7 @@
     page.className = 'cv3-page';
     wrap.appendChild(page);
     [cvPageCreate, cvPageVote, cvPageResults][cv3Step](page);
+    if (cv3Step === 1 && themeVoteOn()) cvThemeCard(page);
     // Flèches du bas
     const foot = document.createElement('footer');
     foot.className = 'cv3-foot';
@@ -6665,14 +6691,6 @@
       const grid = det.querySelector('.ct-grid');
       t.entries.forEach((e) => grid.appendChild(entryCard(e, { canModerate: true })));
       page.appendChild(det);
-    }
-    if (themeVoteOn()) {
-      const tv = document.createElement('button');
-      tv.type = 'button';
-      tv.className = 'cv3-hist';
-      tv.innerHTML = `<span style="font-size:22px">🗳️</span><span>Thème de demain : proposer et voter</span>${CV_ICON.chev}`;
-      tv.addEventListener('click', openThemeVote);
-      page.appendChild(tv);
     }
     const hist = document.createElement('button');
     hist.type = 'button';
