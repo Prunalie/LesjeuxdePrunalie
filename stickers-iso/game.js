@@ -1025,10 +1025,9 @@
     }
   }, { rootMargin: '300px' }) : null;
 
+  let libSig = '';
   function renderLibrary() {
     crumb(`liste des stickers (${state.images.size} images)`);
-    if (thumbObserver) thumbObserver.disconnect();
-    libraryGrid.innerHTML = '';
     const all = [...state.images.values()].filter((img) => ownedHere(img.id) > 0);
     updateLibFilterButton();
     const mineAll = libFilter ? all.filter((img) => collectionOf(img) === libFilter) : all;
@@ -1036,6 +1035,22 @@
     const lentNow = lentId();
     const mine = lentNow ? [...mineAll].sort((a, b) => Number(b.id === lentNow) - Number(a.id === lentNow)) : mineAll;
     libraryEmpty.hidden = all.length > 0;
+    // Même liste qu'avant (cas d'un sticker posé ou retiré) : on met seulement à jour les compteurs, sans reconstruire
+    // les centaines de vignettes (ça faisait monter la mémoire et planter l'iPhone).
+    const sig = `${libFilter || ''}|${lentNow || ''}|${mine.map((i) => i.id).join(',')}`;
+    if (sig === libSig && libraryGrid.children.length === mine.length) {
+      mine.forEach((img, k) => {
+        const el = libraryGrid.children[k];
+        const left = available(img.id), lent = lentNow === img.id;
+        el.className = 'thumb' + (left > 0 ? '' : ' used-up') + (lent ? ' lent' : '');
+        el.title = `${img.name} : ${left} à poser sur ${ownedHere(img.id)}${lent ? ' (1 prêté pour le concours)' : ''}`;
+        el.querySelector('.thumb-count').textContent = `${Math.max(0, left)}/${ownedHere(img.id)}`;
+      });
+      return;
+    }
+    libSig = sig;
+    if (thumbObserver) thumbObserver.disconnect();
+    libraryGrid.innerHTML = '';
     for (const img of mine) {
       const left = available(img.id);
       const el = document.createElement('div');
