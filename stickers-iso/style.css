@@ -2747,3 +2747,18 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .report-notes { margin: 4px 0 8px; padding-left: 18px; font-size: .85rem; }
 .report-text { margin: 4px 0 8px; white-space: pre-wrap; }
 .report-pre { max-height: 200px; overflow: auto; font-size: .72rem; white-space: pre-wrap; word-break: break-word; }
+
+/* Vote du thème de demain */
+.tv-form { display: flex; gap: 8px; }
+.tv-input { flex: 1; min-width: 0; }
+.tv-list { display: flex; flex-direction: column; gap: 8px; }
+.tv-row { display: flex; align-items: center; gap: 10px; border-radius: 18px; border: 3px solid var(--c-line); background: var(--c-surface); padding: 8px 10px; }
+.tv-row.lead { background: var(--c-butter); }
+.tv-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tv-text { font-family: var(--font-title); font-weight: 600; font-size: 17px; overflow-wrap: anywhere; }
+.tv-by { font-size: .78rem; font-weight: 700; }
+.tv-bar { display: block; height: 8px; border-radius: 999px; border: 2px solid var(--c-line); background: var(--c-surface); overflow: hidden; }
+.tv-bar i { display: block; height: 100%; background: var(--c-accent); }
+.tv-n { font-family: var(--font-title); font-weight: 600; font-size: 14px; white-space: nowrap; }
+.tv-act { display: flex; gap: 4px; flex-direction: column; }
+.tv-act .btn { padding: 4px 10px; font-size: .85rem; }
