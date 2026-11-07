@@ -5712,6 +5712,14 @@
   // Mises à jour écrites dans le code (date = jour de la mise en ligne).
   const BUILTIN_NEWS = [
     {
+      id: 'n-2026-11-07a', date: Date.UTC(2026, 10, 7, 5, 30), title: 'Signaler un problème 🚩',
+      items: [
+        'Un objet est mal découpé ou a une erreur ? Dans ⚙️ Paramètres, touche « Signaler un problème », choisis l\'objet et dis-nous ce qui ne va pas.',
+        'Tu as rencontré un bug ? Tu peux aussi nous le raconter au même endroit, avec « Un bug ».',
+        'Merci : ça nous aide à rendre le jeu plus joli et plus fiable ! 💛',
+      ],
+    },
+    {
       id: 'n-2026-11-04a', date: Date.UTC(2026, 10, 4, 22, 0), title: 'Déplacer un objet : à toi de choisir ✥',
       items: [
         'Dans ⚙️ Paramètres, tu peux choisir de quel côté se trouve la croix ✥ qui déplace un objet sans le cacher avec ton doigt : à gauche ou à droite.',
