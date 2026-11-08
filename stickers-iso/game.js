@@ -6064,6 +6064,7 @@
     { name: 'Jaune', hex: '#f0c46c' }, { name: 'Violet', hex: '#ab9bd6' }, { name: 'Orange', hex: '#e8906b' },
     { name: 'Marron', hex: '#8a5d3b' }, { name: 'Blanc', hex: '#fffaf3' }, { name: 'Noir', hex: '#2e2b28' },
   ];
+  const FREE_ROOM = 'Comme tu veux'; // « type de pièce » : aucune pièce imposée
   const contestRooms = () => {
     const l = Array.isArray(state.settings.contestRooms) ? state.settings.contestRooms.filter(Boolean) : [];
     return l.length ? l : DEFAULT_CONTEST_ROOMS;
@@ -6103,7 +6104,7 @@
     // Un thème n'impose pas de pièce ; un objet ou une couleur gardent la pièce tirée.
     const win = themeVoteOn() && !ov.kind && !ov.value ? themeWinners[day] : null;
     if (win) {
-      if (win.type === 'theme') return { day, room: '', kind: 'general', value: win.label, text: win.label };
+      if (win.type === 'theme') return { day, room: ov.room && ov.room !== FREE_ROOM ? ov.room : '', kind: 'general', value: win.label, text: win.label };
       ov = win.type === 'object' ? { ...ov, kind: 'object', objectId: win.imageId } : { ...ov, kind: 'color', value: win.label };
     }
     const rooms = contestRooms();
@@ -6116,6 +6117,7 @@
     }
     let kind = ov.kind;
     if (!kind) { const k = seededRank(`${day}kind`) % 10; kind = k < 4 ? 'object' : k < 6 ? 'color' : 'general'; }
+    if (ov.room === FREE_ROOM) room = FREE_ROOM;
     const plan = { day, room, kind };
     if (kind === 'object') {
       let img = ov.objectId && state.images.get(ov.objectId);
@@ -6131,7 +6133,7 @@
     }
     plan.value = ov.value && contestThemes().includes(ov.value) ? ov.value : autoThemeOf(day);
     plan.text = plan.value;
-    plan.room = ''; // un thème général suffit : pas de type de pièce imposé
+    plan.room = ov.room && ov.room !== FREE_ROOM ? ov.room : ''; // un thème général suffit, sauf si une pièce est imposée à la main
     return plan;
   }
   // Objet prêté à tous aujourd'hui, dans la pièce du concours seulement : en plus de ceux qu'on possède.
@@ -7750,10 +7752,10 @@
       row.querySelector('.ac-plan-sum').textContent = p.room ? `${p.room} · ${p.text}` : p.text;
       const rs = row.querySelector('.ac-plan-room');
       rs.add(new Option(p.room ? `🎲 Pièce : ${p.room}` : 'Pas de pièce imposée (thème général)', ''));
+      rs.add(new Option(`${FREE_ROOM} (pas de pièce imposée)`, FREE_ROOM));
       const roomList = ov.room && !rooms.includes(ov.room) ? [ov.room, ...rooms] : rooms;
-      for (const r of roomList) rs.add(new Option(r, r));
+      for (const r of roomList) if (r !== FREE_ROOM) rs.add(new Option(r, r));
       rs.value = ov.room || '';
-      rs.disabled = !p.room; // avec un thème général, pas de type de pièce
       rs.addEventListener('change', () => setPlanOverride(day, { room: rs.value }));
       const ks = row.querySelector('.ac-plan-kind');
       ks.add(new Option(`🎲 Type : ${PLAN_KINDS[p.kind] || 'Thème général'}`, ''));
