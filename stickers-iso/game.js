@@ -5423,7 +5423,7 @@
     renderMailBadge();
     $('#homeCoffre').hidden = !state.isAdmin;
     $('#homePlayers').hidden = !state.isAdmin;
-    if (state.isAdmin) refreshCoffreCount();
+    if (state.isAdmin) { refreshCoffreCount(); refreshNewPlayersDot(); }
     renderMaintTiles();
     showScreen('home');
     if (maintBlocked('all', true)) return;
@@ -9347,8 +9347,26 @@
   let playersSort = 'recent';
   let contestStats = {}; // joueur -> { count, last } : participations aux concours
 
+  // Petit point rouge sur le bouton Joueurs : un joueur est arrivé depuis ta dernière visite de la page.
+  let dotAt = 0;
+  async function refreshNewPlayersDot() {
+    if (!state.isAdmin || Date.now() - dotAt < 30000) return;
+    dotAt = Date.now();
+    if (!state.profile.playersSeenAt) { state.profile.playersSeenAt = Date.now(); saveProfile(); return; }
+    try {
+      const l = await db.listPlayers();
+      const fresh = l.filter((p) => !ADMIN_PSEUDOS.includes(playerKey(p)) && (p.firstSeen || 0) > state.profile.playersSeenAt);
+      const dot = $('#homePlayers .new-dot');
+      $('#homeAdmin .menu-dot').hidden = !fresh.length;
+      dot.hidden = !fresh.length;
+      dot.title = fresh.length ? `${fresh.length} ${fresh.length > 1 ? 'nouveaux joueurs' : 'nouveau joueur'}` : '';
+    } catch (e) { /* tant pis, pas de point */ }
+  }
   async function openPlayers() {
     if (!state.isAdmin) return;
+    state.profile.playersSeenAt = Date.now(); saveProfile(); dotAt = 0;
+    $('#homePlayers .new-dot').hidden = true;
+    $('#homeAdmin .menu-dot').hidden = true;
     showScreen('players');
     $('#playersList').innerHTML = '<p class="muted">Chargement…</p>';
     try {

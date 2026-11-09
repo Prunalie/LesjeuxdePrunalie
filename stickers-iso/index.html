@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611080100">
+  <link rel="stylesheet" href="style.css?v=202611090100">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -118,7 +118,7 @@
         <details id="homeAdmin" class="home-admin" hidden>
           <summary>
             <span class="tile-icon admin" style="background:#E2F0E6"><svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3 L27 7 V15 C27 22 22 27 16 29 C10 27 5 22 5 15 V7 Z" fill="#7CC59B" stroke="#5A3E3A" stroke-width="2.6" stroke-linejoin="round"/><path d="M11 16 L15 20 L22 12" fill="none" stroke="#5A3E3A" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            <span class="admin-title">Menu admin</span>
+            <span class="admin-title">Menu admin</span><span class="new-dot menu-dot" hidden aria-label="Nouveau joueur"></span>
             <svg class="chev" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9 L12 15 L18 9" fill="none" stroke="#5A3E3A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </summary>
           <div class="admin-grid">
@@ -139,6 +139,7 @@
               <span class="small-text"><span class="card-title">Coffre</span><span id="homeCoffreSub" class="card-sub">Propositions des joueurs</span></span>
             </button>
             <button id="homePlayers" class="mini home-card admin-card" hidden>
+              <span class="new-dot" hidden aria-label="Nouveau joueur"></span>
               <span class="tile-icon" style="background:#E0F0F1"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><circle cx="21" cy="11" r="4.5" fill="#F0658A" stroke="#5A3E3A" stroke-width="2.4"/><path d="M13 27 C13 20 17 18 21 18 C25 18 29 20 29 27 Z" fill="#F0658A" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><circle cx="11" cy="12" r="5" fill="#7A52B3" stroke="#5A3E3A" stroke-width="2.4"/><path d="M2 28 C2 20 6 18.5 11 18.5 C16 18.5 20 20 20 28 Z" fill="#7A52B3" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/></svg></span>
               <span class="small-text"><span class="card-title">Joueurs</span><span class="card-sub">Qui joue, et leur écrire</span></span>
             </button>
@@ -1287,7 +1288,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611080100"></script>
-  <script src="game.js?v=202611080100"></script>
+  <script src="firebase-config.js?v=202611090100"></script>
+  <script src="game.js?v=202611090100"></script>
 </body>
 </html>
