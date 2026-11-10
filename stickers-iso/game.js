@@ -6117,7 +6117,7 @@
     }
     let kind = ov.kind;
     if (!kind) { const k = seededRank(`${day}kind`) % 10; kind = k < 4 ? 'object' : k < 6 ? 'color' : 'general'; }
-    if (ov.room === FREE_ROOM) room = FREE_ROOM;
+    if (ov.room === FREE_ROOM || room === FREE_ROOM) room = ''; // « Comme tu veux » : rien n'est écrit pour les joueurs
     const plan = { day, room, kind };
     if (kind === 'object') {
       let img = ov.objectId && state.images.get(ov.objectId);
@@ -6402,7 +6402,7 @@
     }
     const p = planOf(day);
     // Thème général : il suffit, pas de pièce imposée.
-    if (!p.room) {
+    if (!p.room && p.kind === 'general') {
       el.innerHTML = `<div class="cv3-k">${label === 'Pièce du jour' ? 'Thème du jour' : label}</div><h2 class="cv3-big"></h2>`;
       el.querySelector('h2').textContent = p.text;
       return el;
@@ -6416,9 +6416,10 @@
       theme = `<span class="cv3-swatch" style="background:${cvEsc(p.colorHex)}"></span><span>${cvEsc(p.colorName)}</span>`;
     } else theme = `<span>${cvEsc(p.value)}</span>`;
     const kindLabel = p.kind === 'object' ? 'Objet à placer' : p.kind === 'color' ? 'Couleur imposée' : 'Thème';
-    el.innerHTML = `<div class="cv3-k">${label}</div><h2 class="cv3-big cv3-room-name"></h2>
-      <div class="cv3-k cv3-k2">${kindLabel}</div><div class="cv3-theme">${theme}</div>`;
-    el.querySelector('.cv3-room-name').textContent = p.room;
+    el.innerHTML = p.room
+      ? `<div class="cv3-k">${label}</div><h2 class="cv3-big cv3-room-name"></h2><div class="cv3-k cv3-k2">${kindLabel}</div><div class="cv3-theme">${theme}</div>`
+      : `<div class="cv3-k">${label === 'Pièce du jour' ? 'Thème du jour' : label}</div><div class="cv3-k cv3-k2">${kindLabel}</div><div class="cv3-theme">${theme}</div>`;
+    if (p.room) el.querySelector('.cv3-room-name').textContent = p.room;
     return el;
   }
 
@@ -7751,7 +7752,7 @@
       row.querySelector('.ac-plan-day').textContent = i === 0 ? 'Aujourd\'hui' : i === 1 ? 'Demain' : dayLabel(day);
       row.querySelector('.ac-plan-sum').textContent = p.room ? `${p.room} · ${p.text}` : p.text;
       const rs = row.querySelector('.ac-plan-room');
-      rs.add(new Option(p.room ? `🎲 Pièce : ${p.room}` : 'Pas de pièce imposée (thème général)', ''));
+      rs.add(new Option(p.room ? `🎲 Pièce : ${p.room}` : 'Pas de pièce imposée', ''));
       rs.add(new Option(`${FREE_ROOM} (pas de pièce imposée)`, FREE_ROOM));
       const roomList = ov.room && !rooms.includes(ov.room) ? [ov.room, ...rooms] : rooms;
       for (const r of roomList) if (r !== FREE_ROOM) rs.add(new Option(r, r));
