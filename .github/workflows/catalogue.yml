@@ -1,0 +1,40 @@
+# Chaque nuit : met à jour le catalogue publié sur le site (stickers-iso/catalogue) à partir de Firebase.
+# Lecture seule dans Firebase : seulement les changements depuis la veille (relecture complète le dimanche).
+# Peut aussi être lancée à la main (onglet Actions → Catalogue → Run workflow).
+name: Catalogue
+on:
+  schedule:
+    - cron: '7 4 * * *' # 5 h 07 à Paris en hiver (6 h 07 en été)
+  workflow_dispatch:
+    inputs:
+      full:
+        description: 'Relecture complète du catalogue'
+        type: boolean
+        default: false
+permissions:
+  contents: write
+  pages: write
+concurrency: catalogue
+jobs:
+  maj:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Mise à jour depuis Firebase
+        run: python3 .github/scripts/catalogue.py stickers-iso/catalogue
+        env:
+          TZ: Europe/Paris
+          FULL: ${{ inputs.full && '1' || '' }}
+      - name: Enregistrement et mise en ligne
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git add -A stickers-iso/catalogue
+          if git diff --cached --quiet; then echo "Rien de nouveau."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Catalogue : mise à jour automatique"
+          git push
+          # Une mise en ligne faite par cette tâche ne relance pas toujours GitHub Pages : on la demande.
+          curl -sS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pages/builds" || true
