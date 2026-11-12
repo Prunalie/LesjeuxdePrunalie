@@ -4538,7 +4538,7 @@
 
       // Stickers acceptés (proposés par les joueurs) pas encore rangés : les ajouter ici.
       const unfiledBtn = sec.querySelector('.atelier-unfiled');
-      const nUnfiled = unfiledProposals().length;
+      const nUnfiled = unfiledStickers().length;
       unfiledBtn.querySelector('.atelier-unfiled-n').textContent = nUnfiled ? `(${nUnfiled})` : '';
       unfiledBtn.disabled = !nUnfiled;
       unfiledBtn.title = nUnfiled ? 'Choisir des stickers acceptés à ranger dans cette enveloppe' : 'Aucun sticker à ranger pour l\'instant';
@@ -8549,6 +8549,9 @@
 
   // ---- Depuis l'atelier : ranger des stickers acceptés dans l'enveloppe ouverte ----
   const unfiledProposals = () => (state.proposals || []).filter((p) => coffreStatus(p) === 'unfiled');
+  // Stickers validés mais dans aucune enveloppe : on les prend directement dans le catalogue (déjà chargé), sans dépendre
+  // du chargement de toutes les propositions des joueurs (très lourd : le bouton restait grisé).
+  const unfiledStickers = () => [...state.images.values()].filter((i) => i.catalog && !i.deco && !i.kind && !i.archived && !envelopeExists(i.envelope));
   const unfiledDialog = $('#unfiledDialog');
   let unfiledEnv = null;
   let unfiledPick = new Set();
@@ -8558,18 +8561,18 @@
     $('#unfiledTitle').textContent = `Ranger dans « ${env.name || 'Enveloppe'} »`;
     const grid = $('#unfiledGrid');
     grid.innerHTML = '';
-    for (const p of unfiledProposals().sort((a, b) => (b.created || 0) - (a.created || 0))) {
+    for (const r of unfiledStickers().sort((a, b) => (b.created || 0) - (a.created || 0))) {
       const cell = document.createElement('button');
       cell.type = 'button';
       cell.className = 'env-item star-pick unfiled-pick';
       cell.innerHTML = '<div class="env-item-img"><img alt=""><span class="env-owned unfiled-check" hidden>✓</span></div><span class="env-item-name"></span><span class="unfiled-author muted"></span>';
-      cell.querySelector('img').src = p.data;
-      cell.querySelector('.env-item-name').textContent = p.name;
-      cell.querySelector('.unfiled-author').textContent = `par ${p.ownerName || p.owner}`;
+      cell.querySelector('img').src = r.url;
+      cell.querySelector('.env-item-name').textContent = r.name;
+      cell.querySelector('.unfiled-author').textContent = r.author ? `par ${r.author}` : '';
       cell.addEventListener('click', () => {
-        if (unfiledPick.has(p.id)) unfiledPick.delete(p.id); else unfiledPick.add(p.id);
-        cell.classList.toggle('picked', unfiledPick.has(p.id));
-        cell.querySelector('.unfiled-check').hidden = !unfiledPick.has(p.id);
+        if (unfiledPick.has(r.id)) unfiledPick.delete(r.id); else unfiledPick.add(r.id);
+        cell.classList.toggle('picked', unfiledPick.has(r.id));
+        cell.querySelector('.unfiled-check').hidden = !unfiledPick.has(r.id);
         renderUnfiledButton();
       });
       grid.appendChild(cell);
@@ -8582,10 +8585,10 @@
     $('#unfiledAdd').disabled = !n;
     $('#unfiledAdd').textContent = n ? `Ajouter ${plural(n, 'sticker')}` : 'Choisis des stickers';
     $('#unfiledArchive').disabled = !n;
-    $('#unfiledAll').textContent = unfiledPick.size === unfiledProposals().length ? 'Tout désélectionner' : 'Tout sélectionner';
+    $('#unfiledAll').textContent = unfiledPick.size === unfiledStickers().length ? 'Tout désélectionner' : 'Tout sélectionner';
   }
   $('#unfiledAll').addEventListener('click', () => {
-    const all = unfiledProposals();
+    const all = unfiledStickers();
     const selectAll = unfiledPick.size !== all.length;
     unfiledPick = new Set(selectAll ? all.map((p) => p.id) : []);
     document.querySelectorAll('#unfiledGrid .unfiled-pick').forEach((cell, i) => {
@@ -8597,40 +8600,32 @@
   $('#unfiledClose').addEventListener('click', () => { unfiledDialog.hidden = true; });
   // Archiver la sélection plutôt que de la ranger dans cette enveloppe.
   $('#unfiledArchive').addEventListener('click', async () => {
-    const list = unfiledProposals().filter((p) => unfiledPick.has(p.id));
+    const list = unfiledStickers().filter((r) => unfiledPick.has(r.id));
     if (!list.length) return;
     $('#unfiledArchive').disabled = true;
     let ok = 0;
-    for (const p of list) if (await archiveProposal(p)) ok++;
+    for (const r of list) { await archiveSticker(r); if (r.archived) ok++; }
     unfiledDialog.hidden = true;
     toast(`${plural(ok, 'sticker')} archivé${ok > 1 ? 's' : ''} 📦 : retrouve-${ok > 1 ? 'les' : 'le'} dans les Archives de l'atelier.`);
     renderAtelier();
   });
   $('#unfiledAdd').addEventListener('click', async () => {
     const env = unfiledEnv;
-    const list = unfiledProposals().filter((p) => unfiledPick.has(p.id));
+    const list = unfiledStickers().filter((r) => unfiledPick.has(r.id));
     if (!env || !list.length) return;
     $('#unfiledAdd').disabled = true;
     let ok = 0;
-    for (const p of list) {
+    for (const rec of list) {
       try {
-        const rec = catalogOf(p);
-        if (rec) {
-          rec.envelope = env.id;
-          rec.archived = false;
-          rec.fromProposal = p.id;
-          await db.updateImage(rec.id, { envelope: env.id, archived: false, fromProposal: p.id });
-        } else {
-          const nrec = {
-            id: uid(), catalog: true, envelope: env.id, rarity: 'common',
-            name: p.name, data: p.data, w: p.w, h: p.h, created: Date.now(),
-            author: p.ownerName || p.owner, fromProposal: p.id,
-          };
-          await db.putImage(nrec);
-          addImageToLibrary(nrec);
+        await db.updateImage(rec.id, { envelope: env.id, archived: false });
+        rec.envelope = env.id;
+        rec.archived = false;
+        if (rec.fromProposal) {
+          // Garde le lien avec la proposition d'origine (Coffre), sans bloquer si elle est introuvable.
+          db.updateImage(rec.fromProposal, { usedIn: env.id }).catch(() => {});
+          const p = (state.proposals || []).find((x) => x.id === rec.fromProposal);
+          if (p) p.usedIn = env.id;
         }
-        p.usedIn = env.id;
-        await db.updateImage(p.id, { usedIn: p.usedIn });
         ok++;
       } catch (e) {
         console.warn('Rangement impossible', e);
