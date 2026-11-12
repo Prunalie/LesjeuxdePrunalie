@@ -234,7 +234,7 @@
         listDecos: () => allFast(images.where('deco', '==', true), 'decos'),
         // (Un sticker venu de la liste GitHub n'a pas son image en mémoire : on ne réécrit alors que ses champs,
         // sans jamais effacer l'image enregistrée dans Firebase.)
-        putImage: ({ id, url, file, v, ...rec }) => images.doc(id).set(clean(rec.proposal ? rec : { ...rec, updated: Date.now() }), rec.data ? {} : { merge: true }).then((r) => { bumpRev(); return r; }),
+        putImage: ({ id, url, file, v, ...rec }) => images.doc(id).set(clean(rec.proposal || !playerVisible(id, rec) ? rec : { ...rec, updated: Date.now() }), rec.data ? {} : { merge: true }).then((r) => { bumpRev(); return r; }),
         // Mode « catalogue sur GitHub » : seulement ce qui a changé depuis la sauvegarde, et ce qui n'y est pas.
         listUpdatedSince: (since) => all(images.where('updated', '>', since)),
         listByEnvelopes: async (ids) => {
@@ -284,7 +284,7 @@
         // Seulement celles en attente : bien plus léger que toutes les propositions (avec leurs images).
         listPendingProposals: () => all(images.where('proposal', '==', true).where('status', '==', 'pending')),
         // Change quelques champs sans renvoyer l'image.
-        updateImage: (id, fields) => images.doc(id).set(clean(state.images.has(id) || state.decos.has(id) ? { ...fields, updated: Date.now() } : fields), { merge: true }).then((r) => { bumpRev(); return r; }),
+        updateImage: (id, fields) => images.doc(id).set(clean(playerVisible(id) ? { ...fields, updated: Date.now() } : fields), { merge: true }).then((r) => { bumpRev(); return r; }),
         // Boîte aux lettres : messages (type « mail ») adressés à un pseudo
         listMail: (to) => all(rooms.where('to', '==', to)),
         listPlayers: () => all(rooms.where('type', '==', 'player')),
@@ -925,6 +925,17 @@
   // plus depuis Firebase. Firebase ne fournit que ce qui a changé depuis la sauvegarde, les enveloppes pas encore dans la
   // liste (brouillons, programmées) et les stickers sans enveloppe.
   // ---------------------------------------------------------------------------
+  let ghListed = new Set(); // stickers présents dans la liste GitHub
+  // Une modification ne concerne les joueurs que si le sticker est (ou était) visible pour eux : sinon (brouillons, à ranger)
+  // on ne la date pas, pour qu'ils ne la téléchargent pas. Une enveloppe qui passe en vente est lue à part.
+  function playerVisible(id, rec = null) {
+    if (ghListed.has(id)) return true;
+    const img = rec || state.images.get(id) || state.decos.get(id);
+    if (!img) return false;
+    if (img.deco) return true;
+    const env = state.envelopes.find((e) => e.id === img.envelope);
+    return env ? isLive(env) : !!img.archived;
+  }
   const ghCatalogOn = () => true; // tout le monde (coupure possible avec le réglage « ghCatalogOff »)
   async function loadGhCatalog(envelopes, settings, profile) {
     const t0 = Date.now();
@@ -936,13 +947,14 @@
     const deleted = new Set((settings && settings.catalogDeleted) || []); // supprimés depuis : retirés de la liste
     const base = new URL('catalogue/', location.href).href;
     const map = new Map();
+    ghListed = new Set(L.items.map((o) => o.id));
     for (const o of L.items) if (o.catalog && !deleted.has(o.id)) map.set(o.id, { ...o, url: `${base}${o.file}?v=${o.v}` });
     const fromFb = (docs) => { for (const d of docs) if (d.catalog && d.data) map.set(d.id, d); };
     const covered = new Set(L.envelopes);
     // Enveloppes pas encore dans la liste : toutes pour l'administratrice (brouillons compris), seulement celles en vente pour les joueurs.
     const missingEnv = (envelopes || []).filter((e) => state.isAdmin || isLive(e)).map((e) => e.id).filter((id) => !covered.has(id));
     const [changed, inEnv, unfiled] = await Promise.all([
-      cloudDb.listUpdatedSince(L.snapshot - 24 * 3600 * 1000),
+      cloudDb.listUpdatedSince(L.snapshot - 2 * 3600 * 1000), // (2 h de marge pour les horloges décalées)
       missingEnv.length ? cloudDb.listByEnvelopes(missingEnv) : [],
       state.isAdmin ? cloudDb.listUnfiled() : [],
     ]);
