@@ -234,7 +234,7 @@
         listDecos: () => allFast(images.where('deco', '==', true), 'decos'),
         // (Un sticker venu de la liste GitHub n'a pas son image en mémoire : on ne réécrit alors que ses champs,
         // sans jamais effacer l'image enregistrée dans Firebase.)
-        putImage: ({ id, url, file, v, ...rec }) => images.doc(id).set(clean({ ...rec, updated: Date.now() }), rec.data ? {} : { merge: true }).then((r) => { bumpRev(); return r; }),
+        putImage: ({ id, url, file, v, ...rec }) => images.doc(id).set(clean(rec.proposal ? rec : { ...rec, updated: Date.now() }), rec.data ? {} : { merge: true }).then((r) => { bumpRev(); return r; }),
         // Mode « catalogue sur GitHub » : seulement ce qui a changé depuis la sauvegarde, et ce qui n'y est pas.
         listUpdatedSince: (since) => all(images.where('updated', '>', since)),
         listByEnvelopes: async (ids) => {
@@ -248,7 +248,11 @@
           for (let i = 0; i < ids.length; i += 30) out.push(...await all(images.where(firebase.firestore.FieldPath.documentId(), 'in', ids.slice(i, i + 30))));
           return out;
         },
-        deleteImage: (id) => images.doc(id).delete().then((r) => { bumpRev(true); return r; }),
+        deleteImage: (id) => images.doc(id).delete().then((r) => {
+          bumpRev(true);
+          if (state.isAdmin) fsRooms().doc('settings').set({ catalogDeleted: firebase.firestore.FieldValue.arrayUnion(id) }, { merge: true }).catch(() => {});
+          return r;
+        }),
         isStale: () => !!(stale.catalog || stale.decos),
         revalidate: () => Promise.all(Object.keys(revalidators).map((k) => revalidators[k]().then(() => { delete stale[k]; }))),
         // Remise à jour partielle : seulement les stickers modifiés depuis « since » ; la copie de l'appareil les intègre,
@@ -280,7 +284,7 @@
         // Seulement celles en attente : bien plus léger que toutes les propositions (avec leurs images).
         listPendingProposals: () => all(images.where('proposal', '==', true).where('status', '==', 'pending')),
         // Change quelques champs sans renvoyer l'image.
-        updateImage: (id, fields) => images.doc(id).set(clean({ ...fields, updated: Date.now() }), { merge: true }).then((r) => { bumpRev(); return r; }),
+        updateImage: (id, fields) => images.doc(id).set(clean(state.images.has(id) || state.decos.has(id) ? { ...fields, updated: Date.now() } : fields), { merge: true }).then((r) => { bumpRev(); return r; }),
         // Boîte aux lettres : messages (type « mail ») adressés à un pseudo
         listMail: (to) => all(rooms.where('to', '==', to)),
         listPlayers: () => all(rooms.where('type', '==', 'player')),
@@ -916,25 +920,27 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Catalogue sur GitHub (mode mixte, compte administratrice seulement pour l'instant)
+  // Catalogue sur GitHub (mode mixte)
   // La liste des stickers en vente et leurs images sont des fichiers du site (dossier catalogue/) : on ne les télécharge
   // plus depuis Firebase. Firebase ne fournit que ce qui a changé depuis la sauvegarde, les enveloppes pas encore dans la
   // liste (brouillons, programmées) et les stickers sans enveloppe.
   // ---------------------------------------------------------------------------
-  const ghCatalogOn = () => state.isAdmin;
+  const ghCatalogOn = () => true; // tout le monde (coupure possible avec le réglage « ghCatalogOff »)
   async function loadGhCatalog(envelopes, settings, profile) {
     const t0 = Date.now();
     const res = await fetch('catalogue/liste.json', { cache: 'no-cache' });
     if (!res.ok) throw new Error(`liste ${res.status}`);
     const L = await res.json();
     // Un sticker supprimé depuis la sauvegarde : la liste n'est plus fiable, on recharge tout depuis Firebase.
-    if ((Number(settings && settings.catalogFull) || 0) > L.snapshot) throw new Error('suppression depuis la sauvegarde');
+    if (settings && settings.ghCatalogOff) throw new Error('catalogue GitHub coupé dans les réglages');
+    const deleted = new Set((settings && settings.catalogDeleted) || []); // supprimés depuis : retirés de la liste
     const base = new URL('catalogue/', location.href).href;
     const map = new Map();
-    for (const o of L.items) if (o.catalog) map.set(o.id, { ...o, url: `${base}${o.file}?v=${o.v}` });
+    for (const o of L.items) if (o.catalog && !deleted.has(o.id)) map.set(o.id, { ...o, url: `${base}${o.file}?v=${o.v}` });
     const fromFb = (docs) => { for (const d of docs) if (d.catalog && d.data) map.set(d.id, d); };
     const covered = new Set(L.envelopes);
-    const missingEnv = (envelopes || []).map((e) => e.id).filter((id) => !covered.has(id));
+    // Enveloppes pas encore dans la liste : toutes pour l'administratrice (brouillons compris), seulement celles en vente pour les joueurs.
+    const missingEnv = (envelopes || []).filter((e) => state.isAdmin || isLive(e)).map((e) => e.id).filter((id) => !covered.has(id));
     const [changed, inEnv, unfiled] = await Promise.all([
       cloudDb.listUpdatedSince(L.snapshot - 24 * 3600 * 1000),
       missingEnv.length ? cloudDb.listByEnvelopes(missingEnv) : [],
