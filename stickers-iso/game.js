@@ -1252,9 +1252,9 @@
     state.ambient = Number.isFinite(data.ambient) ? data.ambient : 100;
     state.lights = Array.isArray(data.lights) ? data.lights : [];
     if (!shapeDialog.hidden) renderShapeDialog();
-    // Un exemplaire vendu entre-temps ne peut pas revenir dans la pièce.
+    // Un exemplaire vendu entre-temps ne peut pas revenir dans la pièce (l'objet prêté du concours compte comme un exemplaire).
     for (const id of new Set(state.stickers.map((st) => st.imageId))) {
-      let extra = usedCount(id) - owned(id);
+      let extra = usedCount(id) - ownedHere(id);
       for (let i = state.stickers.length - 1; i >= 0 && extra > 0; i--) {
         if (state.stickers[i].imageId === id) { state.stickers.splice(i, 1); extra--; }
       }
