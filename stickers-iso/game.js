@@ -207,7 +207,9 @@
       const stale = {}; // clés dont la copie de l'appareil a servi : elles restent à vérifier
       const revalidators = {};
       const BIG = { catalog: true, decos: true };
+      const bigQueries = {};
       const allFast = async (query, key) => {
+        if (BIG[key]) bigQueries[key] = query;
         let cached = null;
         try { const c = await query.get({ source: 'cache' }); if (c.size) cached = docsOf(c); } catch (e) { /* pas de copie locale */ }
         if (!cached) return all(query);
@@ -216,7 +218,13 @@
         return cached;
       };
       // Pour l'administratrice : un changement du catalogue ou du décor prévient les joueurs qu'il y a du nouveau.
-      const bumpRev = () => { if (state.isAdmin) fsRooms().doc('settings').set({ catalogRev: Date.now() }, { merge: true }).catch(() => {}); };
+      // Chaque modification note sa date (« updated ») : les joueurs ne relisent ensuite que ce qui a changé, au lieu des ~880
+      // documents. Une suppression (invisible pour cette recherche) demande une relecture complète (« catalogFull »).
+      const bumpRev = (full = false) => {
+        if (!state.isAdmin) return;
+        const now = Date.now();
+        fsRooms().doc('settings').set(full ? { catalogRev: now, catalogFull: now } : { catalogRev: now }, { merge: true }).catch(() => {});
+      };
       const fsRooms = () => rooms;
       // Les règles Firestore n'autorisent que deux collections : les pièces, joueurs et
       // enveloppes partagent « ma-petite-piece » (champ type), les stickers l'autre.
@@ -224,10 +232,20 @@
         listCatalog: () => allFast(images.where('catalog', '==', true), 'catalog'),
         // Papiers peints et sols (en test chez l'administratrice)
         listDecos: () => allFast(images.where('deco', '==', true), 'decos'),
-        putImage: ({ id, url, ...rec }) => images.doc(id).set(clean(rec)).then((r) => { bumpRev(); return r; }),
-        deleteImage: (id) => images.doc(id).delete().then((r) => { bumpRev(); return r; }),
+        putImage: ({ id, url, ...rec }) => images.doc(id).set(clean({ ...rec, updated: Date.now() })).then((r) => { bumpRev(); return r; }),
+        deleteImage: (id) => images.doc(id).delete().then((r) => { bumpRev(true); return r; }),
         isStale: () => !!(stale.catalog || stale.decos),
         revalidate: () => Promise.all(Object.keys(revalidators).map((k) => revalidators[k]().then(() => { delete stale[k]; }))),
+        // Remise à jour partielle : seulement les stickers modifiés depuis « since » ; la copie de l'appareil les intègre,
+        // puis on relit les listes depuis cette copie (sans lecture facturée).
+        revalidateSince: async (since) => {
+          await images.where('updated', '>', since).get();
+          for (const k of Object.keys(bigQueries)) {
+            const snap = await bigQueries[k].get({ source: 'cache' });
+            if (api.onFresh) api.onFresh(k, docsOf(snap));
+            delete stale[k];
+          }
+        },
         // Les participations au concours ont aussi un « owner » : ce ne sont pas des pièces.
         listRooms: async (owner) => (await byOwner(rooms, owner)).filter((r) => r.type !== 'contest'),
         putRoom: ({ id, ...room }) => rooms.doc(id).set(clean(room)),
@@ -247,7 +265,7 @@
         // Seulement celles en attente : bien plus léger que toutes les propositions (avec leurs images).
         listPendingProposals: () => all(images.where('proposal', '==', true).where('status', '==', 'pending')),
         // Change quelques champs sans renvoyer l'image.
-        updateImage: (id, fields) => images.doc(id).set(clean(fields), { merge: true }).then((r) => { bumpRev(); return r; }),
+        updateImage: (id, fields) => images.doc(id).set(clean({ ...fields, updated: Date.now() }), { merge: true }).then((r) => { bumpRev(); return r; }),
         // Boîte aux lettres : messages (type « mail ») adressés à un pseudo
         listMail: (to) => all(rooms.where('to', '==', to)),
         listPlayers: () => all(rooms.where('type', '==', 'player')),
@@ -2829,12 +2847,26 @@
       state.settings = { dailyPoints: DAILY_POINTS, ...(settings || {}) };
       if (cloudDb && db === cloudDb && cloudDb.isStale) {
         const REV_KEY = 'ma-petite-piece:catalogRev', CHECK_KEY = 'ma-petite-piece:catalogCheck';
+        const FULL_KEY = 'ma-petite-piece:catalogFull', SINCE_KEY = 'ma-petite-piece:catalogSince';
         const rev = Number(settings && settings.catalogRev) || 0;
-        const done = () => { store(REV_KEY, String(rev)); store(CHECK_KEY, String(Date.now())); };
-        // Retéléchargement (~30 Mo) : seulement si le catalogue a changé, ou au plus une fois par jour.
-        const needed = String(rev) !== read(REV_KEY) || Date.now() - Number(read(CHECK_KEY) || 0) > 24 * 3600 * 1000;
-        if (cloudDb.isStale() && needed) cloudDb.revalidate().then(done).catch(() => {});
-        else if (!cloudDb.isStale()) done();
+        const full = Number(settings && settings.catalogFull) || 0;
+        const now = Date.now();
+        const doneFull = () => { store(REV_KEY, String(rev)); store(FULL_KEY, String(full)); store(CHECK_KEY, String(now)); store(SINCE_KEY, String(now)); };
+        const doneRev = () => { store(REV_KEY, String(rev)); store(SINCE_KEY, String(now)); };
+        const lastSince = Number(read(SINCE_KEY) || 0);
+        // Relecture complète (~880 documents) : après une suppression, sans date de dernière vérification, ou une fois par semaine.
+        const changed = String(rev) !== read(REV_KEY);
+        const lastFull = Number(read(CHECK_KEY) || 0);
+        // (Première fois avec cette version : on garde l'ancienne règle, les modifications d'avant n'ont pas de date.)
+        const needFull = !lastSince ? (changed || now - lastFull > 24 * 3600 * 1000)
+          : ((full && String(full) !== read(FULL_KEY)) || now - lastFull > 7 * 24 * 3600 * 1000);
+        if (cloudDb.isStale() && needFull) cloudDb.revalidate().then(doneFull).catch(() => {});
+        // Sinon, seulement ce qui a changé (avec un jour de marge pour les horloges décalées).
+        else if (cloudDb.isStale() && changed) cloudDb.revalidateSince(lastSince - 24 * 3600 * 1000).then(doneRev)
+          .catch(() => cloudDb.revalidate().then(doneFull).catch(() => {})); // en cas de souci : relecture complète
+        else if (!cloudDb.isStale()) doneFull();
+        // Rien n'a changé : la copie de l'appareil est à jour à cette date.
+        else if (!changed) { store(SINCE_KEY, String(now)); if (!read(FULL_KEY)) store(FULL_KEY, String(full)); }
       }
       state.mails = mails;
       state.myProposals = mine;
@@ -6182,8 +6214,33 @@
   // Gagnant d'office (une seule participation) : moitié de la récompense par défaut.
   const soloReward = () => setting('contestSoloReward');
 
-  async function loadContestDay(day) {
+  // Lectures du concours : chaque jour contient des centaines de petits documents (participations + duels).
+  // Un concours terminé (après 20 h le lendemain) ne change plus : on le garde sur l'appareil et on ne le relit plus.
+  // Un concours en cours est gardé 3 minutes en mémoire (rouvrir la page ne relit pas tout).
+  const contestMem = new Map(); // jour -> { docs, at }
+  const CONTEST_TTL = 3 * 60000;
+  let contestStore = null;
+  if ('caches' in window) caches.open('mpp-contest-v1').then((c) => { contestStore = c; }).catch(() => {});
+  const contestFinal = (day) => Date.now() > voteEnd(day) + 10 * 60000;
+  const contestTouched = () => contestMem.clear(); // après un vote, une publication ou un retrait
+  async function contestDocs(day, fresh = false) {
+    const final = contestFinal(day);
+    const m = contestMem.get(day);
+    if (m && !fresh && (final || Date.now() - m.at < CONTEST_TTL)) return m.docs;
+    const key = `/concours/${day}`;
+    if (final && !fresh && contestStore && db === cloudDb && !state.isAdmin) {
+      try {
+        const res = await contestStore.match(key);
+        if (res) { const docs = await res.json(); contestMem.set(day, { docs, at: Date.now() }); return docs; }
+      } catch (e) { /* copie illisible : on relit */ }
+    }
     const docs = await db.listContest(day);
+    contestMem.set(day, { docs, at: Date.now() });
+    if (final && contestStore && db === cloudDb) contestStore.put(key, new Response(JSON.stringify(docs))).catch(() => {});
+    return docs;
+  }
+  async function loadContestDay(day, fresh = false) {
+    const docs = await contestDocs(day, fresh);
     const entries = docs.filter((d) => d.kind === 'entry');
     const owners = new Set(entries.map((e) => e.owner));
     const inTime = (d) => !d.created || d.created <= voteEnd(day);
@@ -6333,6 +6390,7 @@
       del.addEventListener('click', async () => {
         if (!(await askConfirm(`Retirer la participation de ${e.ownerName || e.owner} ?`, 'Retirer'))) return;
         await db.deleteContest(e.id).catch(() => toast('La participation n\'a pas pu être retirée.'));
+        contestTouched();
         if (!screens.adminContest.hidden) refreshAdminContest(); else openContest();
       });
       card.querySelector('.ct-actions').appendChild(del);
@@ -7219,6 +7277,7 @@
     const mine = v.duels.filter((d) => d.voter === me);
     try {
       await Promise.all(mine.map((d) => db.deleteContest(d.id)));
+      contestTouched();
     } catch (e) {
       console.warn('Effacement impossible', e);
       toast('Les votes n\'ont pas pu être effacés. Vérifie ta connexion.');
@@ -7325,6 +7384,7 @@
     btn.classList.add('chosen');
     try {
       await db.putContest(duel);
+      contestTouched();
     } catch (e) {
       console.warn('Duel impossible', e);
       toast('Le vote n\'a pas pu être enregistré. Vérifie ta connexion.');
@@ -7460,6 +7520,7 @@
         id: `ct-${r.contestDay}-${state.player.key}`, kind: 'entry', contestDay: r.contestDay,
         owner: state.player.key, ownerName: state.player.name, roomName: state.roomName, image, created: Date.now(),
       });
+      contestTouched();
       const cur = currentRoom();
       if (cur) cur.publishedAt = Date.now();
       savePending = true;
@@ -7867,10 +7928,12 @@
     await refreshAdminContest();
     clearInterval(acTimer);
     // Mise à jour automatique pendant que l'écran est ouvert.
+    // (toutes les 3 minutes, et seulement si l'écran est vraiment affiché : avant, toutes les 15 s, ça vidait le quota de Firebase)
     acTimer = setInterval(() => {
       if (screens.adminContest.hidden) { clearInterval(acTimer); return; }
+      if (document.visibilityState !== 'visible') return;
       refreshAdminContest();
-    }, 15000);
+    }, 3 * 60000);
   }
   // Qui a voté : chaque votant, ses duels faits et le détail de ses choix.
   let acPlayers = null;
@@ -7935,7 +7998,7 @@
     if (!acPlayers) db.listPlayers().then((l) => { acPlayers = l; }).catch(() => {});
     let v, t;
     try {
-      [v, t] = await Promise.all([loadContestDay(shiftDay(today(), -1)), loadContestDay(today())]);
+      [v, t] = await Promise.all([loadContestDay(shiftDay(today(), -1), true), loadContestDay(today(), true)]);
     } catch (e) {
       $('#acLive').innerHTML = '<p class="muted">Impossible de charger le concours. Vérifie ta connexion.</p>';
       return;
@@ -9348,7 +9411,7 @@
   // Petit point rouge sur le bouton Joueurs : un joueur est arrivé depuis ta dernière visite de la page.
   let dotAt = 0;
   async function refreshNewPlayersDot() {
-    if (!state.isAdmin || Date.now() - dotAt < 30000) return;
+    if (!state.isAdmin || Date.now() - dotAt < 10 * 60000) return;
     dotAt = Date.now();
     if (!state.profile.playersSeenAt) { state.profile.playersSeenAt = Date.now(); saveProfile(); return; }
     try {
