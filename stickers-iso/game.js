@@ -232,7 +232,22 @@
         listCatalog: () => allFast(images.where('catalog', '==', true), 'catalog'),
         // Papiers peints et sols (en test chez l'administratrice)
         listDecos: () => allFast(images.where('deco', '==', true), 'decos'),
-        putImage: ({ id, url, ...rec }) => images.doc(id).set(clean({ ...rec, updated: Date.now() })).then((r) => { bumpRev(); return r; }),
+        // (Un sticker venu de la liste GitHub n'a pas son image en mémoire : on ne réécrit alors que ses champs,
+        // sans jamais effacer l'image enregistrée dans Firebase.)
+        putImage: ({ id, url, file, v, ...rec }) => images.doc(id).set(clean({ ...rec, updated: Date.now() }), rec.data ? {} : { merge: true }).then((r) => { bumpRev(); return r; }),
+        // Mode « catalogue sur GitHub » : seulement ce qui a changé depuis la sauvegarde, et ce qui n'y est pas.
+        listUpdatedSince: (since) => all(images.where('updated', '>', since)),
+        listByEnvelopes: async (ids) => {
+          const out = [];
+          for (let i = 0; i < ids.length; i += 30) out.push(...await all(images.where('envelope', 'in', ids.slice(i, i + 30))));
+          return out;
+        },
+        listUnfiled: () => all(images.where('envelope', '==', null)),
+        listImagesByIds: async (ids) => {
+          const out = [];
+          for (let i = 0; i < ids.length; i += 30) out.push(...await all(images.where(firebase.firestore.FieldPath.documentId(), 'in', ids.slice(i, i + 30))));
+          return out;
+        },
         deleteImage: (id) => images.doc(id).delete().then((r) => { bumpRev(true); return r; }),
         isStale: () => !!(stale.catalog || stale.decos),
         revalidate: () => Promise.all(Object.keys(revalidators).map((k) => revalidators[k]().then(() => { delete stale[k]; }))),
@@ -900,8 +915,41 @@
     state.decos.set(rec.id, { ...rec, url: rec.data });
   }
 
+  // ---------------------------------------------------------------------------
+  // Catalogue sur GitHub (mode mixte, compte administratrice seulement pour l'instant)
+  // La liste des stickers en vente et leurs images sont des fichiers du site (dossier catalogue/) : on ne les télécharge
+  // plus depuis Firebase. Firebase ne fournit que ce qui a changé depuis la sauvegarde, les enveloppes pas encore dans la
+  // liste (brouillons, programmées) et les stickers sans enveloppe.
+  // ---------------------------------------------------------------------------
+  const ghCatalogOn = () => state.isAdmin;
+  async function loadGhCatalog(envelopes, settings, profile) {
+    const t0 = Date.now();
+    const res = await fetch('catalogue/liste.json', { cache: 'no-cache' });
+    if (!res.ok) throw new Error(`liste ${res.status}`);
+    const L = await res.json();
+    // Un sticker supprimé depuis la sauvegarde : la liste n'est plus fiable, on recharge tout depuis Firebase.
+    if ((Number(settings && settings.catalogFull) || 0) > L.snapshot) throw new Error('suppression depuis la sauvegarde');
+    const base = new URL('catalogue/', location.href).href;
+    const map = new Map();
+    for (const o of L.items) if (o.catalog) map.set(o.id, { ...o, url: `${base}${o.file}?v=${o.v}` });
+    const fromFb = (docs) => { for (const d of docs) if (d.catalog && d.data) map.set(d.id, d); };
+    const covered = new Set(L.envelopes);
+    const missingEnv = (envelopes || []).map((e) => e.id).filter((id) => !covered.has(id));
+    const [changed, inEnv, unfiled] = await Promise.all([
+      cloudDb.listUpdatedSince(L.snapshot - 24 * 3600 * 1000),
+      missingEnv.length ? cloudDb.listByEnvelopes(missingEnv) : [],
+      state.isAdmin ? cloudDb.listUnfiled() : [],
+    ]);
+    fromFb(inEnv); fromFb(unfiled); fromFb(changed);
+    // Stickers possédés qui ne sont nulle part (ex. cadeau d'un sticker jamais mis en vente) : on les demande un par un.
+    const owned = Object.keys((profile && profile.inventory) || {}).filter((id) => !map.has(id));
+    if (owned.length) fromFb(await cloudDb.listImagesByIds(owned).catch(() => []));
+    crumb(`catalogue GitHub : ${L.items.length} + ${changed.length + inEnv.length + unfiled.length} Firebase (${Date.now() - t0} ms)`);
+    return [...map.values()];
+  }
+
   function addImageToLibrary(rec) {
-    const url = rec.data || (rec.blob ? URL.createObjectURL(rec.blob) : '');
+    const url = rec.data || rec.url || (rec.blob ? URL.createObjectURL(rec.blob) : '');
     if (url) state.images.set(rec.id, { ...rec, url });
   }
 
@@ -2837,12 +2885,21 @@
     let isNew = false;
     try {
       if (state.isAdmin) await withFallback(migrateOldAdmin);
-      const [images, rooms, envelopes, profile, mails, mine, settings, news] = await withFallback((d) => Promise.all([
-        d.listCatalog(), d.listRooms(state.player.key), d.listEnvelopes(), d.getPlayer(playerDocId(state.player.key)),
+      const useGh = ghCatalogOn() && cloudDb && db === cloudDb;
+      let [images, rooms, envelopes, profile, mails, mine, settings, news] = await withFallback((d) => Promise.all([
+        useGh ? Promise.resolve(null) : d.listCatalog(), d.listRooms(state.player.key), d.listEnvelopes(), d.getPlayer(playerDocId(state.player.key)),
         d.listMail(state.player.key), d.listMyProposals(state.player.key), d.getSettings(),
         d.listNews().catch(() => []),
       ]));
       setNews(news);
+      if (images === null && db !== cloudDb) images = await db.listCatalog(); // Firebase injoignable : copie locale
+      else if (images === null) {
+        try { images = await loadGhCatalog(envelopes, settings, profile); } catch (e) {
+          console.warn('Catalogue GitHub indisponible : chargement depuis Firebase', e);
+          crumb('catalogue GitHub indisponible');
+          images = await cloudDb.listCatalog();
+        }
+      }
       if (shopV2()) (await withFallback((d) => d.listDecos()).catch(() => [])).forEach(addDeco);
       state.settings = { dailyPoints: DAILY_POINTS, ...(settings || {}) };
       if (cloudDb && db === cloudDb && cloudDb.isStale) {
