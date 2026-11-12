@@ -3128,6 +3128,8 @@
   });
 
   // Se déconnecter : le bouton d'avant, maintenant dans les paramètres.
+  // Aussi depuis l'écran « Le jeu est en maintenance » (sinon on reste coincé sur ce compte).
+  $('#maintLogout').addEventListener('click', () => { $('#maintScreen').hidden = true; $('#btnLogout').click(); });
   $('#btnLogout').addEventListener('click', () => {
     prefsDialog.hidden = true;
     store(SESSION_KEY, null);

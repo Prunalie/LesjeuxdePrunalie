@@ -2775,3 +2775,4 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .new-dot { position: absolute; top: 6px; right: 6px; width: 14px; height: 14px; border-radius: 50%; background: #e53935; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); z-index: 2; }
 .new-dot[hidden] { display: none; }
 .menu-dot { position: static; flex: none; margin-left: 8px; align-self: center; }
+.maint-logout { display: block; margin: 10px auto 0; }
