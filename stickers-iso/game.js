@@ -3335,7 +3335,8 @@
   async function welcomeManoir() {
     if (!state.player || !read(MANOIR_WELCOME_KEY)) return;
     if (themeMode() !== 'manoir') { store(MANOIR_WELCOME_KEY, null); return; }
-    if (!confirmDialog.hidden) { setTimeout(welcomeManoir, 1500); return; } // un autre message est ouvert : on attend
+    // un autre message est ouvert (plantage, nouveautés…) : on attend qu'il soit fermé
+    if (!confirmDialog.hidden || !$('#newsDialog').hidden) { setTimeout(welcomeManoir, 1500); return; }
     store(MANOIR_WELCOME_KEY, null);
     const cancel = $('#confirmCancel');
     const old = cancel.textContent;
