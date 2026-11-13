@@ -3011,6 +3011,8 @@
   async function login(name) {
     const key = normalizePseudo(name);
     state.isAdmin = ADMIN_PSEUDOS.includes(key);
+    // Apparence Manoir réservée à l'administratrice pour l'instant : un autre compte sur le même appareil garde l'apparence habituelle.
+    applyTheme(themeMode() === 'manoir' && !state.isAdmin ? 'auto' : themeMode());
     // Le compte d'administration s'affiche « Admin » partout dans le jeu : le pseudo de
     // connexion n'apparaît jamais à l'écran (ni pré-rempli à l'accueil).
     const display = state.isAdmin ? ADMIN_DISPLAY_NAME : name;
@@ -3238,11 +3240,36 @@
 
   // Thème clair / sombre : « auto » suit l'appareil ; le choix est gardé sur cet appareil.
   const THEME_KEY = 'ma-petite-piece:theme';
+  // Apparence « Mon manoir enchanté » (en test, administratrice seulement) : feuille de style et polices chargées à la demande.
+  const GAME_TITLES = { classic: 'Ma petite pièce', manoir: 'Mon manoir enchanté' };
+  function loadManoirAssets() {
+    if (document.getElementById('manoirCss')) return;
+    const v = (document.querySelector('script[src*="game.js"]') || {}).src || '';
+    const ver = (v.match(/\?v=\d+/) || [''])[0];
+    const fonts = document.createElement('link');
+    fonts.rel = 'stylesheet';
+    fonts.href = 'https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Cormorant+Garamond:wght@600;700&display=swap';
+    const css = document.createElement('link');
+    css.id = 'manoirCss';
+    css.rel = 'stylesheet';
+    css.href = `manoir.css${ver}`;
+    document.head.append(fonts, css);
+  }
   function applyTheme(mode) {
     const root = document.documentElement;
-    if (mode === 'light' || mode === 'dark') root.dataset.theme = mode; else delete root.dataset.theme;
+    if (mode === 'manoir') {
+      loadManoirAssets();
+      root.dataset.skin = 'manoir';
+      root.dataset.theme = 'dark';
+    } else {
+      delete root.dataset.skin;
+      if (mode === 'light' || mode === 'dark') root.dataset.theme = mode; else delete root.dataset.theme;
+    }
+    const title = mode === 'manoir' ? GAME_TITLES.manoir : GAME_TITLES.classic;
+    document.title = title;
+    document.querySelectorAll('#screenStart h1').forEach((h) => { h.textContent = title; });
   }
-  const themeMode = () => { const t = read(THEME_KEY); return t === 'light' || t === 'dark' ? t : 'auto'; };
+  const themeMode = () => { const t = read(THEME_KEY); return t === 'light' || t === 'dark' || t === 'manoir' ? t : 'auto'; };
   applyTheme(themeMode());
 
   // Côté de la croix qui déplace un objet : au choix, gardé sur cet appareil (à droite par défaut).
@@ -3260,9 +3287,12 @@
       b.setAttribute('aria-pressed', on);
     });
     const device = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'sombre' : 'clair';
-    $('#themeHint').textContent = mode === 'auto'
-      ? `Automatique : le jeu suit ton appareil (en ce moment : ${device}).`
-      : `Le jeu reste ${mode === 'dark' ? 'sombre' : 'clair'}, quel que soit ton appareil.`;
+    // Apparence Manoir : seulement proposée à l'administratrice pour l'instant.
+    document.querySelectorAll('.theme-choice[data-theme-mode="manoir"]').forEach((b) => { b.hidden = !state.isAdmin; });
+    $('#themeHint').textContent = mode === 'manoir' ? 'Apparence « Mon manoir enchanté » (en test).'
+      : mode === 'auto'
+        ? `Automatique : le jeu suit ton appareil (en ce moment : ${device}).`
+        : `Le jeu reste ${mode === 'dark' ? 'sombre' : 'clair'}, quel que soit ton appareil.`;
     document.querySelectorAll('.move-choice').forEach((b) => {
       const on = b.dataset.moveSide === moveSide();
       b.classList.toggle('active', on);

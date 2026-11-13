@@ -1,0 +1,156 @@
+/* Apparence « Mon manoir enchanté » (direction artistique « Bibliothèque magique »), en test sur le compte administratrice.
+   Chargée seulement quand l'apparence est choisie (attribut data-skin="manoir" sur <html>) : rien ne change pour les autres.
+   Étape 1 : couleurs, polices, cartes, boutons, fonds. Les écrans redessinés viendront ensuite. */
+
+:root[data-skin="manoir"] {
+  --bg: #1B1030;
+  --panel: #2A1840;
+  --ink: #F7E9C4;
+  --muted: #D2BF93;
+  --accent: #E6B85C;
+  --accent-ink: #2A1230;
+  --line: #8A6425;
+  --select: #F4D58A;
+  --surface: #35204D;
+  --hover: #3A2150;
+  --danger-hover: #4A1E2A;
+  --check-a: #2E1A44;
+  --check-b: #35204D;
+  --scrim: rgba(14, 8, 24, .72);
+  --chunk: #0E0818;
+  --gold: #E6B85C;
+  --gold-light: #F4D58A;
+  --gold-dark: #8A6425;
+  --font-title: 'Cinzel', Georgia, serif;
+  --font-body: 'Cormorant Garamond', Georgia, serif;
+  color-scheme: dark;
+}
+
+/* Fond : nuit violette étoilée */
+:root[data-skin="manoir"] body {
+  background:
+    radial-gradient(1.5px 1.5px at 12% 18%, #FFF6D6 60%, transparent 61%),
+    radial-gradient(1px 1px at 78% 9%, #FFF6D6 60%, transparent 61%),
+    radial-gradient(1.5px 1.5px at 64% 32%, #FFF6D688 60%, transparent 61%),
+    radial-gradient(1px 1px at 30% 52%, #FFF6D6aa 60%, transparent 61%),
+    radial-gradient(1.5px 1.5px at 88% 64%, #FFF6D688 60%, transparent 61%),
+    radial-gradient(1px 1px at 8% 80%, #FFF6D6aa 60%, transparent 61%),
+    linear-gradient(180deg, #1B1030 0%, #2A1840 60%, #3A1F4A 100%) fixed;
+  color: var(--ink);
+  font-size: 17px;
+}
+:root[data-skin="manoir"] .screen,
+:root[data-skin="manoir"] .home-body { background: transparent; }
+
+/* Titres en Cinzel, texte en Cormorant (plus petit à taille égale : on grossit un peu et on épaissit) */
+:root[data-skin="manoir"] body,
+:root[data-skin="manoir"] .btn,
+:root[data-skin="manoir"] .field { font-family: var(--font-body); font-weight: 600; }
+:root[data-skin="manoir"] h1, :root[data-skin="manoir"] h2, :root[data-skin="manoir"] h3,
+:root[data-skin="manoir"] .modal-title, :root[data-skin="manoir"] .card-title,
+:root[data-skin="manoir"] .admin-title { font-family: var(--font-title); letter-spacing: .03em; color: var(--gold-light); }
+:root[data-skin="manoir"] .muted, :root[data-skin="manoir"] .card-sub { color: var(--muted); }
+
+/* Barres du haut */
+:root[data-skin="manoir"] .topbar {
+  background: linear-gradient(180deg, #35204D, #2A1840);
+  border-bottom: 2px solid var(--gold);
+  box-shadow: 0 3px 0 var(--chunk);
+}
+
+/* Cartes : bordure or + double filet intérieur + ombre dure */
+:root[data-skin="manoir"] .home-card,
+:root[data-skin="manoir"] .home-tile,
+:root[data-skin="manoir"] .modal-box,
+:root[data-skin="manoir"] .cv3-card,
+:root[data-skin="manoir"] .coffre-card,
+:root[data-skin="manoir"] .room-card,
+:root[data-skin="manoir"] .env-item,
+:root[data-skin="manoir"] .dv-card,
+:root[data-skin="manoir"] .settings-group {
+  background: linear-gradient(180deg, #35204D, #2A1840) !important;
+  color: var(--ink);
+  border: 2px solid var(--gold) !important;
+  box-shadow: inset 0 0 0 3px #2A1840, inset 0 0 0 4.5px var(--gold-dark), 0 5px 0 var(--chunk) !important;
+}
+:root[data-skin="manoir"] .home-card.big { border-radius: 14px; }
+:root[data-skin="manoir"] .home-card.small, :root[data-skin="manoir"] .home-card.mini { border-radius: 12px; }
+:root[data-skin="manoir"] .card:hover { transform: translateY(-3px); filter: brightness(1.08); box-shadow: inset 0 0 0 3px #2A1840, inset 0 0 0 4.5px var(--gold-dark), 0 8px 0 var(--chunk), 0 0 18px #E6B85C55 !important; }
+:root[data-skin="manoir"] .card:active { transform: translateY(2px); box-shadow: inset 0 0 0 3px #2A1840, inset 0 0 0 4.5px var(--gold-dark), 0 2px 0 var(--chunk) !important; }
+:root[data-skin="manoir"] .home-deco { opacity: .14; }
+
+/* Tuiles d'icône */
+:root[data-skin="manoir"] .tile-icon {
+  background: radial-gradient(circle at 50% 40%, #5A3678, #3A2150) !important;
+  border: 2px solid var(--gold) !important;
+  border-radius: 8px !important;
+}
+
+/* Boutons : secondaires bordés d'or, principaux dorés à bouts en pointe */
+:root[data-skin="manoir"] .btn {
+  background: #2A1840;
+  color: var(--ink);
+  border: 2px solid var(--gold);
+  border-radius: 4px;
+}
+:root[data-skin="manoir"] .btn:hover { border-color: var(--gold-light); box-shadow: 0 0 10px #E6B85C55; }
+:root[data-skin="manoir"] .btn-ghost { background: transparent; }
+:root[data-skin="manoir"] .btn-primary,
+:root[data-skin="manoir"] .cv3-cta,
+:root[data-skin="manoir"] .stand-all {
+  background: linear-gradient(180deg, #F8DC96, #D9A441) !important;
+  color: #2A1230 !important;
+  border: 2px solid #1B0F14 !important;
+  border-radius: 4px;
+  font-family: var(--font-title);
+  font-weight: 700;
+  letter-spacing: .04em;
+  box-shadow: 0 4px 0 #6E4A12, 0 0 14px #E6B85C44 !important;
+}
+:root[data-skin="manoir"] .btn-big.btn-primary,
+:root[data-skin="manoir"] #startBtn {
+  clip-path: polygon(0 50%, 5% 0, 95% 0, 100% 50%, 95% 100%, 5% 100%);
+  border: none !important;
+  padding-left: 28px; padding-right: 28px;
+}
+:root[data-skin="manoir"] .btn.btn-danger { background: #7A2F3F; border-color: #E6B85C; color: #FBEFD2; }
+
+/* Champs */
+:root[data-skin="manoir"] .field {
+  background: #2A1840;
+  color: var(--ink);
+  border: 2px solid var(--gold);
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 3px #2A1840, inset 0 0 0 4.5px var(--gold-dark);
+}
+:root[data-skin="manoir"] .field::placeholder { color: #D2BF9399; }
+:root[data-skin="manoir"] :focus-visible { outline: 3px solid var(--gold-light); outline-offset: 3px; }
+
+/* Compteur pièces / étoiles, pastilles */
+:root[data-skin="manoir"] .points,
+:root[data-skin="manoir"] .cv3-chip,
+:root[data-skin="manoir"] .cv3-pill { background: #2A1840 !important; color: var(--ink) !important; border-color: var(--gold) !important; border-radius: 4px !important; }
+
+/* Menu admin */
+:root[data-skin="manoir"] .home-admin { border-color: var(--gold) !important; background: #2A184099; }
+
+/* Page du concours : on remappe ses propres couleurs */
+:root[data-skin="manoir"] #screenContest.cv3-on {
+  --c-bg: transparent; --c-surface: #2A1840; --c-ink: #F7E9C4; --c-sub: #D2BF93; --c-line: #E6B85C;
+  --c-accent: #F4D58A; --c-btn: #D9A441; --c-btn-sh: #6E4A12; --c-pink: #7A2F3F; --c-butter: #5E3178;
+  --c-mint: #1F3A2C; --c-cream: #35204D; --c-cream2: #2E1A44; --c-photo: #1B1030; --c-dash: #E6B85C44;
+}
+:root[data-skin="manoir"] #screenContest.cv3-on::before,
+:root[data-skin="manoir"] #screenContest.cv3-on::after { opacity: .35; }
+
+/* Bulles d'info, toasts */
+:root[data-skin="manoir"] .toast { background: #F6E4BE; color: #1B0F14; border: 2px solid #8A6425; font-family: var(--font-body); font-weight: 700; }
+
+/* Titre du jeu (connexion) */
+:root[data-skin="manoir"] .start-card h1,
+:root[data-skin="manoir"] #screenStart h1 { font-family: var(--font-title); font-weight: 700; color: var(--gold-light); text-shadow: 0 2px 0 #0E0818, 0 0 18px #E6B85C66; }
+
+/* Grands ronds décoratifs des cartes : halo doré discret au lieu des aplats clairs */
+:root[data-skin="manoir"] .card-blob { background: radial-gradient(circle, #E6B85C33, #E6B85C00 70%) !important; }
+:root[data-skin="manoir"] .theme-name { color: var(--gold-light); }
+:root[data-skin="manoir"] .home-name { color: var(--gold); }
