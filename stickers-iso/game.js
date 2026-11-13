@@ -3596,9 +3596,16 @@
       }
     }
     if (lent) r.lentPlaced = lent;
+    // Diagnostic iPhone : chaque étape de l'ouverture, puis l'état quelques instants après (un plantage ici n'attend pas 5 s).
+    crumb(`pièce : ${state.stickers.length} objets, ${state.lights.length} lumières, ambiance ${state.ambient}, décor ${state.colors.wallLeftDeco || state.colors.wallRightDeco ? 'mur' : '-'}/${state.colors.floorDeco ? 'sol' : '-'}, forme ${state.shape && state.shape.kind === 'garden' ? 'jardin' : 'pièce'}, objet imposé ${lent ? 'oui' : 'non'}`);
     drawRoom();
+    crumb('pièce : décor dessiné');
     renderStickers();
+    crumb('pièce : objets placés');
     showScreen('room');
+    crumb('pièce : affichée');
+    const opened = state.roomId;
+    [700, 2000, 4000].forEach((ms) => setTimeout(() => { if (state.roomId === opened && !screens.room.hidden) crumb(`pièce +${ms / 1000} s ${memSnapshot()}`); }, ms));
   }
 
   // ---------------------------------------------------------------------------
