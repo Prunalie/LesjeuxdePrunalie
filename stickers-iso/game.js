@@ -3011,8 +3011,9 @@
   async function login(name) {
     const key = normalizePseudo(name);
     state.isAdmin = ADMIN_PSEUDOS.includes(key);
-    // Apparence Manoir réservée à l'administratrice pour l'instant : un autre compte sur le même appareil garde l'apparence habituelle.
-    applyTheme(themeMode() === 'manoir' && !state.isAdmin ? 'auto' : themeMode());
+    // Avant l'ouverture à tous, l'apparence Manoir est réservée à l'administratrice : un autre compte sur le même appareil garde l'apparence habituelle.
+    applyTheme(themeMode() === 'manoir' && !state.isAdmin && !manoirOpen() ? 'auto' : themeMode());
+    if (read(MANOIR_WELCOME_KEY)) setTimeout(welcomeManoir, 2500);
     // Le compte d'administration s'affiche « Admin » partout dans le jeu : le pseudo de
     // connexion n'apparaît jamais à l'écran (ni pré-rempli à l'accueil).
     const display = state.isAdmin ? ADMIN_DISPLAY_NAME : name;
@@ -3269,7 +3270,23 @@
     document.title = title;
     document.querySelectorAll('#screenStart h1').forEach((h) => { h.textContent = title; });
   }
-  const themeMode = () => { const t = read(THEME_KEY); return t === 'light' || t === 'dark' || t === 'manoir' ? t : 'auto'; };
+  // Ouverture de l'apparence Manoir à tous les joueurs : le 14 novembre 2026 à 5 h (heure de Paris). Elle devient l'apparence
+  // par défaut ; l'ancienne reste disponible (Auto, Clair ou Sombre, dans Paramètres).
+  const MANOIR_OPEN_AT = Date.parse('2026-11-14T05:00:00+01:00');
+  const manoirOpen = () => Date.now() >= MANOIR_OPEN_AT;
+  const MANOIR_SWITCH_KEY = 'ma-petite-piece:manoir-ouvert';
+  const MANOIR_WELCOME_KEY = 'ma-petite-piece:manoir-accueil'; // mot d'accueil à montrer (gardé jusqu'à ce qu'il soit vu)
+  // Une seule fois par appareil, à l'ouverture : tout le monde passe au Manoir, même avec un choix Clair/Sombre enregistré avant.
+  if (manoirOpen() && !read(MANOIR_SWITCH_KEY)) {
+    if (read(THEME_KEY) !== 'manoir') store(MANOIR_WELCOME_KEY, '1');
+    store(THEME_KEY, null);
+    store(MANOIR_SWITCH_KEY, '1');
+  }
+  const themeMode = () => {
+    const t = read(THEME_KEY);
+    if (t === 'light' || t === 'dark' || t === 'manoir' || t === 'auto') return t;
+    return manoirOpen() ? 'manoir' : 'auto';
+  };
   applyTheme(themeMode());
 
   // Côté de la croix qui déplace un objet : au choix, gardé sur cet appareil (à droite par défaut).
@@ -3287,12 +3304,14 @@
       b.setAttribute('aria-pressed', on);
     });
     const device = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'sombre' : 'clair';
-    // Apparence Manoir : seulement proposée à l'administratrice pour l'instant.
-    document.querySelectorAll('.theme-choice[data-theme-mode="manoir"]').forEach((b) => { b.hidden = !state.isAdmin; });
-    $('#themeHint').textContent = mode === 'manoir' ? 'Apparence « Mon manoir enchanté » (en test).'
+    // Apparence Manoir : proposée à tous à partir de l'ouverture (avant, seulement à l'administratrice).
+    document.querySelectorAll('.theme-choice[data-theme-mode="manoir"]').forEach((b) => { b.hidden = !state.isAdmin && !manoirOpen(); });
+    $('#themeHint').textContent = mode === 'manoir'
+      ? (manoirOpen() ? 'Apparence « Mon manoir enchanté ». Pour retrouver l\'ancienne apparence, choisis Auto, Clair ou Sombre.' : 'Apparence « Mon manoir enchanté » (en test).')
       : mode === 'auto'
         ? `Automatique : le jeu suit ton appareil (en ce moment : ${device}).`
         : `Le jeu reste ${mode === 'dark' ? 'sombre' : 'clair'}, quel que soit ton appareil.`;
+    if (mode !== 'manoir' && manoirOpen()) $('#themeHint').textContent = `Ancienne apparence. ${$('#themeHint').textContent} Choisis ✨ Manoir pour la nouvelle.`;
     document.querySelectorAll('.move-choice').forEach((b) => {
       const on = b.dataset.moveSide === moveSide();
       b.classList.toggle('active', on);
@@ -3307,10 +3326,24 @@
   }));
   document.querySelectorAll('.theme-choice').forEach((b) => b.addEventListener('click', () => {
     const mode = b.dataset.themeMode;
-    store(THEME_KEY, mode === 'auto' ? null : mode);
+    // « Auto » est enregistré tel quel : sans choix, l'apparence par défaut est le Manoir (après l'ouverture).
+    store(THEME_KEY, mode === 'auto' && !manoirOpen() ? null : mode);
     applyTheme(mode);
     renderPrefs();
   }));
+  // Le jour de l'ouverture : un mot d'accueil, avec la possibilité de remettre tout de suite l'ancienne apparence.
+  async function welcomeManoir() {
+    if (!state.player || !read(MANOIR_WELCOME_KEY)) return;
+    if (themeMode() !== 'manoir') { store(MANOIR_WELCOME_KEY, null); return; }
+    if (!confirmDialog.hidden) { setTimeout(welcomeManoir, 1500); return; } // un autre message est ouvert : on attend
+    store(MANOIR_WELCOME_KEY, null);
+    const cancel = $('#confirmCancel');
+    const old = cancel.textContent;
+    cancel.textContent = 'Remettre l\'ancienne';
+    const keep = await askConfirm('Bienvenue dans « Mon manoir enchanté » ✨ Le jeu fait peau neuve ! Tu préfères l\'ancienne apparence ? Tu peux la remettre ici, ou plus tard dans Paramètres (Auto, Clair ou Sombre).', 'J\'adore !');
+    cancel.textContent = old;
+    if (!keep) { store(THEME_KEY, 'auto'); applyTheme('auto'); toast('Ancienne apparence remise. Le Manoir reste disponible dans Paramètres.'); }
+  }
   $('#btnPrefs').addEventListener('click', () => { renderPrefs(); prefsDialog.hidden = false; });
   $('#prefsClose').addEventListener('click', () => { prefsDialog.hidden = true; });
   prefsDialog.addEventListener('click', (e) => { if (e.target === prefsDialog) prefsDialog.hidden = true; });
