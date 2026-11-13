@@ -3253,6 +3253,15 @@
   const reportDialog = $('#reportDialog');
   let reportKind = 'object';
   let reportPicks = new Set(); // objets choisis (on peut en signaler plusieurs d'un coup)
+  const reportObserver = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => {
+    for (const en of entries) {
+      if (!en.isIntersecting) continue;
+      const im = en.target;
+      reportObserver.unobserve(im);
+      const img = state.images.get(im.dataset.imgId);
+      if (img) smallUrl(img, (url) => { if (im.isConnected) im.src = url; });
+    }
+  }, { rootMargin: '200px' }) : null;
   function renderReportGrid() {
     const q = normalizeText($('#reportSearch').value);
     const grid = $('#reportGrid');
@@ -3260,7 +3269,9 @@
     // Les objets déjà choisis restent en tête, même pendant une recherche.
     const list = [...state.images.values()].filter((i) => i.catalog && owned(i.id) > 0 && (reportPicks.has(i.id) || !q || normalizeText(i.name || '').includes(q)))
       .sort((a, b) => Number(reportPicks.has(b.id)) - Number(reportPicks.has(a.id)) || (a.name || '').localeCompare(b.name || '', 'fr'));
-    for (const img of list.slice(0, 120)) {
+    // Tous les objets (avant : seulement les 120 premiers) ; les vignettes se chargent quand elles apparaissent à l'écran.
+    if (reportObserver) reportObserver.disconnect();
+    for (const img of list) {
       const cell = document.createElement('button');
       cell.type = 'button';
       cell.className = 'env-item report-pick' + (reportPicks.has(img.id) ? ' picked' : '');
@@ -3268,7 +3279,9 @@
       cell.querySelector('.env-item-name').textContent = img.name;
       const im = cell.querySelector('img');
       im.src = thumbCache.get(img.id) || BLANK_GIF;
-      if (!thumbCache.has(img.id)) smallUrl(img, (url) => { if (im.isConnected) im.src = url; });
+      if (!thumbCache.has(img.id)) {
+        if (reportObserver) { im.dataset.imgId = img.id; reportObserver.observe(im); } else smallUrl(img, (url) => { if (im.isConnected) im.src = url; });
+      }
       cell.addEventListener('click', () => { if (reportPicks.has(img.id)) reportPicks.delete(img.id); else reportPicks.add(img.id); renderReportGrid(); renderReportSend(); });
       grid.appendChild(cell);
     }
