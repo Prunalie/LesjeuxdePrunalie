@@ -1157,9 +1157,12 @@
     const all = [...state.images.values()].filter((img) => ownedHere(img.id) > 0);
     updateLibFilterButton();
     const mineAll = libFilter ? all.filter((img) => collectionOf(img) === libFilter) : all;
+    // Les meubles les plus récents d'abord : date de sortie de leur enveloppe (ou de création du sticker si elle est plus récente).
+    const envAt = new Map(state.envelopes.map((e) => [e.id, e.publishAt ? Date.parse(`${e.publishAt}T00:00:00`) : (e.created || 0)]));
+    const recency = (img) => Math.max(img.created || 0, envAt.get(img.envelope) || 0);
     // L'objet imposé du concours (prêté) passe en premier.
     const lentNow = lentId();
-    const mine = lentNow ? [...mineAll].sort((a, b) => Number(b.id === lentNow) - Number(a.id === lentNow)) : mineAll;
+    const mine = [...mineAll].sort((a, b) => Number(b.id === lentNow) - Number(a.id === lentNow) || recency(b) - recency(a));
     libraryEmpty.hidden = all.length > 0;
     // Même liste qu'avant (cas d'un sticker posé ou retiré) : on met seulement à jour les compteurs, sans reconstruire
     // les centaines de vignettes (ça faisait monter la mémoire et planter l'iPhone).
