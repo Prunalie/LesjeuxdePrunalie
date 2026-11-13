@@ -5741,13 +5741,13 @@
     $('#homeRoomsSub').textContent = !nRooms ? (houseOn() ? 'Crée ta première pièce' : 'Crée ta première pièce')
       : houseOn() ? `${plural(placed, 'pièce')} placée${placed > 1 ? 's' : ''}${nRooms > placed ? ` · ${plural(nRooms - placed, 'brouillon')}` : ''}` : plural(nRooms, 'pièce');
     const stars = state.profile.stars || 0;
-    if (stars) $('#homeShopSub').innerHTML = `${STAR_SVG(15)} ${plural(stars, 'étoile')} à utiliser !`;
+    if (stars) $('#homeShopSub').innerHTML = `${STAR_SVG(15)} ${plural(stars, 'étoile')} à utiliser`;
     else $('#homeShopSub').textContent = envs ? `${plural(envs, 'enveloppe')} en vente` : 'Bientôt des enveloppes';
     $('#homeCollectionSub').textContent = all.length ? `${got}/${all.length} stickers obtenus` : 'Classeur vide';
     $('#homeCollectionBar').style.width = all.length ? `${Math.round((got / all.length) * 100)}%` : '0%';
     $('#homeAdmin').hidden = !state.isAdmin;
     const pending = state.myProposals.filter((x) => x.status === 'pending').length;
-    $('#homeCreationsSub').textContent = pending ? `${plural(pending, 'proposition')} en attente` : 'Envoie tes dessins !';
+    $('#homeCreationsSub').textContent = pending ? `${plural(pending, 'proposition')} en attente` : 'Envoie tes dessins';
     renderMailBadge();
     $('#homeCoffre').hidden = !state.isAdmin;
     $('#homePlayers').hidden = !state.isAdmin;
