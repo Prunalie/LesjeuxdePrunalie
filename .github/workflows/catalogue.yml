@@ -1,10 +1,10 @@
-# Chaque nuit : met à jour le catalogue publié sur le site (stickers-iso/catalogue) à partir de Firebase.
+# Toutes les heures : met à jour le catalogue publié sur le site (stickers-iso/catalogue) à partir de Firebase.
 # Lecture seule dans Firebase : seulement les changements depuis la veille (relecture complète le dimanche).
 # Peut aussi être lancée à la main (onglet Actions → Catalogue → Run workflow).
 name: Catalogue
 on:
   schedule:
-    - cron: '7 4 * * *' # 5 h 07 à Paris en hiver (6 h 07 en été)
+    - cron: '7 * * * *' # toutes les heures, à la 7e minute
   workflow_dispatch:
     inputs:
       full:

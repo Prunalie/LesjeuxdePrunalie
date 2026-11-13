@@ -3,8 +3,8 @@
 Lit Firebase (lecture seule, clé publique du jeu) et écrit :
   - une image par sticker visible des joueurs (enveloppes en vente, ou retiré de la vente mais possédé) et par décor public ;
   - liste.json : les informations de ces stickers (sans les images), la date de la sauvegarde et les enveloppes couvertes.
-Par défaut, seuls les changements depuis la dernière sauvegarde sont lus (quelques documents).
-Relecture complète : variable FULL=1, le dimanche, ou si un sticker a été supprimé depuis (réglage catalogFull).
+Lancée toutes les heures. Par défaut, seuls les changements depuis la dernière sauvegarde sont lus (quelques documents).
+Relecture complète : variable FULL=1, le dimanche vers 5 h, ou si un sticker a été supprimé depuis (réglage catalogFull).
 """
 import base64, datetime, glob, hashlib, json, os, re, sys, time, urllib.request
 
@@ -69,7 +69,8 @@ envelopes = query('ma-petite-piece', 'type', 'EQUAL', {'stringValue': 'envelope'
 all_env = {e['id'] for e in envelopes}
 live = {e['id'] for e in envelopes if not e.get('draft') and (not e.get('publishAt') or e['publishAt'] <= today)}
 
-full = (os.environ.get('FULL') == '1' or old is None or datetime.datetime.now().weekday() == 6
+now = datetime.datetime.now()
+full = (os.environ.get('FULL') == '1' or old is None or (now.weekday() == 6 and now.hour == 5)  # relecture complète : dimanche vers 5 h
         or (settings.get('catalogFull') or 0) > old.get('snapshot', 0))
 
 
@@ -89,7 +90,7 @@ if full:
     docs += query('ma-petite-piece-stickers', 'deco', 'EQUAL', {'booleanValue': True})
 else:
     items = {o['id']: o for o in old['items']}
-    since = old['snapshot'] - 24 * 3600 * 1000
+    since = old['snapshot'] - 2 * 3600 * 1000  # (2 h de marge pour les horloges décalées)
     docs = query('ma-petite-piece-stickers', 'updated', 'GREATER_THAN', {'integerValue': str(since)})
     new_live = sorted(live - set(old.get('envelopes', [])))
     for i in range(0, len(new_live), 30):
@@ -130,6 +131,9 @@ for f in glob.glob(f'{OUT}/*'):
         os.remove(f)
 
 ordered = sorted(items.values(), key=lambda o: (o.get('created') or 0, o['id']))
+if old and not full and old.get('items') == ordered and old.get('envelopes') == sorted(live):
+    print(f'rien de nouveau ({reads} lectures Firebase)')
+    sys.exit(0)  # la liste ne change pas : on garde sa date (rien à enregistrer ni à republier)
 json.dump({'snapshot': start, 'envelopes': sorted(live), 'items': ordered},
           open(f'{OUT}/liste.json', 'w'), separators=(',', ':'), ensure_ascii=False)
 print(f"{'complète' if full else 'partielle'} : {len(ordered)} éléments, {added} nouveaux, {changed} images écrites, "

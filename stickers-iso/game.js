@@ -459,7 +459,7 @@
     savePending = true;
     setSaveStatus('…');
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(saveRoom, 700);
+    saveTimer = setTimeout(saveRoom, 2500); // (chaque sauvegarde compte dans le quota d'écritures de Firebase)
   }
 
   // Traces : les dernières étapes du jeu, gardées sur l'appareil. Si la page plante, elles disent où (envoyées à l'administratrice si le joueur le veut).
@@ -954,7 +954,8 @@
     // Enveloppes pas encore dans la liste : toutes pour l'administratrice (brouillons compris), seulement celles en vente pour les joueurs.
     const missingEnv = (envelopes || []).filter((e) => state.isAdmin || isLive(e)).map((e) => e.id).filter((id) => !covered.has(id));
     const [changed, inEnv, unfiled] = await Promise.all([
-      cloudDb.listUpdatedSince(L.snapshot - 2 * 3600 * 1000), // (2 h de marge pour les horloges décalées)
+      // Joueurs : rien (la liste GitHub est refaite toutes les heures). Administratrice : les modifications récentes, tout de suite.
+      state.isAdmin ? cloudDb.listUpdatedSince(L.snapshot - 2 * 3600 * 1000) : [],
       missingEnv.length ? cloudDb.listByEnvelopes(missingEnv) : [],
       state.isAdmin ? cloudDb.listUnfiled() : [],
     ]);
@@ -6386,21 +6387,31 @@
   let contestStore = null;
   if ('caches' in window) caches.open('mpp-contest-v1').then((c) => { contestStore = c; }).catch(() => {});
   const contestFinal = (day) => Date.now() > voteEnd(day) + 10 * 60000;
-  const contestTouched = () => contestMem.clear(); // après un vote, une publication ou un retrait
+  const contestTouched = () => { // après un vote, une publication ou un retrait
+    for (const day of contestMem.keys()) if (!contestFinal(day) && contestStore) contestStore.delete(`/concours/${day}`).catch(() => {});
+    contestMem.clear();
+  };
   async function contestDocs(day, fresh = false) {
     const final = contestFinal(day);
     const m = contestMem.get(day);
     if (m && !fresh && (final || Date.now() - m.at < CONTEST_TTL)) return m.docs;
     const key = `/concours/${day}`;
-    if (final && !fresh && contestStore && db === cloudDb && !state.isAdmin) {
+    // Copie de l'appareil : définitive pour un concours terminé, 3 minutes sinon (même après un redémarrage du jeu).
+    if (!fresh && contestStore && db === cloudDb && !state.isAdmin) {
       try {
         const res = await contestStore.match(key);
-        if (res) { const docs = await res.json(); contestMem.set(day, { docs, at: Date.now() }); return docs; }
+        if (res) {
+          const saved = await res.json();
+          const docs = Array.isArray(saved) ? saved : saved.docs;
+          const at = Array.isArray(saved) ? Date.now() : saved.at;
+          if (final || Date.now() - at < CONTEST_TTL) { contestMem.set(day, { docs, at }); return docs; }
+        }
       } catch (e) { /* copie illisible : on relit */ }
     }
     const docs = await db.listContest(day);
-    contestMem.set(day, { docs, at: Date.now() });
-    if (final && contestStore && db === cloudDb) contestStore.put(key, new Response(JSON.stringify(docs))).catch(() => {});
+    const at = Date.now();
+    contestMem.set(day, { docs, at });
+    if (contestStore && db === cloudDb) contestStore.put(key, new Response(JSON.stringify({ at, docs }))).catch(() => {});
     return docs;
   }
   async function loadContestDay(day, fresh = false) {
