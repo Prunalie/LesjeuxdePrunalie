@@ -462,5 +462,6 @@
 :root[data-skin="manoir"] #homeRooms .big-text { align-self: flex-start !important; }
 /* Joueurs (admin) : étiquettes des options débloquées lisibles */
 :root[data-skin="manoir"] .unlock-chip { background: #F6E4BE !important; color: #1B0F14 !important; border: 1.5px solid var(--gold) !important; border-radius: 2px !important; }
-/* Concours : sans le bouton d'info « i » en losange (pages Créer, Voter, Résultats) */
-:root[data-skin="manoir"] #screenContest .cv3-info { display: none !important; }
+/* Concours : bouton d'info « i » plus petit, lettre bien lisible (droite, sans italique) */
+:root[data-skin="manoir"] .cv3-info summary { width: 30px !important; height: 30px !important; box-shadow: none !important; }
+:root[data-skin="manoir"] .cv3-info summary span { font-family: Georgia, 'Times New Roman', serif !important; font-style: normal !important; font-weight: 700 !important; font-size: 17px !important; line-height: 1 !important; text-transform: none !important; letter-spacing: 0 !important; color: #1B0F14 !important; transform: translateY(1px); }
