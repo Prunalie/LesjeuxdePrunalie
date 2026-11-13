@@ -470,9 +470,45 @@
     try {
       const list = JSON.parse(localStorage.getItem(TRACE_KEY) || '[]');
       list.push(`${new Date().toLocaleTimeString('fr-FR')} ${msg}`);
-      localStorage.setItem(TRACE_KEY, JSON.stringify(list.slice(-18)));
+      localStorage.setItem(TRACE_KEY, JSON.stringify(list.slice(-30)));
     } catch (e) { /* stockage indisponible */ }
   }
+  // Diagnostic mémoire (pour les plantages sur iPhone) : images affichées et leur poids une fois décodées, dessins (canvas),
+  // copies du concours gardées en mémoire. Safari ne donne pas la mémoire réelle : c'est une estimation.
+  function memSnapshot() {
+    try {
+      let n = 0, px = 0, big = 0;
+      for (const im of document.images) {
+        if (!im.complete || !im.naturalWidth) continue;
+        n++;
+        const p = im.naturalWidth * im.naturalHeight;
+        px += p;
+        if (p > 800 * 800) big++;
+      }
+      let cvPx = 0, cvN = 0;
+      for (const c of document.querySelectorAll('canvas')) { cvN++; cvPx += c.width * c.height; }
+      let ctDocs = 0, ctMb = 0;
+      if (typeof contestMem !== 'undefined') for (const m of contestMem.values()) { ctDocs += m.docs.length; for (const d of m.docs) if (d.image) ctMb += d.image.length; }
+      const heap = performance && performance.memory && Number.isFinite(performance.memory.usedJSHeapSize) && performance.memory.usedJSHeapSize > 0 ? ` · JS ${Math.round(performance.memory.usedJSHeapSize / 1e6)} Mo` : '';
+      const screen = Object.keys(screens || {}).find((k) => screens[k] && !screens[k].hidden) || '?';
+      return `[${screen}] images ${n} (${big} grandes) ≈ ${Math.round(px * 4 / 1e6)} Mo · canvas ${cvN} ≈ ${Math.round(cvPx * 4 / 1e6)} Mo · concours ${ctDocs} docs ${Math.round(ctMb / 1e6 * 10) / 10} Mo${heap}`;
+    } catch (e) { return 'mémoire ?'; }
+  }
+  // Toutes les 5 s sur les écrans lourds (concours, pièce) : une trace si l'estimation change nettement, pour voir ce qui précède un plantage.
+  let lastMem = '';
+  let lastMemMb = 0;
+  setInterval(() => {
+    try {
+      if (!state.player || document.visibilityState !== 'visible') return;
+      const scr = Object.keys(screens).find((k) => !screens[k].hidden);
+      if (scr !== 'contest' && scr !== 'room') return;
+      const snap = memSnapshot();
+      const mb = (snap.match(/≈ (\d+) Mo/g) || []).reduce((a, x) => a + Number(x.replace(/\D/g, '')), 0);
+      if (snap.slice(0, 12) !== lastMem.slice(0, 12) || Math.abs(mb - lastMemMb) >= 15) { crumb(`état ${snap}`); lastMem = snap; lastMemMb = mb; }
+    } catch (e) { /* rien */ }
+  }, 5000);
+  window.addEventListener('error', (e) => crumb(`erreur : ${(e.message || '').slice(0, 120)}`));
+  window.addEventListener('unhandledrejection', (e) => crumb(`erreur : ${String((e.reason && e.reason.message) || e.reason || '').slice(0, 120)}`));
 
   async function saveRoom() {
     crumb('sauvegarde de la pièce');
@@ -3477,7 +3513,10 @@
   function openRoom(id) {
     const r = state.rooms.find((x) => x.id === id);
     if (!r) return;
-    crumb(`ouverture de la pièce ${r.contestDay ? 'du concours' : 'normale'} (${(r.stickers || []).length} stickers)`);
+    crumb(`ouverture de la pièce ${r.contestDay ? 'du concours' : 'normale'} (${(r.stickers || []).length} stickers) ${memSnapshot()}`);
+    // Pièce du concours : la page du concours (avec les grandes images des participations) est vidée pour libérer la mémoire ;
+    // elle se recharge au retour.
+    if (r.contestDay) $('#ctBody').innerHTML = '';
     if (maintBlocked(r.contestDay ? 'contest' : 'rooms')) return;
     // Décor chargé à la demande si besoin (joueur connecté avant l'ouverture du décor).
     ensureDecos().then(() => { if (state.decos.size && state.roomId === id) { drawRoom(); syncDecoSwatches(); } });
@@ -6545,6 +6584,8 @@
         loadContestDay(today()), loadContestDay(shiftDay(today(), -1)), loadContestDay(lastRevealedDay()),
       ]);
       contestData = { today: t, vote: v, results: r };
+      crumb(`concours chargé : ${t.entries.length}/${v.entries.length}/${r.entries.length} participations, ${v.duels.length} duels`);
+      setTimeout(() => crumb(`concours affiché ${memSnapshot()}`), 1500);
       claimContestRewards();
     } catch (e) {
       console.warn('Concours indisponible', e);
@@ -9911,7 +9952,7 @@
     if (!(await askConfirm('Le jeu s\'est arrêté la dernière fois. Prévenir l\'administratrice pour qu\'elle puisse corriger ?', 'Oui, la prévenir'))) return;
     const m = {
       id: `crash-${state.player.key}-${Date.now()}`, to: ADMIN_PSEUDOS[0], title: `⚠️ Plantage chez ${state.player.name}`,
-      text: `${state.player.name} a eu un plantage. Dernières étapes :\n${traces || '(aucune)'}\n\nAppareil : ${navigator.userAgent}`,
+      text: `${state.player.name} a eu un plantage. Dernières étapes :\n${traces || '(aucune)'}\n\nAppareil : ${navigator.userAgent}\nÉcran : ${window.innerWidth}×${window.innerHeight} ×${window.devicePixelRatio || 1} · stickers chargés : ${state.images.size} · possédés : ${Object.keys((state.profile && state.profile.inventory) || {}).length} · maintenant : ${memSnapshot()}`,
       reward: 0, read: false, claimed: false, created: Date.now(),
     };
     try { await db.createMail(m); toast('Merci, c\'est envoyé ✉️'); } catch (e) { toast('Le message n\'a pas pu être envoyé.'); }
