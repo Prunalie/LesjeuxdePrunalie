@@ -399,3 +399,12 @@
 :root[data-skin="manoir"] #homeContestTodo { border-radius: 2px !important; background: #7A2F3F !important; color: var(--ink) !important; border: 1.5px solid var(--gold) !important; box-shadow: none !important; }
 :root[data-skin="manoir"] .cv3-pick { border-radius: 3px !important; }
 :root[data-skin="manoir"] .cv3-pick img, :root[data-skin="manoir"] .cv3-pod-img img, :root[data-skin="manoir"] .cv3-row-img img { border-radius: 2px !important; }
+
+/* Icônes de la maquette (boîte aux lettres → enveloppe à cachet, nouveautés, cartes de l'accueil, menu admin) */
+:root[data-skin="manoir"] .mn-off { display: none !important; }
+/* Décor : le sac de toile avec les rouleaux de papier peint, sans cadre */
+:root[data-skin="manoir"] .stand-deco { background: none !important; border: 0 !important; box-shadow: none !important; clip-path: none !important; padding: 0 !important; }
+:root[data-skin="manoir"] .stand-deco .mn-bag { filter: drop-shadow(0 4px 6px rgba(0,0,0,.45)); transition: transform .15s; }
+:root[data-skin="manoir"] .stand-deco:hover .mn-bag, :root[data-skin="manoir"] .stand-deco:focus-visible .mn-bag { transform: translateY(-2px) rotate(-2deg); }
+:root[data-skin="manoir"] #standSvg text { font-family: 'Cormorant Garamond', Georgia, serif !important; font-weight: 700; }
+:root[data-skin="manoir"] #standSvg rect[fill="#FFF8EF" i] { rx: 3px; }
