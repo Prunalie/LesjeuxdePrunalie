@@ -7122,11 +7122,6 @@
     const rewards = [];
     if (joinR > 0) rewards.push([`+${joinR}`, 'Pour ta participation', 'c1']);
     rewards.push([`+${winR}`, 'Pour le gagnant du concours', 'c2']);
-    if (t.day >= PODIUM_REWARDS_FROM) {
-      const r2 = setting('contestReward2'), r3 = setting('contestReward3');
-      if (r2 > 0) rewards.push([`+${r2}`, 'Pour le 2e', 'c2']);
-      if (r3 > 0) rewards.push([`+${r3}`, 'Pour le 3e', 'c2']);
-    }
     if (prize > 0) rewards.push([`+${prize}`, `Toutes les ${every} participations`, 'c3']);
     const infoText = v2Day(t.day)
       ? 'Chaque jour, une pièce à décorer (chambre, salon…) avec un thème : un thème général, une couleur ou un objet. Décore-la avec tous les meubles que tu as obtenus, même ceux posés dans tes autres pièces. Quand tu quittes, elle s\'enregistre automatiquement en brouillon. Clique sur « Publier » pour participer avant minuit. Les votes auront lieu demain. Si le thème est un objet, il est prêté à tous aujourd\'hui, dans la pièce du concours.'
@@ -7329,11 +7324,23 @@
     const msg = (html, cls = '') => { const p = document.createElement('p'); p.className = 'cv3-note ' + cls; p.innerHTML = html; card.appendChild(p); };
     if (!r.entries.length) { msg('Pas de participation ce jour-là.'); return; }
     msg(r.solo ? `Une seule participation : gagnante d'office, avec ${soloReward()} ${COIN_SVG(18)}`
-      : r.winners.length > 1 ? `Égalité ! Les ${r.winners.length} gagnants reçoivent chacun ${contestReward()} ${COIN_SVG(18)}`
-        : r.winners.length ? `Bravo ! Le gagnant reçoit ${contestReward()} ${COIN_SVG(18)}` : 'Aucun vote : pas de gagnant cette fois.');
-    if (!r.solo && r.winners.length && r.day >= PODIUM_REWARDS_FROM) {
-      const got = [2, 3].filter((pl) => podiumReward(r.day, pl) > 0 && r.entries.some((e) => r.place(e.owner) === pl));
-      if (got.length) msg(got.map((pl) => `${pl === 2 ? '🥈 2e' : '🥉 3e'} : ${podiumReward(r.day, pl)} ${COIN_SVG(18)}`).join(' · '));
+      : r.winners.length > 1 ? `Égalité ! ${r.winners.length} gagnants cette fois, qui partagent la 1re place.`
+        : r.winners.length ? 'Bravo au gagnant !' : 'Aucun vote : pas de gagnant cette fois.');
+    // Récompenses du podium (1er, 2e, 3e), comme sur la page Créer.
+    if (!r.solo && r.winners.length) {
+      const podiumOn = r.day >= PODIUM_REWARDS_FROM;
+      const list = [[`+${contestReward()}`, r.winners.length > 1 ? '🏆 Pour chaque gagnant' : '🏆 Pour le 1er', 'c2']];
+      if (podiumOn) {
+        if (setting('contestReward2') > 0) list.push([`+${setting('contestReward2')}`, '🥈 Pour le 2e', 'c1']);
+        if (setting('contestReward3') > 0) list.push([`+${setting('contestReward3')}`, '🥉 Pour le 3e', 'c3']);
+      }
+      const box = document.createElement('div');
+      box.className = 'cv3-rewards';
+      box.innerHTML = list.map(([v, l, c]) => `<div class="cv3-reward"><span class="cv3-pill ${c}">${v} ${COIN_SVG(20)}</span><span>${l}</span></div>`).join('');
+      card.appendChild(box);
+      if (!podiumOn && (setting('contestReward2') > 0 || setting('contestReward3') > 0)) {
+        msg(`Nouveau : à partir des résultats du 14 novembre, le 2e reçoit ${setting('contestReward2')} ${COIN_SVG(18)} et le 3e ${setting('contestReward3')} ${COIN_SVG(18)}.`);
+      }
     }
     const ranked = [...r.entries].sort((a, b) => r.rate(b.owner) - r.rate(a.owner) || (r.wins[b.owner] || 0) - (r.wins[a.owner] || 0));
     // Place partagée en cas d'égalité (même pourcentage de duels gagnés) : 1, 1, 3…
