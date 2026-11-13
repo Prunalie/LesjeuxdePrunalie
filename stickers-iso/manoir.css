@@ -413,3 +413,31 @@
 :root[data-skin="manoir"] #standDeco { position: absolute !important; right: 4px; bottom: 6px; z-index: 3; width: auto !important; }
 :root[data-skin="manoir"] #standDeco .stand-pill { position: absolute; top: -14px; right: 0; white-space: nowrap; }
 :root[data-skin="manoir"] .stand-head { position: static !important; }
+
+/* Accueil : barre du haut sur une seule ligne (logo, pièces/étoiles, boutons) */
+:root[data-skin="manoir"] .home-top { flex-direction: row !important; flex-wrap: nowrap !important; align-items: center !important; gap: 8px !important; padding: 8px 12px !important; }
+:root[data-skin="manoir"] .home-top .mn-brand { flex: 0 1 auto; min-width: 0; gap: 7px; margin-right: 0; }
+:root[data-skin="manoir"] .home-top .mn-brand img { width: 34px; height: 34px; flex: none; }
+:root[data-skin="manoir"] .home-top .mn-brand span { font-size: 11px; letter-spacing: .03em; }
+:root[data-skin="manoir"] .home-top-actions { flex: 1 1 auto !important; justify-content: flex-end; flex-wrap: nowrap !important; gap: 6px !important; min-width: 0; }
+:root[data-skin="manoir"] .home-top .points-pill { margin-right: auto; margin-left: 4px; min-height: 36px !important; padding: 2px 8px !important; font-size: .9rem !important; }
+:root[data-skin="manoir"] .home-top .points-pill svg { width: 16px !important; height: 16px !important; }
+:root[data-skin="manoir"] .home-top .points-pill .pill-sep { margin: 0 5px !important; }
+:root[data-skin="manoir"] .home-top .home-icon-btn, :root[data-skin="manoir"] .home-top #btnPrefs { width: 38px !important; height: 38px !important; min-width: 38px !important; min-height: 38px !important; padding: 0 !important; flex: none; }
+:root[data-skin="manoir"] .home-top .home-icon-btn svg, :root[data-skin="manoir"] .home-top #btnPrefs svg { width: 24px; height: 24px; }
+@media (max-width: 370px) { :root[data-skin="manoir"] .home-top .mn-brand span { display: none; } }
+
+/* Ma maison : sans l'illustration de la pièce */
+:root[data-skin="manoir"] #homeRooms .big-illu { display: none !important; }
+:root[data-skin="manoir"] #homeRooms { justify-content: flex-end; }
+
+/* Collection : barre dorée */
+:root[data-skin="manoir"] .mini-bar { border: 1.5px solid var(--gold) !important; background: #1B1030 !important; border-radius: 2px !important; }
+:root[data-skin="manoir"] .mini-bar span { background: linear-gradient(90deg, #B8862F, var(--gold), #F4D58A) !important; border-radius: 0 !important; }
+:root[data-skin="manoir"] .home-top .mn-brand { flex: none; }
+:root[data-skin="manoir"] .home-top .mn-brand span { white-space: nowrap; font-size: 10.5px; line-height: 1.15; }
+:root[data-skin="manoir"] .home-top .mn-brand img { width: 32px; height: 32px; }
+:root[data-skin="manoir"] .home-top .points-pill { padding: 2px 7px !important; font-size: .85rem !important; }
+:root[data-skin="manoir"] .home-top .home-icon-btn, :root[data-skin="manoir"] .home-top #btnPrefs { width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important; }
+:root[data-skin="manoir"] .home-top .home-icon-btn svg, :root[data-skin="manoir"] .home-top #btnPrefs svg { width: 22px; height: 22px; }
+:root[data-skin="manoir"] .home-top-actions { gap: 5px !important; }
