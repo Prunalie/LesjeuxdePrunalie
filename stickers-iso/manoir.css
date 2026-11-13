@@ -460,3 +460,5 @@
 /* Ma maison : comme les autres cartes, le symbole en haut à gauche puis le nom juste en dessous */
 :root[data-skin="manoir"] #homeRooms { justify-content: flex-start !important; align-items: flex-start !important; }
 :root[data-skin="manoir"] #homeRooms .big-text { align-self: flex-start !important; }
+/* Joueurs (admin) : étiquettes des options débloquées lisibles */
+:root[data-skin="manoir"] .unlock-chip { background: #F6E4BE !important; color: #1B0F14 !important; border: 1.5px solid var(--gold) !important; border-radius: 2px !important; }
