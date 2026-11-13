@@ -231,7 +231,9 @@
       const api = {
         listCatalog: () => allFast(images.where('catalog', '==', true), 'catalog'),
         // Papiers peints et sols (en test chez l'administratrice)
-        listDecos: () => allFast(images.where('deco', '==', true), 'decos'),
+        // Lu en entier depuis Firebase (29 documents) : la copie de l'appareil pouvait être incomplète (seulement les décors
+        // reçus par d'autres requêtes) et n'afficher qu'un sol ou un papier peint dans la boutique.
+        listDecos: () => all(images.where('deco', '==', true)),
         // (Un sticker venu de la liste GitHub n'a pas son image en mémoire : on ne réécrit alors que ses champs,
         // sans jamais effacer l'image enregistrée dans Firebase.)
         putImage: ({ id, url, file, v, ...rec }) => images.doc(id).set(clean(rec.proposal || !playerVisible(id, rec) ? rec : { ...rec, updated: Date.now() }), rec.data ? {} : { merge: true }).then((r) => { bumpRev(); return r; }),
