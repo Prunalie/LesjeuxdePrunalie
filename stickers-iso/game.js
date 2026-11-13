@@ -92,6 +92,8 @@
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_decor', label: '🎨 Décor (papiers peints et sols)', unit: '🌟', def: () => 2, max: 100, step: 1 },
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_levels', label: '🏢 Étages', unit: '🌟', def: () => 2, max: 100, step: 1 },
     { group: 'Concours', key: 'contestReward', label: 'Récompense du gagnant', unit: '🪙', def: () => 200, max: 100000, step: 10 },
+    { group: 'Concours', key: 'contestReward2', label: 'Récompense du 2e', unit: '🪙', def: () => 50, max: 100000, step: 5 },
+    { group: 'Concours', key: 'contestReward3', label: 'Récompense du 3e', unit: '🪙', def: () => 30, max: 100000, step: 5 },
     { group: 'Concours', key: 'contestSoloReward', label: 'Gagnant d\'office (une seule pièce)', unit: '🪙', def: () => Math.round(setting('contestReward') / 2), max: 100000, step: 10 },
     { group: 'Concours', key: 'contestJoinReward', label: 'Pour avoir participé (une fois par jour, à la première publication)', unit: '🪙', def: () => 50, max: 100000, step: 5 },
     { group: 'Concours', key: 'contestMilestoneEvery', label: 'Bonus de fidélité : tous les … concours auxquels on participe', unit: 'participations', def: () => 10, min: 1, max: 1000, step: 1 },
@@ -6580,9 +6582,19 @@
       const best = Math.max(0, ...entries.map((e) => rate(e.owner)));
       if (best > 0) winners = entries.filter((e) => rate(e.owner) === best).map((e) => e.owner);
     }
-    return { day, entries, duels, votes, wins, seen, rate, winners, solo };
+    // Place au classement (égalités partagées : 1, 1, 3…) ; 0 = pas classé (pas de vote, ou aucun duel disputé).
+    const place = (o) => {
+      if (!winners.length || solo) return 0;
+      if (winners.includes(o)) return 1;
+      if (!seen[o]) return 0;
+      return 1 + entries.filter((e) => rate(e.owner) > rate(o)).length;
+    };
+    return { day, entries, duels, votes, wins, seen, rate, winners, solo, place };
   }
   const rewardOf = (res) => (res.solo ? soloReward() : contestReward());
+  // Récompenses du 2e et du 3e : à partir du concours du 13 novembre 2026 (résultats le 14 à 20 h).
+  const PODIUM_REWARDS_FROM = '2026-11-13';
+  const podiumReward = (day, place) => (day < PODIUM_REWARDS_FROM ? 0 : place === 2 ? setting('contestReward2') : place === 3 ? setting('contestReward3') : 0);
 
   // À la connexion : récompense des concours terminés (résultats le surlendemain).
   // Un seul calcul à la fois (sinon la récompense pourrait être donnée deux fois).
@@ -6598,10 +6610,15 @@
     if (from < shiftDay(today(), -8)) from = shiftDay(today(), -8);
     if (from > last) return;
     const wins = [];
+    const podium = []; // 2e et 3e places récompensées
     try {
       for (let d = from; d <= last; d = shiftDay(d, 1)) {
         const res = await loadContestDay(d);
         if (res.winners.includes(state.player.key)) wins.push({ day: d, res });
+        else {
+          const place = res.place(state.player.key);
+          if (podiumReward(d, place) > 0) podium.push({ day: d, res, place });
+        }
       }
     } catch (e) {
       console.warn('Résultats du concours indisponibles', e);
@@ -6628,6 +6645,22 @@
         };
         if (await db.createMail(m)) state.mails.push(m);
       }
+      for (const { day, res, place } of podium) {
+        const id = `contest-podium-${day}-${me}`;
+        if (state.mails.some((m) => m.id === id)) continue;
+        const reward = podiumReward(day, place);
+        const entry = res.entries.find((e) => e.owner === me);
+        const room = entry && entry.roomName ? ` « ${entry.roomName} »` : '';
+        const when = dateFmt.format(new Date(`${day}T12:00:00`)).replace(/ à .*/, '');
+        const medal = place === 2 ? '🥈' : '🥉';
+        const score = res.seen[me] ? ` Elle a gagné ${res.wins[me] || 0} duel${(res.wins[me] || 0) > 1 ? 's' : ''} sur ${res.seen[me]} (${Math.round(res.rate(me) * 100)} %).` : '';
+        const m = {
+          id, to: me, title: `${medal} Tu es ${place}e du concours « ${themeOf(day)} » !`,
+          text: `Bravo ! Ta pièce${room} est arrivée ${place}e au concours du ${when}, sur le thème « ${themeOf(day)} ».${score}\n\nVoici ta récompense : ${reward} 🪙.`,
+          reward, read: false, claimed: false, created: Date.now(),
+        };
+        if (await db.createMail(m)) state.mails.push(m);
+      }
     } catch (e) {
       console.warn('Message de victoire impossible', e);
       return; // on réessaiera à la prochaine connexion
@@ -6638,6 +6671,10 @@
       const themes = wins.map((w) => themeOf(w.day));
       renderMailBadge();
       setTimeout(() => toast(`🏆 Tu as gagné le concours « ${themes.join(' », « ')} » ! Ta récompense t'attend dans ta boîte aux lettres 💌`), 1500);
+    } else if (podium.length) {
+      renderMailBadge();
+      const p0 = podium[0];
+      setTimeout(() => toast(`${p0.place === 2 ? '🥈' : '🥉'} Tu es ${p0.place}e du concours « ${themeOf(p0.day)} » ! Ta récompense t'attend dans ta boîte aux lettres 💌`), 1500);
     }
     saveProfile();
   }
@@ -7082,6 +7119,11 @@
     const rewards = [];
     if (joinR > 0) rewards.push([`+${joinR}`, 'Pour ta participation', 'c1']);
     rewards.push([`+${winR}`, 'Pour le gagnant du concours', 'c2']);
+    if (t.day >= PODIUM_REWARDS_FROM) {
+      const r2 = setting('contestReward2'), r3 = setting('contestReward3');
+      if (r2 > 0) rewards.push([`+${r2}`, 'Pour le 2e', 'c2']);
+      if (r3 > 0) rewards.push([`+${r3}`, 'Pour le 3e', 'c2']);
+    }
     if (prize > 0) rewards.push([`+${prize}`, `Toutes les ${every} participations`, 'c3']);
     const infoText = v2Day(t.day)
       ? 'Chaque jour, une pièce à décorer (chambre, salon…) avec un thème : un thème général, une couleur ou un objet. Décore-la avec tous les meubles que tu as obtenus, même ceux posés dans tes autres pièces. Quand tu quittes, elle s\'enregistre automatiquement en brouillon. Clique sur « Publier » pour participer avant minuit. Les votes auront lieu demain. Si le thème est un objet, il est prêté à tous aujourd\'hui, dans la pièce du concours.'
@@ -7286,6 +7328,10 @@
     msg(r.solo ? `Une seule participation : gagnante d'office, avec ${soloReward()} ${COIN_SVG(18)}`
       : r.winners.length > 1 ? `Égalité ! Les ${r.winners.length} gagnants reçoivent chacun ${contestReward()} ${COIN_SVG(18)}`
         : r.winners.length ? `Bravo ! Le gagnant reçoit ${contestReward()} ${COIN_SVG(18)}` : 'Aucun vote : pas de gagnant cette fois.');
+    if (!r.solo && r.winners.length && r.day >= PODIUM_REWARDS_FROM) {
+      const got = [2, 3].filter((pl) => podiumReward(r.day, pl) > 0 && r.entries.some((e) => r.place(e.owner) === pl));
+      if (got.length) msg(got.map((pl) => `${pl === 2 ? '🥈 2e' : '🥉 3e'} : ${podiumReward(r.day, pl)} ${COIN_SVG(18)}`).join(' · '));
+    }
     const ranked = [...r.entries].sort((a, b) => r.rate(b.owner) - r.rate(a.owner) || (r.wins[b.owner] || 0) - (r.wins[a.owner] || 0));
     // Place partagée en cas d'égalité (même pourcentage de duels gagnés) : 1, 1, 3…
     const placeOf = (e) => (r.winners.includes(e.owner) ? 1 : 1 + ranked.filter((x) => r.rate(x.owner) > r.rate(e.owner) || r.winners.includes(x.owner)).length);
