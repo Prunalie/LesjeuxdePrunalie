@@ -408,3 +408,8 @@
 :root[data-skin="manoir"] .stand-deco:hover .mn-bag, :root[data-skin="manoir"] .stand-deco:focus-visible .mn-bag { transform: translateY(-2px) rotate(-2deg); }
 :root[data-skin="manoir"] #standSvg text { font-family: 'Cormorant Garamond', Georgia, serif !important; font-weight: 700; }
 :root[data-skin="manoir"] #standSvg rect[fill="#FFF8EF" i] { rx: 3px; }
+/* Le sac « Décor » est posé au pied de l'étal, en bas à droite, comme sur la maquette */
+:root[data-skin="manoir"] .stand-card { padding-bottom: 24px !important; }
+:root[data-skin="manoir"] #standDeco { position: absolute !important; right: 4px; bottom: 6px; z-index: 3; width: auto !important; }
+:root[data-skin="manoir"] #standDeco .stand-pill { position: absolute; top: -14px; right: 0; white-space: nowrap; }
+:root[data-skin="manoir"] .stand-head { position: static !important; }
