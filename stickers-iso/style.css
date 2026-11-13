@@ -2776,3 +2776,14 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .new-dot[hidden] { display: none; }
 .menu-dot { position: static; flex: none; margin-left: 8px; align-self: center; }
 .maint-logout { display: block; margin: 10px auto 0; }
+
+/* Vue immersive (administratrice) */
+.immersive { position: fixed; inset: 0; z-index: 2000; background: #1d1724; overflow: hidden; touch-action: none; user-select: none; }
+.immersive[hidden] { display: none; }
+.imm-view { position: absolute; inset: 0; perspective: 1100px; overflow: hidden; cursor: grab; }
+.imm-img { position: absolute; left: 0; top: 0; max-width: none; transition: transform .08s linear; will-change: transform; pointer-events: none; }
+.imm-loading { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: #fff; font-weight: 800; }
+.imm-loading[hidden] { display: none; }
+.imm-close { position: absolute; top: max(12px, env(safe-area-inset-top)); right: 12px; width: 44px; height: 44px; border-radius: 50%; border: 2px solid #fff; background: rgba(0,0,0,.45); color: #fff; font-size: 1.2rem; font-weight: 800; cursor: pointer; }
+.imm-bar { position: absolute; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(560px, calc(100% - 32px)); display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 999px; background: rgba(0,0,0,.45); color: #fff; }
+.imm-bar input { flex: 1; accent-color: #f0658a; }

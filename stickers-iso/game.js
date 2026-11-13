@@ -2632,6 +2632,94 @@
     }
   }
   $('#btnExport').addEventListener('click', exportRoom);
+
+  // ---------------------------------------------------------------------------
+  // Vue immersive (administratrice, en test) : la pièce occupe tout l'écran, vue depuis l'angle de devant, au premier plan.
+  // Un curseur (ou le doigt) fait tourner le regard de gauche à droite ; une légère perspective donne l'impression de tourner la tête.
+  // ---------------------------------------------------------------------------
+  const imm = { url: '', t: 0.5, w: 0, h: 0 };
+  async function openImmersive() {
+    select(null);
+    const box = $('#immersive');
+    box.hidden = false;
+    $('#immImg').hidden = true;
+    $('#immLoading').hidden = false;
+    try {
+      // Rendu net pour l'écran (sans dépasser ~2,5 fois la taille de la scène), fond transparent pour recadrer sur la pièce.
+      const k = Math.min(2.5, Math.max(1.2, (window.innerHeight * (window.devicePixelRatio || 1)) / STAGE_H * 1.4));
+      const cv = await renderScene(k);
+      const ctx = cv.getContext('2d');
+      const { data, width, height } = ctx.getImageData(0, 0, cv.width, cv.height);
+      let x0 = width, y0 = height, x1 = 0, y1 = 0;
+      for (let y = 0; y < height; y += 3) for (let x = 0; x < width; x += 3) {
+        if (data[(y * width + x) * 4 + 3] > 8) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      }
+      if (x1 <= x0) { x0 = 0; y0 = 0; x1 = width - 1; y1 = height - 1; }
+      const out = document.createElement('canvas');
+      out.width = x1 - x0 + 1; out.height = y1 - y0 + 1;
+      const o = out.getContext('2d');
+      o.fillStyle = state.colors.background || DEFAULT_BACKGROUND;
+      o.fillRect(0, 0, out.width, out.height);
+      o.drawImage(cv, -x0, -y0);
+      cv.width = cv.height = 0; // libère la mémoire tout de suite
+      const blob = await new Promise((r) => out.toBlob(r, 'image/jpeg', 0.9));
+      if (imm.url) URL.revokeObjectURL(imm.url);
+      imm.url = URL.createObjectURL(blob);
+      imm.w = out.width; imm.h = out.height;
+      out.width = out.height = 0;
+      $('#immImg').src = imm.url;
+      $('#immImg').hidden = false;
+      $('#immLoading').hidden = true;
+      imm.t = 0.5;
+      $('#immSlider').value = 500;
+      layoutImmersive();
+    } catch (e) {
+      console.warn('Vue immersive impossible', e);
+      box.hidden = true;
+      toast('La vue immersive n\'a pas pu s\'ouvrir.');
+    }
+  }
+  // Place l'image : elle remplit l'écran (un peu plus pour le premier plan), le curseur choisit la partie visible.
+  function layoutImmersive() {
+    const img = $('#immImg');
+    if (!imm.w) return;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const z = Math.max(vh / imm.h, vw / imm.w) * 1.18; // premier plan : on est « dans » la pièce
+    const w = imm.w * z, h = imm.h * z;
+    const x = -(w - vw) * imm.t;          // gauche → droite
+    const y = -(h - vh) * 0.62;           // regard un peu vers le sol
+    const turn = (0.5 - imm.t) * 14;      // la tête tourne (degrés)
+    img.style.width = `${w}px`;
+    img.style.height = `${h}px`;
+    img.style.transform = `translate(${x}px, ${y}px) rotateY(${turn}deg)`;
+    img.style.transformOrigin = `${(imm.t * w)}px 50%`;
+  }
+  function closeImmersive() {
+    $('#immersive').hidden = true;
+    $('#immImg').removeAttribute('src');
+    if (imm.url) { URL.revokeObjectURL(imm.url); imm.url = ''; }
+    imm.w = imm.h = 0;
+  }
+  $('#btnImmersive').addEventListener('click', openImmersive);
+  $('#immClose').addEventListener('click', closeImmersive);
+  $('#immSlider').addEventListener('input', (e) => { imm.t = Number(e.target.value) / 1000; layoutImmersive(); });
+  window.addEventListener('resize', () => { if (!$('#immersive').hidden) layoutImmersive(); });
+  // Glisser le doigt sur la vue pour regarder ailleurs.
+  {
+    let drag = null;
+    const view = $('#immView');
+    view.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, t: imm.t }; view.setPointerCapture(e.pointerId); });
+    view.addEventListener('pointermove', (e) => {
+      if (!drag || !imm.w) return;
+      const span = Math.max(1, imm.w * Math.max(window.innerHeight / imm.h, window.innerWidth / imm.w) * 1.18 - window.innerWidth);
+      imm.t = clamp(drag.t - (e.clientX - drag.x) / span, 0, 1);
+      $('#immSlider').value = Math.round(imm.t * 1000);
+      layoutImmersive();
+    });
+    const end = () => { drag = null; };
+    view.addEventListener('pointerup', end);
+    view.addEventListener('pointercancel', end);
+  }
   $('#btnExport2').addEventListener('click', exportRoom);
   $('#exportShare').addEventListener('click', async () => {
     if (!exportBlob) return;
@@ -2687,7 +2775,7 @@
   // au lieu de quitter le jeu. Dès qu'on est dans un sous-écran ou une fenêtre, l'historique du
   // navigateur a une entrée de plus ; le retour du téléphone la retire et lance le « retour » du jeu.
   // ---------------------------------------------------------------------------
-  const OVERLAY_SEL = '.modal:not([hidden]), #duelView:not([hidden]), #colorPicker:not([hidden])';
+  const OVERLAY_SEL = '.modal:not([hidden]), #duelView:not([hidden]), #colorPicker:not([hidden]), #immersive:not([hidden])';
   const currentScreenName = () => Object.keys(screens).find((k) => !screens[k].hidden);
   // Chaque écran ouvert (au-dessus de l'accueil) et chaque fenêtre ouverte ajoute une entrée à l'historique du
   // navigateur, au moment où on l'ouvre. Un retour du téléphone retire une entrée et ferme la fenêtre / revient
@@ -3398,6 +3486,7 @@
     $('#btnContestPublish').hidden = !r.contestDay;
     $('#btnContestPublish2').hidden = !r.contestDay;
     $('#btnContestDraft').hidden = !r.contestDay;
+    $('#btnImmersive').hidden = !state.isAdmin;
     const backName = houseOn() ? 'Ma maison' : 'Mes pièces';
     $('#btnBack').title = r.contestDay ? 'Retour au concours' : `Retour à ${backName.toLowerCase()}`;
     $('#btnBack .label-long').innerHTML = r.contestDay ? '&nbsp;Concours' : `&nbsp;${backName}`;

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611121500">
+  <link rel="stylesheet" href="style.css?v=202611131000">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -230,6 +230,7 @@
         <button id="btnLayers" class="layers-btn" aria-controls="layersPanel" title="Objets posés : sélectionner, verrouiller">☰<span class="label-long">&nbsp;Objets</span></button>
         <div class="room-tools" role="group" aria-label="Pièce">
           <button id="btnColors" aria-controls="colorsPanel" aria-expanded="false" title="Couleurs des murs, du sol et du fond">🎨<span class="label-long">&nbsp;Couleurs</span></button>
+          <button id="btnImmersive" hidden title="Vue immersive : la pièce en plein écran">👁️<span class="label-long">&nbsp;Immersion</span></button>
           <button id="btnLight" title="Lumière" aria-controls="ambientBar" aria-expanded="false" hidden>💡<span class="label-long">&nbsp;Lumière</span></button>
           <button id="btnShape" title="Aménager : jardin, taille, étages">🏗️<span class="label-long">&nbsp;Aménager</span></button>
           <button id="btnHouse" class="tool-house" type="button" hidden title="Voir ma maison">🏠<span class="label-long">&nbsp;Maison</span></button>
@@ -685,6 +686,14 @@
       <button id="maintRetry" class="btn btn-primary">Réessayer</button>
       <button id="maintLogout" class="btn btn-ghost maint-logout">Changer de compte</button>
     </div>
+  </div>
+
+  <!-- Vue immersive d'une pièce (administratrice, en test) -->
+  <div id="immersive" class="immersive" hidden>
+    <div id="immView" class="imm-view"><img id="immImg" class="imm-img" alt="Vue immersive de la pièce" draggable="false"></div>
+    <p id="immLoading" class="imm-loading">Préparation de la vue…</p>
+    <button id="immClose" class="imm-close" type="button" aria-label="Fermer la vue immersive">✕</button>
+    <div class="imm-bar"><span aria-hidden="true">◀</span><input id="immSlider" type="range" min="0" max="1000" value="500" aria-label="Regarder à gauche ou à droite"><span aria-hidden="true">▶</span></div>
   </div>
 
   <!-- Nouveautés -->
@@ -1289,7 +1298,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611121500"></script>
-  <script src="game.js?v=202611121500"></script>
+  <script src="firebase-config.js?v=202611131000"></script>
+  <script src="game.js?v=202611131000"></script>
 </body>
 </html>
