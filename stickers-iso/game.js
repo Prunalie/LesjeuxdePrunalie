@@ -7283,17 +7283,20 @@
     const msg = (html, cls = '') => { const p = document.createElement('p'); p.className = 'cv3-note ' + cls; p.innerHTML = html; card.appendChild(p); };
     if (!r.entries.length) { msg('Pas de participation ce jour-là.'); return; }
     msg(r.solo ? `Une seule participation : gagnante d'office, avec ${soloReward()} ${COIN_SVG(18)}`
-      : r.winners.length ? `Bravo ! ${r.winners.length > 1 ? 'Les gagnants reçoivent' : 'Le gagnant reçoit'} ${contestReward()} ${COIN_SVG(18)}` : 'Aucun vote : pas de gagnant cette fois.');
+      : r.winners.length > 1 ? `Égalité ! Les ${r.winners.length} gagnants reçoivent chacun ${contestReward()} ${COIN_SVG(18)}`
+        : r.winners.length ? `Bravo ! Le gagnant reçoit ${contestReward()} ${COIN_SVG(18)}` : 'Aucun vote : pas de gagnant cette fois.');
     const ranked = [...r.entries].sort((a, b) => r.rate(b.owner) - r.rate(a.owner) || (r.wins[b.owner] || 0) - (r.wins[a.owner] || 0));
+    // Place partagée en cas d'égalité (même pourcentage de duels gagnés) : 1, 1, 3…
+    const placeOf = (e) => (r.winners.includes(e.owner) ? 1 : 1 + ranked.filter((x) => r.rate(x.owner) > r.rate(e.owner) || r.winners.includes(x.owner)).length);
     const score = (e) => (r.seen[e.owner] ? `${CV_ICON.swords}<span>${r.wins[e.owner] || 0}/${r.seen[e.owner]} · ${Math.round(r.rate(e.owner) * 100)} %</span>` : '');
     const top = ranked.slice(0, 3);
-    const order = top.length === 1 ? [[top[0], 1]] : top.length === 2 ? [[top[1], 2], [top[0], 1]] : [[top[1], 2], [top[0], 1], [top[2], 3]];
+    const order = (top.length === 1 ? [top[0]] : top.length === 2 ? [top[1], top[0]] : [top[1], top[0], top[2]]).map((e) => [e, placeOf(e)]);
     const pod = document.createElement('div');
     pod.className = 'cv3-podium';
     for (const [e, rank] of order) {
       const col = document.createElement('div');
       col.className = 'cv3-col r' + rank;
-      col.innerHTML = `${rank === 1 && r.winners.includes(e.owner) ? `<span class="cv3-trophy">${CV_ICON.trophy}</span>` : ''}
+      col.innerHTML = `${r.winners.includes(e.owner) ? `<span class="cv3-trophy">${CV_ICON.trophy}</span>` : ''}
         <button type="button" class="cv3-pod-img" aria-label="Agrandir la pièce"><img alt=""></button>
         <div class="cv3-pod-name"><b></b>${e.owner === me ? '<i class="cv3-toi">toi</i>' : ''}</div>
         <div class="cv3-pod-score">${score(e)}</div>
@@ -7312,7 +7315,7 @@
         const row = document.createElement('div');
         row.className = 'cv3-row';
         row.innerHTML = `<button type="button" class="cv3-row-img" aria-label="Agrandir la pièce"><img alt=""></button>
-          <div class="cv3-row-info"><b></b>${e.owner === me ? '<i class="cv3-toi">toi</i>' : ''}<span class="cv3-pod-score">${score(e)}</span></div><span class="cv3-rank">${i + 4}</span>`;
+          <div class="cv3-row-info"><b></b>${e.owner === me ? '<i class="cv3-toi">toi</i>' : ''}<span class="cv3-pod-score">${score(e)}</span></div><span class="cv3-rank">${placeOf(e)}</span>`;
         row.querySelector('img').src = e.image;
         row.querySelector('b').textContent = e.ownerName || e.owner;
         row.querySelector('.cv3-row-img').addEventListener('click', () => openCtImage(e));
