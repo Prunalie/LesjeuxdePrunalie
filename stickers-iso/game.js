@@ -1055,7 +1055,8 @@
   // Les vignettes sont aussi gardées sur l'appareil (stockage du navigateur) : après la première fois, elles s'affichent tout de suite.
   let thumbStore = null;
   if ('caches' in window) caches.open('mpp-thumbs-v1').then((c) => { thumbStore = c; }).catch(() => {});
-  const thumbKey = (img) => `/vignette/${encodeURIComponent(img.id)}-${img.created || 0}`;
+  // (la version de l'image fait partie de la clé : un dessin remplacé refait sa vignette)
+  const thumbKey = (img) => `/vignette/${encodeURIComponent(img.id)}-${img.created || 0}-${img.v || img.updated || 0}`;
   function smallUrl(img, cb) {
     if (thumbCache.has(img.id)) { cb(thumbCache.get(img.id)); return; }
     if (Math.max(img.w || 0, img.h || 0) <= 160) { thumbCache.set(img.id, img.url); cb(img.url); return; }
