@@ -3251,32 +3251,35 @@
 
   // Signaler un objet erroné ou un bug : le joueur écrit à l'administratrice (visible dans Coffre > Signalements).
   const reportDialog = $('#reportDialog');
-  let reportKind = 'object', reportSticker = null;
+  let reportKind = 'object';
+  let reportPicks = new Set(); // objets choisis (on peut en signaler plusieurs d'un coup)
   function renderReportGrid() {
     const q = normalizeText($('#reportSearch').value);
     const grid = $('#reportGrid');
     grid.innerHTML = '';
-    const list = [...state.images.values()].filter((i) => i.catalog && owned(i.id) > 0 && (!q || normalizeText(i.name || '').includes(q)))
-      .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+    // Les objets déjà choisis restent en tête, même pendant une recherche.
+    const list = [...state.images.values()].filter((i) => i.catalog && owned(i.id) > 0 && (reportPicks.has(i.id) || !q || normalizeText(i.name || '').includes(q)))
+      .sort((a, b) => Number(reportPicks.has(b.id)) - Number(reportPicks.has(a.id)) || (a.name || '').localeCompare(b.name || '', 'fr'));
     for (const img of list.slice(0, 120)) {
       const cell = document.createElement('button');
       cell.type = 'button';
-      cell.className = 'env-item report-pick' + (reportSticker === img.id ? ' picked' : '');
+      cell.className = 'env-item report-pick' + (reportPicks.has(img.id) ? ' picked' : '');
       cell.innerHTML = '<div class="env-item-img"><img alt=""></div><span class="env-item-name"></span>';
       cell.querySelector('.env-item-name').textContent = img.name;
       const im = cell.querySelector('img');
       im.src = thumbCache.get(img.id) || BLANK_GIF;
       if (!thumbCache.has(img.id)) smallUrl(img, (url) => { if (im.isConnected) im.src = url; });
-      cell.addEventListener('click', () => { reportSticker = reportSticker === img.id ? null : img.id; renderReportGrid(); renderReportSend(); });
+      cell.addEventListener('click', () => { if (reportPicks.has(img.id)) reportPicks.delete(img.id); else reportPicks.add(img.id); renderReportGrid(); renderReportSend(); });
       grid.appendChild(cell);
     }
     if (!list.length) grid.innerHTML = '<p class="muted">Aucun objet trouvé.</p>';
   }
   function renderReportSend() {
-    $('#reportSend').disabled = reportKind === 'object' ? !reportSticker : $('#reportBugText').value.trim().length < 5;
+    $('#reportSend').disabled = reportKind === 'object' ? !reportPicks.size : $('#reportBugText').value.trim().length < 5;
+    $('#reportSend').textContent = reportKind === 'object' && reportPicks.size > 1 ? `Envoyer (${reportPicks.size} objets)` : 'Envoyer';
   }
   function openReport() {
-    reportSticker = null;
+    reportPicks = new Set();
     $('#reportSearch').value = '';
     $('#reportObjNote').value = '';
     $('#reportBugText').value = '';
@@ -3301,22 +3304,23 @@
   $('#reportSend').addEventListener('click', async () => {
     if (!state.player) return;
     const me = state.player;
-    let r;
+    let list;
     if (reportKind === 'object') {
-      const img = state.images.get(reportSticker);
-      if (!img) return;
-      r = { id: `rp-${me.key}-${img.id}`, kind: 'sticker', stickerId: img.id, stickerName: img.name || '', note: $('#reportObjNote').value.trim() };
+      // Un signalement par objet (l'administratrice les voit regroupés par objet dans le Coffre).
+      const note = $('#reportObjNote').value.trim();
+      list = [...reportPicks].map((id) => state.images.get(id)).filter(Boolean)
+        .map((img) => ({ id: `rp-${me.key}-${img.id}`, kind: 'sticker', stickerId: img.id, stickerName: img.name || '', note }));
+      if (!list.length) return;
     } else {
       let traces = '';
       try { traces = (JSON.parse(read(TRACE_KEY) || '[]') || []).join('\n'); } catch (e) { /* rien */ }
-      r = { id: `rp-bug-${me.key}-${Date.now()}`, kind: 'bug', note: $('#reportBugText').value.trim(), traces, device: navigator.userAgent };
+      list = [{ id: `rp-bug-${me.key}-${Date.now()}`, kind: 'bug', note: $('#reportBugText').value.trim(), traces, device: navigator.userAgent }];
     }
-    r.owner = me.key;
-    r.ownerName = me.name;
-    r.created = Date.now();
+    const now = Date.now();
+    for (const r of list) { r.owner = me.key; r.ownerName = me.name; r.created = now; }
     $('#reportSend').disabled = true;
     try {
-      await db.putReport(r);
+      await Promise.all(list.map((r) => db.putReport(r)));
       reportDialog.hidden = true;
       toast('Merci, c\'est envoyé à l\'administratrice ✉️');
     } catch (e) {
