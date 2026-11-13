@@ -275,7 +275,7 @@
 }
 :root[data-skin="manoir"] .cv3-arrow:disabled { background: #2A1840 !important; color: var(--gold) !important; opacity: .45; box-shadow: none !important; }
 :root[data-skin="manoir"] .cv3-dots i { width: 10px; height: 10px; border-radius: 0 !important; transform: rotate(45deg); border: 2px solid var(--gold) !important; background: transparent !important; }
-:root[data-skin="manoir"] .cv3-dots i.on { width: 22px; height: 10px; transform: none; border-radius: 5px !important; background: var(--gold) !important; }
+:root[data-skin="manoir"] .cv3-dots i.on { width: 12px; height: 12px; background: var(--gold) !important; box-shadow: 0 0 8px rgba(230,184,92,.6); }
 :root[data-skin="manoir"] .cv3-foot-mid { color: var(--gold-light); font-size: 14px; letter-spacing: .04em; }
 
 /* Objet imposé, liens, autres cartes de la page */
@@ -298,3 +298,104 @@
 :root[data-skin="manoir"] #btnPrefs { border-radius: 8px !important; border: 2px solid var(--gold) !important; background: #2A1840 !important; box-shadow: inset 0 0 0 2.5px #2A1840, inset 0 0 0 4px var(--gold-dark) !important; }
 :root[data-skin="manoir"] .home-deco { display: none; } /* les grands ronds du fond : remplacés par le ciel étoilé */
 :root[data-skin="manoir"] .home-chip, :root[data-skin="manoir"] .contest-chip { border-radius: 4px !important; border-color: var(--gold) !important; }
+
+/* =====================================================================
+   Éléments propres au Manoir
+   ===================================================================== */
+:root[data-skin="manoir"] .mn-only { display: block !important; }
+
+/* Connexion : scène de bibliothèque, grand titre doré sur deux lignes */
+:root[data-skin="manoir"] .start-logo { display: none; }
+:root[data-skin="manoir"] .start-card { background: transparent !important; border: 0 !important; box-shadow: none !important; max-width: 430px; }
+:root[data-skin="manoir"] .mn-scene { width: calc(100% + 32px); max-width: none; margin: -16px -16px 4px; }
+:root[data-skin="manoir"] #screenStart h1 { font-size: 34px; line-height: 1.05; text-align: center; letter-spacing: .04em; margin: 4px 0 2px; }
+:root[data-skin="manoir"] .start-sub { text-align: center; font-size: 19px; color: var(--ink); }
+:root[data-skin="manoir"] .start-sub::before {
+  content: ""; display: block; width: 110px; height: 14px; margin: 0 auto 6px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='110' height='14'%3E%3Cpath d='M0 7H45M65 7H110' stroke='%23E6B85C' stroke-width='2' opacity='.7'/%3E%3Cpath d='M55 1L61 7L55 13L49 7Z' fill='%23E6B85C'/%3E%3C/svg%3E") no-repeat;
+}
+:root[data-skin="manoir"] .start-label, :root[data-skin="manoir"] .field-label { font-family: var(--font-body); font-weight: 700; font-size: 18px; color: var(--ink); }
+:root[data-skin="manoir"] #startBtn { font-size: 22px; min-height: 58px; }
+:root[data-skin="manoir"] .start-choice, :root[data-skin="manoir"] .start-rooms { border-radius: 4px !important; }
+
+/* Accueil : icône et titre du jeu en haut */
+:root[data-skin="manoir"] .mn-brand { display: flex !important; align-items: center; gap: 10px; margin-right: auto; }
+:root[data-skin="manoir"] .mn-brand img { width: 40px; height: 40px; border-radius: 8px; border: 2px solid var(--gold); }
+:root[data-skin="manoir"] .mn-brand span { font-family: var(--font-title); font-weight: 700; font-size: 14px; line-height: 1.1; letter-spacing: .05em; text-transform: uppercase; color: var(--gold-light); }
+:root[data-skin="manoir"] .home-top h1 { display: none; }
+:root[data-skin="manoir"] .home-greeting { font-family: var(--font-title); color: var(--gold-light); }
+
+/* =====================================================================
+   Boutique : le stand devient un étal de libraire (bois sombre, auvent bordeaux et parchemin, barre dorée)
+   ===================================================================== */
+:root[data-skin="manoir"] .stand-card { background: linear-gradient(160deg, #35204D, #2A1840) !important; border: 2px solid var(--gold) !important; border-radius: 12px !important;
+  box-shadow: inset 0 0 0 3px #2A1840, inset 0 0 0 4.5px var(--gold-dark), 0 5px 0 #0E0818 !important; }
+:root[data-skin="manoir"] .stand-circle { display: none; }
+:root[data-skin="manoir"] .stand-head h2 { color: var(--gold-light); font-family: var(--font-title); }
+:root[data-skin="manoir"] #standSvg [fill="#FFEFE0" i] { fill: #241018; }
+:root[data-skin="manoir"] #standSvg [fill="#E8B98A" i] { fill: #6B4630; }
+:root[data-skin="manoir"] #standSvg [fill="#F3CFA3" i] { fill: #8A5A3A; }
+:root[data-skin="manoir"] #standSvg [fill="#C9976A" i] { fill: #4A2D1A; }
+:root[data-skin="manoir"] #standSvg [fill="#8A5634" i] { fill: #4A2D1A; }
+:root[data-skin="manoir"] #standSvg [stroke="#5A3E3A" i] { stroke: #1B0F14; }
+:root[data-skin="manoir"] #standSvg [fill="#5A3E3A" i] { fill: #0E0818; }
+:root[data-skin="manoir"] #standSvg [fill="#F0658A" i] { fill: #7A2F3F; }
+:root[data-skin="manoir"] #standSvg [fill="#FFF8EF" i] { fill: #F6E4BE; }
+:root[data-skin="manoir"] #standSvg [fill="#B03A5B" i] { fill: #D9A441; }
+:root[data-skin="manoir"] #standSvg [fill="#F7A8B8" i] { fill: #7A2F3F; }
+:root[data-skin="manoir"] .stand-arrow { border-radius: 6px !important; border: 2px solid var(--gold) !important; background: linear-gradient(#F8DC96, #D9A441) !important; box-shadow: 0 3px 0 #6E4A12 !important; }
+:root[data-skin="manoir"] .stand-arrow svg path { stroke: #2A1230; }
+:root[data-skin="manoir"] .stand-deco { border-radius: 8px !important; border: 2px solid var(--gold) !important; background: #3A2150 !important; color: var(--ink) !important; }
+:root[data-skin="manoir"] .stand-pill { border-radius: 4px !important; background: #F6E4BE !important; color: #1B0F14 !important; border-color: #8A6425 !important; }
+:root[data-skin="manoir"] .stand-all {
+  clip-path: polygon(0 50%, 4% 0, 96% 0, 100% 50%, 96% 100%, 4% 100%); border: none !important; min-height: 58px;
+}
+
+/* =====================================================================
+   Décor : cartes à 2 colonnes, onglets dorés, pastilles MUR/SOL, « À toi » vert
+   ===================================================================== */
+:root[data-skin="manoir"] .dv-tabs { border-radius: 6px !important; border: 2px solid var(--gold) !important; background: #2A1840 !important; padding: 4px; }
+:root[data-skin="manoir"] .dv-tab { border-radius: 4px !important; color: var(--ink) !important; font-family: var(--font-title); }
+:root[data-skin="manoir"] .dv-tab.active { background: linear-gradient(#F8DC96, #D9A441) !important; color: #2A1230 !important; border-color: #1B0F14 !important; }
+:root[data-skin="manoir"] .dv-sec-head h2 { color: var(--gold-light); }
+:root[data-skin="manoir"] .dv-sec-icon { border-radius: 8px !important; border: 2px solid var(--gold) !important; background: #3A2150 !important; }
+:root[data-skin="manoir"] .dv-preview { border-radius: 6px !important; border: 2px solid var(--gold) !important; }
+:root[data-skin="manoir"] .dv-tag { border-radius: 4px !important; background: #F6E4BE !important; color: #1B0F14 !important; border-color: #8A6425 !important; font-family: var(--font-title); }
+:root[data-skin="manoir"] .dv-name { color: var(--ink); }
+:root[data-skin="manoir"] .dv-own { border-radius: 4px !important; background: #1F3A2C !important; color: #9ED8B3 !important; border-color: #3E7C59 !important; }
+:root[data-skin="manoir"] .dv-buy {
+  border-radius: 4px !important; background: linear-gradient(#F8DC96, #D9A441) !important; color: #2A1230 !important; border: 2px solid #1B0F14 !important;
+  box-shadow: 0 4px 0 #6E4A12 !important; font-family: var(--font-title); font-weight: 700;
+}
+:root[data-skin="manoir"] .dv-test, :root[data-skin="manoir"] .dv-intro { color: var(--ink); }
+:root[data-skin="manoir"] .deco-tabs .deco-tab { border-radius: 4px !important; border-color: var(--gold) !important; }
+:root[data-skin="manoir"] .deco-tabs .deco-tab.active { background: linear-gradient(#F8DC96, #D9A441) !important; color: #2A1230 !important; }
+
+/* =====================================================================
+   Concours pages 2 et 3 : duels, VS, podium, classement
+   ===================================================================== */
+:root[data-skin="manoir"] .cv3-arena { background: transparent !important; }
+:root[data-skin="manoir"] .cv3-pick { background: #1B1030 !important; border: 2px solid var(--gold) !important; box-shadow: 0 4px 0 #0E0818 !important; }
+:root[data-skin="manoir"] .cv3-vs { border-radius: 0 !important; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); border: 0 !important; font-family: var(--font-title); }
+:root[data-skin="manoir"] .cv3-when, :root[data-skin="manoir"] .cv3-note { color: var(--muted); }
+:root[data-skin="manoir"] .cv3-vote { clip-path: polygon(0 50%, 5% 0, 95% 0, 100% 50%, 95% 100%, 5% 100%); }
+:root[data-skin="manoir"] .cv3-podium .cv3-col { background: transparent !important; }
+:root[data-skin="manoir"] .cv3-pod-img { background: #1B1030 !important; border: 2px solid var(--gold) !important; }
+:root[data-skin="manoir"] .cv3-pod-name { color: var(--ink); font-family: var(--font-title); }
+:root[data-skin="manoir"] .cv3-pod-score, :root[data-skin="manoir"] .cv3-row-info { color: var(--muted); }
+:root[data-skin="manoir"] .cv3-rank { border-radius: 0 !important; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); background: var(--gold) !important; color: #1B0F14 !important; border: 0 !important; font-family: var(--font-title); }
+:root[data-skin="manoir"] .cv3-row { background: #2A1840 !important; border: 2px solid var(--gold) !important; }
+:root[data-skin="manoir"] .cv3-trophy { color: var(--gold); }
+:root[data-skin="manoir"] .cv3-toi { color: #6FCF97 !important; }
+
+/* Derniers détails trop arrondis */
+:root[data-skin="manoir"] .dv-intro { border-radius: 4px !important; border: 1.5px solid var(--gold-deep, #8A6A2E) !important; box-shadow: inset 0 0 0 3px var(--panel), inset 0 0 0 4px rgba(230,184,92,.35) !important; }
+:root[data-skin="manoir"] input[type="checkbox"] { -webkit-appearance: none; appearance: none; width: 22px; height: 22px; flex: none; border: 1.8px solid var(--gold) !important; border-radius: 2px !important; background: rgba(0,0,0,.25) !important; display: inline-grid; place-content: center; cursor: pointer; }
+:root[data-skin="manoir"] input[type="checkbox"]::before { content: ""; width: 10px; height: 10px; background: var(--gold); transform: rotate(45deg) scale(0); transition: transform .15s; }
+:root[data-skin="manoir"] input[type="checkbox"]:checked::before { transform: rotate(45deg) scale(1); }
+:root[data-skin="manoir"] .duel-pick, :root[data-skin="manoir"] .duel-pick img, :root[data-skin="manoir"] .duel-cell { border-radius: 3px !important; }
+:root[data-skin="manoir"] .cv3-info summary { border-radius: 0 !important; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); background: var(--gold) !important; color: #2A1840 !important; border: 0 !important; }
+:root[data-skin="manoir"] .cv3-bubble { border-radius: 4px !important; }
+:root[data-skin="manoir"] #homeContestTodo { border-radius: 2px !important; background: #7A2F3F !important; color: var(--ink) !important; border: 1.5px solid var(--gold) !important; box-shadow: none !important; }
+:root[data-skin="manoir"] .cv3-pick { border-radius: 3px !important; }
+:root[data-skin="manoir"] .cv3-pick img, :root[data-skin="manoir"] .cv3-pod-img img, :root[data-skin="manoir"] .cv3-row-img img { border-radius: 2px !important; }

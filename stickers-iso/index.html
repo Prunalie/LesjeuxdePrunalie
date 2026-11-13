@@ -7,13 +7,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611132000">
+  <link rel="stylesheet" href="style.css?v=202611132140">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
   <!-- Écran 1 : choix du pseudo -->
   <section id="screenStart" class="screen screen-start">
     <form id="startForm" class="start-card" novalidate>
+      <img class="mn-only mn-scene" src="manoir/scene-connexion.svg" alt="" aria-hidden="true" loading="lazy">
       <svg class="start-logo" viewBox="0 0 120 100" aria-hidden="true">
         <polygon points="10,35 60,10 60,60 10,85" fill="#f4d9c6"/>
         <polygon points="60,10 110,35 110,85 60,60" fill="#ecc8b4"/>
@@ -33,6 +34,7 @@
   <section id="screenHome" class="screen screen-home" hidden>
     <div class="home-deco" aria-hidden="true"><span class="deco-1"></span><span class="deco-2"></span><span class="deco-3"></span></div>
     <header class="topbar home-top">
+      <div class="mn-only mn-brand" aria-hidden="true"><img src="manoir/icone.svg" alt="" width="40" height="40" loading="lazy"><span>Mon manoir<br>enchanté</span></div>
       <h1>Bonjour <span id="playerName" class="home-name"></span></h1>
       <div class="home-top-actions">
         <span class="points-pill"></span>
@@ -1299,7 +1301,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611132000"></script>
-  <script src="game.js?v=202611132000"></script>
+  <script src="firebase-config.js?v=202611132140"></script>
+  <script src="game.js?v=202611132140"></script>
 </body>
 </html>

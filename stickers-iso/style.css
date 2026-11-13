@@ -2787,3 +2787,6 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .imm-close { position: absolute; top: max(12px, env(safe-area-inset-top)); right: 12px; width: 44px; height: 44px; border-radius: 50%; border: 2px solid #fff; background: rgba(0,0,0,.45); color: #fff; font-size: 1.2rem; font-weight: 800; cursor: pointer; }
 .imm-bar { position: absolute; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(560px, calc(100% - 32px)); display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 999px; background: rgba(0,0,0,.45); color: #fff; }
 .imm-bar input { flex: 1; accent-color: #f0658a; }
+
+/* Éléments de l'apparence « Manoir » : cachés dans l'apparence habituelle (et leurs images ne se chargent pas). */
+.mn-only { display: none !important; }
