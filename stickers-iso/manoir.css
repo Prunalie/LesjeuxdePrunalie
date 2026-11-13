@@ -154,3 +154,147 @@
 :root[data-skin="manoir"] .card-blob { background: radial-gradient(circle, #E6B85C33, #E6B85C00 70%) !important; }
 :root[data-skin="manoir"] .theme-name { color: var(--gold-light); }
 :root[data-skin="manoir"] .home-name { color: var(--gold); }
+
+/* =====================================================================
+   Formes : coins presque droits partout (plus de gros arrondis)
+   ===================================================================== */
+:root[data-skin="manoir"] .home-card.big,
+:root[data-skin="manoir"] .cv3-card { border-radius: 12px !important; }
+:root[data-skin="manoir"] .home-card.small, :root[data-skin="manoir"] .home-card.mini,
+:root[data-skin="manoir"] .modal-box, :root[data-skin="manoir"] .home-tile,
+:root[data-skin="manoir"] .room-card, :root[data-skin="manoir"] .coffre-card,
+:root[data-skin="manoir"] .dv-card, :root[data-skin="manoir"] .env-item,
+:root[data-skin="manoir"] .cv3-tile, :root[data-skin="manoir"] .cv3-objcard,
+:root[data-skin="manoir"] .cv3-draft, :root[data-skin="manoir"] .cv3-hist { border-radius: 8px !important; }
+:root[data-skin="manoir"] .points,
+:root[data-skin="manoir"] .home-icon-btn,
+:root[data-skin="manoir"] .home-admin,
+:root[data-skin="manoir"] .cv3-chip, :root[data-skin="manoir"] .cv3-pill,
+:root[data-skin="manoir"] .stand-all, :root[data-skin="manoir"] .cd-timer { border-radius: 6px !important; }
+:root[data-skin="manoir"] .points,
+:root[data-skin="manoir"] .home-icon-btn {
+  border: 2px solid var(--gold) !important;
+  background: #2A1840 !important;
+  box-shadow: inset 0 0 0 2.5px #2A1840, inset 0 0 0 4px var(--gold-dark) !important;
+}
+
+/* Ornements dorés aux angles des grandes cartes */
+:root[data-skin="manoir"] .home-card.big,
+:root[data-skin="manoir"] .cv3-card {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Cpath d='M2 16V6Q2 2 6 2H16' fill='none' stroke='%23E6B85C' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='6' cy='6' r='1.8' fill='%23E6B85C'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Cg transform='rotate(90 9 9)'%3E%3Cpath d='M2 16V6Q2 2 6 2H16' fill='none' stroke='%23E6B85C' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='6' cy='6' r='1.8' fill='%23E6B85C'/%3E%3C/g%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Cg transform='rotate(270 9 9)'%3E%3Cpath d='M2 16V6Q2 2 6 2H16' fill='none' stroke='%23E6B85C' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='6' cy='6' r='1.8' fill='%23E6B85C'/%3E%3C/g%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Cg transform='rotate(180 9 9)'%3E%3Cpath d='M2 16V6Q2 2 6 2H16' fill='none' stroke='%23E6B85C' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='6' cy='6' r='1.8' fill='%23E6B85C'/%3E%3C/g%3E%3C/svg%3E"),
+    linear-gradient(160deg, #35204D, #2A1840) !important;
+  background-position: 3px 3px, calc(100% - 3px) 3px, 3px calc(100% - 3px), calc(100% - 3px) calc(100% - 3px), 0 0 !important;
+  background-repeat: no-repeat !important;
+}
+
+/* =====================================================================
+   Page Concours (maquette « Concours 1/3 Créer »)
+   ===================================================================== */
+/* Étapes : petits cadres, numéro dans un losange, étape active dorée */
+:root[data-skin="manoir"] .cv3-steps { gap: 3px; }
+:root[data-skin="manoir"] .cv3-step {
+  min-height: 0; padding: 6px 2px 7px; gap: 2px;
+  border-radius: 6px !important; border: 2px solid var(--gold) !important;
+  background: #2A1840 !important; color: var(--ink) !important; box-shadow: none !important;
+}
+:root[data-skin="manoir"] .cv3-step.on {
+  background: linear-gradient(#F8DC96, #D9A441) !important; color: #2A1230 !important;
+  box-shadow: 0 0 18px #E6B85C66 !important;
+}
+:root[data-skin="manoir"] .cv3-step { flex-direction: row; flex-wrap: wrap; justify-content: center; column-gap: 5px; }
+:root[data-skin="manoir"] .cv3-step-sub { flex-basis: 100%; text-align: center; font-family: var(--font-body); font-size: 13.5px; opacity: .9; }
+:root[data-skin="manoir"] .cv3-step-name { font-size: 13.5px; font-weight: 700; color: inherit; }
+:root[data-skin="manoir"] .cv3-num {
+  width: 20px; height: 20px; border: 0 !important; border-radius: 3px !important;
+  transform: rotate(45deg); background: var(--gold) !important; color: transparent; position: relative; font-size: 0;
+}
+:root[data-skin="manoir"] .cv3-step.on .cv3-num { background: #2A1230 !important; }
+:root[data-skin="manoir"] .cv3-num::after {
+  content: attr(data-n); position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  transform: rotate(-45deg); font-size: 12px; font-family: var(--font-title); font-weight: 700; color: #1B0F14;
+}
+:root[data-skin="manoir"] .cv3-step.on .cv3-num::after { color: #F8DC96; }
+:root[data-skin="manoir"] .cv3-sep { color: var(--gold); }
+
+/* Illustration : ciel étoilé violet */
+:root[data-skin="manoir"] .cv3-hero {
+  height: 96px; border-radius: 8px !important; border: 2px solid var(--gold) !important;
+  background: linear-gradient(#2A1F5A, #5E3178) !important;
+}
+:root[data-skin="manoir"] .cv3-hero::before, :root[data-skin="manoir"] .cv3-hero::after { display: none; }
+:root[data-skin="manoir"] .cv3-hero > svg:first-child { position: absolute; inset: 0; z-index: 0; }
+:root[data-skin="manoir"] .mn-hero-room { position: relative; z-index: 1; margin-top: 6px; }
+
+/* Thème du jour */
+:root[data-skin="manoir"] .cv3-big { color: var(--gold-light) !important; font-family: var(--font-title); }
+:root[data-skin="manoir"] .cv3-k { color: var(--muted); font-weight: 700; font-size: 17px; }
+:root[data-skin="manoir"] .cv3-info summary {
+  width: 44px; height: 44px; border: 2px solid var(--gold) !important; background: #3A2150 !important;
+  color: var(--gold-light) !important; font-style: italic; text-transform: lowercase; box-shadow: inset 0 0 0 2px #2A1840 !important;
+}
+:root[data-skin="manoir"] .cv3-bubble, :root[data-skin="manoir"] .cv3-info > div {
+  background: #F6E4BE !important; color: #1B0F14 !important; border: 2px solid #1B0F14 !important;
+  border-radius: 8px !important; box-shadow: 0 0 0 2px var(--gold), 0 6px 0 #0E0818 !important;
+}
+
+/* Récompenses : titre + filet doré à losange, étiquettes parchemin, sans pointillés */
+:root[data-skin="manoir"] .cv3-reward { border-bottom: 0 !important; min-height: 36px; font-weight: 700; font-size: 18px; }
+:root[data-skin="manoir"] .cv3-pill { width: 96px; border: 2px solid var(--gold) !important; color: #2A1230 !important; font-family: var(--font-title); font-weight: 700; }
+:root[data-skin="manoir"] .cv3-pill.c1 { background: #FFF0E4 !important; }
+:root[data-skin="manoir"] .cv3-pill.c2 { background: #FFE08A !important; }
+:root[data-skin="manoir"] .cv3-pill.c3 { background: #F4D58A !important; }
+:root[data-skin="manoir"] .cv3-h3 { display: flex; align-items: center; gap: 10px; color: var(--gold-light); }
+:root[data-skin="manoir"] .cv3-h3::after {
+  content: ""; flex: none; width: 110px; height: 14px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='110' height='14'%3E%3Cpath d='M0 7H45M65 7H110' stroke='%23E6B85C' stroke-width='2' opacity='.7'/%3E%3Cpath d='M55 1L61 7L55 13L49 7Z' fill='%23E6B85C'/%3E%3C/svg%3E") no-repeat;
+}
+
+/* Bouton principal à bouts en pointe */
+:root[data-skin="manoir"] .cv3-cta {
+  justify-content: center; text-align: center; min-height: 56px; padding: 6px 26px;
+  clip-path: polygon(0 50%, 5% 0, 95% 0, 100% 50%, 95% 100%, 5% 100%);
+  border: none !important; font-size: 18px; letter-spacing: .03em;
+}
+
+/* Tuiles : participations en losanges */
+:root[data-skin="manoir"] .cv3-tile { border: 2px solid var(--gold) !important; background: linear-gradient(160deg, #35204D, #2A1840) !important;
+  box-shadow: inset 0 0 0 3px #2A1840, inset 0 0 0 4.5px var(--gold-dark), 0 5px 0 #0E0818 !important; }
+:root[data-skin="manoir"] .cv3-count b { color: var(--gold-light); font-family: var(--font-title); }
+:root[data-skin="manoir"] .cv3-dots2 { gap: 5px; margin: 6px 0 4px 2px; }
+:root[data-skin="manoir"] .cv3-dots2 i { width: 8px; height: 8px; border-radius: 0 !important; transform: rotate(45deg); border: 1.6px solid var(--gold) !important; background: transparent !important; box-shadow: none !important; }
+:root[data-skin="manoir"] .cv3-dots2 i.on, :root[data-skin="manoir"] .cv3-dots2 i.cur { background: var(--gold) !important; }
+
+/* Pied de page : flèches dorées carrées, repères en losanges */
+:root[data-skin="manoir"] .cv3-arrow {
+  width: 62px; height: 56px; border-radius: 6px !important; border: 2px solid var(--gold) !important;
+  background: linear-gradient(#F8DC96, #D9A441) !important; color: #2A1230 !important; box-shadow: 0 4px 0 #6E4A12 !important;
+}
+:root[data-skin="manoir"] .cv3-arrow:disabled { background: #2A1840 !important; color: var(--gold) !important; opacity: .45; box-shadow: none !important; }
+:root[data-skin="manoir"] .cv3-dots i { width: 10px; height: 10px; border-radius: 0 !important; transform: rotate(45deg); border: 2px solid var(--gold) !important; background: transparent !important; }
+:root[data-skin="manoir"] .cv3-dots i.on { width: 22px; height: 10px; transform: none; border-radius: 5px !important; background: var(--gold) !important; }
+:root[data-skin="manoir"] .cv3-foot-mid { color: var(--gold-light); font-size: 14px; letter-spacing: .04em; }
+
+/* Objet imposé, liens, autres cartes de la page */
+:root[data-skin="manoir"] .cv3-objcard { background: linear-gradient(160deg, #3A2150, #2A1840) !important; border: 2px solid var(--gold) !important; box-shadow: inset 0 0 0 3px #2A1840, inset 0 0 0 4.5px var(--gold-dark), 0 4px 0 #0E0818 !important; }
+:root[data-skin="manoir"] .cv3-objcard .cv3-obj { border-radius: 6px !important; border: 2px solid var(--gold) !important; background: #1B1030 !important; }
+:root[data-skin="manoir"] .cv3-objname { color: var(--gold-light); }
+:root[data-skin="manoir"] .cv3-link-btn, :root[data-skin="manoir"] .cv3-hist { border-radius: 6px !important; border: 2px solid var(--gold) !important; background: #2A1840 !important; color: var(--ink) !important; box-shadow: none !important; }
+:root[data-skin="manoir"] .cv3-arena, :root[data-skin="manoir"] .cv3-podium, :root[data-skin="manoir"] .cv3-row,
+:root[data-skin="manoir"] .cv3-pod-img, :root[data-skin="manoir"] .cv3-row-img, :root[data-skin="manoir"] .cv3-pick { border-radius: 8px !important; }
+:root[data-skin="manoir"] .cv3-pick, :root[data-skin="manoir"] .cv3-pod-img, :root[data-skin="manoir"] .cv3-row-img { border-color: var(--gold) !important; }
+:root[data-skin="manoir"] .cv3-vs { background: linear-gradient(#F8DC96, #D9A441) !important; color: #2A1230 !important; border: 2px solid #1B0F14 !important; }
+
+/* Compteur pièces / étoiles : cadre doré à coins vifs */
+:root[data-skin="manoir"] .points-pill {
+  border-radius: 6px !important; border: 2px solid var(--gold) !important; background: #2A1840 !important; color: var(--ink) !important;
+  box-shadow: inset 0 0 0 2.5px #2A1840, inset 0 0 0 4px var(--gold-dark) !important; font-family: var(--font-title); font-weight: 700;
+}
+:root[data-skin="manoir"] .points-pill .pill-sep { background: var(--gold); opacity: .5; }
+:root[data-skin="manoir"] .home-icon-btn { border-radius: 8px !important; }
+:root[data-skin="manoir"] #btnPrefs { border-radius: 8px !important; border: 2px solid var(--gold) !important; background: #2A1840 !important; box-shadow: inset 0 0 0 2.5px #2A1840, inset 0 0 0 4px var(--gold-dark) !important; }
+:root[data-skin="manoir"] .home-deco { display: none; } /* les grands ronds du fond : remplacés par le ciel étoilé */
+:root[data-skin="manoir"] .home-chip, :root[data-skin="manoir"] .contest-chip { border-radius: 4px !important; border-color: var(--gold) !important; }
