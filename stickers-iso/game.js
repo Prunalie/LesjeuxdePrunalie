@@ -7587,7 +7587,8 @@
     if (!r.solo && r.winners.length) {
       const podiumOn = r.day >= PODIUM_REWARDS_FROM;
       const list = [[`+${contestReward()}`, r.winners.length > 1 ? '🏆 Pour chaque gagnant' : '🏆 Pour le 1er', 'c2']];
-      if (podiumOn) {
+      {
+        // Les pastilles du 2e et du 3e s'affichent toujours (même pour un concours d'avant ces récompenses).
         if (setting('contestReward2') > 0) list.push([`+${setting('contestReward2')}`, '🥈 Pour le 2e', 'c2']);
         if (setting('contestReward3') > 0) list.push([`+${setting('contestReward3')}`, '🥉 Pour le 3e', 'c2']);
       }
