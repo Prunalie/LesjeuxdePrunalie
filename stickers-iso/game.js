@@ -116,9 +116,9 @@
   }
   const starPrice = () => setting('starPrice');
   // Thèmes de collections (ex. Nature & jardin, Magie…) : liste dans les réglages, chaque enveloppe porte l'id de son thème.
-  // Essai : regroupement par thème visible seulement par l'administratrice.
+  // Regroupement par thème (Collection, filtre des meubles, « Toutes les enveloppes ») : pour tout le monde.
   const envThemes = () => (Array.isArray(state.settings && state.settings.envThemes) ? state.settings.envThemes : []);
-  const themesOn = () => !!state.isAdmin && envThemes().length > 0;
+  const themesOn = () => envThemes().length > 0;
   const themeOfEnv = (env) => (env && env.theme && envThemes().find((t) => t.id === env.theme)) || null;
   const OTHER_THEME = { id: '', name: 'Autres' };
   // Enveloppes rangées par thème, dans l'ordre des thèmes ; celles sans thème à la fin (« Autres »).
@@ -1069,7 +1069,7 @@
     return { list: out, total: mine.length };
   }
 
-  // Thème d'un sticker (essai administratrice) : celui de son enveloppe ('' = Autres).
+  // Thème d'un sticker : celui de son enveloppe ('' = Autres).
   const themeIdOfImg = (img) => { const t = themeOfEnv(state.envelopes.find((e) => e.id === img.envelope)); return t ? t.id : ''; };
   const THEME_FILTER = 'theme:';
   const libThemeOf = (f) => (f && f.startsWith(THEME_FILTER) ? f.slice(THEME_FILTER.length) : null);
@@ -4303,7 +4303,7 @@
       // Liste complète : les dernières sorties en haut (les enveloppes du jour sont déjà au stand).
       const newest = [...all].sort((a, b) => (envSlotDay(b) || '').localeCompare(envSlotDay(a) || '') || (b.created || 0) - (a.created || 0));
       if (themesOn()) {
-        // Essai (administratrice) : les enveloppes rangées par thème, les dernières sorties en premier dans chaque thème.
+        // Les enveloppes rangées par thème, les dernières sorties en premier dans chaque thème.
         heading('Toutes les enveloppes', 'Rangées par thème, les dernières sorties en premier.');
         for (const g of groupByTheme(newest)) envs.push({ heading: `🏷️ ${g.theme.name}`, sub: plural(g.envs.length, 'enveloppe') }, ...g.envs);
       } else {
@@ -5652,7 +5652,7 @@
     const themes = envThemes();
     const help = document.createElement('p');
     help.className = 'muted';
-    help.textContent = 'Les thèmes regroupent les collections dans la Collection, le filtre des meubles (dans les pièces) et « Toutes les enveloppes » de la boutique. Pour l\'instant, toi seule vois ce regroupement.';
+    help.textContent = 'Les thèmes regroupent les collections dans la Collection, le filtre des meubles (dans les pièces) et « Toutes les enveloppes » de la boutique.';
     listEl.appendChild(help);
     const box = document.createElement('section');
     box.className = 'theme-admin';
@@ -6010,7 +6010,7 @@
   // Pages du classeur : la collection la plus récente d'abord (date de sortie dans la boutique).
   const binderPages = () => liveEnvelopes().filter((env) => stickersOf(env.id).length)
     .sort((a, b) => (envSlotDay(b) || '').localeCompare(envSlotDay(a) || '') || (b.created || 0) - (a.created || 0));
-  // Classeur rangé par thème (essai administratrice) : null = tous les thèmes, sinon l'id du thème ('' = Autres).
+  // Classeur rangé par thème : null = tous les thèmes, sinon l'id du thème ('' = Autres).
   let binderTheme = null;
   function themedBinderPages() {
     const all = binderPages();
