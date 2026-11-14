@@ -2848,6 +2848,22 @@
     view.addEventListener('pointercancel', end);
   }
   $('#btnExport2').addEventListener('click', exportRoom);
+  $('#btnExport3').addEventListener('click', exportRoom);
+  $('#btnContestDraftTop').addEventListener('click', () => $('#btnContestDraft').click());
+  // Roue crantée de la pièce : petit menu (signaler un objet posé dans la pièce).
+  const gearMenu = $('#roomGearMenu');
+  const closeGear = () => { gearMenu.hidden = true; $('#btnRoomGear').setAttribute('aria-expanded', 'false'); };
+  $('#btnRoomGear').addEventListener('click', (e) => {
+    e.stopPropagation();
+    gearMenu.hidden = !gearMenu.hidden;
+    $('#btnRoomGear').setAttribute('aria-expanded', String(!gearMenu.hidden));
+  });
+  document.addEventListener('click', (e) => { if (!gearMenu.hidden && !e.target.closest('.stage-side')) closeGear(); });
+  $('#btnRoomReport').addEventListener('click', () => {
+    closeGear();
+    if (!state.stickers.length) { toast('Pose d\'abord des objets dans la pièce.'); return; }
+    openReport(true);
+  });
   $('#exportShare').addEventListener('click', async () => {
     if (!exportBlob) return;
     try {
@@ -3456,7 +3472,8 @@
     const grid = $('#reportGrid');
     grid.innerHTML = '';
     // Les objets déjà choisis restent en tête, même pendant une recherche.
-    const list = [...state.images.values()].filter((i) => i.catalog && owned(i.id) > 0 && (reportPicks.has(i.id) || !q || normalizeText(i.name || '').includes(q)))
+    const inRoom = reportRoomOnly ? new Set(state.stickers.map((st) => st.imageId)) : null;
+    const list = [...state.images.values()].filter((i) => i.catalog && (inRoom ? inRoom.has(i.id) : owned(i.id) > 0) && (reportPicks.has(i.id) || !q || normalizeText(i.name || '').includes(q)))
       .sort((a, b) => Number(reportPicks.has(b.id)) - Number(reportPicks.has(a.id)) || (a.name || '').localeCompare(b.name || '', 'fr'));
     // Tous les objets (avant : seulement les 120 premiers) ; les vignettes se chargent quand elles apparaissent à l'écran.
     if (reportObserver) reportObserver.disconnect();
@@ -3480,7 +3497,10 @@
     $('#reportSend').disabled = reportKind === 'object' ? !reportPicks.size : $('#reportBugText').value.trim().length < 5;
     $('#reportSend').textContent = reportKind === 'object' && reportPicks.size > 1 ? `Envoyer (${reportPicks.size} objets)` : 'Envoyer';
   }
-  function openReport() {
+  let reportRoomOnly = false; // depuis la pièce : seulement les objets posés dans cette pièce
+  function openReport(roomOnly = false) {
+    reportRoomOnly = roomOnly === true;
+    $('#reportTitle').textContent = reportRoomOnly ? 'Signaler un objet de la pièce 🚩' : 'Signaler un problème 🚩';
     reportPicks = new Set();
     $('#reportSearch').value = '';
     $('#reportObjNote').value = '';
@@ -3500,7 +3520,7 @@
   document.querySelectorAll('#reportTabs .deco-tab').forEach((t) => t.addEventListener('click', () => setReportTab(t.dataset.kind)));
   $('#reportSearch').addEventListener('input', renderReportGrid);
   $('#reportBugText').addEventListener('input', renderReportSend);
-  $('#btnReport').addEventListener('click', openReport);
+  $('#btnReport').addEventListener('click', () => openReport());
   $('#reportClose').addEventListener('click', () => { reportDialog.hidden = true; });
   reportDialog.addEventListener('click', (e) => { if (e.target === reportDialog) reportDialog.hidden = true; });
   $('#reportSend').addEventListener('click', async () => {
@@ -3699,6 +3719,7 @@
     $('#btnContestPublish').hidden = !r.contestDay;
     $('#btnContestPublish2').hidden = !r.contestDay;
     $('#btnContestDraft').hidden = !r.contestDay;
+    $('#btnContestDraftTop').hidden = !r.contestDay; // la disquette en haut, à la place de l'appareil photo
     $('#btnImmersive').hidden = !state.isAdmin;
     const backName = houseOn() ? 'Ma maison' : 'Mes pièces';
     $('#btnBack').title = r.contestDay ? 'Retour au concours' : `Retour à ${backName.toLowerCase()}`;

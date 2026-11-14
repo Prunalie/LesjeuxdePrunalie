@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611141130">
+  <link rel="stylesheet" href="style.css?v=202611141200">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -196,7 +196,8 @@
       <input id="roomName" class="room-name-input" type="text" maxlength="40" aria-label="Nom de la pièce">
       <span id="saveStatus" class="save-status"></span>
       <button id="btnContestPublish" class="btn btn-primary top-publish" hidden title="Publier cette pièce au concours du jour">🏆<span class="label-long">&nbsp;Publier</span></button>
-      <button id="btnExport" class="btn btn-ghost top-icon" title="Exporter la pièce en image">📷<span class="label-long">&nbsp;Exporter</span></button>
+      <button id="btnContestDraftTop" class="btn btn-ghost top-icon" hidden title="Enregistrer en brouillon et revenir plus tard">💾<span class="label-long">&nbsp;Brouillon</span></button>
+      <button id="btnExport" class="btn btn-ghost top-icon" hidden title="Exporter la pièce en image">📷<span class="label-long">&nbsp;Exporter</span></button>
       <button id="btnClear" class="btn btn-ghost top-icon" title="Retirer tous les stickers de la pièce">🧹<span class="label-long">&nbsp;Tout vider</span></button>
     </div>
   </header>
@@ -316,6 +317,14 @@
         <ul id="layersList" class="layers-list"></ul>
       </aside>
 
+      <!-- À droite, sous la barre du haut : exporter en image, et la roue crantée (signaler un objet de la pièce…) -->
+      <div class="stage-side" role="group" aria-label="Autres actions">
+        <button id="btnExport3" class="side-btn" type="button" title="Exporter la pièce en image" aria-label="Exporter la pièce en image">📷</button>
+        <button id="btnRoomGear" class="side-btn" type="button" title="Plus d'options" aria-label="Plus d'options" aria-haspopup="menu" aria-expanded="false">⚙️</button>
+        <div id="roomGearMenu" class="gear-menu" role="menu" hidden>
+          <button id="btnRoomReport" type="button" role="menuitem">🚩 Signaler un objet de la pièce</button>
+        </div>
+      </div>
       <div class="zoom-ctrl" role="group" aria-label="Zoom">
         <button id="zoomIn" title="Zoomer">＋</button>
         <button id="zoomOut" title="Dézoomer">−</button>
@@ -1311,7 +1320,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611141130"></script>
-  <script src="game.js?v=202611141130"></script>
+  <script src="firebase-config.js?v=202611141200"></script>
+  <script src="game.js?v=202611141200"></script>
 </body>
 </html>

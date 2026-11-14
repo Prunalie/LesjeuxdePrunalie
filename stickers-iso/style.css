@@ -2815,3 +2815,17 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .atelier-theme-filter { flex: 0 1 auto; width: auto; max-width: 100%; min-height: 0; padding: 6px 10px; font-size: .9rem; }
 .lib-filter-item.lf-back { font-weight: 800; justify-content: flex-start; }
 .lib-filter-item.lf-all { margin-top: 8px; }
+
+/* Pièce : appareil photo et roue crantée à droite, sous la barre du haut */
+.stage-side { position: absolute; right: 8px; top: 8px; z-index: 21; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+@media (min-width: 721px) { .stage-side { right: 14px; top: 12px; } }
+.side-btn { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); box-shadow: 0 2px 6px rgba(0,0,0,.08); font: inherit; font-size: 1.15rem; line-height: 1; cursor: pointer; padding: 0; }
+.side-btn:hover { filter: brightness(1.05); }
+.gear-menu { position: absolute; right: 0; top: 92px; min-width: 230px; display: flex; flex-direction: column; padding: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+.gear-menu[hidden] { display: none; }
+.gear-menu button { text-align: left; padding: 10px 12px; border: none; border-radius: 8px; background: transparent; color: var(--ink); font: inherit; font-weight: 700; cursor: pointer; }
+.gear-menu button:hover { background: var(--surface); }
+/* L'appareil photo est maintenant à droite de la pièce ; publier et brouillon restent en haut
+   (dans la barre d'outils seulement quand la barre du haut est repliée). */
+.room-tools .tool-export { display: none !important; }
+.screen-room:not(.hide-top) .room-tools .tool-publish, .screen-room:not(.hide-top) .room-tools .tool-draft { display: none !important; }

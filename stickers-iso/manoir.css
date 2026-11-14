@@ -480,3 +480,7 @@
 :root[data-skin="manoir"] .theme-group-title, :root[data-skin="manoir"] .theme-admin h3 { font-family: var(--font-title); color: var(--gold-light); }
 :root[data-skin="manoir"] .atelier-theme-filter.active { background: linear-gradient(180deg, #F4D58A, var(--gold)) !important; color: #1B0F14 !important; }
 :root[data-skin="manoir"] .lib-filter-item { border-radius: 4px !important; }
+:root[data-skin="manoir"] .side-btn { border: 1.5px solid var(--gold) !important; border-radius: 6px !important; background: #2A1840 !important; box-shadow: inset 0 0 0 2px #2A1840, inset 0 0 0 3px rgba(138,100,37,.6) !important; }
+:root[data-skin="manoir"] .gear-menu { border: 1.5px solid var(--gold) !important; border-radius: 6px !important; background: #2A1840 !important; }
+:root[data-skin="manoir"] .gear-menu button { color: var(--ink) !important; border-radius: 3px; }
+:root[data-skin="manoir"] .gear-menu button:hover { background: #3A2150 !important; }
