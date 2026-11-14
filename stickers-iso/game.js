@@ -3016,6 +3016,8 @@
   async function login(name) {
     const key = normalizePseudo(name);
     state.isAdmin = ADMIN_PSEUDOS.includes(key);
+    // Marqueur sur la page pour les réglages visuels réservés à l'administratrice (essais avant de les ouvrir à tous).
+    if (state.isAdmin) document.documentElement.dataset.admin = '1'; else delete document.documentElement.dataset.admin;
     // Avant l'ouverture à tous, l'apparence Manoir est réservée à l'administratrice : un autre compte sur le même appareil garde l'apparence habituelle.
     applyTheme(themeMode() === 'manoir' && !state.isAdmin && !manoirOpen() ? 'auto' : themeMode());
     if (read(MANOIR_WELCOME_KEY)) setTimeout(welcomeManoir, 2500);
