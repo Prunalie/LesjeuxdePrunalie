@@ -2829,3 +2829,27 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
    (dans la barre d'outils seulement quand la barre du haut est repliée). */
 .room-tools .tool-export { display: none !important; }
 .screen-room:not(.hide-top) .room-tools .tool-publish, .screen-room:not(.hide-top) .room-tools .tool-draft { display: none !important; }
+
+/* Essai (administratrice) : thème du concours en haut de la pièce */
+.contest-theme { position: absolute; z-index: 19; left: 50%; top: 104px; transform: translateX(-50%); max-width: calc(100% - 120px); pointer-events: none;
+  display: grid; grid-template-columns: auto; justify-items: center; text-align: center; gap: 1px; padding: 6px 16px 7px;
+  border-radius: 14px; border: 2.5px solid var(--chunk); background: #fff3cc; color: #5A3E3A; box-shadow: 0 3px 0 var(--chunk); }
+.contest-theme.has-extra { grid-template-columns: auto auto; column-gap: 10px; text-align: left; justify-items: start; align-items: center; }
+.contest-theme.has-extra > :not(.ct-obj):not(.ct-swatch) { grid-column: 2; }
+.contest-theme .ct-obj, .contest-theme .ct-swatch { grid-row: 1 / span 3; grid-column: 1; width: 40px; height: 40px; object-fit: contain; }
+.contest-theme .ct-swatch { border-radius: 50%; border: 2px solid #5A3E3A; width: 30px; height: 30px; }
+.contest-theme .ct-kicker { font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; opacity: .75; }
+.contest-theme .ct-main { font-family: var(--font-title); font-size: 1.05rem; line-height: 1.1; }
+.contest-theme .ct-sub { font-size: .72rem; font-weight: 700; opacity: .85; }
+.contest-theme .ct-sub[hidden] { display: none; }
+@media (min-width: 721px) { .contest-theme { top: 12px; } }
+.contest-banner.admin-off { display: none !important; }
+/* Cartouche compact : il ne doit pas cacher la pièce */
+.contest-theme { padding: 4px 12px 5px; gap: 0; max-width: min(260px, calc(100% - 130px)); }
+.contest-theme .ct-kicker { font-size: .58rem; white-space: nowrap; }
+.contest-theme .ct-main { font-size: .92rem; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.contest-theme .ct-sub { font-size: .66rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.contest-theme .ct-obj { width: 30px; height: 30px; }
+.contest-theme .ct-swatch { width: 22px; height: 22px; }
+.contest-theme.has-extra { column-gap: 8px; }
+.contest-theme.has-extra > :not(.ct-obj):not(.ct-swatch) { min-width: 0; }

@@ -3726,6 +3726,7 @@
     $('#btnBack .label-long').innerHTML = r.contestDay ? '&nbsp;Concours' : `&nbsp;${backName}`;
     $('#contestBanner').hidden = !r.contestDay;
     if (r.contestDay) $('#contestBannerText').textContent = contestBannerText(r.contestDay);
+    renderContestTheme(r);
     setSaveStatus('Sauvegardé ✓');
     syncColorInputs();
     // Objet imposé du jour : posé au milieu de la pièce à la première ouverture (si on l'enlève, on ne le remet pas).
@@ -6742,6 +6743,38 @@
       lentCache = { key, val: p.kind === 'object' ? p.objectId : null };
     }
     return lentCache.val;
+  }
+  // Essai (administratrice) : cartouche du thème en haut de la pièce du concours (pièce imposée, thème, objet ou couleur).
+  function renderContestTheme(r) {
+    const box = $('#contestTheme');
+    const on = !!(r && r.contestDay && state.isAdmin);
+    box.hidden = !on;
+    $('#contestBanner').classList.toggle('admin-off', on); // le bandeau du bas fait doublon
+    if (!on) return;
+    const day = r.contestDay;
+    box.innerHTML = '<span class="ct-kicker"></span><strong class="ct-main"></strong><span class="ct-sub"></span>';
+    let main, sub = '', extra = null;
+    if (!v2Day(day)) main = themeOf(day);
+    else {
+      const p = planOf(day);
+      if (p.kind === 'object') {
+        main = p.objectName;
+        sub = 'Objet à placer';
+        const img = state.images.get(p.objectId);
+        if (img) { extra = document.createElement('img'); extra.className = 'ct-obj'; extra.alt = ''; smallUrl(img, (u) => { extra.src = u; }); }
+      } else if (p.kind === 'color') {
+        main = p.colorName;
+        sub = 'Couleur';
+        extra = document.createElement('span'); extra.className = 'ct-swatch'; extra.style.background = p.colorHex;
+      } else main = p.value || p.text;
+      if (p.room) sub = `${p.room}${sub ? ` · ${sub}` : ''}`;
+    }
+    box.querySelector('.ct-kicker').textContent = day === today() ? 'Concours' : `Concours du ${dayLabel(day)}`;
+    box.querySelector('.ct-main').textContent = main;
+    box.querySelector('.ct-sub').textContent = sub;
+    box.querySelector('.ct-sub').hidden = !sub;
+    if (extra) box.prepend(extra);
+    box.classList.toggle('has-extra', !!extra);
   }
   function contestBannerText(day) {
     if (!v2Day(day)) return `Pièce du concours · thème « ${themeOf(day)} » · tous tes stickers sont disponibles ici`;

@@ -484,3 +484,13 @@
 :root[data-skin="manoir"] .gear-menu { border: 1.5px solid var(--gold) !important; border-radius: 6px !important; background: #2A1840 !important; }
 :root[data-skin="manoir"] .gear-menu button { color: var(--ink) !important; border-radius: 3px; }
 :root[data-skin="manoir"] .gear-menu button:hover { background: #3A2150 !important; }
+:root[data-skin="manoir"] .contest-theme { border-radius: 3px; border: 1.5px solid var(--gold); background: linear-gradient(180deg, #FBF1DA, #F2E1BC); color: #1B0F14;
+  box-shadow: inset 0 0 0 3px #FBF1DA, inset 0 0 0 4px rgba(138,100,37,.5), 0 4px 10px rgba(0,0,0,.45); padding: 7px 18px 8px; }
+:root[data-skin="manoir"] .contest-theme .ct-kicker { font-family: var(--font-title); color: #7A2F3F; opacity: 1; letter-spacing: .12em; }
+:root[data-skin="manoir"] .contest-theme .ct-kicker::before, :root[data-skin="manoir"] .contest-theme .ct-kicker::after { content: " ✦ "; color: #B8862F; }
+:root[data-skin="manoir"] .contest-theme .ct-main { font-family: var(--font-title); font-weight: 700; font-size: 1.15rem; color: #1B0F14; }
+:root[data-skin="manoir"] .contest-theme .ct-sub { font-family: var(--font-body); font-size: .85rem; color: #4A2D1A; }
+:root[data-skin="manoir"] .contest-theme .ct-swatch { border-color: #1B0F14; }
+:root[data-skin="manoir"] .contest-theme { padding: 4px 14px 5px; }
+:root[data-skin="manoir"] .contest-theme .ct-main { font-size: .95rem; }
+:root[data-skin="manoir"] .contest-theme .ct-sub { font-size: .78rem; }
