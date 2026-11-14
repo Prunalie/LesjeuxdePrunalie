@@ -5669,6 +5669,7 @@
   // Liste des enveloppes en tuiles (avec recherche par nom d'enveloppe ou de sticker).
   // Filtre de la liste : toutes, brouillons, programmées, en vente.
   let atelierFilterKind = 'all';
+  let atelierFilterTheme = null; // null = tous les thèmes, '' = Autres (sans thème), sinon l'id du thème
   function renderAtelierFilter() {
     const box = $('#atelierFilter');
     box.innerHTML = '';
@@ -5681,6 +5682,20 @@
       b.textContent = `${label} (${n})`;
       b.addEventListener('click', () => { atelierFilterKind = k; renderAtelier(); });
       box.appendChild(b);
+    }
+    // Filtre par thème (menu déroulant : il peut y avoir beaucoup de thèmes).
+    if (envThemes().length) {
+      if (atelierFilterTheme && !envThemes().some((t) => t.id === atelierFilterTheme)) atelierFilterTheme = null;
+      const sel = document.createElement('select');
+      sel.className = 'field atelier-theme-filter' + (atelierFilterTheme !== null ? ' active' : '');
+      sel.setAttribute('aria-label', 'Filtrer par thème');
+      const opts = [['all', `🏷️ Tous les thèmes (${state.envelopes.length})`],
+        ...envThemes().map((t) => [t.id, `🏷️ ${t.name} (${state.envelopes.filter((e) => e.theme === t.id).length})`]),
+        ['', `🏷️ Autres (${state.envelopes.filter((e) => !themeOfEnv(e)).length})`]];
+      for (const [v, label] of opts) { const o = document.createElement('option'); o.value = v; o.textContent = label; sel.appendChild(o); }
+      sel.value = atelierFilterTheme === null ? 'all' : atelierFilterTheme;
+      sel.addEventListener('change', () => { atelierFilterTheme = sel.value === 'all' ? null : sel.value; renderAtelier(); });
+      box.appendChild(sel);
     }
   }
   function renderAtelierTiles(listEl) {
@@ -5705,6 +5720,7 @@
       const list = stickersOf(env.id);
       const hits = q ? list.filter((img) => normalizeText(img.name).includes(q)) : [];
       if (atelierFilterKind !== 'all' && envStatus(env) !== atelierFilterKind) continue;
+      if (atelierFilterTheme !== null && (themeOfEnv(env) ? env.theme : '') !== atelierFilterTheme) continue;
       if (q && !normalizeText(env.name).includes(q) && !hits.length) continue;
       shown++;
       const st = envStatus(env);
@@ -5716,7 +5732,7 @@
     }
     const arch = archivedStickers();
     const archHits = q ? arch.filter((img) => normalizeText(img.name).includes(q)) : arch;
-    if (archHits.length && atelierFilterKind === 'all') {
+    if (archHits.length && atelierFilterKind === 'all' && atelierFilterTheme === null) {
       shown++;
       const art = document.createElement('div');
       art.className = 'atelier-tile-icon';

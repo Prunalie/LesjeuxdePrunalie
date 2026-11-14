@@ -2812,3 +2812,4 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .theme-env-row strong { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .theme-env-row .theme-select { flex: 0 1 190px; min-width: 0; }
 .env-theme-field .theme-select { width: 100%; }
+.atelier-theme-filter { flex: 0 1 auto; width: auto; max-width: 100%; min-height: 0; padding: 6px 10px; font-size: .9rem; }
