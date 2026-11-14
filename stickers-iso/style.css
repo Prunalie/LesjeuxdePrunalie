@@ -2848,3 +2848,4 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .contest-theme .ct-sub[hidden] { display: none; }
 /* Barre du haut repliée : la ligne du thème est cachée avec elle, on remet le bandeau du bas */
 .screen-room.hide-top .contest-banner.admin-off:not(.away) { display: block !important; }
+.shop-themes { grid-column: 1 / -1; margin: 2px 0 -2px; }

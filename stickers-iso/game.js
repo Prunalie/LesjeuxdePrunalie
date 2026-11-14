@@ -4277,6 +4277,7 @@
   $('#standPreview').addEventListener('change', (e) => { standAlt = e.target.checked; standPage = 0; renderShopChoice(); });
   $('#standAll').addEventListener('click', () => { shopView = 'envelopes'; renderShop(); window.scrollTo(0, 0); });
 
+  let shopThemeFilter = null; // « Toutes les enveloppes » : null = tous les thèmes, '' = Autres, sinon l'id du thème
   function renderShop() {
     applyShopView();
     renderShopChoice();
@@ -4305,7 +4306,29 @@
       if (themesOn()) {
         // Les enveloppes rangées par thème, les dernières sorties en premier dans chaque thème.
         heading('Toutes les enveloppes', 'Rangées par thème, les dernières sorties en premier.');
-        for (const g of groupByTheme(newest)) envs.push({ heading: `🏷️ ${g.theme.name}`, sub: plural(g.envs.length, 'enveloppe') }, ...g.envs);
+        // Filtre par thème : une rangée de boutons (Tous, puis chaque thème).
+        const groups = groupByTheme(newest);
+        if (shopThemeFilter !== null && !groups.some((g) => g.theme.id === shopThemeFilter)) shopThemeFilter = null;
+        const bar = document.createElement('div');
+        bar.className = 'binder-themes shop-themes';
+        bar.setAttribute('role', 'group');
+        bar.setAttribute('aria-label', 'Filtrer par thème');
+        const chip = (id, label, n) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'binder-theme' + (shopThemeFilter === id ? ' active' : '');
+          b.setAttribute('aria-pressed', shopThemeFilter === id);
+          b.textContent = `${label} · ${n}`;
+          b.addEventListener('click', () => { shopThemeFilter = id; renderShop(); });
+          bar.appendChild(b);
+        };
+        chip(null, 'Tous', newest.length);
+        groups.forEach((g) => chip(g.theme.id, g.theme.name, g.envs.length));
+        grid.appendChild(bar);
+        for (const g of groups) {
+          if (shopThemeFilter !== null && g.theme.id !== shopThemeFilter) continue;
+          envs.push({ heading: `🏷️ ${g.theme.name}`, sub: plural(g.envs.length, 'enveloppe') }, ...g.envs);
+        }
       } else {
         heading('Toutes les enveloppes', 'Les dernières sorties en premier.');
         envs.push(...newest);
