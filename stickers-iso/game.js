@@ -5985,7 +5985,9 @@
   // Collection : un classeur avec une page par enveloppe
   // ---------------------------------------------------------------------------
   let binderPage = 0;
-  const binderPages = () => liveEnvelopes().filter((env) => stickersOf(env.id).length);
+  // Pages du classeur : la collection la plus récente d'abord (date de sortie dans la boutique).
+  const binderPages = () => liveEnvelopes().filter((env) => stickersOf(env.id).length)
+    .sort((a, b) => (envSlotDay(b) || '').localeCompare(envSlotDay(a) || '') || (b.created || 0) - (a.created || 0));
   // Classeur rangé par thème (essai administratrice) : null = tous les thèmes, sinon l'id du thème ('' = Autres).
   let binderTheme = null;
   function themedBinderPages() {
