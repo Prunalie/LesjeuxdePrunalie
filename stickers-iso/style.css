@@ -2790,3 +2790,25 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 
 /* Éléments de l'apparence « Manoir » : cachés dans l'apparence habituelle (et leurs images ne se chargent pas). */
 .mn-only { display: none !important; }
+
+/* Thèmes de collections (essai administratrice) */
+.binder-themes { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: thin; }
+.binder-theme { flex: none; padding: 6px 12px; border-radius: 999px; border: 2px solid var(--chunk); background: var(--surface); color: var(--ink); font: inherit; font-weight: 700; font-size: .85rem; cursor: pointer; white-space: nowrap; }
+.binder-theme.active { background: var(--c-butter, #FFE08A); color: #5A3E3A; }
+.lib-filter-item.lf-theme { margin-top: 8px; font-weight: 800; }
+.lib-filter-item.lf-sub { margin-left: 18px; width: calc(100% - 18px); }
+.theme-admin { max-width: 640px; margin: 0 0 18px; display: flex; flex-direction: column; gap: 8px; }
+.theme-admin h3 { margin: 6px 0 2px; }
+.theme-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.theme-row { display: flex; align-items: center; gap: 6px; }
+.theme-row .theme-name { flex: 1 1 auto; min-width: 0; }
+.theme-row .theme-n { flex: none; font-size: .8rem; }
+.theme-row .btn { flex: none; min-width: 38px; padding: 6px 8px; }
+.theme-new { display: flex; gap: 6px; }
+.theme-new input { flex: 1 1 auto; min-width: 0; }
+.theme-group-title { margin: 12px 0 2px; font-size: 1rem; }
+.theme-env-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+.theme-env-row .atelier-tile-art { flex: 0 0 40px; }
+.theme-env-row strong { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.theme-env-row .theme-select { flex: 0 1 190px; min-width: 0; }
+.env-theme-field .theme-select { width: 100%; }

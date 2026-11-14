@@ -115,6 +115,19 @@
     return Math.max(def.min ?? 0, n);
   }
   const starPrice = () => setting('starPrice');
+  // Thèmes de collections (ex. Nature & jardin, Magie…) : liste dans les réglages, chaque enveloppe porte l'id de son thème.
+  // Essai : regroupement par thème visible seulement par l'administratrice.
+  const envThemes = () => (Array.isArray(state.settings && state.settings.envThemes) ? state.settings.envThemes : []);
+  const themesOn = () => !!state.isAdmin && envThemes().length > 0;
+  const themeOfEnv = (env) => (env && env.theme && envThemes().find((t) => t.id === env.theme)) || null;
+  const OTHER_THEME = { id: '', name: 'Autres' };
+  // Enveloppes rangées par thème, dans l'ordre des thèmes ; celles sans thème à la fin (« Autres »).
+  function groupByTheme(envs) {
+    const groups = envThemes().map((t) => ({ theme: t, envs: envs.filter((e) => e.theme === t.id) })).filter((g) => g.envs.length);
+    const rest = envs.filter((e) => !themeOfEnv(e));
+    if (rest.length) groups.push({ theme: OTHER_THEME, envs: rest });
+    return groups;
+  }
   const stampsPerStar = () => setting('stampsPerStar');
   const multiBuy = () => setting('multiBuy');
   const proposalReward = () => setting('proposalReward');
@@ -1056,8 +1069,31 @@
     return { list: out, total: mine.length };
   }
 
+  // Thème d'un sticker (essai administratrice) : celui de son enveloppe ('' = Autres).
+  const themeIdOfImg = (img) => { const t = themeOfEnv(state.envelopes.find((e) => e.id === img.envelope)); return t ? t.id : ''; };
+  const THEME_FILTER = 'theme:';
+  const libThemeOf = (f) => (f && f.startsWith(THEME_FILTER) ? f.slice(THEME_FILTER.length) : null);
+  const libMatches = (img) => {
+    if (!libFilter) return true;
+    const th = libThemeOf(libFilter);
+    return th !== null ? themeIdOfImg(img) === th : collectionOf(img) === libFilter;
+  };
+
   function updateLibFilterButton() {
     const { list } = libCollections();
+    const th = libThemeOf(libFilter);
+    if (th !== null) {
+      const t = th ? envThemes().find((x) => x.id === th) : OTHER_THEME;
+      if (!themesOn() || !t) libFilter = null;
+      else {
+        const btn = $('#btnLibFilter');
+        btn.classList.add('active');
+        btn.hidden = false;
+        $('#libFilterLabel').textContent = `\u00a0${t.name}`;
+        btn.title = `Thème : ${t.name} (toucher pour changer)`;
+        return;
+      }
+    }
     if (libFilter && !list.some((c) => c.id === libFilter)) libFilter = null; // plus aucun sticker de cette collection
     const cur = list.find((c) => c.id === libFilter);
     const btn = $('#btnLibFilter');
@@ -1082,7 +1118,18 @@
       box.appendChild(b);
     };
     item(null, 'Toutes mes collections', total);
-    list.forEach((c) => item(c.id, c.name, c.n));
+    if (themesOn()) {
+      // Essai (administratrice) : les collections rangées par thème ; on peut choisir tout un thème d'un coup.
+      const envOf = (id) => state.envelopes.find((e) => e.id === id);
+      const tid = (c) => { const t = themeOfEnv(envOf(c.id)); return t ? t.id : ''; };
+      for (const t of [...envThemes(), OTHER_THEME]) {
+        const inTheme = list.filter((c) => tid(c) === t.id);
+        if (!inTheme.length) continue;
+        item(THEME_FILTER + t.id, `🏷️ ${t.name}`, inTheme.reduce((a, c) => a + c.n, 0));
+        box.lastChild.classList.add('lf-theme');
+        inTheme.forEach((c) => { item(c.id, c.name, c.n); box.lastChild.classList.add('lf-sub'); });
+      }
+    } else list.forEach((c) => item(c.id, c.name, c.n));
     $('#libFilterDialog').hidden = false;
   }
   $('#btnLibFilter').addEventListener('click', openLibFilter);
@@ -1160,7 +1207,7 @@
     crumb(`liste des stickers (${state.images.size} images)`);
     const all = [...state.images.values()].filter((img) => ownedHere(img.id) > 0);
     updateLibFilterButton();
-    const mineAll = libFilter ? all.filter((img) => collectionOf(img) === libFilter) : all;
+    const mineAll = libFilter ? all.filter(libMatches) : all;
     // Les meubles les plus récents d'abord : date de sortie de leur enveloppe (ou de création du sticker si elle est plus récente).
     const envAt = new Map(state.envelopes.map((e) => [e.id, e.publishAt ? Date.parse(`${e.publishAt}T00:00:00`) : (e.created || 0)]));
     const recency = (img) => Math.max(img.created || 0, envAt.get(img.envelope) || 0);
@@ -4202,8 +4249,14 @@
     if (shopV2()) {
       // Liste complète : les dernières sorties en haut (les enveloppes du jour sont déjà au stand).
       const newest = [...all].sort((a, b) => (envSlotDay(b) || '').localeCompare(envSlotDay(a) || '') || (b.created || 0) - (a.created || 0));
-      heading('Toutes les enveloppes', 'Les dernières sorties en premier.');
-      envs.push(...newest);
+      if (themesOn()) {
+        // Essai (administratrice) : les enveloppes rangées par thème, les dernières sorties en premier dans chaque thème.
+        heading('Toutes les enveloppes', 'Rangées par thème, les dernières sorties en premier.');
+        for (const g of groupByTheme(newest)) envs.push({ heading: `🏷️ ${g.theme.name}`, sub: plural(g.envs.length, 'enveloppe') }, ...g.envs);
+      } else {
+        heading('Toutes les enveloppes', 'Les dernières sorties en premier.');
+        envs.push(...newest);
+      }
     } else if (others.length) {
       heading('⭐ Les enveloppes du jour', 'Prix réduit aujourd\'hui · elles changent à minuit');
       envs.push(...featured, 'toggle');
@@ -4226,6 +4279,7 @@
         grid.appendChild(row);
         continue;
       }
+      if (env && env.heading) { heading(env.heading, env.sub); continue; }
       if (!env) { heading('Les autres enveloppes', `Prix +${setting('offPricePct')} % aujourd'hui : guette-les dans les enveloppes du jour !`); continue; }
       const list = stickersOf(env.id);
       const got = list.filter((img) => owned(img.id) > 0).length;
@@ -4597,6 +4651,7 @@
     atelierOpen = null;
     atelierDaily = false;
     atelierReorder = false;
+    atelierThemesMode = false;
     $('#atelierSearch').value = '';
     renderAtelier();
     refreshCoffreCount();
@@ -4726,16 +4781,19 @@
     listEl.innerHTML = '';
     if (!detail) {
       $('#atelierEmpty').hidden = state.envelopes.length > 0;
-      $('#atelierSearch').hidden = atelierReorder || atelierDaily;
-      $('#atelierFilter').hidden = atelierReorder || atelierDaily;
-      if (!atelierReorder && !atelierDaily) renderAtelierFilter();
+      $('#atelierSearch').hidden = atelierReorder || atelierDaily || atelierThemesMode;
+      $('#atelierFilter').hidden = atelierReorder || atelierDaily || atelierThemesMode;
+      if (!atelierReorder && !atelierDaily && !atelierThemesMode) renderAtelierFilter();
+      $('#atelierThemes').textContent = atelierThemesMode ? '✓ Terminé' : '🏷️ Thèmes';
+      $('#atelierThemes').classList.toggle('btn-primary', atelierThemesMode);
+      $('#atelierThemes').hidden = atelierReorder || atelierDaily;
       $('#atelierOrder').textContent = atelierReorder ? '✓ Terminé' : '↕️ Ordre de la boutique';
       $('#atelierOrder').classList.toggle('btn-primary', atelierReorder);
       $('#atelierOrder').hidden = state.envelopes.length < 2 || atelierDaily;
       $('#atelierDaily').textContent = atelierDaily ? '✓ Terminé' : '⭐ Enveloppes du jour';
       $('#atelierDaily').classList.toggle('btn-primary', atelierDaily);
-      $('#atelierDaily').hidden = atelierReorder;
-      if (atelierReorder) renderAtelierOrder(listEl);
+      $('#atelierDaily').hidden = atelierReorder || atelierThemesMode;
+      if (atelierThemesMode) { $('#atelierOrder').hidden = true; renderAtelierThemes(listEl); } else if (atelierReorder) renderAtelierOrder(listEl);
       else if (atelierDaily) renderAtelierDaily(listEl);
       else renderAtelierTiles(listEl);
       return;
@@ -4759,6 +4817,7 @@
             <label class="atelier-field small"><span>Prix 🪙</span><input class="field" data-f="price" type="number" min="0" step="10"></label>
             <div class="atelier-field small"><span>Couleur</span><button type="button" class="swatch-btn env-swatch" data-f="color" title="Couleur de l'enveloppe"></button></div>
             <div class="atelier-field small"><span>Rond</span><button type="button" class="swatch-btn env-swatch" data-f="seal" title="Couleur du petit rond (cachet)"></button></div>
+            <label class="atelier-field env-theme-field"><span>Thème</span></label>
           </div>
           <button class="btn btn-ghost atelier-del" title="Supprimer l'enveloppe">🗑️</button>
         </div>
@@ -4770,6 +4829,7 @@
           <button type="button" class="btn atelier-unfiled">📥 Stickers à ranger <span class="atelier-unfiled-n"></span></button>
         </div>`;
       sec.querySelector('.atelier-art').appendChild(envelopeArt(env));
+      sec.querySelector('.env-theme-field').appendChild(themeSelect(env));
       const fName = sec.querySelector('[data-f="name"]');
       const fPrice = sec.querySelector('[data-f="price"]');
       const fColor = sec.querySelector('[data-f="color"]');
@@ -5420,6 +5480,7 @@
 
   // Choisir les enveloppes du jour (aujourd'hui ou demain) ; sinon, tirage au sort.
   let atelierDaily = false;
+  let atelierThemesMode = false;
   let dailyDayOffset = 0;
   const shopCount = () => liveEnvelopes().filter((env) => stickersOf(env.id).length).length;
   function renderAtelierDaily(listEl) {
@@ -5512,6 +5573,98 @@
     await saveSettings();
   }
   $('#atelierDaily').addEventListener('click', () => { atelierDaily = !atelierDaily; dailyDayOffset = 0; renderAtelier(); });
+  $('#atelierThemes').addEventListener('click', () => { atelierThemesMode = !atelierThemesMode; renderAtelier(); });
+
+  // Atelier > Thèmes : créer, renommer, réordonner, supprimer les thèmes, et ranger chaque enveloppe dans un thème.
+  async function saveThemes(list, msg) {
+    state.settings.envThemes = list;
+    await saveSettings(msg);
+    renderAtelier();
+  }
+  function themeSelect(env) {
+    const sel = document.createElement('select');
+    sel.className = 'field theme-select';
+    sel.setAttribute('aria-label', `Thème de ${env.name || 'l\'enveloppe'}`);
+    sel.innerHTML = '<option value="">Autres (sans thème)</option>' + envThemes().map((t) => `<option value="${t.id}"></option>`).join('');
+    envThemes().forEach((t, i) => { sel.options[i + 1].textContent = t.name; });
+    sel.value = themeOfEnv(env) ? env.theme : '';
+    sel.addEventListener('change', () => {
+      if (sel.value) env.theme = sel.value; else delete env.theme;
+      db.putEnvelope(env).then(() => toast(`« ${env.name} » rangée dans ${themeOfEnv(env) ? `« ${themeOfEnv(env).name} »` : '« Autres »'}`))
+        .catch(() => toast('L\'enveloppe n\'a pas pu être enregistrée.'));
+    });
+    return sel;
+  }
+  function renderAtelierThemes(listEl) {
+    const themes = envThemes();
+    const help = document.createElement('p');
+    help.className = 'muted';
+    help.textContent = 'Les thèmes regroupent les collections dans la Collection, le filtre des meubles (dans les pièces) et « Toutes les enveloppes » de la boutique. Pour l\'instant, toi seule vois ce regroupement.';
+    listEl.appendChild(help);
+    const box = document.createElement('section');
+    box.className = 'theme-admin';
+    box.innerHTML = '<h3>Mes thèmes</h3><ol class="theme-list"></ol><form class="theme-new"><input class="field" maxlength="40" placeholder="Nom du nouveau thème" aria-label="Nom du nouveau thème"><button class="btn btn-primary" type="submit">＋ Créer</button></form>';
+    const ol = box.querySelector('.theme-list');
+    themes.forEach((t, i) => {
+      const li = document.createElement('li');
+      li.className = 'theme-row';
+      const n = state.envelopes.filter((e) => e.theme === t.id).length;
+      li.innerHTML = `<input class="field theme-name" maxlength="40" aria-label="Nom du thème"><span class="muted theme-n">${plural(n, 'collection')}</span>
+        <button type="button" class="btn" data-mv="-1" title="Monter" ${i ? '' : 'disabled'}>▲</button>
+        <button type="button" class="btn" data-mv="1" title="Descendre" ${i < themes.length - 1 ? '' : 'disabled'}>▼</button>
+        <button type="button" class="btn btn-ghost" data-del title="Supprimer le thème">🗑️</button>`;
+      const inp = li.querySelector('.theme-name');
+      inp.value = t.name;
+      inp.addEventListener('change', () => {
+        const name = inp.value.trim();
+        if (!name) { inp.value = t.name; return; }
+        saveThemes(themes.map((x) => (x.id === t.id ? { ...x, name } : x)), 'Thème renommé ✓');
+      });
+      li.querySelectorAll('[data-mv]').forEach((b) => b.addEventListener('click', () => {
+        const list = [...themes];
+        const j = i + Number(b.dataset.mv);
+        [list[i], list[j]] = [list[j], list[i]];
+        saveThemes(list);
+      }));
+      li.querySelector('[data-del]').addEventListener('click', async () => {
+        if (!(await askConfirm(`Supprimer le thème « ${t.name} » ? ${n ? `Ses ${plural(n, 'collection')} iront dans « Autres » (rien n'est supprimé).` : ''}`, 'Supprimer'))) return;
+        for (const env of state.envelopes.filter((e) => e.theme === t.id)) { delete env.theme; db.putEnvelope(env).catch(() => {}); }
+        saveThemes(themes.filter((x) => x.id !== t.id), 'Thème supprimé');
+      });
+      ol.appendChild(li);
+    });
+    if (!themes.length) ol.insertAdjacentHTML('beforeend', '<li class="muted">Aucun thème pour l\'instant : crée le premier ci-dessous.</li>');
+    box.querySelector('.theme-new').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = box.querySelector('.theme-new input').value.trim();
+      if (!name) return;
+      if (themes.some((t) => normalizeText(t.name) === normalizeText(name))) { toast('Ce thème existe déjà.'); return; }
+      saveThemes([...themes, { id: 'th-' + uid(), name }], `Thème « ${name} » créé ✓`);
+    });
+    listEl.appendChild(box);
+    // Ranger les enveloppes : une liste par thème, avec un menu pour changer de thème.
+    const sort = document.createElement('section');
+    sort.className = 'theme-admin';
+    sort.innerHTML = '<h3>Ranger les collections</h3>';
+    for (const g of groupByTheme(state.envelopes)) {
+      const h = document.createElement('h4');
+      h.className = 'theme-group-title';
+      h.textContent = `${g.theme.name} · ${g.envs.length}`;
+      sort.appendChild(h);
+      for (const env of [...g.envs].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'))) {
+        const row = document.createElement('div');
+        row.className = 'theme-env-row';
+        row.innerHTML = '<div class="atelier-tile-art"></div><strong></strong>';
+        row.querySelector('.atelier-tile-art').appendChild(envelopeArt(env));
+        row.querySelector('strong').textContent = env.name || 'Enveloppe';
+        const sel = themeSelect(env);
+        sel.addEventListener('change', () => setTimeout(renderAtelier, 50));
+        row.appendChild(sel);
+        sort.appendChild(row);
+      }
+    }
+    listEl.appendChild(sort);
+  }
 
   // Liste des enveloppes en tuiles (avec recherche par nom d'enveloppe ou de sticker).
   // Filtre de la liste : toutes, brouillons, programmées, en vente.
@@ -5557,7 +5710,7 @@
       const st = envStatus(env);
       const sub = (st === 'draft' ? '📝 Brouillon · ' : st === 'scheduled' ? `📅 Sort le ${dayLabel(env.publishAt)} · ` : '')
         + (list.length ? plural(list.length, 'sticker') : 'Vide : pas dans la boutique')
-        + ` · ${env.price ?? DEFAULT_PRICE} 🪙` + (list.length && isDailyEnvelope(env) && setting('dailyEnvCount') ? ' · ⭐ du jour' : '')
+        + ` · ${env.price ?? DEFAULT_PRICE} 🪙` + (themeOfEnv(env) ? ` · 🏷️ ${themeOfEnv(env).name}` : '') + (list.length && isDailyEnvelope(env) && setting('dailyEnvCount') ? ' · ⭐ du jour' : '')
         + (hits.length ? ` · contient « ${hits.slice(0, 2).map((h) => h.name).join(' », « ')} »${hits.length > 2 ? '…' : ''}` : '');
       tile(envelopeArt(env), env.name || 'Enveloppe', sub, async () => { atelierOpen = env.id; renderAtelier(); await refreshCoffreCount(); if (atelierOpen === env.id) renderAtelier(); }, (list.length ? '' : 'empty') + (st === 'live' ? '' : ' unpublished'));
     }
@@ -5786,6 +5939,33 @@
   // ---------------------------------------------------------------------------
   let binderPage = 0;
   const binderPages = () => liveEnvelopes().filter((env) => stickersOf(env.id).length);
+  // Classeur rangé par thème (essai administratrice) : null = tous les thèmes, sinon l'id du thème ('' = Autres).
+  let binderTheme = null;
+  function themedBinderPages() {
+    const all = binderPages();
+    if (!themesOn()) return all;
+    const groups = groupByTheme(all);
+    if (binderTheme !== null && !groups.some((g) => g.theme.id === binderTheme)) binderTheme = null;
+    return binderTheme === null ? groups.flatMap((g) => g.envs) : groups.find((g) => g.theme.id === binderTheme).envs;
+  }
+  function renderBinderThemes() {
+    const box = $('#binderThemes');
+    box.hidden = !themesOn();
+    if (box.hidden) return;
+    box.innerHTML = '';
+    const chip = (id, label, n) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'binder-theme' + (binderTheme === id ? ' active' : '');
+      b.setAttribute('aria-pressed', binderTheme === id);
+      b.textContent = `${label} · ${n}`;
+      b.addEventListener('click', () => { binderTheme = id; binderPage = 0; renderCollection(); });
+      box.appendChild(b);
+    };
+    const groups = groupByTheme(binderPages());
+    chip(null, 'Tous', binderPages().length);
+    groups.forEach((g) => chip(g.theme.id, g.theme.name, g.envs.length));
+  }
 
   function openCollection(page) {
     if (maintBlocked('collection')) return;
@@ -5796,7 +5976,8 @@
 
   function renderCollection() {
     $('#collectionHint').textContent = `Touche un sticker obtenu pour voir sa fiche ou le vendre. Revente : commun ${setting('sell_common')} 🪙, rare ${setting('sell_rare')} 🪙, très rare ${setting('sell_epic')} 🪙.`;
-    const pages = binderPages();
+    renderBinderThemes();
+    const pages = themedBinderPages();
     const all = collectible();
     const got = all.filter((img) => owned(img.id) > 0).length;
     $('#collectionTotal').textContent = `${got}/${all.length}`;

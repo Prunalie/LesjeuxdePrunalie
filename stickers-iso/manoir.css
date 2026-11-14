@@ -474,3 +474,7 @@
 }
 :root[data-skin="manoir"] .env-item.missing .env-item-img img { opacity: .22; }
 :root[data-skin="manoir"] .env-item-img .env-owned { background: #1F3A2C !important; color: #9ED8B3 !important; }
+/* Thèmes de collections */
+:root[data-skin="manoir"] .binder-theme { border-radius: 2px !important; border: 1.5px solid var(--gold) !important; background: #2A1840 !important; color: var(--ink) !important; font-family: var(--font-body, 'Cormorant Garamond', serif); }
+:root[data-skin="manoir"] .binder-theme.active { background: linear-gradient(180deg, #F4D58A, var(--gold)) !important; color: #1B0F14 !important; }
+:root[data-skin="manoir"] .theme-group-title, :root[data-skin="manoir"] .theme-admin h3 { font-family: var(--font-title); color: var(--gold-light); }
