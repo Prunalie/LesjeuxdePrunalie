@@ -80,6 +80,8 @@
     { group: 'Boutique', key: 'sundayAllNormal', type: 'bool', label: 'Le dimanche, toutes les enveloppes à prix réduit', def: () => true },
     { group: 'Boutique', key: 'offPricePct', label: 'Hausse du prix des autres enveloppes', unit: '%', def: () => 100, max: 1000, step: 10 },
     { group: 'Boutique', key: 'packDiscountPct', label: 'Réduction sur le paquet « ×5 » (enveloppes du jour seulement)', unit: '% moins cher', def: () => 0, max: 90, step: 5 },
+    { group: 'Boutique', key: 'decoPriceWall', label: 'Prix d\'un papier peint (boutique Décor)', unit: '🪙', def: () => 100, max: 100000, step: 10 },
+    { group: 'Boutique', key: 'decoPriceFloor', label: 'Prix d\'un sol (boutique Décor)', unit: '🪙', def: () => 150, max: 100000, step: 10 },
     { group: 'Boutique', key: 'multiBuy', label: 'Enveloppes du bouton « ×… »', unit: 'enveloppes', def: () => MULTI_BUY, min: 2, max: 50, step: 1 },
     { group: 'Revente des stickers', key: 'sell_common', label: 'Revente d\'un commun', unit: '🪙', def: () => RARITIES.common.sell, max: 100000, step: 5 },
     { group: 'Revente des stickers', key: 'sell_rare', label: 'Revente d\'un rare', unit: '🪙', def: () => RARITIES.rare.sell, max: 100000, step: 5 },
@@ -953,6 +955,8 @@
     try { (await withFallback((d) => d.listDecos())).forEach(addDeco); } catch (e) { decosTried = false; console.warn('Décor indisponible', e); }
   }
 
+  // Prix d'un décor : un montant unique pour les sols, un autre pour les papiers peints (Réglages > Boutique).
+  const decoPrice = (d) => setting(d.kind === 'floor' ? 'decoPriceFloor' : 'decoPriceWall');
   function addDeco(rec) {
     if (!rec.data) return;
     if ((rec.adminOnly || rec.kind === 'halfwall' || rec.kind === 'post') && !state.isAdmin) return; // décor privé : les joueurs ne le voient pas
@@ -5081,8 +5085,8 @@
           const b = document.createElement('button');
           b.type = 'button';
           b.className = 'dv-buy';
-          b.innerHTML = `${d.price}${COIN_SVG(20)}`;
-          b.setAttribute('aria-label', `Acheter ${d.name} pour ${d.price} pièces`);
+          b.innerHTML = `${decoPrice(d)}${COIN_SVG(20)}`;
+          b.setAttribute('aria-label', `Acheter ${d.name} pour ${decoPrice(d)} pièces`);
           b.addEventListener('click', () => buyDeco(d));
           card.appendChild(b);
         }
@@ -5108,7 +5112,7 @@
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'btn btn-primary';
-      b.innerHTML = `Acheter · ${d.price}${COIN_SVG(18)}`;
+      b.innerHTML = `Acheter · ${decoPrice(d)}${COIN_SVG(18)}`;
       b.addEventListener('click', () => { $('#decoPreview').hidden = true; buyDeco(d); });
       box.appendChild(b);
     }
@@ -5118,10 +5122,10 @@
   $('#decoPreview').addEventListener('click', (e) => { if (e.target.id === 'decoPreview') $('#decoPreview').hidden = true; });
   async function buyDeco(d) {
     if (decoOwned(d.id)) return;
-    if ((state.profile.points || 0) < d.price) { toast(`Il te manque ${d.price - (state.profile.points || 0)} 🪙.`); return; }
-    if (!(await askConfirm(`Acheter « ${d.name} » pour ${d.price} 🪙 ?`, 'Acheter'))) return;
-    if ((state.profile.points || 0) < d.price) return;
-    state.profile.points -= d.price;
+    if ((state.profile.points || 0) < decoPrice(d)) { toast(`Il te manque ${decoPrice(d) - (state.profile.points || 0)} 🪙.`); return; }
+    if (!(await askConfirm(`Acheter « ${d.name} » pour ${decoPrice(d)} 🪙 ?`, 'Acheter'))) return;
+    if ((state.profile.points || 0) < decoPrice(d)) return;
+    state.profile.points -= decoPrice(d);
     state.profile.decos = { ...(state.profile.decos || {}), [d.id]: true };
     renderPoints();
     saveProfile();
@@ -5201,14 +5205,14 @@
       f('name').value = d.name || '';
       f('kind').value = d.kind;
       f('collection').value = d.collection || '';
-      f('price').value = d.price ?? 100;
+      // Prix unique pour tous les papiers peints / tous les sols : réglé dans Réglages > Boutique.
+      f('price').closest('label').hidden = true;
       f('size').value = d.size || 2;
       f('adminOnly').checked = !!d.adminOnly;
       f('adminOnly').addEventListener('change', () => save('adminOnly', f('adminOnly').checked));
       f('name').addEventListener('change', () => save('name', f('name').value.trim() || 'Décor'));
       f('kind').addEventListener('change', () => save('kind', f('kind').value));
       f('collection').addEventListener('change', () => save('collection', f('collection').value.trim()));
-      f('price').addEventListener('change', () => save('price', Math.max(0, Math.round(Number(f('price').value) || 0))));
       f('size').addEventListener('change', () => {
         save('size', Math.max(0.5, Math.min(12, Number(f('size').value) || 2)));
         card.querySelector('.deco-preview').style.backgroundSize = decoBgSize(d);
