@@ -6744,10 +6744,10 @@
     }
     return lentCache.val;
   }
-  // Essai (administratrice) : cartouche du thème en haut de la pièce du concours (pièce imposée, thème, objet ou couleur).
+  // Thème du concours, en fine ligne dans la barre du haut de la pièce du concours (pièce imposée, thème, objet ou couleur).
   function renderContestTheme(r) {
     const box = $('#contestTheme');
-    const on = !!(r && r.contestDay && state.isAdmin);
+    const on = !!(r && r.contestDay);
     box.hidden = !on;
     $('#contestBanner').classList.toggle('admin-off', on); // le bandeau du bas fait doublon
     if (!on) return;
