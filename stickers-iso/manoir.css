@@ -466,11 +466,11 @@
 :root[data-skin="manoir"] .cv3-info summary { width: 30px !important; height: 30px !important; box-shadow: none !important; }
 :root[data-skin="manoir"] .cv3-info summary span { font-family: Georgia, 'Times New Roman', serif !important; font-style: normal !important; font-weight: 700 !important; font-size: 17px !important; line-height: 1 !important; text-transform: none !important; letter-spacing: 0 !important; color: #1B0F14 !important; transform: translateY(1px); }
 
-/* Boutique (essai, administratrice seulement) : cases des objets éclaircies, façon parchemin, pour bien voir les stickers */
-:root[data-skin="manoir"][data-admin] .env-item-img {
+/* Boutique : cases des objets éclaircies, façon parchemin, pour bien voir les stickers */
+:root[data-skin="manoir"] .env-item-img {
   background: radial-gradient(circle at 50% 42%, #FBF1DA 0%, #F2E1BC 62%, #E6CF9E 100%) !important;
   border: 2px solid var(--gold) !important; border-radius: 4px !important;
   box-shadow: inset 0 0 0 2px #FBF1DA, inset 0 0 0 3px rgba(138, 100, 37, .45) !important;
 }
-:root[data-skin="manoir"][data-admin] .env-item.missing .env-item-img img { opacity: .22; }
-:root[data-skin="manoir"][data-admin] .env-item-img .env-owned { background: #1F3A2C !important; color: #9ED8B3 !important; }
+:root[data-skin="manoir"] .env-item.missing .env-item-img img { opacity: .22; }
+:root[data-skin="manoir"] .env-item-img .env-owned { background: #1F3A2C !important; color: #9ED8B3 !important; }
