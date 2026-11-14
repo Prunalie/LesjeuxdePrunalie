@@ -2795,7 +2795,7 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .binder-themes { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: thin; }
 .binder-theme { flex: none; padding: 6px 12px; border-radius: 999px; border: 2px solid var(--chunk); background: var(--surface); color: var(--ink); font: inherit; font-weight: 700; font-size: .85rem; cursor: pointer; white-space: nowrap; }
 .binder-theme.active { background: var(--c-butter, #FFE08A); color: #5A3E3A; }
-.lib-filter-item.lf-theme { margin-top: 8px; font-weight: 800; }
+.lib-filter-item.lf-theme { font-weight: 800; }
 .lib-filter-item.lf-sub { margin-left: 18px; width: calc(100% - 18px); }
 .theme-admin { max-width: 640px; margin: 0 0 18px; display: flex; flex-direction: column; gap: 8px; }
 .theme-admin h3 { margin: 6px 0 2px; }
@@ -2813,3 +2813,5 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .theme-env-row .theme-select { flex: 0 1 190px; min-width: 0; }
 .env-theme-field .theme-select { width: 100%; }
 .atelier-theme-filter { flex: 0 1 auto; width: auto; max-width: 100%; min-height: 0; padding: 6px 10px; font-size: .9rem; }
+.lib-filter-item.lf-back { font-weight: 800; justify-content: flex-start; }
+.lib-filter-item.lf-all { margin-top: 8px; }

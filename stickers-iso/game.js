@@ -1103,10 +1103,13 @@
     btn.title = cur ? `Collection : ${cur.name} (toucher pour changer)` : 'Filtrer les stickers par collection';
   }
 
-  function openLibFilter() {
+  // Filtre des meubles. Avec les thèmes : d'abord la liste des thèmes, puis les collections du thème choisi
+  // (retour possible vers les thèmes, ou « Toutes mes collections »).
+  function openLibFilter(themeView) {
     const { list, total } = libCollections();
     const box = $('#libFilterList');
     box.innerHTML = '';
+    const close = () => { $('#libFilterDialog').hidden = true; renderLibrary(); };
     const item = (id, label, n) => {
       const b = document.createElement('button');
       b.type = 'button';
@@ -1114,25 +1117,53 @@
       b.innerHTML = '<span class="lf-name"></span><span class="lf-n"></span>';
       b.querySelector('.lf-name').textContent = ((libFilter || null) === id ? '✓ ' : '') + label;
       b.querySelector('.lf-n').textContent = plural(n, 'sticker');
-      b.addEventListener('click', () => { libFilter = id; $('#libFilterDialog').hidden = true; renderLibrary(); });
+      b.addEventListener('click', () => { libFilter = id; close(); });
       box.appendChild(b);
+      return b;
     };
-    item(null, 'Toutes mes collections', total);
-    if (themesOn()) {
-      // Essai (administratrice) : les collections rangées par thème ; on peut choisir tout un thème d'un coup.
-      const envOf = (id) => state.envelopes.find((e) => e.id === id);
-      const tid = (c) => { const t = themeOfEnv(envOf(c.id)); return t ? t.id : ''; };
-      for (const t of [...envThemes(), OTHER_THEME]) {
-        const inTheme = list.filter((c) => tid(c) === t.id);
-        if (!inTheme.length) continue;
-        item(THEME_FILTER + t.id, `🏷️ ${t.name}`, inTheme.reduce((a, c) => a + c.n, 0));
-        box.lastChild.classList.add('lf-theme');
-        inTheme.forEach((c) => { item(c.id, c.name, c.n); box.lastChild.classList.add('lf-sub'); });
+    if (!themesOn()) {
+      $('#libFilterTitle').textContent = 'Filtrer par collection';
+      item(null, 'Toutes mes collections', total);
+      list.forEach((c) => item(c.id, c.name, c.n));
+      $('#libFilterDialog').hidden = false;
+      return;
+    }
+    const envOf = (id) => state.envelopes.find((e) => e.id === id);
+    const tid = (c) => { const t = themeOfEnv(envOf(c.id)); return t ? t.id : ''; };
+    const themes = [...envThemes(), OTHER_THEME].map((t) => ({ t, cols: list.filter((c) => tid(c) === t.id) })).filter((x) => x.cols.length);
+    const view = typeof themeView === 'string' ? themes.find((x) => x.t.id === themeView) : null;
+    if (!view) {
+      // Niveau 1 : les thèmes.
+      $('#libFilterTitle').textContent = 'Filtrer par thème';
+      item(null, 'Toutes mes collections', total);
+      const curTheme = libThemeOf(libFilter);
+      for (const { t, cols } of themes) {
+        const inside = curTheme === t.id || cols.some((c) => c.id === libFilter);
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'lib-filter-item lf-theme' + (inside ? ' active' : '');
+        b.innerHTML = '<span class="lf-name"></span><span class="lf-n"></span>';
+        b.querySelector('.lf-name').textContent = `${inside ? '✓ ' : ''}🏷️ ${t.name}`;
+        b.querySelector('.lf-n').textContent = `${plural(cols.length, 'collection')} ›`;
+        b.addEventListener('click', () => openLibFilter(t.id));
+        box.appendChild(b);
       }
-    } else list.forEach((c) => item(c.id, c.name, c.n));
+    } else {
+      // Niveau 2 : les collections du thème choisi.
+      $('#libFilterTitle').textContent = view.t.name;
+      const back = document.createElement('button');
+      back.type = 'button';
+      back.className = 'lib-filter-item lf-back';
+      back.textContent = '← Tous les thèmes';
+      back.addEventListener('click', () => openLibFilter());
+      box.appendChild(back);
+      item(THEME_FILTER + view.t.id, `Tout le thème « ${view.t.name} »`, view.cols.reduce((a, c) => a + c.n, 0)).classList.add('lf-theme');
+      view.cols.forEach((c) => item(c.id, c.name, c.n));
+      item(null, 'Toutes mes collections', total).classList.add('lf-all');
+    }
     $('#libFilterDialog').hidden = false;
   }
-  $('#btnLibFilter').addEventListener('click', openLibFilter);
+  $('#btnLibFilter').addEventListener('click', () => openLibFilter());
   $('#libFilterClose').addEventListener('click', () => { $('#libFilterDialog').hidden = true; });
   $('#libFilterDialog').addEventListener('click', (e) => { if (e.target.id === 'libFilterDialog') $('#libFilterDialog').hidden = true; });
 
