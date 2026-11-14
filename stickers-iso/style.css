@@ -2846,3 +2846,5 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .contest-theme .ct-sub { margin-left: 6px; color: var(--muted); font-weight: 700; }
 .contest-theme .ct-sub::before { content: "· "; }
 .contest-theme .ct-sub[hidden] { display: none; }
+/* Barre du haut repliée : la ligne du thème est cachée avec elle, on remet le bandeau du bas */
+.screen-room.hide-top .contest-banner.admin-off:not(.away) { display: block !important; }
