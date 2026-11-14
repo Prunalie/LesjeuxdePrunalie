@@ -6752,7 +6752,7 @@
     $('#contestBanner').classList.toggle('admin-off', on); // le bandeau du bas fait doublon
     if (!on) return;
     const day = r.contestDay;
-    box.innerHTML = '<span class="ct-kicker"></span><strong class="ct-main"></strong><span class="ct-sub"></span>';
+    box.innerHTML = '<span class="ct-kicker"></span><span class="ct-text"><strong class="ct-main"></strong><span class="ct-sub"></span></span>';
     let main, sub = '', extra = null;
     if (!v2Day(day)) main = themeOf(day);
     else {
