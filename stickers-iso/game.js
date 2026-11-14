@@ -486,7 +486,9 @@
   function crumb(msg) {
     try {
       const list = JSON.parse(localStorage.getItem(TRACE_KEY) || '[]');
-      list.push(`${new Date().toLocaleTimeString('fr-FR')} ${msg}`);
+      // Avec la date : un rapport peut mélanger plusieurs jours (la liste garde les 30 dernières étapes).
+      const now = new Date();
+      list.push(`${now.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} ${now.toLocaleTimeString('fr-FR')} ${msg}`);
       localStorage.setItem(TRACE_KEY, JSON.stringify(list.slice(-30)));
     } catch (e) { /* stockage indisponible */ }
   }
@@ -10390,6 +10392,7 @@
   // la page s'est arrêtée alors qu'elle était affichée (plantage).
   const ALIVE_KEY = 'ma-petite-piece:vivant';
   const diedVisible = !!read(ALIVE_KEY);
+  const diedSince = Number(read(ALIVE_KEY)) || 0; // quand la page arrêtée avait été ouverte (ou réaffichée)
   const markAlive = () => store(ALIVE_KEY, String(Date.now()));
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') store(ALIVE_KEY, null); else markAlive(); });
   window.addEventListener('pagehide', () => store(ALIVE_KEY, null));
@@ -10402,7 +10405,7 @@
     if (!(await askConfirm('Le jeu s\'est arrêté la dernière fois. Prévenir l\'administratrice pour qu\'elle puisse corriger ?', 'Oui, la prévenir'))) return;
     const m = {
       id: `crash-${state.player.key}-${Date.now()}`, to: ADMIN_PSEUDOS[0], title: `⚠️ Plantage chez ${state.player.name}`,
-      text: `${state.player.name} a eu un plantage. Dernières étapes :\n${traces || '(aucune)'}\n\nAppareil : ${navigator.userAgent}\nÉcran : ${window.innerWidth}×${window.innerHeight} ×${window.devicePixelRatio || 1} · stickers chargés : ${state.images.size} · possédés : ${Object.keys((state.profile && state.profile.inventory) || {}).length} · maintenant : ${memSnapshot()}`,
+      text: `${state.player.name} a eu un plantage. Dernières étapes :\n${traces || '(aucune)'}\n\nVersion du jeu : ${((document.querySelector('script[src*="game.js"]') || {}).src || '').split('v=')[1] || '?'}${diedSince ? ` · page arrêtée affichée depuis le ${new Date(diedSince).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}\nAppareil : ${navigator.userAgent}\nÉcran : ${window.innerWidth}×${window.innerHeight} ×${window.devicePixelRatio || 1} · stickers chargés : ${state.images.size} · possédés : ${Object.keys((state.profile && state.profile.inventory) || {}).length} · maintenant : ${memSnapshot()}`,
       reward: 0, read: false, claimed: false, created: Date.now(),
     };
     try { await db.createMail(m); toast('Merci, c\'est envoyé ✉️'); } catch (e) { toast('Le message n\'a pas pu être envoyé.'); }
