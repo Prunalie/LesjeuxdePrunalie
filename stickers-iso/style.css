@@ -3046,3 +3046,11 @@ button.bk-slot:focus-visible { box-shadow: 0 0 0 3px #E6B85C, 0 0 16px #E6B85Caa
 /* Grandes tuiles (fond décoré qui ne doit pas déborder) : la luciole se pose dans le coin, à l'intérieur */
 .home-card.big.has-fee { overflow: hidden; }
 .home-card.big .fee-alerte { right: -6px; top: -8px; }
+
+/* Cases d'objets : l'image tient toujours dans sa case carrée, même très haute (colonnes, étagères…) */
+.env-item-img { position: relative; overflow: hidden; }
+.env-item-img > img { position: absolute; left: 9%; top: 9%; width: 82%; height: 82%; max-width: none; max-height: none; object-fit: contain; }
+/* Ouverture de plusieurs enveloppes : la fenêtre défile si besoin, le bouton « Super ! » reste accessible */
+#multiDialog { overflow-y: auto; }
+#multiDialog .multi-box { max-height: none; margin: auto; padding-bottom: 16px; }
+#multiDialog { align-items: flex-start; }
