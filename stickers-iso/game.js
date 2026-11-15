@@ -7205,8 +7205,11 @@
   };
   async function contestDocs(day, fresh = false) {
     const final = contestFinal(day);
+    // Une copie lue AVANT la fin des votes n'est jamais définitive (sinon le classement et les récompenses
+    // se calculaient sur des votes incomplets) ; une copie lue après 20 h, elle, l'est.
+    const usable = (at) => (at > voteEnd(day) ? (final || Date.now() - at < CONTEST_TTL) : (Date.now() < voteEnd(day) && Date.now() - at < CONTEST_TTL));
     const m = contestMem.get(day);
-    if (m && !fresh && (final || Date.now() - m.at < CONTEST_TTL)) return m.docs;
+    if (m && !fresh && usable(m.at)) return m.docs;
     const key = `/concours/${day}`;
     // Copie de l'appareil : définitive pour un concours terminé, 3 minutes sinon (même après un redémarrage du jeu).
     if (!fresh && contestStore && db === cloudDb && !state.isAdmin) {
@@ -7216,7 +7219,7 @@
           const saved = await res.json();
           const docs = Array.isArray(saved) ? saved : saved.docs;
           const at = Array.isArray(saved) ? Date.now() : saved.at;
-          if (final || Date.now() - at < CONTEST_TTL) { contestMem.set(day, { docs, at }); return docs; }
+          if (usable(at)) { contestMem.set(day, { docs, at }); return docs; }
         }
       } catch (e) { /* copie illisible : on relit */ }
     }
@@ -7293,7 +7296,7 @@
     const podium = []; // 2e et 3e places récompensées
     try {
       for (let d = from; d <= last; d = shiftDay(d, 1)) {
-        const res = await loadContestDay(d);
+        const res = await loadContestDay(d, true); // récompenses : toujours sur les votes définitifs, jamais sur une copie
         if (res.winners.includes(state.player.key)) wins.push({ day: d, res });
         else {
           const place = res.place(state.player.key);
