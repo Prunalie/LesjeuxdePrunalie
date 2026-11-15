@@ -2986,3 +2986,22 @@ button.bk-slot:focus-visible { box-shadow: 0 0 0 3px #E6B85C, 0 0 16px #E6B85Caa
 .bk-img { position: relative; flex: 1 1 0; min-height: 0; width: 100%; display: block; padding: 0; margin: 1px 0 3px; }
 .bk-img img { position: absolute; left: 6px; right: 6px; top: 0; bottom: 0; width: calc(100% - 12px); height: 100%; max-width: none; max-height: none; object-fit: contain; }
 .bk-name { flex: none; }
+/* Livre : récompenses de collection et doublons */
+.home-card .coll-dot { top: 8px; right: 8px; }
+.bk-cover-links { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 14px; width: 100%; }
+.bk-cover-link { min-height: 40px; padding: 4px 16px; border-radius: 6px; border: 2px solid #E6B85C; background: rgba(42,14,24,.55); color: #F7E9C4; cursor: pointer;
+  font-family: var(--bk-title); font-weight: 700; font-size: 13px; letter-spacing: .03em; }
+.bk-cover-link.gift { background: linear-gradient(#F8DC96, #D9A441); color: #2A1230; border-color: #1B0F14; box-shadow: 0 3px 0 #6E4A12; }
+.bk-dup-link { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 40px; margin: 4px 0 2px; padding: 4px 12px; border-radius: 6px;
+  border: 2px dashed var(--bk-red); background: #FBEFD2; color: var(--bk-red); cursor: pointer; font-family: var(--bk-title); font-weight: 700; font-size: 13px; }
+.bk-complete small { font-family: var(--bk-body); font-size: 12px; font-weight: 700; }
+.bk-dup-tools { display: flex; justify-content: flex-end; margin: 6px 0 2px; }
+.bk-dup-tools:empty { display: none; }
+.bk-slot .bk-check { position: absolute; left: 5px; top: 5px; width: 20px; height: 20px; border-radius: 4px; border: 1.5px solid #1B0F14; background: #FBEFD2; display: grid; place-items: center;
+  font-size: 13px; font-weight: 900; color: transparent; }
+.bk-slot.picked { border-color: #C98B1B; box-shadow: 0 0 0 3px #E6B85C, 0 0 14px #E6B85Caa; }
+.bk-slot.picked .bk-check { background: #E6B85C; color: #1B0F14; }
+.bk-dup-grid .bk-img { margin-top: 18px; }
+.bk-dup-sell { position: sticky; bottom: 0; padding: 10px 0 2px; background: linear-gradient(transparent, #F6E4BE 30%); display: flex; justify-content: center; }
+.bk-dup-btn { width: 100%; font-size: 12.5px; }
+.bk-dup-btn:disabled { opacity: .55; cursor: default; }

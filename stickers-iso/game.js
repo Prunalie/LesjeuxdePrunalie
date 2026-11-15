@@ -83,6 +83,7 @@
     { group: 'Boutique', key: 'decoPriceWall', label: 'Prix d\'un papier peint (boutique Décor)', unit: '🪙', def: () => 100, max: 100000, step: 10 },
     { group: 'Boutique', key: 'decoPriceFloor', label: 'Prix d\'un sol (boutique Décor)', unit: '🪙', def: () => 150, max: 100000, step: 10 },
     { group: 'Boutique', key: 'multiBuy', label: 'Enveloppes du bouton « ×… »', unit: 'enveloppes', def: () => MULTI_BUY, min: 2, max: 50, step: 1 },
+    { group: 'Revente des stickers', key: 'collectionReward', label: 'Récompense pour une collection complète (livre de collection)', unit: '🪙', def: () => 150, max: 100000, step: 10 },
     { group: 'Revente des stickers', key: 'sell_common', label: 'Revente d\'un commun', unit: '🪙', def: () => RARITIES.common.sell, max: 100000, step: 5 },
     { group: 'Revente des stickers', key: 'sell_rare', label: 'Revente d\'un rare', unit: '🪙', def: () => RARITIES.rare.sell, max: 100000, step: 5 },
     { group: 'Revente des stickers', key: 'sell_epic', label: 'Revente d\'un très rare', unit: '🪙', def: () => RARITIES.epic.sell, max: 100000, step: 5 },
@@ -6022,6 +6023,7 @@
     if (stars) $('#homeShopSub').innerHTML = `${STAR_SVG(15)} ${plural(stars, 'étoile')} à utiliser`;
     else $('#homeShopSub').textContent = envs ? `${plural(envs, 'enveloppe')} en vente` : 'Bientôt des enveloppes';
     $('#homeCollectionSub').textContent = all.length ? `${got}/${all.length} stickers obtenus` : 'Classeur vide';
+    renderCollDot();
     $('#homeCollectionBar').style.width = all.length ? `${Math.round((got / all.length) * 100)}%` : '0%';
     $('#homeAdmin').hidden = !state.isAdmin;
     const pending = state.myProposals.filter((x) => x.status === 'pending').length;
@@ -6086,6 +6088,7 @@
     if (maintBlocked('collection')) return;
     if (page !== undefined) binderPage = page;
     bookIndex = 0; // le livre s'ouvre sur sa couverture
+    dupPicks = null; // doublons : tout est coché à chaque ouverture
     renderCollection();
     showScreen('collection');
   }
@@ -6173,6 +6176,41 @@
   // Une seule page est construite à la fois ; elle tourne autour de son bord gauche (comme la maquette).
   // ---------------------------------------------------------------------------
   const bookOn = () => !!state.isAdmin;
+  // Récompense d'une collection complète (à récupérer dans le livre), une seule fois par collection.
+  const collRewardOn = () => bookOn() && setting('collectionReward') > 0;
+  const collComplete = (env) => { const l = stickersOf(env.id); return l.length > 0 && l.every((img) => owned(img.id) > 0); };
+  const collClaimed = (env) => !!(state.profile && state.profile.collectionRewards && state.profile.collectionRewards[env.id]);
+  const pendingCollRewards = () => (collRewardOn() && state.profile ? binderPages().filter((e) => collComplete(e) && !collClaimed(e)) : []);
+  function renderCollDot() { const d = $('#homeCollection .coll-dot'); if (d) d.hidden = !pendingCollRewards().length; }
+  function claimCollReward(env) {
+    if (!collComplete(env) || collClaimed(env)) return;
+    const gain = setting('collectionReward');
+    state.profile.collectionRewards = { ...(state.profile.collectionRewards || {}), [env.id]: Date.now() };
+    state.profile.points = (state.profile.points || 0) + gain;
+    saveProfile();
+    renderPoints();
+    renderCollDot();
+    toast(`🎁 +${gain} 🪙 : collection « ${env.name} » complète !`);
+    renderCollection();
+  }
+  // Doublons : les exemplaires en trop (on en garde toujours un, et on ne vend pas ceux posés dans les pièces).
+  const extraCopies = (img) => Math.max(0, Math.min(owned(img.id) - 1, available(img.id)));
+  const dupList = () => [...state.images.values()].filter((img) => img.catalog && extraCopies(img) > 0).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+  let dupPicks = null; // objets cochés (par défaut : tous)
+  async function sellDuplicates() {
+    const list = dupList().filter((img) => dupPicks.has(img.id));
+    if (!list.length) return;
+    const copies = list.reduce((a, img) => a + extraCopies(img), 0);
+    const gain = list.reduce((a, img) => a + extraCopies(img) * sellPrice(img), 0);
+    if (!(await askConfirm(`Vendre ${plural(copies, 'exemplaire')} en trop (${plural(list.length, 'objet')}) pour ${gain} 🪙 ? Tu gardes un exemplaire de chacun.`, 'Vendre'))) return;
+    for (const img of list) removeCopies(img, extraCopies(img));
+    state.profile.points = (state.profile.points || 0) + gain;
+    saveProfile();
+    renderPoints();
+    dupPicks = null;
+    toast(`+${gain} 🪙 : ${plural(copies, 'doublon')} vendu${copies > 1 ? 's' : ''}.`);
+    renderCollection();
+  }
   let bookIndex = 0;
   let bookBusy = false;
   const BOOK_TOC = 5;
@@ -6193,7 +6231,9 @@
       g.envs.forEach((env) => pages.push({ t: 'coll', g, env }));
     });
     groups.forEach((g) => { g.pageOf = new Map(g.envs.map((env, i) => [env.id, g.chap + 1 + i])); });
-    return { pages, groups, toc };
+    const dup = pages.length;
+    pages.push({ t: 'dup' });
+    return { pages, groups, toc, dup };
   }
   const bkBar = (got, total, cls = '') => `<span class="bk-bar ${cls}"><span style="width:${total ? Math.round((got / total) * 100) : 0}%"></span></span>`;
   const bkEsc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -6217,8 +6257,29 @@
         <div class="bk-cover-sub">Le grimoire des objets</div>
         <div class="bk-cover-stats"><div class="bk-cover-n">${totalGot} / ${all.length} objets</div>${bkBar(totalGot, all.length, 'dark')}
           <div class="bk-cover-sub small">${plural(model.groups.length, 'thème')} à découvrir</div></div>
+        <div class="bk-cover-links"></div>
         <button type="button" class="bk-open">${BK_BOOK}Ouvrir le livre</button></div>`;
       leaf.querySelector('.bk-open').addEventListener('click', () => bookGo(1));
+      const links = leaf.querySelector('.bk-cover-links');
+      const pend = pendingCollRewards();
+      if (pend.length) {
+        const g0 = model.groups.find((g) => g.pageOf.has(pend[0].id));
+        const r = document.createElement('button');
+        r.type = 'button';
+        r.className = 'bk-cover-link gift';
+        r.textContent = `🎁 ${pend.length > 1 ? `${pend.length} récompenses` : '1 récompense'} à récupérer`;
+        if (g0) r.addEventListener('click', () => bookGo(g0.pageOf.get(pend[0].id)));
+        links.appendChild(r);
+      }
+      const nDup = dupList().length;
+      if (nDup) {
+        const d = document.createElement('button');
+        d.type = 'button';
+        d.className = 'bk-cover-link';
+        d.textContent = `♻️ Mes doublons (${nDup})`;
+        d.addEventListener('click', () => bookGo(model.dup));
+        links.appendChild(d);
+      }
       return leaf;
     }
     leaf.className = 'bk-leaf bk-paper';
@@ -6229,6 +6290,14 @@
     if (pg.t === 'toc') {
       const list = model.groups.slice(pg.k * BOOK_TOC, (pg.k + 1) * BOOK_TOC);
       body.innerHTML = `<div class="bk-head"><div><div class="bk-kicker">SOMMAIRE · ${pg.k + 1}/${pg.toc}</div><h2 class="bk-h2">Les grands thèmes</h2></div><span class="bk-pill">${totalGot}/${all.length}</span></div><div class="bk-rule"></div>`;
+      if (pg.k === 0 && dupList().length) {
+        const d = document.createElement('button');
+        d.type = 'button';
+        d.className = 'bk-dup-link';
+        d.innerHTML = `♻️ Mes doublons <span class="bk-p">${plural(dupList().length, 'objet')} · p. ${model.dup}</span>`;
+        d.addEventListener('click', () => bookGo(model.dup));
+        body.appendChild(d);
+      }
       for (const g of list) {
         const st = bookStats(g.envs);
         const b = document.createElement('button');
@@ -6255,12 +6324,60 @@
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'bk-chap-row';
-        b.innerHTML = `<span class="bk-dia" style="background:${bkEsc(env.color || ENVELOPE_COLORS[0])}"></span><span class="bk-chap-name"></span>${st2.got === st2.total ? `<span class="bk-done">${BK_STAR}</span>` : ''}<span class="bk-lead"></span><span class="bk-n">${st2.got}/${st2.total}</span><span class="bk-p">p. ${g.pageOf.get(env.id)}</span>`;
+        b.innerHTML = `<span class="bk-dia" style="background:${bkEsc(env.color || ENVELOPE_COLORS[0])}"></span><span class="bk-chap-name"></span>${st2.got === st2.total ? `<span class="bk-done">${collRewardOn() && !collClaimed(env) ? '🎁' : BK_STAR}</span>` : ''}<span class="bk-lead"></span><span class="bk-n">${st2.got}/${st2.total}</span><span class="bk-p">p. ${g.pageOf.get(env.id)}</span>`;
         b.querySelector('.bk-chap-name').textContent = env.name || 'Enveloppe';
         b.addEventListener('click', () => bookGo(g.pageOf.get(env.id)));
         ul.appendChild(b);
       }
       body.appendChild(ul);
+    } else if (pg.t === 'dup') {
+      const list = dupList();
+      if (!dupPicks) dupPicks = new Set(list.map((img) => img.id));
+      for (const id of [...dupPicks]) if (!list.some((img) => img.id === id)) dupPicks.delete(id);
+      body.innerHTML = `<div class="bk-kicker">OBJETS EN DOUBLE</div><h2 class="bk-h2">Mes doublons</h2>
+        <div class="bk-sub">Tu gardes toujours un exemplaire de chaque objet (et ceux posés dans tes pièces).</div><div class="bk-rule"></div>
+        <div class="bk-dup-tools"></div><div class="bk-grid bk-dup-grid"></div><div class="bk-dup-sell"></div>`;
+      const grid = body.querySelector('.bk-dup-grid');
+      const tools = body.querySelector('.bk-dup-tools');
+      const sellBox = body.querySelector('.bk-dup-sell');
+      const refresh = () => {
+        const picked = list.filter((img) => dupPicks.has(img.id));
+        const gain = picked.reduce((a, img) => a + extraCopies(img) * sellPrice(img), 0);
+        const copies = picked.reduce((a, img) => a + extraCopies(img), 0);
+        sellBox.innerHTML = '';
+        const sb = document.createElement('button');
+        sb.type = 'button';
+        sb.className = 'bk-gold-btn bk-dup-btn';
+        sb.disabled = !picked.length;
+        sb.innerHTML = picked.length ? `Vendre les doublons cochés · ${plural(copies, 'exemplaire')} · +${gain} ${COIN_SVG(16)}` : 'Coche les objets à vendre';
+        sb.addEventListener('click', sellDuplicates);
+        sellBox.appendChild(sb);
+        tools.innerHTML = '';
+        const all = document.createElement('button');
+        all.type = 'button';
+        all.className = 'bk-toc-btn';
+        all.textContent = picked.length === list.length ? 'Tout décocher' : 'Tout cocher';
+        all.addEventListener('click', () => { if (picked.length === list.length) dupPicks.clear(); else list.forEach((img) => dupPicks.add(img.id)); grid.querySelectorAll('.bk-slot').forEach((c) => c.classList.toggle('picked', dupPicks.has(c.dataset.id))); refresh(); });
+        tools.appendChild(all);
+      };
+      if (!list.length) grid.outerHTML = '<p class="bk-sub">Aucun doublon pour l\'instant : chaque objet en trop apparaîtra ici.</p>';
+      for (const img of list) {
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'bk-slot' + (dupPicks.has(img.id) ? ' picked' : '');
+        cell.dataset.id = img.id;
+        cell.innerHTML = `<span class="bk-check" aria-hidden="true">✓</span><span class="bk-count">×${extraCopies(img)}</span><span class="bk-img"><img alt="" loading="lazy"></span><span class="bk-name"></span>`;
+        cell.querySelector('img').src = thumbCache.get(img.id) || img.url;
+        cell.querySelector('.bk-name').textContent = img.name;
+        cell.title = `${img.name} : ${plural(extraCopies(img), 'exemplaire')} en trop · ${sellPrice(img)} 🪙 l'unité`;
+        cell.addEventListener('click', () => {
+          if (dupPicks.has(img.id)) dupPicks.delete(img.id); else dupPicks.add(img.id);
+          cell.classList.toggle('picked', dupPicks.has(img.id));
+          refresh();
+        });
+        grid.appendChild(cell);
+      }
+      if (list.length) refresh();
     } else {
       const { g, env } = pg;
       const list = stickersOf(env.id);
@@ -6274,7 +6391,14 @@
       body.querySelector('.bk-back').addEventListener('click', () => bookGo(g.chap));
       body.querySelector('.bk-coll-title').textContent = env.name || 'Enveloppe';
       const act = body.querySelector('.bk-coll-act');
-      if (got === list.length) act.innerHTML = `<span class="bk-complete">${BK_STAR}Collection complète !</span>`;
+      if (got === list.length && collRewardOn() && !collClaimed(env)) {
+        const rb = document.createElement('button');
+        rb.type = 'button';
+        rb.className = 'bk-gold-btn bk-claim';
+        rb.innerHTML = `🎁 Récupérer ma récompense · +${setting('collectionReward')} ${COIN_SVG(16)}`;
+        rb.addEventListener('click', () => claimCollReward(env));
+        act.appendChild(rb);
+      } else if (got === list.length) act.innerHTML = `<span class="bk-complete">${BK_STAR}Collection complète !${collClaimed(env) ? ' <small>· récompense reçue</small>' : ''}</span>`;
       else if (stars > 0) {
         const sb = document.createElement('button');
         sb.type = 'button';
