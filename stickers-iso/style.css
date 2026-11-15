@@ -2981,3 +2981,8 @@ button.bk-slot:focus-visible { box-shadow: 0 0 0 3px #E6B85C, 0 0 16px #E6B85Caa
 .bk .bk-h2, .bk .bk-coll-title { color: #6A2437 !important; text-shadow: none !important; }
 .bk .bk-cover-title { color: #F4D58A !important; }
 .bk h2 { letter-spacing: inherit; }
+/* Vignettes du livre : l'image reste dans sa case, au-dessus du nom (sans le recouvrir) */
+.bk-slot { justify-content: flex-start; }
+.bk-img { position: relative; flex: 1 1 0; min-height: 0; width: 100%; display: block; padding: 0; margin: 1px 0 3px; }
+.bk-img img { position: absolute; left: 6px; right: 6px; top: 0; bottom: 0; width: calc(100% - 12px); height: 100%; max-width: none; max-height: none; object-fit: contain; }
+.bk-name { flex: none; }
