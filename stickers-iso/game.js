@@ -6175,13 +6175,33 @@
   // Couverture → sommaire des thèmes (5 par page) → pour chaque thème, son chapitre puis une page par collection.
   // Une seule page est construite à la fois ; elle tourne autour de son bord gauche (comme la maquette).
   // ---------------------------------------------------------------------------
+  // Fée dorée : alerte « quelque chose de nouveau à voir », posée dans le coin d'une tuile (remplace le point rouge).
+  // Les dégradés sont dans un SVG caché en haut de la page ; l'apparition (fee-arrive) ne se joue qu'une fois par session.
+  const FEE_SVG = '<svg class="fee" viewBox="0 0 64 64" width="58" height="58" aria-hidden="true" focusable="false"><circle class="fee-halo" cx="32" cy="34" r="32" fill="url(#fee-halo)"/> <g filter="url(#fee-flou)"> <g class="fee-aile fee-aile-g"><path d="M30 33 Q12 26 9 9 Q24 12 31 30Z" fill="url(#fee-aile)"/><path d="M30 33 Q20 9 31 30" fill="none" stroke="#FFFFFF" stroke-opacity=".7" stroke-width=".8"/><path d="M30 35 Q16 38 10 48 Q24 49 30 37Z" fill="url(#fee-aile)" opacity=".85"/></g> <g class="fee-aile fee-aile-d"><g transform="translate(64 0) scale(-1 1)"><path d="M30 33 Q12 26 9 9 Q24 12 31 30Z" fill="url(#fee-aile)"/><path d="M30 33 Q20 9 31 30" fill="none" stroke="#FFFFFF" stroke-opacity=".7" stroke-width=".8"/><path d="M30 35 Q16 38 10 48 Q24 49 30 37Z" fill="url(#fee-aile)" opacity=".85"/></g></g> </g> <circle class="fee-coeur" cx="32" cy="34" r="13" fill="url(#fee-coeur)"/> <circle cx="32" cy="34" r="5.500" fill="#FFFFFF"/> <g class="fee-poussiere"> <circle cx="14" cy="52" r="1.600" fill="#F4D58A" opacity=".9"/><circle cx="50" cy="55" r="1.200" fill="#FFF4D8"/><circle cx="44" cy="8" r="1" fill="#FFF4D8"/><circle cx="22" cy="58" r="1" fill="#F4D58A" opacity=".7"/> <path d="M53 14 Q53.500 17 56 17.500 Q53.500 18 53 21 Q52.500 18 50 17.500 Q52.500 17 53 14Z" fill="#FFF4D8"/> </g></svg>';
+  const feeSeen = new Set();
+  function showFee(tile, on, label = 'Nouveautés à voir') {
+    if (!tile) return;
+    let fee = tile.querySelector(':scope > .fee-alerte');
+    if (!on) { if (fee) fee.remove(); tile.classList.remove('has-fee'); return; }
+    if (!fee) {
+      fee = document.createElement('span');
+      fee.className = 'fee-alerte';
+      fee.setAttribute('role', 'img');
+      fee.innerHTML = FEE_SVG;
+      const key = tile.id || '';
+      if (!feeSeen.has(key)) { fee.classList.add('fee-arrive'); feeSeen.add(key); }
+      tile.appendChild(fee);
+    }
+    fee.setAttribute('aria-label', label);
+    tile.classList.add('has-fee');
+  }
   const bookOn = () => !!state.isAdmin;
   // Récompense d'une collection complète (à récupérer dans le livre), une seule fois par collection.
   const collRewardOn = () => bookOn() && setting('collectionReward') > 0;
   const collComplete = (env) => { const l = stickersOf(env.id); return l.length > 0 && l.every((img) => owned(img.id) > 0); };
   const collClaimed = (env) => !!(state.profile && state.profile.collectionRewards && state.profile.collectionRewards[env.id]);
   const pendingCollRewards = () => (collRewardOn() && state.profile ? binderPages().filter((e) => collComplete(e) && !collClaimed(e)) : []);
-  function renderCollDot() { const d = $('#homeCollection .coll-dot'); if (d) d.hidden = !pendingCollRewards().length; }
+  function renderCollDot() { showFee($('#homeCollection'), pendingCollRewards().length > 0, 'Récompense de collection à récupérer'); }
   function claimCollReward(env) {
     if (!collComplete(env) || collClaimed(env)) return;
     const gain = setting('collectionReward');
