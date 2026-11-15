@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611151600">
+  <link rel="stylesheet" href="style.css?v=202611151630">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -110,7 +110,7 @@
         <section class="home-small" aria-label="Raccourcis">
           <button id="homeCollection" class="card home-card small">
             <span class="tile-icon" style="background:#E3EEF9"><svg class="mn-only mn-ico" width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 8 Q10 5 3 6 V25 Q10 24 16 27Z" fill="#FBEFD2" stroke="#1B0F14" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M16 8 Q22 5 29 6 V25 Q22 24 16 27Z" fill="#F6E4BE" stroke="#1B0F14" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M16 8 V27" stroke="#1B0F14" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M7 11 H12 M7 15 H12 M20 11 H25 M20 15 H25" stroke="#8A6425" stroke-width="1.800" stroke-linecap="round"/></svg><svg class="mn-off" width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect x="8" y="4" width="19" height="25" rx="3" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.4"/><path d="M13 11 H22 M13 16 H22" stroke="#5A3E3A" stroke-width="2.2" stroke-linecap="round"/><path d="M5 8 H11 M5 13 H11 M5 18 H11 M5 23 H11" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/></svg></span>
-            <span class="small-text"><span class="card-title">Collection</span><span id="homeCollectionSub" class="card-sub"></span>
+            <span class="small-text"><span id="homeCollectionTitle" class="card-title">Collection</span><span id="homeCollectionSub" class="card-sub"></span>
               <span class="mini-bar"><span id="homeCollectionBar"></span></span></span>
           </button>
           <button id="homeShop" class="card home-card small">
@@ -429,7 +429,7 @@
     <header class="topbar">
       <div class="room-title">
         <button id="collectionBack" class="btn btn-ghost" title="Menu principal">←<span class="label-long">&nbsp;Menu</span></button>
-        <h1>Collection</h1>
+        <h1 id="collectionTitle">Collection</h1>
       </div>
       <div class="topbar-actions">
         <span class="points-pill"></span>
@@ -1332,7 +1332,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611151600"></script>
-  <script src="game.js?v=202611151600"></script>
+  <script src="firebase-config.js?v=202611151630"></script>
+  <script src="game.js?v=202611151630"></script>
 </body>
 </html>

@@ -3042,3 +3042,4 @@ button.bk-slot:focus-visible { box-shadow: 0 0 0 3px #E6B85C, 0 0 16px #E6B85Caa
   .player-stats dt { font-size: .58rem; letter-spacing: .02em; }
   .player-stats dd { font-size: .92rem; }
 }
+.bk-cover-title { font-size: 31px !important; line-height: 1.1; }

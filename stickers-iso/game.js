@@ -6024,6 +6024,9 @@
     else $('#homeShopSub').textContent = envs ? `${plural(envs, 'enveloppe')} en vente` : 'Bientôt des enveloppes';
     $('#homeCollectionSub').textContent = all.length ? `${got}/${all.length} stickers obtenus` : 'Classeur vide';
     renderCollDot();
+    // Avec le livre (essai administratrice), la Collection s'appelle « Grimoire des objets ».
+    $('#homeCollectionTitle').textContent = bookOn() ? 'Grimoire des objets' : 'Collection';
+    $('#collectionTitle').textContent = bookOn() ? 'Grimoire' : 'Collection';
     $('#homeCollectionBar').style.width = all.length ? `${Math.round((got / all.length) * 100)}%` : '0%';
     $('#homeAdmin').hidden = !state.isAdmin;
     const pending = state.myProposals.filter((x) => x.status === 'pending').length;
@@ -6273,8 +6276,7 @@
       leaf.innerHTML = `<div class="bk-cover-in">
         <div class="bk-kicker-gold">MON MANOIR ENCHANTÉ</div>
         <div class="bk-emblem"><img src="manoir/icone.svg" alt=""></div>
-        <h2 class="bk-cover-title">Collection</h2>
-        <div class="bk-cover-sub">Le grimoire des objets</div>
+        <h2 class="bk-cover-title">Grimoire des objets</h2>
         <div class="bk-cover-stats"><div class="bk-cover-n">${totalGot} / ${all.length} objets</div>${bkBar(totalGot, all.length, 'dark')}
           <div class="bk-cover-sub small">${plural(model.groups.length, 'thème')} à découvrir</div></div>
         <div class="bk-cover-links"></div>
