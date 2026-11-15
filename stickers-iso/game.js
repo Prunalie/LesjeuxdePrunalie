@@ -7288,7 +7288,9 @@
   }
   async function doClaimContestRewards() {
     if (!state.profile) return;
-    const last = lastRevealedDay();
+    // On attend que le concours soit définitif (20 h 10) : un vote envoyé à 19 h 59 peut arriver quelques secondes après 20 h.
+    let last = lastRevealedDay();
+    if (!contestFinal(last)) last = shiftDay(last, -1);
     let from = state.profile.contestChecked ? shiftDay(state.profile.contestChecked, 1) : shiftDay(today(), -8);
     if (from < shiftDay(today(), -8)) from = shiftDay(today(), -8);
     if (from > last) return;
@@ -9268,6 +9270,7 @@
         }
         await refreshProfile();
         if (m.reward) state.profile.points += m.reward;
+        if (m.addWin) state.profile.contestWins = (state.profile.contestWins || 0) + 1; // victoire rattrapée (correction)
         for (const id of ids) state.profile.inventory[id] = (state.profile.inventory[id] || 0) + 1;
         saveProfile();
         toast(ids.length ? `${parts.join(' et ')} reçu${parts.length > 1 || ids.length > 1 ? 's' : ''} !` : `+${m.reward} 🪙 ajoutées à ton compte !`);
@@ -9297,6 +9300,7 @@
         if (!ok) continue; // déjà récupéré ailleurs
         done++;
         if (m.reward) { state.profile.points += m.reward; coins += m.reward; }
+        if (m.addWin) state.profile.contestWins = (state.profile.contestWins || 0) + 1; // victoire rattrapée (correction)
         for (const id of giftIds(m)) { state.profile.inventory[id] = (state.profile.inventory[id] || 0) + 1; stickers++; }
       }
       if (done) saveProfile();
