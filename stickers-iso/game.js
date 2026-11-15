@@ -6024,7 +6024,7 @@
     else $('#homeShopSub').textContent = envs ? `${plural(envs, 'enveloppe')} en vente` : 'Bientôt des enveloppes';
     $('#homeCollectionSub').textContent = all.length ? `${got}/${all.length} stickers obtenus` : 'Classeur vide';
     renderCollDot();
-    // Avec le livre (essai administratrice), la Collection s'appelle « Grimoire des objets ».
+    // Avec le livre, la Collection s'appelle « Grimoire des objets ».
     $('#homeCollectionTitle').textContent = bookOn() ? 'Grimoire des objets' : 'Collection';
     $('#collectionTitle').textContent = bookOn() ? 'Grimoire' : 'Collection';
     $('#homeCollectionBar').style.width = all.length ? `${Math.round((got / all.length) * 100)}%` : '0%';
@@ -6174,7 +6174,7 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Livre de collection « Le grimoire des objets » (essai administratrice)
+  // Livre de collection « Le grimoire des objets »
   // Couverture → sommaire des thèmes (5 par page) → pour chaque thème, son chapitre puis une page par collection.
   // Une seule page est construite à la fois ; elle tourne autour de son bord gauche (comme la maquette).
   // ---------------------------------------------------------------------------
@@ -6198,7 +6198,7 @@
     fee.setAttribute('aria-label', label);
     tile.classList.add('has-fee');
   }
-  const bookOn = () => !!state.isAdmin;
+  const bookOn = () => true; // Grimoire des objets : pour tout le monde
   // Récompense d'une collection complète (à récupérer dans le livre), une seule fois par collection.
   const collRewardOn = () => bookOn() && setting('collectionReward') > 0;
   const collComplete = (env) => { const l = stickersOf(env.id); return l.length > 0 && l.every((img) => owned(img.id) > 0); };
