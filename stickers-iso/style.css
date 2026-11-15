@@ -3043,3 +3043,6 @@ button.bk-slot:focus-visible { box-shadow: 0 0 0 3px #E6B85C, 0 0 16px #E6B85Caa
   .player-stats dd { font-size: .92rem; }
 }
 .bk-cover-title { font-size: 31px !important; line-height: 1.1; }
+/* Grandes tuiles (fond décoré qui ne doit pas déborder) : la luciole se pose dans le coin, à l'intérieur */
+.home-card.big.has-fee { overflow: hidden; }
+.home-card.big .fee-alerte { right: -6px; top: -8px; }

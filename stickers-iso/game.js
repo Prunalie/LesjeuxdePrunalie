@@ -5950,6 +5950,7 @@
     tile.classList.toggle('vote-todo', left > 0);
     $('#homeContestTodo').hidden = !left;
     $('#homeContestTodo').textContent = left ? `⚔️ ${plural(left, 'duel')} à voter` : '';
+    showFee(tile, left > 0, 'Duels à voter'); // la luciole : il reste des duels à voter
     $('#homeContestChip').textContent = voteMaintenance() ? 'vote en maintenance'
       : (votingOver() ? 'Gagnant dévoilé !'
         : (left ? `+${voteReward()} 🪙 · jusqu'à 20 h` : 'votes jusqu\'à 20 h'));
