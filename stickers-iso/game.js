@@ -3763,7 +3763,7 @@
         setTimeout(async () => {
           const cancel = $('#confirmCancel');
           cancel.hidden = true;
-          await askConfirm(`🔔 Le thème du concours d'aujourd'hui a changé ! C'est maintenant « ${themeOf(r.contestDay)} » (avant : « ${oldTheme} »). Ta pièce est gardée telle quelle : adapte-la au nouveau thème avant de la publier.`, 'Compris');
+          await askConfirm(themeChangedText(themeOf(r.contestDay), oldTheme), 'Compris');
           cancel.hidden = false;
         }, 700);
       }
@@ -7492,7 +7492,7 @@
       if (myRoom.contestDay === today() && /^Concours · /.test(myRoom.name || '') && myRoom.name !== `Concours · ${themeOf(myRoom.contestDay)}`) {
         const warn = document.createElement('p');
         warn.className = 'cv3-note theme-changed';
-        warn.textContent = `🔔 Le thème a changé depuis que tu as commencé ta pièce (avant : « ${myRoom.name.replace(/^Concours · /, '')} »). Adapte-la au nouveau thème avant de la publier.`;
+        warn.textContent = themeChangedNote(myRoom.name.replace(/^Concours · /, ''));
         zone.appendChild(warn);
       }
       zone.appendChild(dr);
@@ -8710,6 +8710,15 @@
     }
     return box;
   }
+  // Messages quand le thème du jour change après le début d'une pièce (joueuses), et leur aperçu (administratrice).
+  const themeChangedText = (now, old) => `🔔 Le thème du concours d'aujourd'hui a changé ! C'est maintenant « ${now} » (avant : « ${old} »). Ta pièce est gardée telle quelle : adapte-la au nouveau thème avant de la publier.`;
+  const themeChangedNote = (old) => `🔔 Le thème a changé depuis que tu as commencé ta pièce (avant : « ${old} »). Adapte-la au nouveau thème avant de la publier.`;
+  async function previewThemeChanged() {
+    const cancel = $('#confirmCancel');
+    cancel.hidden = true;
+    await askConfirm(`Aperçu (exemple avec un ancien thème inventé).\n\nSur la page du concours :\n${themeChangedNote('ancien thème')}\n\nEn ouvrant sa pièce :\n${themeChangedText(themeOf(today()), 'ancien thème')}`, 'Fermer');
+    cancel.hidden = false;
+  }
   // Pièces du concours du jour déjà commencées (brouillons) ou publiées : à vérifier avant de changer le thème du jour.
   let acStarted = 0;
   async function renderAcStarted(t) {
@@ -8727,6 +8736,12 @@
     h.className = 'ct-prov-title';
     h.textContent = owners.length ? `✏️ Pièces du jour déjà commencées : ${owners.length}` : '✏️ Personne n\'a encore commencé sa pièce du jour';
     box.appendChild(h);
+    const prev = document.createElement('button');
+    prev.type = 'button';
+    prev.className = 'btn btn-ghost ac-preview-msg';
+    prev.textContent = '👁️ Voir le message reçu si je change le thème du jour';
+    prev.addEventListener('click', previewThemeChanged);
+    box.appendChild(prev);
     if (owners.length) {
       const note = document.createElement('p');
       note.className = 'muted ct-small-text';

@@ -2872,3 +2872,5 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .coffre-card.tofix .env-item-img { position: relative; }
 .coffre-card.tofix .env-item-img::after { content: "🏷️"; position: absolute; top: 3px; right: 4px; font-size: .9rem; }
 .cv3-note.theme-changed { font-weight: 800; }
+#confirmText { white-space: pre-line; }
+.ac-preview-msg { margin: 2px 0 6px; font-size: .85rem; }
