@@ -4175,7 +4175,9 @@
     }
     // Les nouvelles enveloppes d'abord, puis l'ordre de la boutique.
     const fresh = (e) => (standAlt && realSunday ? e.publishAt === shiftDay(today(), 1) : isNewEnvelope(e));
-    list = [...list].sort((a, b) => Number(fresh(b)) - Number(fresh(a)));
+    // Le dimanche (toutes les enveloppes) : après les nouvelles, les dernières sorties d'abord.
+    const recent = (a, b) => (envSlotDay(b) || '').localeCompare(envSlotDay(a) || '') || (b.created || 0) - (a.created || 0);
+    list = [...list].sort((a, b) => Number(fresh(b)) - Number(fresh(a)) || (sunday ? recent(a, b) : 0));
     const newIds = new Set(standAlt && realSunday
       ? list.filter((e) => e.publishAt === shiftDay(today(), 1)).map((e) => e.id)
       : live.filter(isNewEnvelope).map((e) => e.id));
