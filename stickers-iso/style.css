@@ -2868,3 +2868,6 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .ac-started { margin: 0 0 12px; }
 .ac-started-list { margin: 4px 0 0; padding-left: 18px; font-size: .85rem; }
 .ac-started-list li { margin: 2px 0; }
+/* Coffre : objet tagué « à modifier » */
+.coffre-card.tofix .env-item-img { position: relative; }
+.coffre-card.tofix .env-item-img::after { content: "🏷️"; position: absolute; top: 3px; right: 4px; font-size: .9rem; }

@@ -8992,6 +8992,7 @@
       id: uid(), catalog: true, envelope: null, archived: true, rarity: 'common',
       name: p.name, data: p.data, w: p.w, h: p.h, created: Date.now(),
       author: p.ownerName || p.owner, fromProposal: p.id,
+      ...(p.toFix ? { toFix: true } : {}), // tagué « à modifier » avant d'être validé : le tag suit le sticker
     };
     try { await db.putImage(nrec); addImageToLibrary(nrec); return true; } catch (e) { console.warn('Archivage impossible', e); toast('Le sticker n\'a pas pu être archivé. Vérifie ta connexion.'); return false; }
   }
@@ -9072,14 +9073,35 @@
     }
   }
 
-  const toFixList = () => [...state.images.values()].filter((i) => i.catalog && i.toFix);
+  // À modifier : stickers du catalogue tagués, et propositions encore à valider taguées depuis le Coffre.
+  const toFixList = () => [...state.images.values()].filter((i) => i.catalog && i.toFix)
+    .concat((state.proposals || []).filter((p) => p.status === 'pending' && p.toFix).map((p) => ({ ...p, url: p.data, isProposal: true })));
+  // Nouveau dessin pour une proposition pas encore validée (le joueur n'a encore rien reçu).
+  async function replaceProposalImage(p, file) {
+    if (!file.type.startsWith('image/')) return false;
+    try {
+      const src = URL.createObjectURL(file);
+      const el = await loadImageEl(src);
+      URL.revokeObjectURL(src);
+      const { data, w, h } = encodeImage(el);
+      await db.updateImage(p.id, { data, w, h });
+      Object.assign(p, { data, w, h });
+      return true;
+    } catch (e) {
+      console.warn('Dessin non remplacé', e);
+      toast('Le dessin n\'a pas pu être remplacé. Essaie un PNG ou un JPG, et vérifie ta connexion.');
+      return false;
+    }
+  }
 
   function renderToFix() {
     const list = $('#coffreList');
     const items = toFixList().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
     $('#coffreEmpty').hidden = items.length > 0;
     $('#coffreEmpty').textContent = 'Aucun sticker à modifier. Dans l\'atelier, touche 🏷️ sur un sticker pour le retrouver ici.';
-    for (const img of items) {
+    for (const it of items) {
+      const prop = it.isProposal ? state.proposals.find((x) => x.id === it.id) : null;
+      const img = it;
       const env = state.envelopes.find((e) => e.id === img.envelope);
       const card = document.createElement('article');
       card.className = 'coffre-card';
@@ -9092,9 +9114,9 @@
         </div>`;
       card.querySelector('img').src = img.url;
       card.querySelector('h3').textContent = img.name;
-      card.dataset.author = img.author || '';
-      card.querySelector('.coffre-meta').textContent = (env ? `Dans l'enveloppe « ${env.name} »` : (img.archived ? '📦 Archivé' : 'Pas dans une enveloppe'))
-        + (img.author ? ` · par ${img.author}` : '');
+      card.dataset.author = prop ? (prop.ownerName || prop.owner || '') : (img.author || '');
+      card.querySelector('.coffre-meta').textContent = prop ? `À valider · par ${prop.ownerName || prop.owner}`
+        : (env ? `Dans l'enveloppe « ${env.name} »` : (img.archived ? '📦 Archivé' : 'Pas dans une enveloppe')) + (img.author ? ` · par ${img.author}` : '');
       const actions = card.querySelector('.coffre-actions');
       const dl = document.createElement('button');
       dl.className = 'btn';
@@ -9107,6 +9129,7 @@
         const file = e.target.files[0];
         e.target.value = '';
         if (!file) return;
+        if (prop) { if (await replaceProposalImage(prop, file)) { toast('Dessin remplacé ✓ Vérifie-le, puis retire le tag quand c\'est bon.'); renderCoffre(); } return; }
         const before = img.updated;
         await replaceStickerImage(img, file);
         // Le tag reste : c'est à l'administratrice de vérifier le nouveau dessin et de retirer le tag elle-même.
@@ -9115,7 +9138,7 @@
       const done = document.createElement('button');
       done.className = 'btn btn-ghost';
       done.textContent = '✓ C\'est bon, retirer le tag';
-      done.addEventListener('click', async () => { await setToFix(img, false); renderCoffre(); });
+      done.addEventListener('click', async () => { await setToFix(prop || img, false); renderCoffre(); });
       // Pour tester le dessin dans une pièce : un exemplaire de plus dans les objets de l'administratrice.
       const mine = document.createElement('button');
       mine.className = 'btn';
@@ -9127,6 +9150,7 @@
         saveProfile();
         toast(`« ${img.name} » est dans tes objets (${state.profile.inventory[img.id]} exemplaire${state.profile.inventory[img.id] > 1 ? 's' : ''}) ✓`);
       });
+      if (prop) mine.hidden = true; // pas encore au catalogue
       actions.append(dl, rep, mine, done);
       list.appendChild(card);
     }
@@ -9219,8 +9243,18 @@
         actions.appendChild(b);
         return b;
       };
+      // Tag « à modifier » : sur la proposition (à valider) ou sur le sticker du catalogue (dans une enveloppe).
+      const tagButton = (target) => {
+        if (target.toFix) card.classList.add('tofix');
+        button(target.toFix ? '🏷️ Retirer « à modifier »' : '🏷️ À modifier', '', async () => {
+          await setToFix(target, !target.toFix);
+          toast(target.toFix ? `« ${target.name} » est à modifier 🏷️ (onglet « À modifier »)` : 'Tag « à modifier » retiré');
+          renderCoffre();
+        });
+      };
       if (p.status === 'pending') {
         button('✓ Valider', 'btn-primary', () => acceptProposal(p));
+        tagButton(p);
         button('⬇️ Télécharger', '', () => downloadImage(p.data, `${p.name} - ${p.ownerName || p.owner}`));
         button('✕ Refuser', '', () => refuseProposal(p));
       } else if (p.status === 'accepted') {
@@ -9247,6 +9281,7 @@
         if (rec && envelopeExists(rec.envelope)) {
           const env = state.envelopes.find((e) => e.id === rec.envelope);
           note(`Dans l'enveloppe « ${env.name} »`, 'coffre-used');
+          tagButton(rec);
           if (state.envelopes.length > 1) {
             const sel = envSelect(env.id);
             button('Déplacer', '', () => moveSticker(p, rec, sel.value));
