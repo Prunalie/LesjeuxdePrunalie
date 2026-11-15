@@ -8998,6 +8998,7 @@
       card.innerHTML = '<div class="env-item-img"><img alt=""></div><div class="coffre-info"><h3></h3><p class="muted coffre-meta"></p><ul class="report-notes"></ul><div class="coffre-actions"></div></div>';
       if (img) card.querySelector('img').src = img.url;
       card.querySelector('h3').textContent = (img && img.name) || rs[0].stickerName || 'Objet';
+      card.dataset.author = rs.map((r) => r.ownerName || r.owner || '').join('|');
       card.querySelector('.coffre-meta').textContent = `🚩 ${plural(rs.length, 'signalement')}${img && img.toFix ? ' · déjà à modifier 🏷️' : ''}`;
       const ul = card.querySelector('.report-notes');
       for (const r of rs) { const li = document.createElement('li'); li.textContent = `${r.ownerName || r.owner}${r.note ? ` : ${r.note}` : ''}`; ul.appendChild(li); }
@@ -9022,6 +9023,7 @@
       card.className = 'coffre-card';
       card.innerHTML = '<div class="coffre-info"><h3></h3><p class="report-text"></p><details class="report-details"><summary>Détails techniques</summary><pre class="report-pre"></pre></details><div class="coffre-actions"></div></div>';
       card.querySelector('h3').textContent = `🐞 ${r.ownerName || r.owner} · ${r.created ? dateFmt.format(r.created) : ''}`;
+      card.dataset.author = r.ownerName || r.owner || '';
       card.querySelector('.report-text').textContent = r.note || '';
       card.querySelector('.report-pre').textContent = `${r.device || ''}\n\n${r.traces || '(pas de traces)'}`;
       const del = document.createElement('button');
@@ -9053,6 +9055,7 @@
         </div>`;
       card.querySelector('img').src = img.url;
       card.querySelector('h3').textContent = img.name;
+      card.dataset.author = img.author || '';
       card.querySelector('.coffre-meta').textContent = (env ? `Dans l'enveloppe « ${env.name} »` : (img.archived ? '📦 Archivé' : 'Pas dans une enveloppe'))
         + (img.author ? ` · par ${img.author}` : '');
       const actions = card.querySelector('.coffre-actions');
@@ -9092,7 +9095,50 @@
     }
   }
 
+  // Coffre : grille compacte (3 par ligne), un objet s'ouvre au toucher pour montrer ses boutons ; recherche et filtre par joueur.
   function renderCoffre() {
+    renderCoffreBody();
+    const list = $('#coffreList');
+    list.classList.add('coffre-grid');
+    const cards = [...list.querySelectorAll('.coffre-card')];
+    // Joueurs présents dans cet onglet, pour le menu.
+    const sel = $('#coffreAuthor');
+    const names = [...new Set(cards.flatMap((c) => (c.dataset.author || '').split('|').filter(Boolean)))].sort((a, b) => a.localeCompare(b, 'fr'));
+    const keep = sel.value;
+    sel.innerHTML = '<option value="">Tous les joueurs</option>';
+    for (const n of names) sel.add(new Option(n, n));
+    sel.value = names.includes(keep) ? keep : '';
+    sel.hidden = !names.length;
+    $('.coffre-filters').hidden = !cards.length;
+    applyCoffreFilters();
+  }
+  function applyCoffreFilters() {
+    const q = normalizeText($('#coffreSearch').value);
+    const who = $('#coffreAuthor').value;
+    const cards = [...$('#coffreList').querySelectorAll('.coffre-card')];
+    let shown = 0;
+    for (const c of cards) {
+      const text = normalizeText([...c.querySelectorAll('h3, .coffre-meta, .coffre-used, .coffre-archived, .report-notes, .report-text')].map((e) => e.textContent).join(' '));
+      const ok = (!q || text.includes(q)) && (!who || (c.dataset.author || '').split('|').includes(who));
+      c.hidden = !ok;
+      if (ok) shown++;
+    }
+    if (cards.length && !shown) { $('#coffreEmpty').hidden = false; $('#coffreEmpty').textContent = 'Aucun résultat pour ce filtre.'; }
+    else if (cards.length) $('#coffreEmpty').hidden = true;
+  }
+  $('#coffreSearch').addEventListener('input', applyCoffreFilters);
+  $('#coffreAuthor').addEventListener('change', applyCoffreFilters);
+  $('#coffreList').addEventListener('click', (e) => {
+    if (!$('#coffreList').classList.contains('coffre-grid')) return;
+    if (e.target.closest('.coffre-actions, button, select, input, label, a, summary, details')) return;
+    const card = e.target.closest('.coffre-card');
+    if (!card) return;
+    const open = !card.classList.contains('open');
+    $('#coffreList').querySelectorAll('.coffre-card.open').forEach((c) => c.classList.remove('open'));
+    card.classList.toggle('open', open);
+    if (open) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
+  function renderCoffreBody() {
     if (document.activeElement !== coffreRewardInput) coffreRewardInput.value = proposalReward();
     document.querySelectorAll('.coffre-tab').forEach((tab) => {
       const n = tab.dataset.filter === 'tofix' ? toFixList().length : tab.dataset.filter === 'reports' ? (state.reports || []).length : state.proposals.filter((p) => coffreStatus(p) === tab.dataset.filter).length;
@@ -9124,6 +9170,7 @@
         </div>`;
       card.querySelector('img').src = p.data;
       card.querySelector('h3').textContent = p.name;
+      card.dataset.author = p.ownerName || p.owner || '';
       card.querySelector('.coffre-meta').textContent = `par ${p.ownerName || p.owner} · ${p.created ? dateFmt.format(p.created) : ''}`
         + (p.status === 'accepted' && p.reward ? ` · ${p.reward} 🪙 offertes` : '');
       const actions = card.querySelector('.coffre-actions');

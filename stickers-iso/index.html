@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611141530">
+  <link rel="stylesheet" href="style.css?v=202611150900">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -791,6 +791,10 @@
         <button class="coffre-tab" data-filter="tofix">🏷️ À modifier <span></span></button>
         <button class="coffre-tab" data-filter="reports">🚩 Signalements <span></span></button>
       </div>
+      <div class="coffre-filters">
+        <input id="coffreSearch" class="field" type="search" placeholder="Chercher un nom, un joueur, une enveloppe…" aria-label="Chercher dans le coffre">
+        <select id="coffreAuthor" class="coffre-select" aria-label="Filtrer par joueur"><option value="">Tous les joueurs</option></select>
+      </div>
       <div class="coffre-bar"><button id="coffreAcceptAll" class="btn btn-primary" hidden>✓ Tout valider</button></div>
       <p id="coffreEmpty" class="empty" hidden>Rien ici pour l'instant.</p>
       <div id="coffreList" class="coffre-list"></div>
@@ -1322,7 +1326,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611141530"></script>
-  <script src="game.js?v=202611141530"></script>
+  <script src="firebase-config.js?v=202611150900"></script>
+  <script src="game.js?v=202611150900"></script>
 </body>
 </html>

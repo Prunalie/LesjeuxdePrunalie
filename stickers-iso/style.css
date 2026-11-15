@@ -2849,3 +2849,19 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 /* Barre du haut repliée : la ligne du thème est cachée avec elle, on remet le bandeau du bas */
 .screen-room.hide-top .contest-banner.admin-off:not(.away) { display: block !important; }
 .shop-themes { grid-column: 1 / -1; margin: 2px 0 -2px; }
+
+/* Coffre : grille compacte (3 par ligne), fond foncé derrière les objets, boutons visibles une fois l'objet ouvert */
+.coffre-filters { max-width: 1100px; margin: 0 auto 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+.coffre-filters[hidden] { display: none; }
+.coffre-filters .field { flex: 1 1 200px; min-width: 0; }
+.coffre-filters .coffre-select[hidden] { display: none; }
+.coffre-list.coffre-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-items: start; }
+@media (min-width: 721px) { .coffre-list.coffre-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
+.coffre-grid .coffre-card { flex-direction: column; align-items: stretch; gap: 4px; padding: 6px; cursor: pointer; border-radius: 10px; }
+.coffre-grid .coffre-card[hidden] { display: none; }
+.coffre-grid .coffre-card .env-item-img { width: 100%; margin: 0; background: #2A2233; border-color: #4A3D52; }
+.coffre-grid .coffre-card h3 { font-size: .76rem; line-height: 1.2; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.coffre-grid .coffre-card:not(.open) :is(.coffre-meta, .report-notes, .coffre-actions, .report-text, .report-details) { display: none; }
+.coffre-grid .coffre-card.open { grid-column: 1 / -1; flex-direction: row; align-items: flex-start; gap: 12px; padding: 10px; cursor: default; box-shadow: 0 0 0 2px var(--accent, #e6b85c); }
+.coffre-grid .coffre-card.open .env-item-img { width: 120px; flex: none; }
+.coffre-grid .coffre-card.open h3 { font-size: 1rem; text-align: left; white-space: normal; }

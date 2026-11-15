@@ -490,3 +490,7 @@
 :root[data-skin="manoir"] .contest-theme .ct-main { font-family: var(--font-title); font-weight: 700; color: var(--gold-light); letter-spacing: .03em; }
 :root[data-skin="manoir"] .contest-theme .ct-sub { color: #D2BF93; }
 :root[data-skin="manoir"] .contest-theme .ct-swatch { border-color: var(--gold); }
+/* Coffre : fond foncé derrière les objets (au lieu du parchemin) */
+:root[data-skin="manoir"] .coffre-grid .coffre-card .env-item-img { background: radial-gradient(circle at 50% 40%, #2E1C45, #140B22) !important; border: 1.5px solid #6B4F2A !important; box-shadow: none !important; }
+:root[data-skin="manoir"] .coffre-grid .coffre-card { padding: 6px !important; }
+:root[data-skin="manoir"] .coffre-grid .coffre-card.open { box-shadow: 0 0 0 2px var(--gold) !important; }
