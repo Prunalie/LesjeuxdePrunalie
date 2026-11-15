@@ -6411,9 +6411,10 @@
     updateSell();
     cardDialog.hidden = true;
     sellDialog.hidden = false;
-    sellQty.focus();
-    sellQty.select();
+    // Pas de focus automatique : sur téléphone, le clavier ne s'ouvre que si on touche la case.
   }
+  // En touchant la case, le nombre est sélectionné pour être remplacé directement.
+  sellQty.addEventListener('focus', () => { try { sellQty.select(); } catch (e) { /* champ nombre */ } });
 
   function sellAmount() {
     const n = Math.round(Number(sellQty.value));
