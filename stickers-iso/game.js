@@ -3751,6 +3751,23 @@
     crumb('pièce : objets placés');
     showScreen('room');
     crumb('pièce : affichée');
+    // Thème du jour changé par l'administratrice après le début de la pièce : on prévient la joueuse (une seule fois).
+    if (r.contestDay && r.contestDay === today() && /^Concours · /.test(r.name || '')) {
+      const nowName = `Concours · ${themeOf(r.contestDay)}`;
+      if (r.name !== nowName) {
+        const oldTheme = r.name.replace(/^Concours · /, '');
+        r.name = nowName;
+        state.roomName = nowName;
+        $('#roomName').value = nowName;
+        scheduleSave();
+        setTimeout(async () => {
+          const cancel = $('#confirmCancel');
+          cancel.hidden = true;
+          await askConfirm(`🔔 Le thème du concours d'aujourd'hui a changé ! C'est maintenant « ${themeOf(r.contestDay)} » (avant : « ${oldTheme} »). Ta pièce est gardée telle quelle : adapte-la au nouveau thème avant de la publier.`, 'Compris');
+          cancel.hidden = false;
+        }, 700);
+      }
+    }
     const opened = state.roomId;
     [700, 2000, 4000].forEach((ms) => setTimeout(() => { if (state.roomId === opened && !screens.room.hidden) crumb(`pièce +${ms / 1000} s ${memSnapshot()}`); }, ms));
   }
@@ -7471,6 +7488,13 @@
       dr.querySelector('strong').textContent = mine ? (pending ? 'Modifications pas encore publiées' : 'Pièce publiée, à jour') : 'Mon brouillon';
       dr.querySelector('span').textContent = `Enregistré à ${hour(myRoom.updated || Date.now())} · ${plural((myRoom.stickers || []).length, 'sticker')}${pending ? ' · « Publier » dans la pièce quand elle est prête' : ''}`;
       dr.querySelector('.cv3-draft-img').addEventListener('click', openContestRoom);
+      // Thème changé après le début de la pièce (nom de la pièce = ancien thème) : on le signale.
+      if (myRoom.contestDay === today() && /^Concours · /.test(myRoom.name || '') && myRoom.name !== `Concours · ${themeOf(myRoom.contestDay)}`) {
+        const warn = document.createElement('p');
+        warn.className = 'cv3-note theme-changed';
+        warn.textContent = `🔔 Le thème a changé depuis que tu as commencé ta pièce (avant : « ${myRoom.name.replace(/^Concours · /, '')} »). Adapte-la au nouveau thème avant de la publier.`;
+        zone.appendChild(warn);
+      }
       zone.appendChild(dr);
       const go = document.createElement('button');
       go.type = 'button';
