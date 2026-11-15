@@ -10655,6 +10655,8 @@
 
   function renderPlayers() {
     const total = collectible().length;
+    // Collections terminées : toutes les enveloppes en vente (avec des stickers) dont la joueuse a chaque sticker.
+    const books = binderPages().map((env) => stickersOf(env.id).map((img) => img.id));
     const q = normalizePseudo($('#playersSearch').value || '');
     const list = players
       .filter((p) => !q || playerKey(p).includes(q))
@@ -10663,12 +10665,14 @@
         const distinct = Object.keys(inv).filter((id) => inv[id] > 0 && state.images.has(id)).length;
         const copies = Object.values(inv).reduce((a, b) => a + (b > 0 ? b : 0), 0);
         const lastSeen = p.lastSeen || (p.lastDaily ? new Date(p.lastDaily).getTime() : 0);
-        return { p, distinct, copies, lastSeen };
+        const done = books.filter((ids) => ids.length && ids.every((id) => inv[id] > 0)).length;
+        return { p, distinct, copies, lastSeen, done };
       })
       .sort((a, b) => {
         if (playersSort === 'name') return (a.p.pseudo || '').localeCompare(b.p.pseudo || '', 'fr');
         if (playersSort === 'points') return (b.p.points || 0) - (a.p.points || 0);
         if (playersSort === 'collection') return b.distinct - a.distinct;
+        if (playersSort === 'done') return b.done - a.done || b.distinct - a.distinct;
         if (playersSort === 'contest') return ((contestStats[playerKey(b.p)] || {}).count || 0) - ((contestStats[playerKey(a.p)] || {}).count || 0);
         return b.lastSeen - a.lastSeen;
       });
@@ -10685,7 +10689,7 @@
     const body = $('#playersList');
     body.innerHTML = '';
     $('#playersEmpty').hidden = list.length > 0;
-    for (const { p, distinct, copies, lastSeen } of list) {
+    for (const { p, distinct, copies, lastSeen, done } of list) {
       const key = playerKey(p);
       const row = document.createElement('article');
       row.className = 'player-row';
@@ -10697,6 +10701,7 @@
         <dl class="player-stats">
           <div><dt>Pièces</dt><dd class="s-points"></dd></div>
           <div><dt>Collection</dt><dd class="s-coll"></dd></div>
+          <div><dt>Terminées</dt><dd class="s-done"></dd></div>
           <div><dt>Étoiles</dt><dd class="s-stars"></dd></div>
           <div><dt>Concours</dt><dd class="s-contest"></dd></div>
         </dl>
@@ -10710,6 +10715,8 @@
       if (p.nightPlayer) row.querySelector('.player-name').title = 'A signalé jouer d\'habitude entre minuit et 5 h';
       row.querySelector('.player-seen').textContent = `Vu ${relDays(lastSeen)}` + (p.firstSeen ? ` · depuis le ${dateFmt.format(p.firstSeen).replace(/ à .*/, '')}` : '');
       row.querySelector('.s-points').textContent = `${p.points || 0} 🪙`;
+      row.querySelector('.s-done').textContent = `📚 ${done}/${books.length}`;
+      row.querySelector('.s-done').title = `${plural(done, 'collection')} terminée${done > 1 ? 's' : ''} sur ${books.length}`;
       row.querySelector('.s-coll').textContent = total ? `${distinct}/${total}` : `${distinct}`;
       row.querySelector('.s-coll').title = `${copies} exemplaires en tout`;
       row.querySelector('.s-stars').textContent = `🌟 ${p.stars || 0}`;

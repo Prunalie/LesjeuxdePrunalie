@@ -1376,7 +1376,7 @@ body { display: flex; flex-direction: column; overscroll-behavior: none; }
   #screenPlayers .label-long { display: none; }
   .player-row { flex-wrap: wrap; gap: 8px 12px; }
   .player-main { flex: 1 1 60%; }
-  .player-stats { order: 3; flex: 1 1 100%; justify-content: space-between; }
+  .player-stats { order: 3; flex: 1 1 100%; justify-content: space-between; flex-wrap: wrap; row-gap: 6px; }
   .player-stats div { align-items: flex-start; }
   .players-search { flex: 1 1 140px; width: auto; }
 }
@@ -3037,3 +3037,8 @@ button.bk-slot:focus-visible { box-shadow: 0 0 0 3px #E6B85C, 0 0 16px #E6B85Caa
 
 .home-card.has-fee { overflow: visible; }
 .home-card .fee-alerte { right: -12px; top: -18px; z-index: 3; }
+@media (max-width: 720px) {
+  .player-stats { gap: 6px; }
+  .player-stats dt { font-size: .58rem; letter-spacing: .02em; }
+  .player-stats dd { font-size: .92rem; }
+}
