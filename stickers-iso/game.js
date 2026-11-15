@@ -8473,6 +8473,8 @@
   // Plan des 7 prochains jours (pièce + thème), que l'on peut forcer jour par jour.
   const PLAN_KINDS = { object: 'Objet', color: 'Couleur', general: 'Thème général' };
   async function setPlanOverride(day, patch) {
+    if (day === today() && acStarted > 0
+      && !(await askConfirm(`${acStarted > 1 ? `${acStarted} joueuses ont` : 'Une joueuse a'} déjà commencé la pièce du jour. Changer quand même le thème d'aujourd'hui ?`, 'Changer'))) { renderPlanAdmin(); return; }
     const all = { ...(state.settings.contestPlanOverrides || {}) };
     const oldest = shiftDay(today(), -10);
     for (const d of Object.keys(all)) if (d < oldest) delete all[d];
@@ -8682,6 +8684,40 @@
     }
     return box;
   }
+  // Pièces du concours du jour déjà commencées (brouillons) ou publiées : à vérifier avant de changer le thème du jour.
+  let acStarted = 0;
+  async function renderAcStarted(t) {
+    const box = $('#acStarted');
+    let docs = [];
+    try { docs = await contestDocs(today()); } catch (e) { box.innerHTML = '<p class="muted">Pièces commencées : indisponible.</p>'; return; }
+    if (!acPlayers) { try { acPlayers = await db.listPlayers(); } catch (e) { /* noms bruts */ } }
+    const drafts = docs.filter((d) => !d.kind && d.owner && !ADMIN_PSEUDOS.includes(d.owner));
+    const published = new Set(t.entries.map((e) => e.owner));
+    const owners = [...new Set([...drafts.map((d) => d.owner), ...[...published].filter((o) => !ADMIN_PSEUDOS.includes(o))])];
+    acStarted = owners.length;
+    const timeFmt = (ms) => new Date(ms).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    box.innerHTML = '';
+    const h = document.createElement('p');
+    h.className = 'ct-prov-title';
+    h.textContent = owners.length ? `✏️ Pièces du jour déjà commencées : ${owners.length}` : '✏️ Personne n\'a encore commencé sa pièce du jour';
+    box.appendChild(h);
+    if (owners.length) {
+      const note = document.createElement('p');
+      note.className = 'muted ct-small-text';
+      note.textContent = 'Si tu changes le thème du jour, ces joueuses devront peut-être refaire leur pièce.';
+      box.appendChild(note);
+      const ul = document.createElement('ul');
+      ul.className = 'ac-started-list';
+      for (const o of owners.sort((a, b) => acName(a, t).localeCompare(acName(b, t), 'fr'))) {
+        const d = drafts.find((x) => x.owner === o);
+        const li = document.createElement('li');
+        const n = d && Array.isArray(d.stickers) ? d.stickers.length : 0;
+        li.textContent = `${acName(o, t)} · ${published.has(o) ? '✅ publiée' : n ? `${plural(n, 'objet')} posé${n > 1 ? 's' : ''}` : 'ouverte, encore vide'}${d && d.updated ? ` · modifiée à ${timeFmt(d.updated)}` : ''}`;
+        ul.appendChild(li);
+      }
+      box.appendChild(ul);
+    }
+  }
   async function refreshAdminContest() {
     if (!acPlayers) db.listPlayers().then((l) => { acPlayers = l; }).catch(() => {});
     let v, t;
@@ -8691,6 +8727,7 @@
       $('#acLive').innerHTML = '<p class="muted">Impossible de charger le concours. Vérifie ta connexion.</p>';
       return;
     }
+    renderAcStarted(t);
     const voters = new Set(v.duels.map((d) => d.voter)).size;
     const state20 = votingOver() ? 'Vote terminé : résultat définitif.' : `Vote ouvert jusqu'à 20 h${voteMaintenanceOn() ? ' (🛠️ en maintenance pour les joueurs)' : ''}.`;
     $('#acLiveInfo').textContent = `Thème d'hier : « ${themeOf(v.day)} » · ${plural(v.entries.length, 'participation')} · ${plural(voters, 'votant')} · ${plural(v.duels.length, 'duel')}. ${state20}`;

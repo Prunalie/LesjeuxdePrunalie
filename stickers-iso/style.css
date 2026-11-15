@@ -2865,3 +2865,6 @@ h1, h2, h3, .modal-title, .card-title { font-family: var(--font-title); font-wei
 .coffre-grid .coffre-card.open { grid-column: 1 / -1; flex-direction: row; align-items: flex-start; gap: 12px; padding: 10px; cursor: default; box-shadow: 0 0 0 2px var(--accent, #e6b85c); }
 .coffre-grid .coffre-card.open .env-item-img { width: 120px; flex: none; }
 .coffre-grid .coffre-card.open h3 { font-size: 1rem; text-align: left; white-space: normal; }
+.ac-started { margin: 0 0 12px; }
+.ac-started-list { margin: 4px 0 0; padding-left: 18px; font-size: .85rem; }
+.ac-started-list li { margin: 2px 0; }

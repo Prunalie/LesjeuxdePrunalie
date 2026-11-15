@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611150900">
+  <link rel="stylesheet" href="style.css?v=202611150930">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -649,6 +649,7 @@
         <section class="admin-card-box" id="acPlanBox">
           <h2>Pièce + thème du jour</h2>
           <p class="muted">Chaque jour : une pièce tirée au sort, et un thème qui peut être un <strong>objet</strong> (prêté à tous ce jour-là), une <strong>couleur</strong> ou un <strong>thème général</strong>. Tu peux forcer ce que tu veux pour les prochains jours.</p>
+          <div id="acStarted" class="ct-provisional ac-started"></div>
           <div id="acPlan" class="ac-plan"></div>
           <details class="ac-lists" open>
             <summary>Mes listes (pièces, thèmes, couleurs)</summary>
@@ -1326,7 +1327,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611150900"></script>
-  <script src="game.js?v=202611150900"></script>
+  <script src="firebase-config.js?v=202611150930"></script>
+  <script src="game.js?v=202611150930"></script>
 </body>
 </html>
