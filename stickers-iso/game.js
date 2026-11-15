@@ -6168,7 +6168,7 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Livre de collection « Le grand livre des merveilles » (essai administratrice)
+  // Livre de collection « Le grimoire des objets » (essai administratrice)
   // Couverture → sommaire des thèmes (5 par page) → pour chaque thème, son chapitre puis une page par collection.
   // Une seule page est construite à la fois ; elle tourne autour de son bord gauche (comme la maquette).
   // ---------------------------------------------------------------------------
@@ -6214,7 +6214,7 @@
         <div class="bk-kicker-gold">MON MANOIR ENCHANTÉ</div>
         <div class="bk-emblem"><img src="manoir/icone.svg" alt=""></div>
         <h2 class="bk-cover-title">Collection</h2>
-        <div class="bk-cover-sub">Le grand livre des merveilles</div>
+        <div class="bk-cover-sub">Le grimoire des objets</div>
         <div class="bk-cover-stats"><div class="bk-cover-n">${totalGot} / ${all.length} objets</div>${bkBar(totalGot, all.length, 'dark')}
           <div class="bk-cover-sub small">${plural(model.groups.length, 'thème')} à découvrir</div></div>
         <button type="button" class="bk-open">${BK_BOOK}Ouvrir le livre</button></div>`;
