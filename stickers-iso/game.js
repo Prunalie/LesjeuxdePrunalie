@@ -6085,11 +6085,17 @@
   function openCollection(page) {
     if (maintBlocked('collection')) return;
     if (page !== undefined) binderPage = page;
+    bookIndex = 0; // le livre s'ouvre sur sa couverture
     renderCollection();
     showScreen('collection');
   }
 
   function renderCollection() {
+    const book = bookOn();
+    $('#bookView').hidden = !book;
+    document.querySelector('.collection-bar').hidden = book;
+    $('#collectionTotal').hidden = book; // le total est sur la couverture du livre
+    if (book) { document.querySelector('.binder').hidden = true; $('#collectionEmpty').hidden = true; renderBook(); return; }
     $('#collectionHint').textContent = `Touche un sticker obtenu pour voir sa fiche ou le vendre. Revente : commun ${setting('sell_common')} 🪙, rare ${setting('sell_rare')} 🪙, très rare ${setting('sell_epic')} 🪙.`;
     renderBinderThemes();
     const pages = themedBinderPages();
@@ -6159,6 +6165,196 @@
     $('#binderPageNum').textContent = `Page ${binderPage + 1} / ${pages.length}`;
     $('#binderPrev').disabled = binderPage === 0;
     $('#binderNext').disabled = binderPage === pages.length - 1;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Livre de collection « Le grand livre des merveilles » (essai administratrice)
+  // Couverture → sommaire des thèmes (5 par page) → pour chaque thème, son chapitre puis une page par collection.
+  // Une seule page est construite à la fois ; elle tourne autour de son bord gauche (comme la maquette).
+  // ---------------------------------------------------------------------------
+  const bookOn = () => !!state.isAdmin;
+  let bookIndex = 0;
+  let bookBusy = false;
+  const BOOK_TOC = 5;
+  const BOOK_ART = [[/nature|jardin/, 'nature'], [/saison|fete/, 'fetes'], [/ancien/, 'anciens'], [/modern/, 'modernes'], [/maison|piece/, 'maison'],
+    [/magi/, 'magie'], [/loisir|metier/, 'loisirs'], [/decor/, 'decor'], [/mignon/, 'mignon'], [/jeu|video/, 'jeux']];
+  const bookArt = (name) => { const n = normalizeText(name); const hit = BOOK_ART.find(([re]) => re.test(n)); return `manoir/themes/${hit ? hit[1] : 'decor'}.svg`; };
+  const bookStats = (envs) => envs.reduce((a, env) => { const l = stickersOf(env.id); a.got += l.filter((img) => owned(img.id) > 0).length; a.total += l.length; return a; }, { got: 0, total: 0 });
+  function bookModel() {
+    const envs = binderPages();
+    const groups = themesOn() ? groupByTheme(envs) : (envs.length ? [{ theme: { id: '', name: 'Mes collections' }, envs }] : []);
+    const toc = Math.max(1, Math.ceil(groups.length / BOOK_TOC));
+    const pages = [{ t: 'cover' }];
+    for (let k = 0; k < toc; k++) pages.push({ t: 'toc', k, toc });
+    groups.forEach((g, gi) => {
+      g.chap = pages.length;
+      g.n = gi + 1;
+      pages.push({ t: 'chap', g });
+      g.envs.forEach((env) => pages.push({ t: 'coll', g, env }));
+    });
+    groups.forEach((g) => { g.pageOf = new Map(g.envs.map((env, i) => [env.id, g.chap + 1 + i])); });
+    return { pages, groups, toc };
+  }
+  const bkBar = (got, total, cls = '') => `<span class="bk-bar ${cls}"><span style="width:${total ? Math.round((got / total) * 100) : 0}%"></span></span>`;
+  const bkEsc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const BK_CHEV_L = '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 L8 12 L15 19" fill="none" stroke="#1B0F14" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const BK_CHEV_R = '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 L16 12 L9 19" fill="none" stroke="#1B0F14" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const BK_BOOK = '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5 Q7 3 12 6 Q17 3 21 5 V19 Q17 17 12 20 Q7 17 3 19 Z M12 6 V20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
+  const BK_STAR = '<svg width="18" height="18" viewBox="0 0 28 28" aria-hidden="true"><path d="M14 2 Q15.2 11 26 14 Q15.2 17 14 26 Q12.8 17 2 14 Q12.8 11 14 2Z" fill="#FFE08A" stroke="#1B0F14" stroke-width="2.2" stroke-linejoin="round"/></svg>';
+
+  // Construit une page (élément .bk-leaf) ; les boutons y sont branchés directement.
+  function bookPage(model, i) {
+    const pg = model.pages[i];
+    const leaf = document.createElement('div');
+    const all = collectible();
+    const totalGot = all.filter((img) => owned(img.id) > 0).length;
+    if (pg.t === 'cover') {
+      leaf.className = 'bk-leaf bk-cover';
+      leaf.innerHTML = `<div class="bk-cover-in">
+        <div class="bk-kicker-gold">MON MANOIR ENCHANTÉ</div>
+        <div class="bk-emblem"><img src="manoir/icone.svg" alt=""></div>
+        <h2 class="bk-cover-title">Collection</h2>
+        <div class="bk-cover-sub">Le grand livre des merveilles</div>
+        <div class="bk-cover-stats"><div class="bk-cover-n">${totalGot} / ${all.length} objets</div>${bkBar(totalGot, all.length, 'dark')}
+          <div class="bk-cover-sub small">${plural(model.groups.length, 'thème')} à découvrir</div></div>
+        <button type="button" class="bk-open">${BK_BOOK}Ouvrir le livre</button></div>`;
+      leaf.querySelector('.bk-open').addEventListener('click', () => bookGo(1));
+      return leaf;
+    }
+    leaf.className = 'bk-leaf bk-paper';
+    const body = document.createElement('div');
+    body.className = 'bk-body';
+    leaf.appendChild(body);
+    let center = '';
+    if (pg.t === 'toc') {
+      const list = model.groups.slice(pg.k * BOOK_TOC, (pg.k + 1) * BOOK_TOC);
+      body.innerHTML = `<div class="bk-head"><div><div class="bk-kicker">SOMMAIRE · ${pg.k + 1}/${pg.toc}</div><h2 class="bk-h2">Les grands thèmes</h2></div><span class="bk-pill">${totalGot}/${all.length}</span></div><div class="bk-rule"></div>`;
+      for (const g of list) {
+        const st = bookStats(g.envs);
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'bk-toc';
+        b.innerHTML = `<span class="bk-med"><img src="${bookArt(g.theme.name)}" alt=""></span>
+          <span class="bk-toc-txt"><span class="bk-toc-name">${bkEsc(g.theme.name)}</span><span class="bk-toc-sub">${plural(g.envs.length, 'collection')}</span>
+          <span class="bk-toc-bar">${bkBar(st.got, st.total)}<span class="bk-n">${st.got}/${st.total}</span></span></span>
+          <span class="bk-toc-go">${BK_CHEV_R}<span class="bk-p">p. ${g.chap}</span></span>`;
+        b.addEventListener('click', () => bookGo(g.chap));
+        body.appendChild(b);
+      }
+      const a = pg.k * BOOK_TOC + 1, z = Math.min(model.groups.length, (pg.k + 1) * BOOK_TOC);
+      center = `<span class="bk-foot-txt">${model.groups.length ? `Thèmes ${a} à ${z}` : 'Aucune collection'}</span>`;
+    } else if (pg.t === 'chap') {
+      const g = pg.g;
+      const st = bookStats(g.envs);
+      body.innerHTML = `<div class="bk-chap-head"><span class="bk-med big"><img src="${bookArt(g.theme.name)}" alt=""></span>
+        <div><div class="bk-kicker">CHAPITRE ${g.n}</div><h2 class="bk-h2">${bkEsc(g.theme.name)}</h2><div class="bk-sub">${plural(g.envs.length, 'collection')} · ${st.got}/${st.total} objets</div></div></div><div class="bk-rule"></div>`;
+      const ul = document.createElement('div');
+      ul.className = 'bk-chap-list';
+      for (const env of g.envs) {
+        const st2 = bookStats([env]);
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'bk-chap-row';
+        b.innerHTML = `<span class="bk-dia" style="background:${bkEsc(env.color || ENVELOPE_COLORS[0])}"></span><span class="bk-chap-name"></span>${st2.got === st2.total ? `<span class="bk-done">${BK_STAR}</span>` : ''}<span class="bk-lead"></span><span class="bk-n">${st2.got}/${st2.total}</span><span class="bk-p">p. ${g.pageOf.get(env.id)}</span>`;
+        b.querySelector('.bk-chap-name').textContent = env.name || 'Enveloppe';
+        b.addEventListener('click', () => bookGo(g.pageOf.get(env.id)));
+        ul.appendChild(b);
+      }
+      body.appendChild(ul);
+    } else {
+      const { g, env } = pg;
+      const list = stickersOf(env.id);
+      const got = list.filter((img) => owned(img.id) > 0).length;
+      const stars = state.profile.stars || 0;
+      body.innerHTML = `<div class="bk-coll-top"><button type="button" class="bk-back">${BK_CHEV_L}<span></span></button>
+        <details class="bk-info"><summary aria-label="Plus d'infos : vendre et revente">i</summary><div class="bk-bubble">Touche un sticker obtenu pour voir sa fiche ou le vendre. Revente : commun ${setting('sell_common')}, rare ${setting('sell_rare')}, très rare ${setting('sell_epic')}.</div></details></div>
+        <h2 class="bk-coll-title"></h2><div class="bk-coll-bar">${bkBar(got, list.length, 'big')}<span class="bk-n">${got}/${list.length}</span></div>
+        <div class="bk-coll-act"></div><div class="bk-grid"></div>`;
+      body.querySelector('.bk-back span').textContent = g.theme.name;
+      body.querySelector('.bk-back').addEventListener('click', () => bookGo(g.chap));
+      body.querySelector('.bk-coll-title').textContent = env.name || 'Enveloppe';
+      const act = body.querySelector('.bk-coll-act');
+      if (got === list.length) act.innerHTML = `<span class="bk-complete">${BK_STAR}Collection complète !</span>`;
+      else if (stars > 0) {
+        const sb = document.createElement('button');
+        sb.type = 'button';
+        sb.className = 'bk-gold-btn';
+        sb.innerHTML = `${BK_STAR}Utiliser une étoile (${stars})`;
+        sb.addEventListener('click', () => openStarPicker(env, () => renderCollection()));
+        act.appendChild(sb);
+      }
+      const grid = body.querySelector('.bk-grid');
+      list.forEach((img, k) => {
+        const n = owned(img.id);
+        const cell = document.createElement(n ? 'button' : 'div');
+        if (n) cell.type = 'button';
+        cell.className = 'bk-slot' + (n ? '' : ' missing');
+        cell.innerHTML = `<span class="bk-num">n°${String(k + 1).padStart(2, '0')}</span>${n > 1 ? `<span class="bk-count">×${n}</span>` : ''}<span class="bk-img"><img alt="" loading="lazy"></span><span class="bk-name"></span>`;
+        cell.querySelector('img').src = thumbCache.get(img.id) || img.url;
+        cell.querySelector('.bk-name').textContent = n ? img.name : '???';
+        if (n) { cell.setAttribute('aria-label', `${img.name}, objet n°${k + 1}${n > 1 ? `, en ${n} exemplaires` : ''}`); cell.addEventListener('click', () => showCard(img)); }
+        else cell.title = `Pas encore obtenu : il se trouve dans l'enveloppe « ${env.name} ».`;
+        grid.appendChild(cell);
+      });
+    }
+    // Pied de page : précédente (sur la 1re page du sommaire, referme le livre), sommaire, suivante.
+    const foot = document.createElement('div');
+    foot.className = 'bk-foot';
+    if (!center) {
+      const tocOf = pg.g ? 1 + Math.floor((pg.g.n - 1) / BOOK_TOC) : 1;
+      center = `<button type="button" class="bk-toc-btn" data-to="${tocOf}">${BK_BOOK}Sommaire</button>`;
+    }
+    foot.innerHTML = `<button type="button" class="bk-arrow" data-to="${i - 1}" aria-label="${i === 1 ? 'Refermer le livre' : 'Page précédente'}">${BK_CHEV_L}</button>${center}<button type="button" class="bk-arrow" data-to="${i + 1}" aria-label="Page suivante" ${i >= model.pages.length - 1 ? 'disabled' : ''}>${BK_CHEV_R}</button>`;
+    foot.querySelectorAll('[data-to]').forEach((b) => b.addEventListener('click', () => bookGo(Number(b.dataset.to))));
+    leaf.appendChild(foot);
+    return leaf;
+  }
+  function renderBook() {
+    const view = $('#bookView');
+    const model = bookModel();
+    bookIndex = clamp(bookIndex, 0, model.pages.length - 1);
+    view.innerHTML = '<div class="bk-board"></div>';
+    view.appendChild(bookPage(model, bookIndex));
+  }
+  // Tourner jusqu'à la page « to » : la page du dessus tourne vers la gauche (en avant), ou revient (en arrière).
+  function bookGo(to) {
+    const model = bookModel();
+    to = clamp(to, 0, model.pages.length - 1);
+    if (to === bookIndex || bookBusy) return;
+    const view = $('#bookView');
+    const old = view.querySelector('.bk-leaf');
+    const forward = to > bookIndex;
+    bookIndex = to;
+    const fresh = bookPage(model, to);
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (still || !old) { if (old) old.remove(); view.appendChild(fresh); return; }
+    bookBusy = true;
+    if (forward) {
+      view.insertBefore(fresh, old); // la nouvelle page est dessous, l'ancienne tourne au-dessus
+      old.classList.add('bk-top');
+      requestAnimationFrame(() => old.classList.add('tournee'));
+      setTimeout(() => { old.remove(); bookBusy = false; }, 820);
+    } else {
+      fresh.classList.add('bk-top', 'tournee');
+      view.appendChild(fresh);
+      requestAnimationFrame(() => requestAnimationFrame(() => fresh.classList.remove('tournee')));
+      setTimeout(() => { old.remove(); fresh.classList.remove('bk-top'); bookBusy = false; }, 820);
+    }
+  }
+  document.addEventListener('keydown', (e) => {
+    if (screens.collection.hidden || !bookOn() || $('#bookView').hidden) return;
+    if (e.target.closest && e.target.closest('input, textarea, select')) return;
+    if (!document.querySelector('.modal:not([hidden])') && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) { e.preventDefault(); bookGo(bookIndex + (e.key === 'ArrowRight' ? 1 : -1)); }
+  });
+  {
+    let sx = null, sy = 0;
+    $('#bookView').addEventListener('pointerdown', (e) => { sx = e.clientX; sy = e.clientY; });
+    $('#bookView').addEventListener('pointerup', (e) => {
+      if (sx === null) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      sx = null;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) bookGo(bookIndex + (dx < 0 ? 1 : -1));
+    });
   }
 
   $('#binderPrev').addEventListener('click', () => { binderPage--; renderCollection(); });
