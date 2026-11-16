@@ -8474,7 +8474,7 @@
     body.appendChild(wrap);
     const steps = cvNewMenu() ? [
       { name: 'Le conseil', sub: 'thème de demain', tint: 'butter' },
-      { name: 'L\'atelier', sub: 'avant minuit', tint: 'pink' },
+      { name: 'L\'atelier', sub: 'création de pièce', tint: 'pink' },
       { name: 'La galerie', sub: 'votes et palmarès', tint: 'mint' },
     ] : [
       { name: 'Créer', sub: 'avant minuit', tint: 'pink' },
