@@ -7462,6 +7462,10 @@
   // ---------------------------------------------------------------------------
   const cv3On = () => state.isAdmin || contestLaunched();
   let cv3Step = 0;
+  // Nouvelles étapes (essai administratrice) : 1. Le conseil (thème de demain) · 2. Créer · 3. Final (voter + résultats).
+  const cvNewMenu = () => !!state.isAdmin && themeVoteOn();
+  const cvCouncilStep = () => (cvNewMenu() ? 0 : 1);
+  const dayShort = (day) => { const { y, m, dd } = parseDay(day); return new Date(y, m - 1, dd).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); };
   const CV_INK = '#5A3E3A';
   // Apparence Manoir : ciel étoilé avec une pièce-bibliothèque, pinceau magique (maquette « Mon manoir enchanté »).
   const CV_MANOIR = {
@@ -7726,7 +7730,7 @@
       themeVoteLoading = true;
       loadThemeVoteData(day).then((data) => { themeVoteData = data; })
         .catch(() => { themeVoteData = { day, pool: [], cands: [], hearts: [], leader: null }; })
-        .finally(() => { themeVoteLoading = false; if (cv3Step === 1 && !cv3Sub && !screens.contest.hidden) renderContest(); });
+        .finally(() => { themeVoteLoading = false; if (cv3Step === cvCouncilStep() && !cv3Sub && !screens.contest.hidden) renderContest(); });
     }
     const d = ready ? themeVoteData : null;
     const lead = d && d.leader;
@@ -7747,7 +7751,11 @@
     const wrap = document.createElement('div');
     wrap.className = 'cv3';
     body.appendChild(wrap);
-    const steps = [
+    const steps = cvNewMenu() ? [
+      { name: 'Le conseil', sub: 'thème de demain', tint: 'butter' },
+      { name: 'Créer', sub: 'avant minuit', tint: 'pink' },
+      { name: 'Final', sub: 'votes et résultats', tint: 'mint' },
+    ] : [
       { name: 'Créer', sub: 'avant minuit', tint: 'pink' },
       { name: 'Voter', sub: 'jusqu\'à 20 h', tint: 'butter' },
       { name: 'Résultats', sub: 'dévoilés à 20 h', tint: 'mint' },
@@ -7769,8 +7777,11 @@
     const page = document.createElement('div');
     page.className = 'cv3-page';
     wrap.appendChild(page);
-    [cvPageCreate, cvPageVote, cvPageResults][cv3Step](page);
-    if (cv3Step === 1 && themeVoteOn()) cvThemeCard(page);
+    if (cvNewMenu()) [cvPageCouncil, cvPageCreate, cvPageFinal][cv3Step](page);
+    else {
+      [cvPageCreate, cvPageVote, cvPageResults][cv3Step](page);
+      if (cv3Step === 1 && themeVoteOn()) cvThemeCard(page);
+    }
     // Flèches du bas
     const foot = document.createElement('footer');
     foot.className = 'cv3-foot';
@@ -7793,6 +7804,20 @@
     wrap.appendChild(foot);
   }
 
+  // Nouvelle page 1 : le conseil décide du thème de demain (propositions et cœurs).
+  function cvPageCouncil(page) {
+    const intro = document.createElement('section');
+    intro.className = 'cv3-card cv3-council';
+    intro.innerHTML = `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-theme-block"><div class="cv3-k">Le conseil</div><h2 class="cv3-big">Le thème de demain</h2></div></div></div>
+      <p class="cv3-note">Propose tes idées et distribue tes cœurs : l'idée qui en reçoit le plus devient le thème du concours de demain (${bkEsc(dayShort(shiftDay(today(), 1)))}).</p>`;
+    page.appendChild(intro);
+    cvThemeCard(page);
+  }
+  // Nouvelle page 3 : Final. Voter pour le concours d'hier (sans voir les pièces avant d'entrer dans le vote), puis les résultats.
+  function cvPageFinal(page) {
+    cvPageVote(page, true);
+    cvPageResults(page, true);
+  }
   // Page 1 : créer sa pièce du concours
   function cvPageCreate(page) {
     const me = state.player.key;
@@ -7904,7 +7929,7 @@
   }
 
   // Page 2 : voter en duels
-  function cvPageVote(page) {
+  function cvPageVote(page, compact = false) {
     const me = state.player.key;
     const v = contestData.vote;
     const card = document.createElement('section');
@@ -7914,13 +7939,14 @@
     head.className = 'cv3-head';
     const main = document.createElement('div');
     main.className = 'cv3-head-main';
-    main.appendChild(cvThemeBlock(v.day, 'Vote'));
+    main.appendChild(cvThemeBlock(v.day, compact ? `À voter · concours du ${dayShort(v.day)}` : 'Vote'));
     head.appendChild(main);
     head.insertAdjacentHTML('beforeend', cvInfo(`Dans chaque duel, clique sur ta pièce préférée en fonction du thème imposé. Remporte ${voteReward()} pièces à la fin des votes.`, 'Plus d\'infos : comment voter'));
     card.appendChild(head);
     page.appendChild(card);
     const msg = (text, cls = '') => { const p = document.createElement('p'); p.className = 'cv3-note ' + cls; p.textContent = text; card.appendChild(p); };
     if (voteMaintenance()) { msg('Le vote est momentanément fermé pour maintenance. Tu peux toujours créer et publier ta pièce du concours : le vote reviendra bientôt !'); return; }
+    if (votingOver() && compact) { msg('Le vote de ce concours est terminé : les résultats sont juste en dessous.', 'ok'); return; }
     if (votingOver()) {
       msg('Le vote d\'hier est terminé : le gagnant est dévoilé !', 'ok');
       const go = document.createElement('button');
@@ -7952,6 +7978,7 @@
         duelCurrent = { day: v.day, pair: nextDuel(v, plan) };
       }
       const [a, b] = duelCurrent.pair;
+      if (!compact) {
       const arena = document.createElement('button');
       arena.type = 'button';
       arena.className = 'cv3-arena';
@@ -7967,6 +7994,7 @@
       arena.insertBefore(Object.assign(document.createElement('span'), { className: 'cv3-vs', textContent: 'VS' }), arena.children[1]);
       arena.addEventListener('click', () => openDuelView(v));
       card.appendChild(arena);
+      }
       const when = document.createElement('p');
       when.className = 'cv3-when';
       when.innerHTML = `${CV_ICON.clock}<span>Gagnant dévoilé à 20 h !</span>`;
@@ -7996,7 +8024,7 @@
   }
 
   // Page 3 : résultats, podium
-  function cvPageResults(page) {
+  function cvPageResults(page, compact = false) {
     const me = state.player.key;
     const r = contestData.results;
     const card = document.createElement('section');
@@ -8006,7 +8034,7 @@
     head.className = 'cv3-head';
     const main = document.createElement('div');
     main.className = 'cv3-head-main';
-    main.appendChild(cvThemeBlock(r.day, r.day === shiftDay(today(), -1) ? 'Résultats de ce soir' : 'Derniers résultats'));
+    main.appendChild(cvThemeBlock(r.day, compact ? `Résultats · concours du ${dayShort(r.day)}` : (r.day === shiftDay(today(), -1) ? 'Résultats de ce soir' : 'Derniers résultats')));
     head.appendChild(main);
     head.insertAdjacentHTML('beforeend', cvInfo('Le score indique les duels gagnés sur les duels disputés.', 'Plus d\'infos : le score'));
     card.appendChild(head);
