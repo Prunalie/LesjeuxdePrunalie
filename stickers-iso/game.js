@@ -7847,7 +7847,7 @@
       }
     } else {
       card.innerHTML = `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote jusqu'à 20 h</div><h2 class="cv3-big">Thème de demain</h2></div>${cvInfo(`Distribue tes ${HEARTS} cœurs entre les idées qui te plaisent. L'idée qui en a le plus devient le thème du concours de demain ; la 2e et la 3e restent dans le vote du lendemain (en repartant de 0). En cas d'égalité, les deux idées sont jouées l'une après l'autre. Tu ne peux pas voter pour ta propre idée.`, 'Plus d\'infos : le conseil')}</div>
-        <div class="cv3-chips"><span class="cv3-chip b">❤️ ${left} cœur${left > 1 ? 's' : ''} à donner</span>${d.tie ? '<span class="cv3-chip">⚖️ Égalité en tête : les deux seraient jouées</span>' : ''}</div><div class="tv-list"></div>`;
+        <div class="cv3-chips"><span class="cv3-chip b">${adminView() ? '❤️ Cœurs illimités (admin)' : `❤️ ${left} cœur${left > 1 ? 's' : ''} à donner`}</span>${d.tie ? '<span class="cv3-chip">⚖️ Égalité en tête : les deux seraient jouées</span>' : ''}</div><div class="tv-list"></div>`;
       wrap.appendChild(card);
       const list = card.querySelector('.tv-list');
       if (!d.cands.length) list.innerHTML = '<p class="muted">Pas d\'idées pour l\'instant : propose-en une !</p>';
@@ -7861,7 +7861,32 @@
         if (lead) { row.classList.add('lead'); row.querySelector('.tv-text').textContent = `🏆 ${candText(c)}`; }
         row.querySelector('.tv-main').insertAdjacentHTML('beforeend', `<span class="tv-bar"><i style="width:${Math.round((c.n / max) * 100)}%"></i></span>`);
         row.insertAdjacentHTML('beforeend', `<span class="tv-n">${c.n} ❤️</span><div class="tv-act"></div>`);
-        if (c.owner !== me) {
+        if (adminView()) {
+          // Administratrice : autant de cœurs qu'elle veut, plusieurs sur la même idée si besoin.
+          const mineAll = myHearts.filter((h) => h.cand === c.id);
+          const act = row.querySelector('.tv-act');
+          const plus = document.createElement('button');
+          plus.className = 'btn btn-primary';
+          plus.textContent = mineAll.length ? `❤️ +1 (${mineAll.length})` : '🤍 +1';
+          plus.addEventListener('click', async () => {
+            plus.disabled = true;
+            try { await db.putThemeDoc({ id: `th-${d.day}-${me}-${docSlug(c.id)}${mineAll.length ? `-${Date.now()}` : ''}`, kind: 'heart', themeDay: d.day, cand: c.id, c: pureCand(c), voter: me, created: Date.now() }); }
+            catch (err) { toast('Le vote n\'a pas pu être enregistré. Vérifie ta connexion.'); plus.disabled = false; return; }
+            reload();
+          });
+          act.appendChild(plus);
+          if (mineAll.length) {
+            const minus = document.createElement('button');
+            minus.className = 'btn';
+            minus.textContent = '−1';
+            minus.addEventListener('click', async () => {
+              minus.disabled = true;
+              try { await db.deleteThemeDoc(mineAll[mineAll.length - 1].id); } catch (err) { toast('Le vote n\'a pas pu être enregistré.'); minus.disabled = false; return; }
+              reload();
+            });
+            act.appendChild(minus);
+          }
+        } else if (c.owner !== me) {
           const mine = myHearts.find((h) => h.cand === c.id);
           const b = document.createElement('button');
           b.className = 'btn ' + (mine ? '' : 'btn-primary');
