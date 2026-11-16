@@ -471,6 +471,10 @@
   })();
 
   let db = cloudDb || localDb;
+  // Administratrice : « Voir le jeu comme une joueuse » (case du menu admin, gardée sur l'appareil).
+  // Les essais réservés à l'administratrice sont alors cachés et le jeu s'affiche comme pour une joueuse.
+  let asPlayer = (() => { try { return localStorage.getItem('ma-petite-piece:vue-joueuse') === '1'; } catch (e) { return false; } })();
+  const adminView = () => !!state.isAdmin && !asPlayer;
 
   let saveTimer = null;
   let savePending = false;
@@ -590,7 +594,7 @@
 
   // Hauteur des murs commune à toute la maison (admin) : elle remplace celle de chaque pièce de la maison.
   function houseShape(id, shape) {
-    const h = state.isAdmin && state.profile && state.profile.house;
+    const h = adminView() && state.profile && state.profile.house;
     if (!h || !h.wallH || !Array.isArray(h.floors)) return shape;
     if (!h.floors.some((f) => (f.rooms || []).some((e) => e.id === id))) return shape;
     return { ...(shape || {}), h: h.wallH };
@@ -737,8 +741,8 @@
         }
       };
       // Un demi-mur à motif (barrière, haie…) remplace le feuillage de son côté. Côté administratrice : plus de ronds du tout.
-      if (!decoWL && !state.isAdmin) bumps(L, C, D, shade(wallLeft, 0.12));
-      if (!decoWR && !state.isAdmin) bumps(C, R, W, shade(wallRight, 0.12));
+      if (!decoWL && !adminView()) bumps(L, C, D, shade(wallLeft, 0.12));
+      if (!decoWR && !adminView()) bumps(C, R, W, shade(wallRight, 0.12));
     } else {
       // Plinthes
       const BASE = 14 * Math.max(k, 0.5);
@@ -774,7 +778,7 @@
     // Jardin (côté administratrice) : des poteaux aux deux bouts des murs, avec ou sans demi-mur à motif.
     // Par défaut, un poteau en bois ; on peut en choisir un autre dans l'Atelier décor (type « Poteau »).
     const postsSvg = () => {
-      if (!garden || !state.isAdmin) return ''; // côté administratrice pour l'instant
+      if (!garden || !adminView()) return ''; // côté administratrice pour l'instant
       const decoP = decoFor('postDeco');
       const spots = [[0, D], [W, 0]]; // aux deux bouts seulement, pas dans le coin
       const hpx = g.wallPx * 1.15;
@@ -3065,7 +3069,7 @@
   const SHOP_V2_FROM = '2026-11-02';
   const SHOP_V2_HOUR = 7; // ouverture aux joueurs à 7 h (heure de l'appareil)
   const launchAt = () => { const [y, m, d] = SHOP_V2_FROM.split('-').map(Number); return new Date(y, m - 1, d, SHOP_V2_HOUR, 0, 0).getTime(); };
-  const shopV2 = () => state.isAdmin || Date.now() >= launchAt();
+  const shopV2 = () => adminView() || Date.now() >= launchAt();
   // « NEW » : les enveloppes sorties aujourd'hui.
   const isNewEnvelope = (env) => isLive(env) && envSlotDay(env) === today();
   const envStatus = (env) => (env.draft ? 'draft' : isLive(env) ? 'live' : 'scheduled');
@@ -3723,7 +3727,7 @@
     $('#btnContestPublish2').hidden = !r.contestDay;
     $('#btnContestDraft').hidden = !r.contestDay;
     $('#btnContestDraftTop').hidden = !r.contestDay; // la disquette en haut, à la place de l'appareil photo
-    $('#btnImmersive').hidden = !state.isAdmin;
+    $('#btnImmersive').hidden = !adminView();
     const backName = houseOn() ? 'Ma maison' : 'Mes pièces';
     $('#btnBack').title = r.contestDay ? 'Retour au concours' : `Retour à ${backName.toLowerCase()}`;
     $('#btnBack .label-long').innerHTML = r.contestDay ? '&nbsp;Concours' : `&nbsp;${backName}`;
@@ -3784,9 +3788,9 @@
   };
   const UNLOCK_ICONS = { garden: '🌳', size: '📐', decor: '🎨', levels: '🏢' };
   const unlockCost = (key) => setting('unlock_' + key);
-  const isUnlocked = (key) => state.isAdmin || !!(state.profile.unlocks && state.profile.unlocks[key]);
+  const isUnlocked = (key) => adminView() || !!(state.profile.unlocks && state.profile.unlocks[key]);
   // Le décor : l'administratrice peut tester comme un joueur (à débloquer avec des étoiles).
-  const decorUnlocked = () => (state.isAdmin && !decoAsPlayer) || !!(state.profile.unlocks && state.profile.unlocks.decor);
+  const decorUnlocked = () => (adminView() && !decoAsPlayer) || !!(state.profile.unlocks && state.profile.unlocks.decor);
   const shapeDialog = $('#shapeDialog');
 
   // L'escalier offert avec les étages : l'objet « Escalier » de la collection Meuble(s).
@@ -4150,7 +4154,7 @@
     $('#shopEnvView').hidden = shopView !== 'envelopes';
     $('#shopDecoView').hidden = shopView !== 'deco';
     $('#shopStamps').hidden = false; // la carte de tampons reste dans la barre du haut, sur toutes les pages de la boutique
-    $('#decoAsPlayerRow').hidden = !state.isAdmin || shopView === 'envelopes';
+    $('#decoAsPlayerRow').hidden = true /* remplacé par la case « Voir le jeu comme une joueuse » du menu admin */;
     $('#shopTitle').textContent = shopView === 'envelopes' && shopV2() ? 'Toutes les enveloppes' : (shopView === 'deco' ? 'Décor' : 'Boutique');
     $('#shopBack').title = shopView === 'choice' || !shopV2() ? 'Retour' : 'Retour à la boutique';
   }
@@ -4274,7 +4278,7 @@
     $('#standDeco').setAttribute('aria-label', `Décor : ${plural(walls, 'papier peint')} et ${plural(floors, 'sol')} en vente${decorUnlocked() ? ', nouveau' : `, à débloquer pour ${unlockCost('decor')} étoiles`}`);
     $('#decoRelock').hidden = !(state.isAdmin && decoAsPlayer && state.profile.unlocks && state.profile.unlocks.decor);
     // Administratrice : voir aussi le visuel de l'autre type de jour.
-    $('#standPreviewRow').hidden = !state.isAdmin;
+    $('#standPreviewRow').hidden = !adminView();
     $('#standPreview').checked = standAlt;
     if (state.isAdmin) {
       const tomorrowN = Math.min(STAND_PER_PAGE, dailyEnvelopeIds(shiftDay(today(), 1), true).size);
@@ -5063,7 +5067,7 @@
   // Décor : papiers peints et sols (en test chez l'administratrice)
   // Vendus un par un. Dans une pièce : un papier peint pour les deux murs, ou pour un seul.
   // ---------------------------------------------------------------------------
-  let decoAsPlayer = false; // admin : ne voir que ses achats, comme un joueur
+  let decoAsPlayer = asPlayer; // admin : ne voir que ses achats, comme un joueur
   const decoOwned = (id) => (state.isAdmin && !decoAsPlayer) || !!(state.profile && state.profile.decos && state.profile.decos[id]);
   const decoByName = (a, b) => (a.collection || '').localeCompare(b.collection || '', 'fr') || (a.name || '').localeCompare(b.name || '', 'fr');
   // Les décors privés (🔒) ne sont ni en vente ni chez les joueurs : l'administratrice les pose gratuitement.
@@ -5109,11 +5113,11 @@
   const decoSwatches = [...document.querySelectorAll('.deco-swatch')];
   function syncDecoSwatches() {
     const garden = normShape(state.shape).kind === 'garden';
-    const show = state.isAdmin || (shopV2() && decorUnlocked());
+    const show = adminView() || (shopV2() && decorUnlocked());
     for (const b of decoSwatches) {
       // Jardin : seulement le sol à motif, et côté administratrice pour l'instant.
       const half = b.dataset.deco.startsWith('half') || b.dataset.deco === 'postDeco';
-      b.hidden = !show || (garden ? !(state.isAdmin && (half || b.dataset.deco === 'floorDeco')) : half);
+      b.hidden = !show || (garden ? !(adminView() && (half || b.dataset.deco === 'floorDeco')) : half);
       const d = state.decos.get(state.colors[b.dataset.deco] || '');
       b.classList.toggle('empty', !d);
       b.style.backgroundImage = d ? `url("${d.url}")` : '';
@@ -5302,6 +5306,17 @@
     window.scrollTo(0, 0);
   });
   $('#decoRelock').addEventListener('click', () => { state.profile.unlocks = { ...(state.profile.unlocks || {}), decor: false }; saveProfile(); renderShopChoice(); });
+  // Vue joueuse (administratrice) : une seule case pour tout le jeu.
+  function setAsPlayer(on) {
+    asPlayer = on;
+    decoAsPlayer = on;
+    try { if (on) localStorage.setItem('ma-petite-piece:vue-joueuse', '1'); else localStorage.removeItem('ma-petite-piece:vue-joueuse'); } catch (e) { /* rien */ }
+    lentCache = { key: '', val: null };
+    goHome();
+    toast(on ? '👁️ Vue joueuse : tu vois le jeu comme une joueuse (les essais admin sont cachés).' : 'Retour à la vue administratrice.');
+  }
+  $('#asPlayer').addEventListener('change', (e) => setAsPlayer(e.target.checked));
+  $('#asPlayerBadge').addEventListener('click', () => setAsPlayer(false));
   $('#decoAsPlayer').addEventListener('change', (e) => {
     decoAsPlayer = e.target.checked;
     if (shopView === 'deco' && !decorUnlocked()) shopView = 'choice'; // test joueur : retour à l'écran de choix
@@ -6030,6 +6045,8 @@
     $('#collectionTitle').textContent = bookOn() ? 'Grimoire' : 'Collection';
     $('#homeCollectionBar').style.width = all.length ? `${Math.round((got / all.length) * 100)}%` : '0%';
     $('#homeAdmin').hidden = !state.isAdmin;
+    $('#asPlayer').checked = asPlayer;
+    $('#asPlayerBadge').hidden = !(state.isAdmin && asPlayer);
     const pending = state.myProposals.filter((x) => x.status === 'pending').length;
     $('#homeCreationsSub').textContent = pending ? `${plural(pending, 'proposition')} en attente` : 'Envoie tes dessins';
     renderMailBadge();
@@ -6874,7 +6891,7 @@
   state.news = [...BUILTIN_NEWS];
   function setNews(fromDb) {
     // Une annonce programmée (date à venir) n'est visible que de l'administratrice, pour la relire avant.
-    state.news = [...BUILTIN_NEWS, ...(fromDb || [])].filter((n) => state.isAdmin || !n.date || n.date <= Date.now())
+    state.news = [...BUILTIN_NEWS, ...(fromDb || [])].filter((n) => adminView() || !n.date || n.date <= Date.now())
       .sort((a, b) => (b.date || 0) - (a.date || 0));
   }
   const unseenNews = () => {
@@ -6970,11 +6987,11 @@
   }
   function renderNews() {
     renderPoints();
-    $('#newsForm').hidden = !state.isAdmin;
+    $('#newsForm').hidden = !adminView();
     const list = $('#newsList');
     list.innerHTML = '';
     $('#newsEmpty').hidden = state.news.length > 0;
-    for (const n of state.news) list.appendChild(newsCard(n, state.isAdmin));
+    for (const n of state.news) list.appendChild(newsCard(n, adminView()));
   }
   $('#homeNews').addEventListener('click', openNews);
   $('#newsBack').addEventListener('click', goHome);
@@ -7012,7 +7029,7 @@
   // Vote en maintenance (réglable dans l'atelier ; activé tant que l'administratrice ne l'a pas rouvert).
   const voteMaintenanceOn = () => state.settings.voteMaintenance !== false || maintOn('contest');
   // L'administratrice peut toujours voter, pour tester pendant la maintenance.
-  const voteMaintenance = () => voteMaintenanceOn() && !state.isAdmin;
+  const voteMaintenance = () => voteMaintenanceOn() && !adminView();
   // Heure de fin des votes du concours d'un jour : le lendemain à 20 h.
   const voteEnd = (day) => { const { y, m, dd } = parseDay(day); return new Date(y, m - 1, dd + 1, VOTE_END_HOUR).getTime(); };
   // Dernier concours dont le gagnant est dévoilé.
@@ -7062,7 +7079,7 @@
   const contestLaunched = () => Date.now() >= contestLaunchAt();
   const contestV2 = () => contestLaunched();
   // Entre minuit et l'ouverture (5 h), le concours du 5 novembre est fermé pour les joueurs : le nouveau thème n'est pas encore là.
-  const ctPreLaunch = () => !state.isAdmin && !contestLaunched() && today() >= CONTEST_NEW_FROM;
+  const ctPreLaunch = () => !adminView() && !contestLaunched() && today() >= CONTEST_NEW_FROM;
   const v2Day = (day) => contestV2() && (!contestLaunched() || day >= CONTEST_NEW_FROM);
   // Objets que le jeu peut imposer : ceux des enveloppes en vente, avec un vrai nom (pas un simple numéro).
   // Nom présentable d'un objet (certains n'ont qu'un numéro).
@@ -7413,7 +7430,7 @@
       c.textContent = opts.score;
       card.querySelector('.ct-meta').appendChild(c);
     }
-    if (state.isAdmin && opts.canModerate) {
+    if (adminView() && opts.canModerate) {
       const del = document.createElement('button');
       del.className = 'btn btn-ghost ct-small';
       del.textContent = 'Retirer';
@@ -7460,10 +7477,10 @@
   // Nouveau design du concours (côté administratrice) : 3 pages — Créer, Voter, Résultats —
   // avec les flèches rondes en bas. Le thème peut être une pièce + un thème / une couleur / un objet.
   // ---------------------------------------------------------------------------
-  const cv3On = () => state.isAdmin || contestLaunched();
+  const cv3On = () => adminView() || contestLaunched();
   let cv3Step = 0;
   // Nouvelles étapes (essai administratrice) : 1. Le conseil (thème de demain) · 2. Créer · 3. Résultat (voter + résultats).
-  const cvNewMenu = () => !!state.isAdmin && themeVoteOn();
+  const cvNewMenu = () => adminView() && themeVoteOn();
   const cvCouncilStep = () => (cvNewMenu() ? 0 : 1);
   const dayShort = (day) => { const { y, m, dd } = parseDay(day); return new Date(y, m - 1, dd).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); };
   const CV_INK = '#5A3E3A';
@@ -7529,7 +7546,7 @@
   // 3 cœurs à distribuer. L'idée qui a le plus de cœurs devient le thème du lendemain. Les joueurs proposent des thèmes
   // (2 par jour, validés par l'administratrice) ; l'idée d'un joueur qui gagne rejoint la liste officielle et lui rapporte des pièces.
   // ---------------------------------------------------------------------------
-  const themeVoteOn = () => state.isAdmin;
+  const themeVoteOn = () => adminView();
   const THEME_HEARTS = 3, THEME_PROPS_PER_DAY = 2, THEME_TEXT_MAX = 30, BALLOT = { theme: 4, object: 2, color: 2 };
   const themeWinners = {}; // jour -> idée élue la veille { type, label, imageId?, propId?, owner? }
   let cv3Sub = null;       // 'themevote' : sous-page du concours
@@ -7690,7 +7707,7 @@
     }
     // --- Administratrice : idées à valider
     const pending = d.pool.filter((p) => p.status === 'pending').sort((a, b) => (a.created || 0) - (b.created || 0));
-    if (state.isAdmin && pending.length) {
+    if (adminView() && pending.length) {
       const vc = document.createElement('section');
       vc.className = 'cv3-card';
       vc.innerHTML = `<h3 class="cv3-h3">Idées à valider (${pending.length})</h3><div class="tv-list"></div>`;
@@ -7912,7 +7929,7 @@
     tiles.innerHTML = mineTile + `<div class="cv3-tile"><div class="cv3-k">Aujourd'hui</div><div class="cv3-count"><b>${n}</b><span>participation${n > 1 ? 's' : ''}</span></div><div class="cv3-tile-sub">de joueurs au concours</div></div>`;
     page.appendChild(card);
     // Admin : les pièces publiées aujourd'hui, avec « Retirer »
-    if (state.isAdmin && t.entries.length) {
+    if (adminView() && t.entries.length) {
       const det = document.createElement('details');
       det.className = 'cv3-admin';
       det.innerHTML = `<summary>Participations du jour (admin) · ${t.entries.length}</summary><div class="ct-grid"></div>`;
@@ -7956,7 +7973,7 @@
       card.appendChild(go);
       return;
     }
-    if (state.isAdmin && voteMaintenanceOn()) msg('Test admin : le vote est en maintenance pour les joueurs.');
+    if (adminView() && voteMaintenanceOn()) msg('Test admin : le vote est en maintenance pour les joueurs.');
     const plan = duelPlan(v, me);
     if (!v.entries.length) { msg('Personne n\'a participé hier : rien à voter aujourd\'hui.'); return; }
     if (v.entries.length === 1) { msg(`Une seule participation hier : pas de vote aujourd'hui. ${v.entries[0].owner === me ? 'Tu gagnes' : `${v.entries[0].ownerName || v.entries[0].owner} gagne`} d'office à 20 h !`); return; }
@@ -8006,7 +8023,7 @@
       vote.addEventListener('click', () => openDuelView(v));
       card.appendChild(vote);
     }
-    if (state.isAdmin && plan.done) {
+    if (adminView() && plan.done) {
       const r = document.createElement('button');
       r.type = 'button';
       r.className = 'cv3-link-btn';
@@ -8014,7 +8031,7 @@
       r.addEventListener('click', () => resetMyDuels(v));
       card.appendChild(r);
     }
-    if (state.isAdmin && v.duels.length) {
+    if (adminView() && v.duels.length) {
       const det = document.createElement('details');
       det.className = 'cv3-admin';
       det.innerHTML = '<summary>Classement provisoire (admin)</summary>';
@@ -8213,7 +8230,7 @@
         c1.appendChild(bonus);
       }
     }
-    if (state.isAdmin && t.entries.length) {
+    if (adminView() && t.entries.length) {
       const grid = document.createElement('div');
       grid.className = 'ct-grid';
       t.entries.forEach((e) => grid.appendChild(entryCard(e, { canModerate: true })));
@@ -8241,7 +8258,7 @@
         b.addEventListener('click', () => openDuelView(v));
         c2.appendChild(b);
         // Admin : effacer ses duels du jour pour retester le vote.
-        if (state.isAdmin && plan.done) {
+        if (adminView() && plan.done) {
           const r = document.createElement('button');
           r.className = 'btn btn-ghost vote-open';
           r.textContent = '🔁 Recommencer mes votes (test admin)';
@@ -8709,7 +8726,7 @@
   }
   // Bloque l'entrée d'un menu en maintenance (sauf pour l'administratrice).
   function maintBlocked(key, silent = false) {
-    if (state.isAdmin || !maintOn(key)) return false;
+    if (adminView() || !maintOn(key)) return false;
     if (key === 'all' || maintOn('all')) {
       $('#maintScreen').hidden = false;
       return true;
@@ -9970,7 +9987,7 @@
   // on voit les voisines autour, dans le noir ; la pièce où l'on est reste allumée. Les étages viendront ensuite : les
   // données sont rangées par étage (house.floors[0] = le rez-de-chaussée).
   // ---------------------------------------------------------------------------
-  const houseOn = () => state.isAdmin;
+  const houseOn = () => adminView();
   const HOUSE_DIM = '<defs><filter id="houseDim" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0.26 0 0 0 0.02  0 0.26 0 0 0.02  0 0 0.36 0 0.07  0 0 0 1 0"/></filter></defs>';
   let houseFocus = null; // pièce allumée dans le plan de la maison
   const roomById = (id) => state.rooms.find((r) => r.id === id);

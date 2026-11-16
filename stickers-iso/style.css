@@ -3054,3 +3054,8 @@ button.bk-slot:focus-visible { box-shadow: 0 0 0 3px #E6B85C, 0 0 16px #E6B85Caa
 #multiDialog { overflow-y: auto; }
 #multiDialog .multi-box { max-height: none; margin: auto; padding-bottom: 16px; }
 #multiDialog { align-items: flex-start; }
+/* Vue joueuse (administratrice) */
+.as-player-row { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; padding: 8px 10px; border: 1.5px dashed var(--line); border-radius: 10px; font-weight: 700; cursor: pointer; }
+.as-player-row small { font-weight: 600; opacity: .75; }
+.as-player-badge { position: fixed; left: 10px; bottom: 10px; z-index: 2500; padding: 6px 12px; border-radius: 999px; border: 2px solid #E6B85C; background: #2A1840; color: #F7E9C4; font: inherit; font-weight: 700; font-size: .8rem; box-shadow: 0 3px 10px rgba(0,0,0,.4); cursor: pointer; }
+.as-player-badge[hidden] { display: none; }
