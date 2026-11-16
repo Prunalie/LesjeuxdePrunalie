@@ -3212,3 +3212,8 @@ button.bk-slot:focus-visible { box-shadow: 0 0 0 3px #E6B85C, 0 0 16px #E6B85Caa
 .tvx-bar i { display: block; height: 100%; background: linear-gradient(90deg, #D9566B, #E87A8C); }
 .tvx-bt { flex: none; display: flex; align-items: center; gap: 3px; font-family: 'Cinzel', Georgia, serif; font-weight: 700; font-size: 14px; color: var(--tv-ink); }
 .tvx-admin-del { display: block; margin: 10px auto 4px; }
+/* Le conseil : rien ne doit dépasser à droite (noms longs sur une ligne) */
+.tvx-page, .tvx-page > *, .cv3 > .tvx, .tvx-rankwrap, .tvx-rank, .tvx-row, .tvx-mini, .tvx-mini li { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.tvx-page { width: 100%; }
+.tvx-top { flex-wrap: wrap; }
+.tvx-rankcard { overflow: hidden; }
