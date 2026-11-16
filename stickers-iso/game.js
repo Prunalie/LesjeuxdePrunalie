@@ -482,8 +482,12 @@
   let db = cloudDb || localDb;
   // Administratrice : « Voir le jeu comme une joueuse » (case du menu admin, gardée sur l'appareil).
   // Les essais réservés à l'administratrice sont alors cachés et le jeu s'affiche comme pour une joueuse.
-  let asPlayer = (() => { try { return localStorage.getItem('ma-petite-piece:vue-joueuse') === '1'; } catch (e) { return false; } })();
-  const adminView = () => !!state.isAdmin && !asPlayer;
+  // Vue de l'administratrice : 'admin' (tout), 'player' (le jeu tel que les joueuses l'ont aujourd'hui),
+  // 'preview' (comme une joueuse, mais avec les nouveautés encore en test, sans les outils admin).
+  let viewMode = (() => { try { const v = localStorage.getItem('ma-petite-piece:vue-joueuse'); return v === '1' ? 'player' : v === 'preview' ? 'preview' : 'admin'; } catch (e) { return 'admin'; } })();
+  let asPlayer = viewMode !== 'admin';
+  const adminView = () => !!state.isAdmin && viewMode === 'admin';      // outils et pouvoirs de l'administratrice
+  const trialView = () => !!state.isAdmin && viewMode !== 'player';     // nouveautés en test (pas encore sorties)
 
   let saveTimer = null;
   let savePending = false;
@@ -603,7 +607,7 @@
 
   // Hauteur des murs commune à toute la maison (admin) : elle remplace celle de chaque pièce de la maison.
   function houseShape(id, shape) {
-    const h = adminView() && state.profile && state.profile.house;
+    const h = trialView() && state.profile && state.profile.house;
     if (!h || !h.wallH || !Array.isArray(h.floors)) return shape;
     if (!h.floors.some((f) => (f.rooms || []).some((e) => e.id === id))) return shape;
     return { ...(shape || {}), h: h.wallH };
@@ -750,8 +754,8 @@
         }
       };
       // Un demi-mur à motif (barrière, haie…) remplace le feuillage de son côté. Côté administratrice : plus de ronds du tout.
-      if (!decoWL && !adminView()) bumps(L, C, D, shade(wallLeft, 0.12));
-      if (!decoWR && !adminView()) bumps(C, R, W, shade(wallRight, 0.12));
+      if (!decoWL && !trialView()) bumps(L, C, D, shade(wallLeft, 0.12));
+      if (!decoWR && !trialView()) bumps(C, R, W, shade(wallRight, 0.12));
     } else {
       // Plinthes
       const BASE = 14 * Math.max(k, 0.5);
@@ -787,7 +791,7 @@
     // Jardin (côté administratrice) : des poteaux aux deux bouts des murs, avec ou sans demi-mur à motif.
     // Par défaut, un poteau en bois ; on peut en choisir un autre dans l'Atelier décor (type « Poteau »).
     const postsSvg = () => {
-      if (!garden || !adminView()) return ''; // côté administratrice pour l'instant
+      if (!garden || !trialView()) return ''; // côté administratrice pour l'instant
       const decoP = decoFor('postDeco');
       const spots = [[0, D], [W, 0]]; // aux deux bouts seulement, pas dans le coin
       const hpx = g.wallPx * 1.15;
@@ -3078,7 +3082,7 @@
   const SHOP_V2_FROM = '2026-11-02';
   const SHOP_V2_HOUR = 7; // ouverture aux joueurs à 7 h (heure de l'appareil)
   const launchAt = () => { const [y, m, d] = SHOP_V2_FROM.split('-').map(Number); return new Date(y, m - 1, d, SHOP_V2_HOUR, 0, 0).getTime(); };
-  const shopV2 = () => adminView() || Date.now() >= launchAt();
+  const shopV2 = () => trialView() || Date.now() >= launchAt();
   // « NEW » : les enveloppes sorties aujourd'hui.
   const isNewEnvelope = (env) => isLive(env) && envSlotDay(env) === today();
   const envStatus = (env) => (env.draft ? 'draft' : isLive(env) ? 'live' : 'scheduled');
@@ -3736,7 +3740,7 @@
     $('#btnContestPublish2').hidden = !r.contestDay;
     $('#btnContestDraft').hidden = !r.contestDay;
     $('#btnContestDraftTop').hidden = !r.contestDay; // la disquette en haut, à la place de l'appareil photo
-    $('#btnImmersive').hidden = !adminView();
+    $('#btnImmersive').hidden = !trialView();
     const backName = houseOn() ? 'Ma maison' : 'Mes pièces';
     $('#btnBack').title = r.contestDay ? 'Retour au concours' : `Retour à ${backName.toLowerCase()}`;
     $('#btnBack .label-long').innerHTML = r.contestDay ? '&nbsp;Concours' : `&nbsp;${backName}`;
@@ -5126,7 +5130,7 @@
     for (const b of decoSwatches) {
       // Jardin : seulement le sol à motif, et côté administratrice pour l'instant.
       const half = b.dataset.deco.startsWith('half') || b.dataset.deco === 'postDeco';
-      b.hidden = !show || (garden ? !(adminView() && (half || b.dataset.deco === 'floorDeco')) : half);
+      b.hidden = !show || (garden ? !(trialView() && (half || b.dataset.deco === 'floorDeco')) : half);
       const d = state.decos.get(state.colors[b.dataset.deco] || '');
       b.classList.toggle('empty', !d);
       b.style.backgroundImage = d ? `url("${d.url}")` : '';
@@ -5315,17 +5319,22 @@
     window.scrollTo(0, 0);
   });
   $('#decoRelock').addEventListener('click', () => { state.profile.unlocks = { ...(state.profile.unlocks || {}), decor: false }; saveProfile(); renderShopChoice(); });
-  // Vue joueuse (administratrice) : une seule case pour tout le jeu.
-  function setAsPlayer(on) {
-    asPlayer = on;
-    decoAsPlayer = on;
-    try { if (on) localStorage.setItem('ma-petite-piece:vue-joueuse', '1'); else localStorage.removeItem('ma-petite-piece:vue-joueuse'); } catch (e) { /* rien */ }
+  // Vue joueuse (administratrice) : un choix pour tout le jeu.
+  const VIEW_BADGE = { player: '👁️ Vue joueuse · quitter', preview: '👁️ Vue joueuse + nouveautés · quitter' };
+  function setViewMode(mode) {
+    viewMode = mode;
+    asPlayer = mode !== 'admin';
+    decoAsPlayer = asPlayer;
+    try { if (mode === 'admin') localStorage.removeItem('ma-petite-piece:vue-joueuse'); else localStorage.setItem('ma-petite-piece:vue-joueuse', mode === 'player' ? '1' : 'preview'); } catch (e) { /* rien */ }
     lentCache = { key: '', val: null };
+    themeVoteData = null;
     goHome();
-    toast(on ? '👁️ Vue joueuse : tu vois le jeu comme une joueuse (les essais admin sont cachés).' : 'Retour à la vue administratrice.');
+    if (state.isAdmin && themeVoteOn()) loadThemeWinner(today());
+    toast(mode === 'player' ? '👁️ Vue joueuse : le jeu tel que les joueuses l\'ont aujourd\'hui.'
+      : mode === 'preview' ? '👁️ Vue joueuse + nouveautés : comme une joueuse, avec les nouveautés en test.' : 'Retour à la vue administratrice.');
   }
-  $('#asPlayer').addEventListener('change', (e) => setAsPlayer(e.target.checked));
-  $('#asPlayerBadge').addEventListener('click', () => setAsPlayer(false));
+  document.querySelectorAll('input[name="viewMode"]').forEach((r) => r.addEventListener('change', (e) => { if (e.target.checked) setViewMode(e.target.value); }));
+  $('#asPlayerBadge').addEventListener('click', () => setViewMode('admin'));
   $('#decoAsPlayer').addEventListener('change', (e) => {
     decoAsPlayer = e.target.checked;
     if (shopView === 'deco' && !decorUnlocked()) shopView = 'choice'; // test joueur : retour à l'écran de choix
@@ -6054,8 +6063,9 @@
     $('#collectionTitle').textContent = bookOn() ? 'Grimoire' : 'Collection';
     $('#homeCollectionBar').style.width = all.length ? `${Math.round((got / all.length) * 100)}%` : '0%';
     $('#homeAdmin').hidden = !state.isAdmin;
-    $('#asPlayer').checked = asPlayer;
+    document.querySelectorAll('input[name="viewMode"]').forEach((r) => { r.checked = r.value === viewMode; });
     $('#asPlayerBadge').hidden = !(state.isAdmin && asPlayer);
+    $('#asPlayerBadge').textContent = VIEW_BADGE[viewMode] || '';
     const pending = state.myProposals.filter((x) => x.status === 'pending').length;
     $('#homeCreationsSub').textContent = pending ? `${plural(pending, 'proposition')} en attente` : 'Envoie tes dessins';
     renderMailBadge();
@@ -7487,10 +7497,10 @@
   // Nouveau design du concours (côté administratrice) : 3 pages — Créer, Voter, Résultats —
   // avec les flèches rondes en bas. Le thème peut être une pièce + un thème / une couleur / un objet.
   // ---------------------------------------------------------------------------
-  const cv3On = () => adminView() || contestLaunched();
+  const cv3On = () => trialView() || contestLaunched();
   let cv3Step = 0;
   // Nouvelles étapes (essai administratrice) : 1. Le conseil (thème de demain) · 2. Créer · 3. Résultat (voter + résultats).
-  const cvNewMenu = () => adminView() && themeVoteOn();
+  const cvNewMenu = () => trialView() && themeVoteOn();
   const cvCouncilStep = () => (cvNewMenu() ? 0 : 1);
   const dayShort = (day) => { const { y, m, dd } = parseDay(day); return new Date(y, m - 1, dd).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); };
   const CV_INK = '#5A3E3A';
@@ -7560,7 +7570,7 @@
   // Égalité en tête : les 2 idées sont jouées l'une après l'autre, sans vote le lendemain.
   // Le résultat de chaque jour est enregistré (doc « tw-jour ») pour retrouver l'historique sans recompter les cœurs.
   // ---------------------------------------------------------------------------
-  const themeVoteOn = () => adminView();
+  const themeVoteOn = () => trialView();
   const THEME_TEXT_MAX = 30;
   const THEME_VOTE_FROM = '2026-11-17'; // premier thème décidé par ce nouveau conseil
   // Le vote du thème du jour T se termine la veille à 20 h : on connaît le thème du lendemain dès le soir.
@@ -7946,7 +7956,7 @@
       const draft = tvDraft.picks.join('|');
       // 1, 2 ou 3 choix : chacun garde les points de son rang (1er = 3, 2e = 2, 3e = 1).
       const complete = tvDraft.picks.length > 0;
-      const nb = plural(tvDraft.picks.length, 'choix');
+      const nb = `${tvDraft.picks.length} choix`;
       sendBtn.querySelector('span').textContent = !complete ? 'Choisis au moins une idée' : myBallot ? (draft === saved ? '✅ Bulletin déposé' : `Mettre à jour mon bulletin (${nb})`) : `Déposer mon bulletin (${nb})`;
       sendBtn.disabled = !complete || draft === saved;
       sendBtn.addEventListener('click', async () => {
@@ -10346,7 +10356,7 @@
   // on voit les voisines autour, dans le noir ; la pièce où l'on est reste allumée. Les étages viendront ensuite : les
   // données sont rangées par étage (house.floors[0] = le rez-de-chaussée).
   // ---------------------------------------------------------------------------
-  const houseOn = () => adminView();
+  const houseOn = () => trialView();
   const HOUSE_DIM = '<defs><filter id="houseDim" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0.26 0 0 0 0.02  0 0.26 0 0 0.02  0 0 0.36 0 0.07  0 0 0 1 0"/></filter></defs>';
   let houseFocus = null; // pièce allumée dans le plan de la maison
   const roomById = (id) => state.rooms.find((r) => r.id === id);

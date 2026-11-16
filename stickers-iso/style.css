@@ -3078,3 +3078,6 @@ button.bk-slot:focus-visible { box-shadow: 0 0 0 3px #E6B85C, 0 0 16px #E6B85Caa
 .tv-row.mine .tv-rank { visibility: hidden; }
 .tv-send { margin-top: 10px; }
 .tv-send:disabled { opacity: .55; cursor: default; }
+.as-player-box { border: 1.5px dashed var(--line); border-radius: 10px; margin: 4px 0 10px; padding: 4px 10px 6px; }
+.as-player-box legend { font-weight: 800; padding: 0 4px; }
+.as-player-box .as-player-row { border: 0; margin: 0; padding: 5px 0; }

@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611161430">
+  <link rel="stylesheet" href="style.css?v=202611161500">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -134,7 +134,11 @@
             <span class="admin-title">Menu admin</span><span class="new-dot menu-dot" hidden aria-label="Nouveau joueur"></span>
             <svg class="chev" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9 L12 15 L18 9" fill="none" stroke="#5A3E3A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </summary>
-          <label class="as-player-row"><input id="asPlayer" type="checkbox"><span>👁️ Voir le jeu comme une joueuse <small>(les essais admin sont cachés)</small></span></label>
+          <fieldset class="as-player-box"><legend>👁️ Voir le jeu</legend>
+            <label class="as-player-row"><input type="radio" name="viewMode" value="admin"><span>En administratrice</span></label>
+            <label class="as-player-row"><input type="radio" name="viewMode" value="player"><span>Comme une joueuse <small>(ce qu'elles ont aujourd'hui)</small></span></label>
+            <label class="as-player-row"><input type="radio" name="viewMode" value="preview"><span>Comme une joueuse + nouveautés <small>(les essais en cours, sans les outils admin)</small></span></label>
+          </fieldset>
           <div class="admin-grid">
             <button id="homeAtelier" class="mini home-card admin-card" hidden>
               <span class="tile-icon" style="background:#F6E8E3"><svg class="mn-only mn-ico" width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 27 L21 11" fill="none" stroke="#1B0F14" stroke-width="5" stroke-linecap="round"/><path d="M5 27 L21 11" fill="none" stroke="#8A5A3A" stroke-width="2.200" stroke-linecap="round"/><path d="M23 3 Q23.800 8 29 9 Q23.800 10 23 15 Q22.200 10 17 9 Q22.200 8 23 3Z" fill="#FFE08A" stroke="#1B0F14" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg><svg class="mn-off" width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect x="13.5" y="12" width="5" height="17" rx="2" fill="#E8906B" stroke="#5A3E3A" stroke-width="2.4"/><rect x="6" y="4" width="20" height="9" rx="2.5" fill="#A9B4C2" stroke="#5A3E3A" stroke-width="2.4"/><path d="M6 8.5 H2.5" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/></svg></span>
@@ -1334,7 +1338,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611161430"></script>
-  <script src="game.js?v=202611161430"></script>
+  <script src="firebase-config.js?v=202611161500"></script>
+  <script src="game.js?v=202611161500"></script>
 </body>
 </html>
