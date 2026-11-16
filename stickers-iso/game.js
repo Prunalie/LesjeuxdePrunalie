@@ -7582,6 +7582,10 @@
   // Le vote du thème du jour T se termine la veille à 20 h : on connaît le thème du lendemain dès le soir.
   const themeVoteEnd = (T) => { const { y, m, dd } = parseDay(T); return new Date(y, m - 1, dd - 1, VOTE_END_HOUR).getTime(); };
   const themeVoteEnded = (T) => Date.now() >= themeVoteEnd(T);
+  // Administratrice : aperçu « comme avant 20 h » (affichage seulement ; les résultats réels ne changent pas).
+  let tvBefore20 = (() => { try { return sessionStorage.getItem('ma-petite-piece:conseil-avant-20h') === '1'; } catch (e) { return false; } })();
+  const tvPreview = (T) => adminView() && tvBefore20 && themeVoteEnded(T);
+  const tvEndedView = (T) => themeVoteEnded(T) && !tvPreview(T);
   const themeWinners = {}; // jour -> idée élue { type, label, room, imageId?, propId?, owner? }
   // Copie gardée sur l'appareil : le thème élu s'affiche tout de suite (et même si la connexion est lente).
   const WINNERS_KEY = 'ma-petite-piece:conseil-gagnants';
@@ -7800,7 +7804,7 @@
     const cands = ballot.cands.map((c) => ({ ...c, n: t.counts[c.id] || 0 }));
     const leader = t.leader ? (cands.find((c) => c.id === t.leader.id) || t.leader) : null;
     // Après 20 h : le vote est fini, le résultat est connu (et enregistré) pour le lendemain.
-    const ended = themeVoteEnded(day);
+    const ended = tvEndedView(day);
     const result = ended ? await ensureThemeRecord(day, ctx) : null;
     if (result) {
       if (result.win) themeWinners[day] = result.win; else delete themeWinners[day];
@@ -8026,6 +8030,7 @@
   }
   const tvName = (c) => (c.type === 'theme' ? c.label : c.label);
   function tvLeft(day) {
+    if (tvPreview(day)) return 'aperçu';
     const m = Math.max(0, Math.ceil((themeVoteEnd(day) - Date.now()) / 60000));
     const h = Math.floor(m / 60);
     return h ? `${h} h ${String(m % 60).padStart(2, '0')}` : `${m} min`;
@@ -8035,7 +8040,7 @@
     const els = document.querySelectorAll('[data-tv-left]');
     if (!els.length) return;
     let over = false;
-    els.forEach((el) => { el.textContent = tvLeft(el.dataset.tvLeft); if (themeVoteEnded(el.dataset.tvLeft)) over = true; });
+    els.forEach((el) => { el.textContent = tvLeft(el.dataset.tvLeft); if (tvEndedView(el.dataset.tvLeft)) over = true; });
     if (over && !screens.contest.hidden) { themeVoteData = null; cv3Sub = null; tvCloseSheet(); renderContest(); }
   }, 30000);
   const tvMyBallot = (d) => (d && d.hearts ? d.hearts.find((h) => h.kind === 'ballot' && h.voter === state.player.key) : null) || null;
@@ -8086,11 +8091,11 @@
   let themeVoteLoading = false;
   function tvCouncilPage(page) {
     const day = shiftDay(today(), 1);
-    const ready = themeVoteData && themeVoteData.day === day && !!themeVoteData.ended === themeVoteEnded(day);
+    const ready = themeVoteData && themeVoteData.day === day && !!themeVoteData.ended === tvEndedView(day);
     if (!ready && !themeVoteLoading) {
       themeVoteLoading = true;
       loadThemeVoteData(day).then((data) => { themeVoteData = data; })
-        .catch(() => { themeVoteData = { day, ended: themeVoteEnded(day), pool: [], recs: {}, cands: [], hearts: [], leader: null, queue: { live: [], done: new Set(), waiting: [], nextUp: [] }, resting: new Set(), avail: null }; })
+        .catch(() => { themeVoteData = { day, ended: tvEndedView(day), pool: [], recs: {}, cands: [], hearts: [], leader: null, queue: { live: [], done: new Set(), waiting: [], nextUp: [] }, resting: new Set(), avail: null }; })
         .finally(() => { themeVoteLoading = false; if (cv3Step === cvCouncilStep() && !cv3Sub && !screens.contest.hidden) renderContest(); });
     }
     const card = document.createElement('section');
@@ -8151,10 +8156,14 @@
       <p class="tvx-lead tvx-res-note"></p>
       ${board.length ? '<h3 class="tvx-board-h">Le classement</h3><ol class="tvx-board"></ol>' : ''}
       ${tvProposeRow()}`;
-    card.querySelector('.tvx-wname').textContent = win ? candText(win) : 'Tiré au sort';
+    // Sans idée élue : le thème prévu par le jeu (choisi à l'avance, ou tiré au sort).
+    const early = d.day < THEME_VOTE_FROM;
+    const plan = !win ? planOfBase(d.day) : null;
+    const planText = plan ? [plan.room, plan.kind === 'object' ? plan.objectName : plan.kind === 'color' ? plan.colorName : plan.value].filter(Boolean).join(' · ') : '';
+    card.querySelector('.tvx-wname').textContent = win ? candText(win) : (planText || 'Tiré au sort');
     const wn = win ? (board.find((c) => c.id === win.id) || {}).n || r.n || 0 : 0;
-    card.querySelector('.tvx-wsub').innerHTML = !win ? 'Personne n\'a voté aujourd\'hui.' : `${win.owner ? `Idée de ${cvEsc(win.ownerName || win.owner)} · ` : ''}${wn} ${tvHeart(15)}`;
-    card.querySelector('.tvx-res-note').textContent = !win ? 'Le thème de demain sera tiré au sort.'
+    card.querySelector('.tvx-wsub').innerHTML = !win ? (early ? 'Thème prévu à l\'avance' : 'Personne n\'a voté : thème tiré au sort') : `${win.owner ? `Idée de ${cvEsc(win.ownerName || win.owner)} · ` : ''}${wn} ${tvHeart(15)}`;
+    card.querySelector('.tvx-res-note').textContent = !win ? (early ? 'Le conseil décidera à partir du thème suivant.' : 'Le thème de demain a été tiré au sort.')
       : r.tie && r.next ? `Égalité ! « ${candText(win)} » demain, puis « ${candText(r.next)} » après-demain. Pas de vote demain.`
       : `${plural(d.ballots || 0, 'bulletin')}. La 2e et la 3e idée restent dans le vote de demain.`;
     const ol = card.querySelector('.tvx-board');
@@ -8169,7 +8178,21 @@
   // --- Administratrice : cœurs en direct (+1 / −1 d'essai), réserve d'idées, idées à valider
   function tvAdminLive(page, d) {
     const me = state.player.key;
-    if (!d.closed && !d.ended && d.cands.length) {
+    // Aperçu « comme avant 20 h » (après 20 h seulement).
+    if (themeVoteEnded(d.day)) {
+      const pv = document.createElement('section');
+      pv.className = 'cv3-card';
+      pv.innerHTML = `<label class="as-player-row tvx-prev"><input type="checkbox" ${tvBefore20 ? 'checked' : ''}><span>⏳ Voir le conseil comme avant 20 h <small>(aperçu admin : rien n'est enregistré, le vrai résultat ne change pas)</small></span></label>`;
+      pv.querySelector('input').addEventListener('change', (e) => {
+        tvBefore20 = e.target.checked;
+        try { if (tvBefore20) sessionStorage.setItem('ma-petite-piece:conseil-avant-20h', '1'); else sessionStorage.removeItem('ma-petite-piece:conseil-avant-20h'); } catch (err) { /* rien */ }
+        themeVoteData = null;
+        cv3Sub = null;
+        renderContest();
+      });
+      page.appendChild(pv);
+    }
+    if (!d.closed && !d.ended && !tvPreview(d.day) && d.cands.length) {
       const card = document.createElement('section');
       card.className = 'cv3-card';
       card.innerHTML = `<h3 class="cv3-h3">Admin · cœurs en direct</h3>${tvMyBallot(d) ? '<div class="tvx-admin-slot"></div>' : ''}<p class="cv3-note">${plural(d.ballots || 0, 'bulletin')}${d.tie ? ' · ⚖️ égalité en tête' : ''}. Caché aux joueuses jusqu'à 20 h. +1 / −1 : cœurs d'essai.</p><div class="tv-list"></div>`;
@@ -8386,6 +8409,7 @@
     const seal = ov.querySelector('.tvx-seal');
     seal.addEventListener('click', async () => {
       seal.disabled = true;
+      if (tvPreview(d.day)) { toast('Aperçu admin : après 20 h, le bulletin n\'est pas enregistré.'); seal.disabled = false; return; }
       if (themeVoteEnded(d.day)) { toast('Le vote est fini depuis 20 h.'); close(); themeVoteData = null; cv3Sub = null; renderContest(); return; }
       const me = state.player.key;
       const had = !!tvMyBallot(d);
