@@ -8214,12 +8214,12 @@
     const need = tvNeed(d);
     const head = document.createElement('div');
     head.className = 'tvx-rank-head';
-    head.innerHTML = `<h2 class="tvx-title">Classe les propositions</h2><p class="tvx-lead">Glisse une ligne ou utilise les flèches. La ligne 1 reçoit 3 ${tvHeart(13)}, la 2 en reçoit 2, la 3 en reçoit 1.</p>`;
+    head.innerHTML = '<h2 class="tvx-title">Classe les propositions</h2>';
     wrap.appendChild(head);
     const card = document.createElement('section');
     card.className = 'cv3-card tvx tvx-rankcard';
     card.innerHTML = `<div class="tvx-rankwrap${ids.length > need ? ' has-sep' : ''}"><ol class="tvx-rank" aria-label="Ton classement"></ol>
-      ${ids.length > need ? `<div class="tvx-sep" style="top:${need * 60}px" aria-hidden="true"><i></i><span>${TV_UP} Les ${need} premières entrent dans ton bulletin</span><i></i></div>` : ''}</div>
+      ${ids.length > need ? `<div class="tvx-sep" style="top:${need * 50}px" aria-hidden="true"><i></i><span>${TV_UP} Les ${need} premières entrent dans ton bulletin</span><i></i></div>` : ''}</div>
       <div class="tvx-sr" aria-live="polite"></div>`;
     wrap.appendChild(card);
     const list = card.querySelector('.tvx-rank');

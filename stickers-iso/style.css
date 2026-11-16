@@ -3224,3 +3224,20 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .tvx-th { overflow: visible; }
 .tvx-th > img { border-radius: 4px; }
 #ctView { z-index: 3100; }
+/* Le conseil : page de classement resserrée (tout tient sur un écran, bouton compris) */
+.tvx-page .tvx-top { margin-bottom: 6px; }
+.tvx-page .tvx-back, .tvx-page .tvx-top .tvx-pill { min-height: 36px; font-size: 15px; padding: 0 11px; }
+.tvx-rank-head { margin-bottom: 6px; }
+.tvx-rank-head .tvx-title { font-size: 21px; margin: 0; }
+.tvx-rankcard { padding: 6px 6px !important; }
+.tvx-row { height: 46px; margin-bottom: 4px; gap: 7px; }
+.tvx-row.after-sep { margin-top: 30px; }
+.tvx-sep { height: 30px; }
+.tvx-sep span { padding: 1px 9px; font-size: 13px; }
+.tvx-badge { width: 26px; height: 26px; font-size: 13.5px; }
+.tvx-row .tvx-th { width: 32px; height: 32px; }
+.tvx-sub { font-size: 12.5px; }
+.tvx-nm { font-size: 14.5px; }
+.tvx-arr button { width: 32px; height: 19px; }
+.tvx-page > .tvx-gold { margin-top: 8px; min-height: 46px; font-size: 16px; }
+.tvx-page.cv3 { gap: 0; padding-bottom: 6px; }
