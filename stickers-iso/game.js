@@ -9669,7 +9669,33 @@
     }
     $('#acRooms').value = rooms.join('\n');
     $('#acColors').value = contestColors().map((c) => `${c.name} ${c.hex}`).join('\n');
+    renderColorList();
   }
+  // Couleurs du concours : un nom et un sélecteur de couleur par ligne (la zone de texte cachée garde « Nom #code »).
+  function syncColorText() {
+    $('#acColors').value = [...$('#acColorList').querySelectorAll('.ac-color-row')]
+      .map((r) => `${r.querySelector('.ac-color-name').value.trim()} ${r.querySelector('.ac-color-pick').value}`)
+      .filter((l) => !/^\s*#/.test(l)).join('\n');
+  }
+  function addColorRow(name = '', hex = '#cccccc', focus = false) {
+    const row = document.createElement('div');
+    row.className = 'ac-color-row';
+    row.innerHTML = '<input class="ac-color-pick" type="color" aria-label="Choisir la teinte"><input class="field ac-color-name" type="text" maxlength="30" placeholder="Nom de la couleur" aria-label="Nom de la couleur"><button class="btn btn-ghost ac-color-del" type="button" title="Retirer" aria-label="Retirer cette couleur">✕</button>';
+    row.querySelector('.ac-color-pick').value = /^#[0-9a-f]{6}$/i.test(hex) ? hex.toLowerCase() : '#cccccc';
+    row.querySelector('.ac-color-name').value = name;
+    row.addEventListener('input', syncColorText);
+    row.querySelector('.ac-color-del').addEventListener('click', () => { row.remove(); syncColorText(); });
+    $('#acColorList').appendChild(row);
+    if (focus) row.querySelector('.ac-color-name').focus();
+  }
+  function renderColorList() {
+    $('#acColorList').innerHTML = '';
+    for (const line of $('#acColors').value.split('\n').map((x) => x.trim()).filter(Boolean)) {
+      const m = line.match(/^(.*?)\s*(#[0-9a-fA-F]{6})?$/);
+      addColorRow((m && m[1] ? m[1] : line).trim(), m && m[2] ? m[2] : '#cccccc');
+    }
+  }
+  $('#acColorAdd').addEventListener('click', () => { addColorRow('', '#cccccc', true); syncColorText(); });
   // Choix d'un objet précis pour un jour.
   const acObjPicker = $('#acObjPicker');
   let acObjDay = null;

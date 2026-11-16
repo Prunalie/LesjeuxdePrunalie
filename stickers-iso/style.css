@@ -3241,3 +3241,12 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .tvx-arr button { width: 32px; height: 19px; }
 .tvx-page > .tvx-gold { margin-top: 8px; min-height: 46px; font-size: 16px; }
 .tvx-page.cv3 { gap: 0; padding-bottom: 6px; }
+/* Réglages du concours : couleurs avec sélecteur */
+.ac-color-list { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; }
+.ac-color-row { display: flex; align-items: center; gap: 8px; }
+.ac-color-pick { flex: none; width: 42px; height: 42px; padding: 0; border: 2px solid var(--line, #8A6425); border-radius: 50%; background: none; cursor: pointer; overflow: hidden; }
+.ac-color-pick::-webkit-color-swatch-wrapper { padding: 0; }
+.ac-color-pick::-webkit-color-swatch { border: 0; border-radius: 50%; }
+.ac-color-pick::-moz-color-swatch { border: 0; border-radius: 50%; }
+.ac-color-name { flex: 1; min-width: 0; }
+.ac-color-del { flex: none; padding: 4px 10px; }
