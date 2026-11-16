@@ -7972,13 +7972,25 @@
   const TV_CLOCK = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 7 V12 L15.5 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
   const TV_MAIL = '<svg width="18" height="14" viewBox="0 0 24 18" aria-hidden="true"><rect x="2" y="2" width="20" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M3 4 L12 10 L21 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>';
   const tvRanks = ['1er', '2e', '3e'];
+  document.addEventListener('click', (e) => {
+    const z = e.target.closest('.tvx-zoom');
+    if (!z) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const img = state.images.get(z.dataset.zoom);
+    if (!img) return;
+    $('#ctViewImg').src = img.url;
+    $('#ctViewTitle').textContent = objectLabel(img);
+    $('#ctView').hidden = false;
+  }, true);
   let tvOrder = null; // classement en cours { day, voter, ids }
   let tvSheetOpen = false;
   function tvThumb(c, cls = '') {
     const img = c.imageId && state.images.get(c.imageId);
     const hex = c.hex || (c.type === 'color' && (contestColors().find((x) => x.name === c.label) || {}).hex);
-    const inner = img ? `<img alt="" src="${cvEsc(img.url)}">`
-      : c.type === 'color' && hex ? `<span class="tvx-dot" style="background:${cvEsc(hex)}"></span>`
+    // Un objet : on peut toucher sa vignette pour le voir en grand.
+    if (img) return `<button type="button" class="tvx-th tvx-zoom ${cls}" data-zoom="${cvEsc(img.id)}" title="Voir en grand" aria-label="Voir ${cvEsc(objectLabel(img))} en grand"><img alt="" src="${cvEsc(img.url)}"><span class="tvx-loupe" aria-hidden="true">🔍</span></button>`;
+    const inner = c.type === 'color' && hex ? `<span class="tvx-dot" style="background:${cvEsc(hex)}"></span>`
       : `<img alt="" src="${TV_IMG('parchemin-theme')}">`;
     return `<span class="tvx-th ${cls}" aria-hidden="true">${inner}</span>`;
   }
