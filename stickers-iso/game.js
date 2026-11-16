@@ -7112,7 +7112,7 @@
     const win = themeVoteOn() && !ov.kind && !ov.value ? themeWinners[day] : null;
     if (win) {
       const wr = win.room && win.room !== FREE_ROOM ? win.room : '';
-      if (win.type === 'theme') return { day, room: wr, kind: 'general', value: win.label, text: win.label };
+      if (win.type === 'theme') return { day, room: '', kind: 'general', value: win.label, text: win.label };
       ov = win.type === 'object' ? { ...ov, kind: 'object', objectId: win.imageId, room: wr || FREE_ROOM } : { ...ov, kind: 'color', value: win.label, room: wr || FREE_ROOM };
     }
     const rooms = contestRooms();
@@ -7569,22 +7569,24 @@
   let themeVoteData = null;
   const docSlug = (t) => `${String(t).replace(/[^a-zA-Z0-9]+/g, '_').slice(0, 24)}_${seededRank(String(t)).toString(36)}`;
   const tvRoom = (r) => (r && r !== FREE_ROOM ? r : '');
+  // Un thème général n'a jamais de pièce : seuls une couleur ou un objet en ont une (ou « au choix »).
+  const ideaRoom = (c) => (c.type === 'theme' ? '' : tvRoom(c.room));
   const elemKey = (c) => (c.type === 'object' ? `o:${c.imageId}` : `${c.type === 'color' ? 'c' : 't'}:${normalizeText(c.label)}`);
   // Ce qui se repose après avoir été joué : le thème ou l'objet tout entier ; pour une couleur, seulement avec sa pièce.
   const restKey = (c) => (c.type === 'color' ? `${elemKey(c)}@${normalizeText(tvRoom(c.room))}` : elemKey(c));
-  const candId = (c) => `${elemKey(c)}@${tvRoom(c.room)}`;
-  const candText = (c) => (tvRoom(c.room) ? `${tvRoom(c.room)} · ${c.label}` : c.label);
+  const candId = (c) => `${elemKey(c)}@${ideaRoom(c)}`;
+  const candText = (c) => (ideaRoom(c) ? `${ideaRoom(c)} · ${c.label}` : c.label);
   const candKind = (c) => (c.type === 'object' ? 'Objet' : c.type === 'color' ? 'Couleur' : 'Thème');
   // Copie « propre » d'une idée, pour l'enregistrer (cœur, résultat).
   const pureCand = (c) => {
-    const o = { id: c.id || candId(c), type: c.type, label: c.label, room: tvRoom(c.room) };
+    const o = { id: c.id || candId(c), type: c.type, label: c.label, room: ideaRoom(c) };
     for (const k of ['imageId', 'hex', 'src', 'owner', 'ownerName', 'propId']) if (c[k] !== undefined && c[k] !== null && c[k] !== '') o[k] = c[k];
     return o;
   };
   // Une idée de joueuse (doc « prop ») vue comme une idée du bulletin.
   function ideaOfDoc(p) {
     const type = p.etype || 'theme';
-    const c = { type, label: p.text, room: tvRoom(p.room), src: 'joueur', owner: p.owner, ownerName: p.ownerName, propId: p.id };
+    const c = { type, label: p.text, room: type === 'theme' ? '' : tvRoom(p.room), src: 'joueur', owner: p.owner, ownerName: p.ownerName, propId: p.id };
     if (type === 'object') { c.imageId = p.imageId; const img = state.images.get(p.imageId); if (img) c.label = objectLabel(img); }
     if (type === 'color') { const col = contestColors().find((x) => normalizeText(x.name) === normalizeText(p.text)); if (col) { c.label = col.name; c.hex = col.hex; } }
     c.id = candId(c);
@@ -7686,10 +7688,10 @@
         if (k <= 0) break;
         if (used.has(elemKey(e))) continue;
         // Une pièce tirée au sort, sauf celles où l'idée se repose (pour une couleur, on essaie les autres pièces).
-        const order = rooms.length ? [...rooms].sort((a, b) => seededRank(`${T}|${elemKey(e)}|${a}`) - seededRank(`${T}|${elemKey(e)}|${b}`)) : [''];
+        const order = type === 'theme' ? [''] : rooms.length ? [...rooms].sort((a, b) => seededRank(`${T}|${elemKey(e)}|${a}`) - seededRank(`${T}|${elemKey(e)}|${b}`)) : [''];
         const room = order.find((r) => !resting.has(restKey({ ...e, room: r })));
         if (room === undefined) continue;
-        if (add({ ...e, room: tvRoom(room) })) k--;
+        if (add({ ...e, room: type === 'theme' ? '' : tvRoom(room) })) k--;
       }
     }
     return { closed: false, cands, queue: q, resting, bank };
@@ -7870,8 +7872,14 @@
       <div class="tv-mine"></div>`;
     wrap.appendChild(propCard);
     const elemSel = propCard.querySelector('.tv-elem');
+    // Pas de pièce pour un thème général (composé ou nouveau) : le choix de la pièce disparaît.
+    const syncRoom = () => {
+      const isNew = !propCard.querySelector('.tv-new').hidden;
+      propCard.querySelector('.tv-lab').hidden = isNew || propCard.querySelector('.tv-etype').value === 'theme';
+    };
     const fillElems = () => {
       const t = propCard.querySelector('.tv-etype').value;
+      syncRoom();
       const opts = t === 'color' ? colList.map((c) => [c.name, c.name]) : t === 'theme' ? themeList.map((x) => [x, x]) : objList.map((o) => [o.id, o.label]);
       elemSel.innerHTML = opts.map(([v, l]) => `<option value="${cvEsc(v)}">${cvEsc(l)}</option>`).join('');
     };
@@ -7883,6 +7891,7 @@
       propCard.querySelector('.tv-compo').hidden = isNew;
       propCard.querySelector('.tv-new').hidden = !isNew;
       propCard.querySelector('.tv-new-note').hidden = !isNew;
+      syncRoom();
     }));
     // Une idée déjà dans la file, dans le vote, ou qui se repose : on ne la propose pas deux fois.
     const openIdea = (c) => d.pool.some((p) => p.status !== 'refused' && !d.queue.done.has(p.id) && ideaOfDoc(p).id === c.id);
@@ -7898,8 +7907,8 @@
     };
     propCard.querySelector('.tv-compo').addEventListener('submit', (e) => {
       e.preventDefault();
-      const room = propCard.querySelector('.tv-room').value;
       const etype = propCard.querySelector('.tv-etype').value;
+      const room = etype === 'theme' ? '' : propCard.querySelector('.tv-room').value;
       const v = elemSel.value;
       if (!v) { toast('Choisis un élément.'); return; }
       const doc = { form: 'compo', etype, room, status: 'accepted', readyDay: today(), readyAt: Date.now(), text: etype === 'object' ? ((objList.find((o) => o.id === v) || {}).label || '') : v };
@@ -7911,7 +7920,7 @@
       const text = propCard.querySelector('.tv-input').value.trim().replace(/\s+/g, ' ');
       if (text.length < 2) { toast('Écris un thème d\'au moins 2 lettres.'); return; }
       if (themeList.some((t) => normalizeText(t) === normalizeText(text)) || d.pool.some((p) => p.form !== 'compo' && p.status !== 'refused' && normalizeText(p.text) === normalizeText(text))) { toast('Ce thème existe déjà : utilise « Composer » pour le proposer.'); return; }
-      const doc = { etype: 'theme', room: propCard.querySelector('.tv-room').value, text, status: 'pending' };
+      const doc = { etype: 'theme', room: '', text, status: 'pending' };
       send(doc, ideaOfDoc(doc));
     });
     const mineBox = propCard.querySelector('.tv-mine');

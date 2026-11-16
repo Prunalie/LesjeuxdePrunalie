@@ -3069,3 +3069,4 @@ button.bk-slot:focus-visible { box-shadow: 0 0 0 3px #E6B85C, 0 0 16px #E6B85Caa
 .tv-compo[hidden], .tv-new[hidden] { display: none; }
 @media (max-width: 480px) { .tv-compo { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); } .tv-compo .btn { grid-column: 1 / -1; } }
 .tv-alert { font-weight: 800; color: #b5462f; }
+.tv-lab[hidden] { display: none; }
