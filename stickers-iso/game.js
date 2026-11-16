@@ -7462,7 +7462,7 @@
   // ---------------------------------------------------------------------------
   const cv3On = () => state.isAdmin || contestLaunched();
   let cv3Step = 0;
-  // Nouvelles étapes (essai administratrice) : 1. Le conseil (thème de demain) · 2. Créer · 3. Final (voter + résultats).
+  // Nouvelles étapes (essai administratrice) : 1. Le conseil (thème de demain) · 2. Créer · 3. Résultat (voter + résultats).
   const cvNewMenu = () => !!state.isAdmin && themeVoteOn();
   const cvCouncilStep = () => (cvNewMenu() ? 0 : 1);
   const dayShort = (day) => { const { y, m, dd } = parseDay(day); return new Date(y, m - 1, dd).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); };
@@ -7721,7 +7721,7 @@
 
   // Étape 2 « Voter » : carte compacte du vote du thème de demain (le thème en tête, et l'accès aux propositions).
   let themeVoteLoading = false;
-  function cvThemeCard(page) {
+  function cvThemeCard(page, council = false) {
     const day = shiftDay(today(), 1);
     const card = document.createElement('section');
     card.className = 'cv3-card cv3-themecard';
@@ -7734,7 +7734,12 @@
     }
     const d = ready ? themeVoteData : null;
     const lead = d && d.leader;
-    card.innerHTML = `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote jusqu'à minuit</div><h3 class="cv3-h3 tv-card-title">Thème de demain</h3></div></div>
+    card.innerHTML = council
+      ? `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-theme-block"><div class="cv3-k">Le conseil · vote jusqu'à minuit</div><h2 class="cv3-big">Le thème de demain</h2></div></div></div>
+      <p class="cv3-note">Propose tes idées et distribue tes cœurs : l'idée qui en reçoit le plus devient le thème du concours de demain (${bkEsc(dayShort(day))}).</p>
+      <p class="cv3-note tv-card-lead"></p>
+      <button type="button" class="cv3-cta tv-card-btn"><span>Voter · proposer une idée</span></button>`
+      : `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote jusqu'à minuit</div><h3 class="cv3-h3 tv-card-title">Thème de demain</h3></div></div>
       <p class="cv3-note tv-card-lead"></p>
       <button type="button" class="cv3-cta tv-card-btn"><span>Voter · proposer une idée</span></button>`;
     card.querySelector('.tv-card-lead').textContent = !d ? 'Chargement…'
@@ -7754,7 +7759,7 @@
     const steps = cvNewMenu() ? [
       { name: 'Le conseil', sub: 'thème de demain', tint: 'butter' },
       { name: 'Créer', sub: 'avant minuit', tint: 'pink' },
-      { name: 'Final', sub: 'votes et résultats', tint: 'mint' },
+      { name: 'Résultat', sub: 'votes et résultats', tint: 'mint' },
     ] : [
       { name: 'Créer', sub: 'avant minuit', tint: 'pink' },
       { name: 'Voter', sub: 'jusqu\'à 20 h', tint: 'butter' },
@@ -7806,12 +7811,7 @@
 
   // Nouvelle page 1 : le conseil décide du thème de demain (propositions et cœurs).
   function cvPageCouncil(page) {
-    const intro = document.createElement('section');
-    intro.className = 'cv3-card cv3-council';
-    intro.innerHTML = `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-theme-block"><div class="cv3-k">Le conseil</div><h2 class="cv3-big">Le thème de demain</h2></div></div></div>
-      <p class="cv3-note">Propose tes idées et distribue tes cœurs : l'idée qui en reçoit le plus devient le thème du concours de demain (${bkEsc(dayShort(shiftDay(today(), 1)))}).</p>`;
-    page.appendChild(intro);
-    cvThemeCard(page);
+    cvThemeCard(page, true);
   }
   // Nouvelle page 3 : Final. Voter pour le concours d'hier (sans voir les pièces avant d'entrer dans le vote), puis les résultats.
   function cvPageFinal(page) {
