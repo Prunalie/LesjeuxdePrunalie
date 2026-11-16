@@ -7815,13 +7815,6 @@
     const m = { id: `theme-win-${w.propId}`, to: w.owner, title: '🏆 Ton idée a gagné !', text: `Bravo ! Ton idée « ${candText(w)} » a été élue par les joueurs pour le concours du ${dateFmt.format(new Date(`${day}T12:00:00`)).replace(/ à .*/, '')}.`, reward, read: false, claimed: false, created: Date.now() };
     try { if (await db.createMail(m)) toast(`L'idée « ${candText(w)} » est élue : récompense envoyée à son autrice ✉️`); } catch (e) { /* on réessaiera */ }
   }
-  async function openThemeVote() {
-    cv3Sub = 'themevote';
-    $('#ctBody').innerHTML = '<p class="muted">Chargement…</p>';
-    const day = shiftDay(today(), 1);
-    try { themeVoteData = await loadThemeVoteData(day); } catch (e) { themeVoteData = { day, ended: themeVoteEnded(day), pool: [], recs: {}, cands: [], hearts: [], leader: null, queue: { live: [], done: new Set(), waiting: [] }, resting: new Set(), avail: null }; toast('Le vote du thème n\'est pas disponible. Vérifie ta connexion.'); }
-    renderContest();
-  }
   // Une ligne d'idée (visuel, type, texte) : pour le bulletin, la file d'attente…
   function tvRow(c, kindText) {
     const row = document.createElement('div');
@@ -7837,143 +7830,9 @@
     row.querySelector('.tv-text').textContent = candText(c);
     return row;
   }
-  function renderThemeVote(body) {
+  // Formulaire « Proposer une idée » (composer / nouveau thème) et la liste de mes idées.
+  function tvProposeCards(wrap, d, reload) {
     const me = state.player.key;
-    const d = themeVoteData;
-    body.innerHTML = '';
-    const wrap = document.createElement('div');
-    wrap.className = 'cv3';
-    body.appendChild(wrap);
-    const back = document.createElement('button');
-    back.type = 'button';
-    back.className = 'cv3-link-btn';
-    back.textContent = '← Retour au concours';
-    back.addEventListener('click', () => { cv3Sub = null; renderContest(); });
-    wrap.appendChild(back);
-    const reload = async () => { try { themeVoteData = await loadThemeVoteData(d.day); } catch (e) { /* on garde l'affichage */ } renderContest(); };
-    const isAdmin = adminView();
-    const myBallot = d.hearts.find((h) => h.kind === 'ballot' && h.voter === me) || null;
-    const myPoints = d.hearts.filter((h) => h.kind === 'heart' && h.voter === me);
-    const nameOf = (c) => (c.owner === me ? 'toi' : (c.ownerName || c.owner));
-    const pts = (n) => `${n} pt${n > 1 ? 's' : ''}`;
-    const RANKS = ['1er', '2e', '3e'];
-    // --- Le bulletin du jour : 3 choix classés (3, 2 et 1 points), scores cachés jusqu'à 20 h
-    const card = document.createElement('section');
-    card.className = 'cv3-card';
-    if (d.closed) {
-      card.innerHTML = `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Pas de vote aujourd'hui</div><h2 class="cv3-big">Le thème de demain est déjà choisi : égalité d'hier !</h2></div></div>
-        <p class="cv3-note">Hier, deux idées ont eu autant de points : elles sont jouées l'une après l'autre. Le vote reprend demain.</p><div class="tv-list"></div>`;
-      if (d.preset) card.querySelector('.tv-list').appendChild(tvRow(d.preset, `${candKind(d.preset)} · ${dayShort(d.day)}`));
-      wrap.appendChild(card);
-    } else if (d.ended) {
-      // Vote terminé à 20 h : le thème de demain est connu, les points sont dévoilés.
-      const r = d.result;
-      const winText = r && r.win ? candText(r.win) : '';
-      card.innerHTML = `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote terminé à 20 h</div><h2 class="cv3-big"></h2></div></div>
-        <p class="cv3-note tv-res-note"></p><div class="tv-list"></div>`;
-      card.querySelector('.cv3-big').textContent = winText ? `Le thème de demain : ${winText}` : 'Le thème de demain sera tiré au sort';
-      card.querySelector('.tv-res-note').textContent = !winText ? 'Personne n\'a voté aujourd\'hui.'
-        : r.tie && r.next ? `Égalité ! « ${winText} » demain, puis « ${candText(r.next)} » après-demain. Pas de vote demain.`
-        : `${plural(d.ballots || 0, 'bulletin')}. La 2e et la 3e idée restent dans le vote de demain. Le prochain vote ouvre à minuit.`;
-      wrap.appendChild(card);
-      const list = card.querySelector('.tv-list');
-      for (const c of [...d.cands].sort((a, b) => b.n - a.n)) {
-        const row = tvRow(c, candKind(c));
-        if (r && r.win && r.win.id === c.id) { row.classList.add('lead'); row.querySelector('.tv-text').textContent = `🏆 ${candText(c)}`; }
-        row.insertAdjacentHTML('beforeend', `<span class="tv-n">${pts(c.n)}</span>`);
-        list.appendChild(row);
-      }
-    } else {
-      if (!tvDraft || tvDraft.day !== d.day || tvDraft.voter !== me) tvDraft = { day: d.day, voter: me, picks: myBallot ? myBallot.picks.map((c) => c.id).filter((id) => d.cands.some((x) => x.id === id)) : [] };
-      const votable = d.cands.filter((c) => c.owner !== me);
-      const need = Math.min(3, votable.length);
-      const saved = myBallot ? myBallot.picks.map((c) => c.id).join('|') : '';
-      card.innerHTML = `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote jusqu'à 20 h</div><h2 class="cv3-big">Thème de demain</h2></div>${cvInfo(`Choisis 1, 2 ou 3 idées, dans l'ordre de tes préférences : ton 1er choix reçoit 3 points, le 2e 2 points, le 3e 1 point. Les points restent secrets jusqu'à 20 h ; tu peux modifier ton bulletin jusque-là. L'idée qui a le plus de points devient le thème du concours de demain ; la 2e et la 3e restent dans le vote du lendemain. Égalité de points : celle qui a le plus de 1ers choix gagne, puis le plus de 2es choix ; sinon les deux sont jouées l'une après l'autre. Tu ne peux pas voter pour ta propre idée. +${setting('themeVoteReward')} 🪙 pour ton premier bulletin du jour.`, 'Plus d\'infos : le conseil')}</div>
-        <div class="cv3-chips"><span class="cv3-chip b">${myBallot ? '✅ Bulletin déposé' : `🗳️ Choisis ${need > 1 ? `jusqu'à ${need} idées` : 'ton idée préférée'}`}</span><span class="cv3-chip">${plural(d.ballots || 0, 'bulletin')} déposé${(d.ballots || 0) > 1 ? 's' : ''}</span>${isAdmin && d.tie ? '<span class="cv3-chip">⚖️ Égalité en tête (admin)</span>' : ''}</div>
-        <p class="cv3-note tv-howto">Touche 1, 2 ou 3 idées dans l'ordre de tes préférences. Touche à nouveau pour enlever.</p><div class="tv-list"></div>
-        <button type="button" class="cv3-cta tv-send"><span></span></button>`;
-      wrap.appendChild(card);
-      const list = card.querySelector('.tv-list');
-      if (!d.cands.length) list.innerHTML = '<p class="muted">Pas d\'idées pour l\'instant : propose-en une !</p>';
-      const max = Math.max(1, ...d.cands.map((c) => c.n));
-      for (const c of d.cands) {
-        const bits = [candKind(c)];
-        if (c.reserved && c.owner) bits.push(`idée de ${nameOf(c)}`);
-        if (c.carry) bits.push(`${c.carry.rank}e ${c.carry.from === shiftDay(d.day, -2) ? 'hier' : 'avant-hier'} · ${pts(c.carry.n)}`);
-        const row = tvRow(c, bits.join(' · '));
-        const rank = tvDraft.picks.indexOf(c.id);
-        row.insertAdjacentHTML('afterbegin', `<span class="tv-rank${rank >= 0 ? ' on' : ''}">${rank >= 0 ? RANKS[rank] : ''}</span>`);
-        if (isAdmin) {
-          // Administratrice : points en direct (cachés aux joueuses) et points d'essai +1 / −1.
-          if (d.leader && d.leader.id === c.id) { row.classList.add('lead'); row.querySelector('.tv-text').textContent = `🏆 ${candText(c)}`; }
-          row.querySelector('.tv-main').insertAdjacentHTML('beforeend', `<span class="tv-bar"><i style="width:${Math.round((c.n / max) * 100)}%"></i></span>`);
-          row.insertAdjacentHTML('beforeend', `<span class="tv-n">${pts(c.n)}</span><div class="tv-act"></div>`);
-          const mineAll = myPoints.filter((h) => h.cand === c.id);
-          const act = row.querySelector('.tv-act');
-          const plus = document.createElement('button');
-          plus.className = 'btn btn-ghost';
-          plus.textContent = mineAll.length ? `+1 (${mineAll.length})` : '+1';
-          plus.title = 'Point d\'essai (admin)';
-          plus.addEventListener('click', async (ev) => {
-            ev.stopPropagation();
-            plus.disabled = true;
-            try { await db.putThemeDoc({ id: `th-${d.day}-${me}-${docSlug(c.id)}-${Date.now()}`, kind: 'heart', themeDay: d.day, cand: c.id, c: pureCand(c), voter: me, created: Date.now() }); }
-            catch (err) { toast('Le point n\'a pas pu être enregistré. Vérifie ta connexion.'); plus.disabled = false; return; }
-            reload();
-          });
-          act.appendChild(plus);
-          if (mineAll.length) {
-            const minus = document.createElement('button');
-            minus.className = 'btn btn-ghost';
-            minus.textContent = '−1';
-            minus.addEventListener('click', async (ev) => {
-              ev.stopPropagation();
-              minus.disabled = true;
-              try { await db.deleteThemeDoc(mineAll[mineAll.length - 1].id); } catch (err) { toast('Le point n\'a pas pu être retiré.'); minus.disabled = false; return; }
-              reload();
-            });
-            act.appendChild(minus);
-          }
-        }
-        if (c.owner === me) { row.classList.add('mine'); row.querySelector('.tv-kind').textContent += ' · ton idée'; }
-        else {
-          row.classList.add('pickable');
-          row.tabIndex = 0;
-          row.setAttribute('role', 'button');
-          const toggle = () => {
-            const i = tvDraft.picks.indexOf(c.id);
-            if (i >= 0) tvDraft.picks.splice(i, 1);
-            else if (tvDraft.picks.length < 3) tvDraft.picks.push(c.id);
-            else { toast('Tu as déjà tes 3 choix : touche une idée choisie pour l\'enlever.'); return; }
-            renderContest();
-          };
-          row.addEventListener('click', toggle);
-          row.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(); } });
-        }
-        list.appendChild(row);
-      }
-      const sendBtn = card.querySelector('.tv-send');
-      const draft = tvDraft.picks.join('|');
-      // 1, 2 ou 3 choix : chacun garde les points de son rang (1er = 3, 2e = 2, 3e = 1).
-      const complete = tvDraft.picks.length > 0;
-      const nb = `${tvDraft.picks.length} choix`;
-      sendBtn.querySelector('span').textContent = !complete ? 'Choisis au moins une idée' : myBallot ? (draft === saved ? '✅ Bulletin déposé' : `Mettre à jour mon bulletin (${nb})`) : `Déposer mon bulletin (${nb})`;
-      sendBtn.disabled = !complete || draft === saved;
-      sendBtn.addEventListener('click', async () => {
-        sendBtn.disabled = true;
-        const picks = tvDraft.picks.map((id) => pureCand(d.cands.find((x) => x.id === id)));
-        try { await db.putThemeDoc({ id: `tb-${d.day}-${me}`, kind: 'ballot', themeDay: d.day, voter: me, picks, created: Date.now() }); }
-        catch (err) { toast('Ton bulletin n\'a pas pu être déposé. Vérifie ta connexion.'); sendBtn.disabled = false; return; }
-        const reward = setting('themeVoteReward');
-        if (reward > 0 && state.profile.themeVoteDay !== today()) {
-          state.profile.themeVoteDay = today();
-          state.profile.points = (state.profile.points || 0) + reward;
-          saveProfile();
-          toast(`Bulletin déposé 🗳️ +${reward} 🪙 ! Résultat à 20 h.`);
-        } else toast(myBallot ? 'Bulletin mis à jour 🗳️ Résultat à 20 h.' : 'Bulletin déposé 🗳️ Résultat à 20 h.');
-        reload();
-      });
-    }
     // --- Proposer une idée (sans limite par jour, au plus N en attente) : composer avec ce qui existe, ou inventer un nouveau thème
     const MAX_WAIT = setting('themeMaxWaiting');
     const waitIdsAll = new Set(d.queue.waiting.map((p) => p.id));
@@ -8060,6 +7919,9 @@
       li.textContent = `${candText(ideaOfDoc(p))} · ${st}`;
       mineBox.appendChild(li);
     }
+  }
+  // Administratrice : réserve d'idées et idées à valider.
+  function tvAdminCards(wrap, d, reload) {
     // --- Administratrice : réserve d'idées et idées à valider
     if (adminView()) {
       const a = d.avail;
@@ -8094,49 +7956,460 @@
         wrap.appendChild(vc);
       }
     }
-    const tip = document.createElement('p');
-    tip.className = 'cv3-note';
-    const w = themeWinners[today()];
-    tip.textContent = w ? `Idée élue pour aujourd'hui : ${candText(w)}.` : 'À 20 h, l\'idée qui a le plus de cœurs devient le thème du concours du lendemain.';
-    wrap.appendChild(tip);
   }
 
-  // Étape 2 « Voter » : carte compacte du vote du thème de demain (le thème en tête, et l'accès aux propositions).
-  let themeVoteLoading = false;
-  function cvThemeCard(page, council = false) {
+  // ---------------------------------------------------------------------------
+  // Le conseil, nouvelle mise en page (maquette « Le conseil ») : page du conseil, classement à glisser, feuille
+  // « Mon bulletin », écran « Bulletin scellé », résultats à 20 h. Sous-pages : cv3Sub = 'rank' | 'sealed' | 'propose'.
+  // ---------------------------------------------------------------------------
+  const TV_IMG = (n) => `manoir/conseil/${n}.svg`;
+  const TV_BALLOT = 3; // toujours 3 choix (3, 2 et 1 cœurs)
+  const tvHeart = (s = 14) => `<svg class="tvx-heart" width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21 C5 15.5 2 12 2 8 C2 5 4.3 3 7 3 C9 3 10.8 4.2 12 6 C13.2 4.2 15 3 17 3 C19.7 3 22 5 22 8 C22 12 19 15.5 12 21Z" fill="#D9566B" stroke="#7A2F3F" stroke-width="1.4"/><path d="M6 7 Q7 5.5 9 5.8" fill="none" stroke="#FFD6DC" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+  const tvHearts = (n, s = 14) => `<span class="tvx-hearts" aria-label="${n} cœur${n > 1 ? 's' : ''}">${tvHeart(s).repeat(n)}</span>`;
+  const TV_GRIP = '<svg width="12" height="20" viewBox="0 0 12 20" aria-hidden="true"><g fill="currentColor"><circle cx="3" cy="4" r="1.7"/><circle cx="3" cy="10" r="1.7"/><circle cx="3" cy="16" r="1.7"/><circle cx="9" cy="4" r="1.7"/><circle cx="9" cy="10" r="1.7"/><circle cx="9" cy="16" r="1.7"/></g></svg>';
+  const TV_UP = '<svg width="14" height="10" viewBox="0 0 14 10" aria-hidden="true"><path d="M2 8 L7 3 L12 8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const TV_DOWN = '<svg width="14" height="10" viewBox="0 0 14 10" aria-hidden="true"><path d="M2 2 L7 7 L12 2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const TV_CLOCK = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 7 V12 L15.5 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+  const TV_MAIL = '<svg width="18" height="14" viewBox="0 0 24 18" aria-hidden="true"><rect x="2" y="2" width="20" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M3 4 L12 10 L21 4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>';
+  const tvRanks = ['1er', '2e', '3e'];
+  let tvOrder = null; // classement en cours { day, voter, ids }
+  let tvSheetOpen = false;
+  function tvThumb(c, cls = '') {
+    const img = c.imageId && state.images.get(c.imageId);
+    const hex = c.hex || (c.type === 'color' && (contestColors().find((x) => x.name === c.label) || {}).hex);
+    const inner = img ? `<img alt="" src="${cvEsc(img.url)}">`
+      : c.type === 'color' && hex ? `<span class="tvx-dot" style="background:${cvEsc(hex)}"></span>`
+      : `<img alt="" src="${TV_IMG('parchemin-theme')}">`;
+    return `<span class="tvx-th ${cls}" aria-hidden="true">${inner}</span>`;
+  }
+  // « Couleur · Salon · 2e hier · idée de Zoé » (sans dévoiler les cœurs d'hier : le vote reste secret).
+  function tvSub(c, d) {
+    const me = state.player.key;
+    const bits = [candKind(c)];
+    if (c.type !== 'theme' && tvRoom(c.room)) bits.push(tvRoom(c.room));
+    if (c.carry) bits.push(`${c.carry.rank}e ${c.carry.from === shiftDay(d.day, -2) ? 'hier' : 'avant-hier'}`);
+    if (c.reserved && c.owner) bits.push(`idée de ${c.owner === me ? 'toi' : (c.ownerName || c.owner)}`);
+    return bits.join(' · ');
+  }
+  const tvName = (c) => (c.type === 'theme' ? c.label : c.label);
+  function tvLeft(day) {
+    const m = Math.max(0, Math.ceil((themeVoteEnd(day) - Date.now()) / 60000));
+    const h = Math.floor(m / 60);
+    return h ? `${h} h ${String(m % 60).padStart(2, '0')}` : `${m} min`;
+  }
+  // Compte à rebours : mis à jour chaque minute ; à 20 h, la page passe aux résultats.
+  setInterval(() => {
+    const els = document.querySelectorAll('[data-tv-left]');
+    if (!els.length) return;
+    let over = false;
+    els.forEach((el) => { el.textContent = tvLeft(el.dataset.tvLeft); if (themeVoteEnded(el.dataset.tvLeft)) over = true; });
+    if (over && !screens.contest.hidden) { themeVoteData = null; cv3Sub = null; tvCloseSheet(); renderContest(); }
+  }, 30000);
+  const tvMyBallot = (d) => (d && d.hearts ? d.hearts.find((h) => h.kind === 'ballot' && h.voter === state.player.key) : null) || null;
+  const tvNeed = (d) => Math.min(TV_BALLOT, d.cands.length);
+  async function tvReload() {
     const day = shiftDay(today(), 1);
-    const card = document.createElement('section');
-    card.className = 'cv3-card cv3-themecard';
+    try { themeVoteData = await loadThemeVoteData(day); } catch (e) { /* on garde l'affichage */ }
+    renderContest();
+  }
+  // Remonter en haut de la page du concours (elle défile dans son propre cadre).
+  function tvTop() {
+    window.scrollTo(0, 0);
+    const b = $('#ctBody');
+    if (b) { b.scrollTop = 0; const sc = b.closest('.rooms-body'); if (sc) sc.scrollTop = 0; }
+  }
+  function tvGo(sub) {
+    cv3Sub = sub;
+    tvCloseSheet();
+    renderContest();
+    tvTop();
+  }
+  // Ordre de départ du classement : le bulletin déjà envoyé, sinon un ordre mélangé propre à chaque joueuse.
+  function tvStartOrder(d) {
+    const me = state.player.key;
+    const ids = d.cands.map((c) => c.id);
+    const mine = ((tvMyBallot(d) || {}).picks || []).map((c) => c && c.id).filter((id) => ids.includes(id));
+    const rest = ids.filter((id) => !mine.includes(id)).sort((a, b) => seededRank(`${d.day}|${me}|${a}`) - seededRank(`${d.day}|${me}|${b}`));
+    return [...mine, ...rest];
+  }
+  function tvCurrentOrder(d) {
+    const me = state.player.key;
+    const ids = d.cands.map((c) => c.id);
+    if (!tvOrder || tvOrder.day !== d.day || tvOrder.voter !== me || tvOrder.ids.length !== ids.length || tvOrder.ids.some((id) => !ids.includes(id))) {
+      tvOrder = { day: d.day, voter: me, ids: tvStartOrder(d) };
+    }
+    return tvOrder.ids;
+  }
+  const tvCand = (d, id) => d.cands.find((c) => c.id === id);
+  // La ligne « Proposer une idée » (ouvre le formulaire du jeu).
+  function tvProposeRow() {
+    return `<button type="button" class="tvx-propose"><span class="tvx-medal"><img alt="" src="${TV_IMG('encrier-plume')}"></span>
+      <span class="tvx-prop-txt"><span class="tvx-prop-t">Proposer une idée</span><span class="tvx-prop-s">+${setting('themeWinReward')} ${COIN_SVG(15)} si elle devient le thème</span></span>
+      <span class="tvx-plus" aria-hidden="true"><b>+</b></span></button>`;
+  }
+  const tvRules = () => `Classe tes ${TV_BALLOT} propositions préférées : la 1<sup>re</sup> reçoit 3 ${tvHeart(13)}, la 2<sup>e</sup> 2 ${tvHeart(13)}, la 3<sup>e</sup> 1 ${tvHeart(13)}.<br>À 20 h, celle qui a le plus de cœurs devient le thème du concours de demain. Le vote reste secret jusque-là ; tu peux modifier ton bulletin jusqu'à 20 h. En cas d'égalité : le plus de 1<sup>ers</sup> choix, puis de 2<sup>es</sup> choix ; sinon les deux idées sont jouées l'une après l'autre. La 2<sup>e</sup> et la 3<sup>e</sup> restent dans le vote du lendemain. +${setting('themeVoteReward')} 🪙 pour ton premier bulletin du jour.`;
+
+  // --- Étape 1 : la page du conseil (vote ouvert, journée sans vote, ou résultats à 20 h)
+  let themeVoteLoading = false;
+  function tvCouncilPage(page) {
+    const day = shiftDay(today(), 1);
     const ready = themeVoteData && themeVoteData.day === day && !!themeVoteData.ended === themeVoteEnded(day);
     if (!ready && !themeVoteLoading) {
       themeVoteLoading = true;
       loadThemeVoteData(day).then((data) => { themeVoteData = data; })
-        .catch(() => { themeVoteData = { day, ended: themeVoteEnded(day), pool: [], recs: {}, cands: [], hearts: [], leader: null, queue: { live: [], done: new Set(), waiting: [] }, resting: new Set(), avail: null }; })
+        .catch(() => { themeVoteData = { day, ended: themeVoteEnded(day), pool: [], recs: {}, cands: [], hearts: [], leader: null, queue: { live: [], done: new Set(), waiting: [], nextUp: [] }, resting: new Set(), avail: null }; })
         .finally(() => { themeVoteLoading = false; if (cv3Step === cvCouncilStep() && !cv3Sub && !screens.contest.hidden) renderContest(); });
     }
-    const d = ready ? themeVoteData : null;
-    const lead = d && d.leader;
-    card.innerHTML = council
-      ? `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-theme-block"><div class="cv3-k">Le conseil · vote jusqu'à 20 h</div><h2 class="cv3-big">Le thème de demain</h2></div></div></div>
-      <p class="cv3-note">Propose tes idées et choisis tes préférées (jusqu'à 3) : celle qui reçoit le plus de points devient le thème du concours de demain (${bkEsc(dayShort(day))}).</p>
-      <p class="cv3-note tv-card-lead"></p>
-      <button type="button" class="cv3-cta tv-card-btn"><span>Voter · proposer une idée</span></button>`
-      : `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote jusqu'à 20 h</div><h3 class="cv3-h3 tv-card-title">Thème de demain</h3></div></div>
-      <p class="cv3-note tv-card-lead"></p>
-      <button type="button" class="cv3-cta tv-card-btn"><span>Voter · proposer une idée</span></button>`;
-    card.querySelector('.tv-card-lead').textContent = !d ? 'Chargement…'
-      : d.result ? (d.result.win ? `🏆 Le thème de demain : ${candText(d.result.win)}${d.result.tie && d.result.next ? ` (égalité : « ${candText(d.result.next)} » après-demain)` : ''}` : 'Personne n\'a voté : le thème de demain sera tiré au sort.')
-      : d.closed ? `Le thème de demain est déjà choisi : égalité d'hier ! ${d.preset ? `(${candText(d.preset)})` : ''}`
-      : adminView() && lead ? `🏆 En tête (admin) : ${candText(lead)} (${lead.n} pt${lead.n > 1 ? 's' : ''}) · ${plural(d.ballots || 0, 'bulletin')}`
-      : `${d.hearts.some((h) => h.kind === 'ballot' && h.voter === state.player.key) ? '✅ Ton bulletin est déposé' : `${plural(d.cands.length, 'idée')} au choix`} · ${plural(d.ballots || 0, 'bulletin')} · résultat à 20 h`;
-    if (d && (d.closed || d.ended)) card.querySelector('.tv-card-btn span').textContent = d.ended ? 'Voir le résultat · proposer une idée' : 'Proposer une idée';
-    card.querySelector('.tv-card-btn').addEventListener('click', openThemeVote);
+    const card = document.createElement('section');
+    card.className = 'cv3-card tvx';
     page.appendChild(card);
+    if (!ready) { card.innerHTML = '<p class="tvx-lead">Chargement du conseil…</p>'; return; }
+    const d = themeVoteData;
+    if (d.closed) tvClosedCard(card, d);
+    else if (d.ended) tvResultsCard(card, d);
+    else tvOpenCard(card, d);
+    const prop = card.querySelector('.tvx-propose');
+    if (prop) prop.addEventListener('click', () => tvGo('propose'));
+    if (adminView()) tvAdminLive(page, d);
   }
+  function tvOpenCard(card, d) {
+    const mine = tvMyBallot(d);
+    const need = tvNeed(d);
+    const n = d.cands.length;
+    card.innerHTML = `<div class="tvx-head"><div class="tvx-head-main"><div class="tvx-k">Le conseil · ${cvEsc(dayShort(today()))}</div>
+        <h2 class="tvx-title">Le thème de demain</h2><p class="tvx-lead">Vote pour le thème du ${cvEsc(dayShort(d.day))}.</p></div>
+        ${cvInfo(tvRules(), 'Comment ça marche : le vote du thème')}</div>
+      <div class="tvx-plaques">
+        <div class="tvx-plaque"><img alt="" src="${TV_IMG('sablier')}"><span class="tvx-pl"><span class="tvx-pk">Il reste</span><span class="tvx-pv" data-tv-left="${d.day}">${tvLeft(d.day)}</span><span class="tvx-ps">fin à 20 h</span></span></div>
+        <div class="tvx-plaque ${mine ? 'sent' : 'todo'}"><img alt="" src="${TV_IMG(mine ? 'enveloppe-scellee' : 'enveloppe-a-remplir')}"><span class="tvx-pl"><span class="tvx-pk">Bulletin</span><span class="tvx-pv">${mine ? 'Envoyé' : 'À remplir'}</span><span class="tvx-ps">${mine ? `scellé · ${(mine.picks || []).length} choix` : `0 / ${need} choix`}</span></span></div>
+      </div>
+      <div class="tvx-lh"><h3>Les ${n} proposition${n > 1 ? 's' : ''}</h3><span>vote secret</span></div>
+      <ul class="tvx-mini"></ul>
+      ${tvProposeRow()}
+      <button type="button" class="tvx-gold tvx-main-btn" ${n ? '' : 'disabled'}>${mine ? 'Voir mon bulletin' : `Classer mes ${need} favoris`}</button>`;
+    const ul = card.querySelector('.tvx-mini');
+    if (!n) ul.innerHTML = '<li class="tvx-empty">Pas encore de propositions : propose une idée !</li>';
+    for (const c of d.cands) {
+      const li = document.createElement('li');
+      li.innerHTML = `${tvThumb(c, 'sm')}<span class="tvx-mn"></span><span class="tvx-mt"></span>`;
+      li.querySelector('.tvx-mn').textContent = tvName(c);
+      li.querySelector('.tvx-mt').textContent = c.type === 'theme' ? 'Thème' : `${candKind(c)}${tvRoom(c.room) ? ' · ' + tvRoom(c.room) : ''}`;
+      ul.appendChild(li);
+    }
+    card.querySelector('.tvx-main-btn').addEventListener('click', () => tvGo(mine ? 'sealed' : 'rank'));
+  }
+  function tvClosedCard(card, d) {
+    const p = d.preset;
+    card.innerHTML = `<div class="tvx-head"><div class="tvx-head-main"><div class="tvx-k">Le conseil · pas de vote aujourd'hui</div>
+        <h2 class="tvx-title">Le thème de demain est déjà choisi : égalité d'hier !</h2></div></div>
+      ${p ? `<div class="tvx-winner"><div class="tvx-wk">Thème du ${cvEsc(dayShort(d.day))}</div><div class="tvx-wname"></div><div class="tvx-wsub"></div></div>` : ''}
+      <p class="tvx-lead">Hier, deux idées ont eu autant de cœurs : elles sont jouées l'une après l'autre. Le vote reprend demain.</p>
+      ${tvProposeRow()}`;
+    if (p) { card.querySelector('.tvx-wname').textContent = candText(p); card.querySelector('.tvx-wsub').textContent = p.owner ? `Idée de ${p.ownerName || p.owner}` : candKind(p); }
+  }
+  function tvResultsCard(card, d) {
+    const r = d.result;
+    const win = r && r.win;
+    const mine = ((tvMyBallot(d) || {}).picks || []).map((c) => c && c.id);
+    const board = [...d.cands].sort((a, b) => b.n - a.n);
+    const max = Math.max(1, ...board.map((c) => c.n));
+    card.innerHTML = `<div class="tvx-res-k">Le conseil a parlé · 20 h</div><div class="tvx-res-day">Thème du ${cvEsc(dayShort(d.day))}</div>
+      <div class="tvx-winner"><div class="tvx-wname"></div><div class="tvx-wsub"></div></div>
+      <p class="tvx-lead tvx-res-note"></p>
+      ${board.length ? '<h3 class="tvx-board-h">Le classement</h3><ol class="tvx-board"></ol>' : ''}
+      ${tvProposeRow()}`;
+    card.querySelector('.tvx-wname').textContent = win ? candText(win) : 'Tiré au sort';
+    const wn = win ? (board.find((c) => c.id === win.id) || {}).n || r.n || 0 : 0;
+    card.querySelector('.tvx-wsub').innerHTML = !win ? 'Personne n\'a voté aujourd\'hui.' : `${win.owner ? `Idée de ${cvEsc(win.ownerName || win.owner)} · ` : ''}${wn} ${tvHeart(15)}`;
+    card.querySelector('.tvx-res-note').textContent = !win ? 'Le thème de demain sera tiré au sort.'
+      : r.tie && r.next ? `Égalité ! « ${candText(win)} » demain, puis « ${candText(r.next)} » après-demain. Pas de vote demain.`
+      : `${plural(d.ballots || 0, 'bulletin')}. La 2e et la 3e idée restent dans le vote de demain.`;
+    const ol = card.querySelector('.tvx-board');
+    board.forEach((c, i) => {
+      const li = document.createElement('li');
+      const k = mine.indexOf(c.id);
+      li.innerHTML = `<span class="tvx-br">${i + 1}</span><span class="tvx-bm"><span class="tvx-bn"><span class="tvx-bname"></span>${k >= 0 ? `<span class="tvx-tag">ton ${tvRanks[k]}</span>` : ''}</span><span class="tvx-bar"><i style="width:${Math.round((c.n / max) * 100)}%"></i></span></span><span class="tvx-bt">${c.n} ${tvHeart(13)}</span>`;
+      li.querySelector('.tvx-bname').textContent = candText(c);
+      ol.appendChild(li);
+    });
+  }
+  // --- Administratrice : cœurs en direct (+1 / −1 d'essai), réserve d'idées, idées à valider
+  function tvAdminLive(page, d) {
+    const me = state.player.key;
+    if (!d.closed && !d.ended && d.cands.length) {
+      const card = document.createElement('section');
+      card.className = 'cv3-card';
+      card.innerHTML = `<h3 class="cv3-h3">Admin · cœurs en direct</h3><p class="cv3-note">${plural(d.ballots || 0, 'bulletin')}${d.tie ? ' · ⚖️ égalité en tête' : ''}. Caché aux joueuses jusqu'à 20 h. +1 / −1 : cœurs d'essai.</p><div class="tv-list"></div>`;
+      const list = card.querySelector('.tv-list');
+      const max = Math.max(1, ...d.cands.map((c) => c.n));
+      for (const c of [...d.cands].sort((a, b) => b.n - a.n)) {
+        const row = tvRow(c, tvSub(c, d));
+        if (d.leader && d.leader.id === c.id) { row.classList.add('lead'); row.querySelector('.tv-text').textContent = `🏆 ${candText(c)}`; }
+        row.querySelector('.tv-main').insertAdjacentHTML('beforeend', `<span class="tv-bar"><i style="width:${Math.round((c.n / max) * 100)}%"></i></span>`);
+        row.insertAdjacentHTML('beforeend', `<span class="tv-n">${c.n} ♥</span><div class="tv-act"></div>`);
+        const mineAll = d.hearts.filter((h) => h.kind === 'heart' && h.voter === me && h.cand === c.id);
+        const act = row.querySelector('.tv-act');
+        const plus = document.createElement('button');
+        plus.className = 'btn btn-ghost';
+        plus.textContent = mineAll.length ? `+1 (${mineAll.length})` : '+1';
+        plus.addEventListener('click', async () => {
+          plus.disabled = true;
+          try { await db.putThemeDoc({ id: `th-${d.day}-${me}-${docSlug(c.id)}-${Date.now()}`, kind: 'heart', themeDay: d.day, cand: c.id, c: pureCand(c), voter: me, created: Date.now() }); }
+          catch (err) { toast('Le cœur n\'a pas pu être enregistré. Vérifie ta connexion.'); plus.disabled = false; return; }
+          tvReload();
+        });
+        act.appendChild(plus);
+        if (mineAll.length) {
+          const minus = document.createElement('button');
+          minus.className = 'btn btn-ghost';
+          minus.textContent = '−1';
+          minus.addEventListener('click', async () => {
+            minus.disabled = true;
+            try { await db.deleteThemeDoc(mineAll[mineAll.length - 1].id); } catch (err) { toast('Le cœur n\'a pas pu être retiré.'); minus.disabled = false; return; }
+            tvReload();
+          });
+          act.appendChild(minus);
+        }
+        list.appendChild(row);
+      }
+      page.appendChild(card);
+    }
+    tvAdminCards(page, d, tvReload);
+  }
+
+  // --- Sous-pages : classement, bulletin scellé, proposer une idée
+  function renderThemeVote(body) {
+    const d = themeVoteData;
+    body.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'cv3 tvx-page';
+    body.appendChild(wrap);
+    if ((cv3Sub === 'rank' || cv3Sub === 'sealed') && (d.closed || d.ended)) { cv3Sub = null; renderContest(); return; }
+    if (cv3Sub === 'sealed' && !tvMyBallot(d)) cv3Sub = 'rank';
+    const top = document.createElement('div');
+    top.className = 'tvx-top';
+    top.innerHTML = `<button type="button" class="tvx-back">← Le conseil</button>${d.closed || d.ended ? '' : `<span class="tvx-pill">${TV_CLOCK} Jusqu'à 20 h</span>`}`;
+    top.querySelector('.tvx-back').addEventListener('click', () => { cv3Sub = null; cv3Step = cvCouncilStep(); tvCloseSheet(); renderContest(); tvTop(); });
+    wrap.appendChild(top);
+    if (cv3Sub === 'rank') tvRankPage(wrap, d);
+    else if (cv3Sub === 'sealed') tvSealedPage(wrap, d);
+    else { tvProposeCards(wrap, d, tvReload); }
+  }
+  function tvRankPage(wrap, d) {
+    const ids = tvCurrentOrder(d);
+    const need = tvNeed(d);
+    const head = document.createElement('div');
+    head.className = 'tvx-rank-head';
+    head.innerHTML = `<h2 class="tvx-title">Classe les propositions</h2><p class="tvx-lead">Glisse une ligne ou utilise les flèches. La ligne 1 reçoit 3 ${tvHeart(13)}, la 2 en reçoit 2, la 3 en reçoit 1.</p>`;
+    wrap.appendChild(head);
+    const card = document.createElement('section');
+    card.className = 'cv3-card tvx tvx-rankcard';
+    card.innerHTML = `<div class="tvx-rankwrap${ids.length > need ? ' has-sep' : ''}"><ol class="tvx-rank" aria-label="Ton classement"></ol>
+      ${ids.length > need ? `<div class="tvx-sep" style="top:${need * 60}px" aria-hidden="true"><i></i><span>${TV_UP} Les ${need} premières entrent dans ton bulletin</span><i></i></div>` : ''}</div>
+      <div class="tvx-sr" aria-live="polite"></div>`;
+    wrap.appendChild(card);
+    const list = card.querySelector('.tvx-rank');
+    const live = card.querySelector('.tvx-sr');
+    for (const id of ids) {
+      const c = tvCand(d, id);
+      const li = document.createElement('li');
+      li.className = 'tvx-row';
+      li.dataset.id = id;
+      li.innerHTML = `<span class="tvx-grip">${TV_GRIP}</span><span class="tvx-badge"></span>${tvThumb(c)}<span class="tvx-txt"><span class="tvx-sub"></span><span class="tvx-nm"></span></span>
+        <span class="tvx-arr"><button type="button" class="up">${TV_UP}</button><button type="button" class="dn">${TV_DOWN}</button></span>`;
+      li.querySelector('.tvx-sub').textContent = tvSub(c, d);
+      li.querySelector('.tvx-nm').textContent = tvName(c);
+      li.querySelector('.up').setAttribute('aria-label', `Monter ${tvName(c)}`);
+      li.querySelector('.dn').setAttribute('aria-label', `Descendre ${tvName(c)}`);
+      list.appendChild(li);
+    }
+    if (ids.length > need) list.style.setProperty('--tvx-sep-at', need + 1);
+    const rows = () => [...list.querySelectorAll('.tvx-row')];
+    const nameOfRow = (r) => tvName(tvCand(d, r.dataset.id));
+    const renum = () => {
+      const rs = rows(), n = rs.length;
+      rs.forEach((r, i) => {
+        const p = i + 1;
+        r.querySelector('.tvx-badge').textContent = p;
+        r.classList.toggle('in', p <= need);
+        r.classList.toggle('after-sep', p === need + 1 && n > need);
+        r.querySelector('.up').disabled = p === 1;
+        r.querySelector('.dn').disabled = p === n;
+        r.setAttribute('aria-label', `${nameOfRow(r)}, position ${p}${p <= need ? ', dans ton bulletin' : ''}`);
+      });
+      tvOrder.ids = rs.map((r) => r.dataset.id);
+    };
+    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const flip = (change, skip) => {
+      const before = new Map(rows().map((r) => [r, r.getBoundingClientRect().top]));
+      change();
+      renum();
+      if (reduce) return;
+      for (const r of rows()) {
+        if (r === skip) continue;
+        const dy = before.get(r) - r.getBoundingClientRect().top;
+        if (!dy) continue;
+        r.style.transition = 'none';
+        r.style.transform = `translateY(${dy}px)`;
+        r.getBoundingClientRect();
+        r.style.transition = 'transform .22s ease';
+        r.style.transform = '';
+      }
+    };
+    const say = (r) => { const p = rows().indexOf(r) + 1; live.textContent = `${nameOfRow(r)} : position ${p}${p <= need ? ' (dans ton bulletin)' : ''}`; };
+    list.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b || b.disabled) return;
+      const r = b.closest('.tvx-row');
+      const up = b.classList.contains('up');
+      if (up) flip(() => list.insertBefore(r, r.previousElementSibling));
+      else flip(() => { const nx = r.nextElementSibling; list.insertBefore(nx, r); });
+      say(r);
+      const same = r.querySelector(up ? '.up' : '.dn');
+      (same.disabled ? r.querySelector(up ? '.dn' : '.up') : same).focus();
+    });
+    // Glisser : souris et doigt (pointer events). On attrape la ligne n'importe où, sauf sur les flèches.
+    let drag = null;
+    list.addEventListener('pointerdown', (e) => {
+      const r = e.target.closest('.tvx-row');
+      if (!r || e.target.closest('button') || e.button > 0) return;
+      e.preventDefault();
+      r.setPointerCapture(e.pointerId);
+      drag = { r, off: e.clientY - list.getBoundingClientRect().top - r.offsetTop };
+      r.classList.add('lift');
+      r.style.transition = 'none';
+    });
+    list.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const r = drag.r;
+      const want = e.clientY - list.getBoundingClientRect().top - drag.off;
+      let moved = true;
+      while (moved) {
+        moved = false;
+        const pv = r.previousElementSibling, nx = r.nextElementSibling;
+        if (pv && want + r.offsetHeight / 2 < pv.offsetTop + pv.offsetHeight / 2) { flip(() => list.insertBefore(r, pv), r); moved = true; }
+        else if (nx && want + r.offsetHeight / 2 > nx.offsetTop + nx.offsetHeight / 2) { flip(() => list.insertBefore(nx, r), r); moved = true; }
+      }
+      const min = -r.offsetTop, max = list.scrollHeight - r.offsetTop - r.offsetHeight;
+      const dy = Math.max(min - 10, Math.min(max + 10, want - r.offsetTop));
+      r.style.transform = `translateY(${dy}px) rotate(-1deg) scale(1.03)`;
+    });
+    const end = () => {
+      if (!drag) return;
+      const r = drag.r;
+      drag = null;
+      r.classList.remove('lift');
+      r.style.transition = reduce ? 'none' : 'transform .2s ease';
+      r.style.transform = '';
+      say(r);
+    };
+    list.addEventListener('pointerup', end);
+    list.addEventListener('pointercancel', end);
+    renum();
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tvx-gold';
+    btn.innerHTML = `${TV_MAIL}<span>Voir mon bulletin</span>`;
+    btn.addEventListener('click', () => tvOpenSheet(d));
+    wrap.appendChild(btn);
+    if (tvSheetOpen) tvOpenSheet(d);
+  }
+  function tvCloseSheet() {
+    tvSheetOpen = false;
+    const ov = document.getElementById('tvxSheet');
+    if (ov) ov.remove();
+  }
+  function tvOpenSheet(d) {
+    tvCloseSheet();
+    tvSheetOpen = true;
+    const need = tvNeed(d);
+    const picks = tvCurrentOrder(d).slice(0, need).map((id) => tvCand(d, id));
+    const total = picks.reduce((s, c, i) => s + BALLOT_POINTS[i], 0);
+    const ov = document.createElement('div');
+    ov.id = 'tvxSheet';
+    ov.className = 'tvx-ov';
+    ov.innerHTML = `<div class="tvx-dim"></div><div class="tvx-sheet" role="dialog" aria-modal="true" aria-labelledby="tvxSheetT">
+      <div class="tvx-sheet-head"><div><div class="tvx-sk">Conseil du ${cvEsc(dayShort(today()))}</div><h2 id="tvxSheetT">Mon bulletin</h2></div><img alt="" src="${TV_IMG('cachet-de-cire')}"></div>
+      <div class="tvx-orn" aria-hidden="true"><i></i><b></b><i></i></div>
+      <ol class="tvx-blines"></ol>
+      <p class="tvx-snote">Tu donnes ${total} cœurs en tout. Les autres propositions n'en reçoivent pas. Résultats ce soir à 20 h.</p>
+      <button type="button" class="tvx-seal"><img alt="" src="${TV_IMG('cachet-de-cire')}"><span>Sceller et envoyer</span></button>
+      <button type="button" class="tvx-edit">Modifier mon classement</button></div>`;
+    const ol = ov.querySelector('.tvx-blines');
+    picks.forEach((c, i) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="tvx-bp">${i + 1}</span><span class="tvx-btx"><span class="tvx-bsub"></span><span class="tvx-bnm"></span></span><span class="tvx-bpts"><b>+${BALLOT_POINTS[i]}</b>${tvHearts(BALLOT_POINTS[i], 15)}</span>`;
+      li.querySelector('.tvx-bsub').textContent = tvSub(c, d);
+      li.querySelector('.tvx-bnm').textContent = tvName(c);
+      ol.appendChild(li);
+    });
+    const close = () => { tvCloseSheet(); document.removeEventListener('keydown', onKey); };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
+    ov.querySelector('.tvx-dim').addEventListener('click', close);
+    ov.querySelector('.tvx-edit').addEventListener('click', close);
+    const seal = ov.querySelector('.tvx-seal');
+    seal.addEventListener('click', async () => {
+      seal.disabled = true;
+      if (themeVoteEnded(d.day)) { toast('Le vote est fini depuis 20 h.'); close(); themeVoteData = null; cv3Sub = null; renderContest(); return; }
+      const me = state.player.key;
+      const had = !!tvMyBallot(d);
+      try { await db.putThemeDoc({ id: `tb-${d.day}-${me}`, kind: 'ballot', themeDay: d.day, voter: me, picks: picks.map(pureCand), created: Date.now() }); }
+      catch (err) { toast('Ton bulletin n\'a pas pu être envoyé. Vérifie ta connexion.'); seal.disabled = false; return; }
+      const reward = setting('themeVoteReward');
+      if (reward > 0 && state.profile.themeVoteDay !== today()) {
+        state.profile.themeVoteDay = today();
+        state.profile.points = (state.profile.points || 0) + reward;
+        saveProfile();
+        toast(`Bulletin scellé 🗳️ +${reward} 🪙 !`);
+      } else if (had) toast('Bulletin modifié et scellé 🗳️');
+      close();
+      cv3Sub = 'sealed';
+      await tvReload();
+      tvTop();
+    });
+    document.body.appendChild(ov);
+    seal.focus();
+  }
+  function tvSealedPage(wrap, d) {
+    const picks = (tvMyBallot(d).picks || []).filter(Boolean);
+    const card = document.createElement('section');
+    card.className = 'cv3-card tvx tvx-sealed';
+    card.innerHTML = `<img class="tvx-big-env" alt="" src="${TV_IMG('enveloppe-grande')}">
+      <h2 class="tvx-title">Bulletin scellé !</h2>
+      <p class="tvx-lead">Ton vote est bien enregistré. Les résultats seront révélés ce soir à 20 h.</p>
+      <span class="tvx-pill tvx-pill-c">${TV_CLOCK} Résultats dans <span data-tv-left="${d.day}">${tvLeft(d.day)}</span></span>
+      <ol class="tvx-recap"></ol>
+      <button type="button" class="tvx-gold tvx-home">Retour au concours</button>
+      <button type="button" class="tvx-link">Modifier mon bulletin (jusqu'à 20 h)</button>`;
+    const ol = card.querySelector('.tvx-recap');
+    picks.forEach((c, i) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="tvx-badge on">${i + 1}</span><span class="tvx-rn"></span>${tvHearts(BALLOT_POINTS[i] || 1, 14)}`;
+      li.querySelector('.tvx-rn').textContent = tvName(c);
+      ol.appendChild(li);
+    });
+    card.querySelector('.tvx-home').addEventListener('click', () => { cv3Sub = null; cv3Step = cvCouncilStep(); renderContest(); tvTop(); });
+    card.querySelector('.tvx-link').addEventListener('click', () => tvGo('rank'));
+    wrap.appendChild(card);
+  }
+  async function openThemeVote(sub = 'rank') {
+    cv3Sub = sub;
+    const day = shiftDay(today(), 1);
+    if (!(themeVoteData && themeVoteData.day === day)) {
+      $('#ctBody').innerHTML = '<p class="muted">Chargement…</p>';
+      try { themeVoteData = await loadThemeVoteData(day); } catch (e) { cv3Sub = null; toast('Le conseil n\'est pas disponible. Vérifie ta connexion.'); }
+    }
+    renderContest();
+  }
+
+  // Ancienne carte compacte du vote : remplacée par la page du conseil.
+  function cvThemeCard(page) { tvCouncilPage(page); }
 
   function renderContestV3() {
     const body = $('#ctBody');
-    if (cv3Sub === 'themevote' && themeVoteOn() && themeVoteData) { renderThemeVote(body); return; }
+    if (cv3Sub !== 'rank') tvCloseSheet();
+    if (cv3Sub && themeVoteOn() && themeVoteData) { renderThemeVote(body); return; }
     cv3Sub = null;
     body.innerHTML = '';
     const wrap = document.createElement('div');
@@ -8197,7 +8470,7 @@
 
   // Nouvelle page 1 : le conseil décide du thème de demain (propositions et cœurs).
   function cvPageCouncil(page) {
-    cvThemeCard(page, true);
+    tvCouncilPage(page);
   }
   // Nouvelle page 3 : Final. Voter pour le concours d'hier (sans voir les pièces avant d'entrer dans le vote), puis les résultats.
   function cvPageFinal(page) {
