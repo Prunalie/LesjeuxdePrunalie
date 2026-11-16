@@ -7564,6 +7564,9 @@
   const themeVoteOn = () => adminView();
   const THEME_TEXT_MAX = 30;
   const THEME_VOTE_FROM = '2026-11-17'; // premier thème décidé par ce nouveau conseil
+  // Le vote du thème du jour T se termine la veille à 20 h : on connaît le thème du lendemain dès le soir.
+  const themeVoteEnd = (T) => { const { y, m, dd } = parseDay(T); return new Date(y, m - 1, dd - 1, VOTE_END_HOUR).getTime(); };
+  const themeVoteEnded = (T) => Date.now() >= themeVoteEnd(T);
   const themeWinners = {}; // jour -> idée élue { type, label, room, imageId?, propId?, owner? }
   let cv3Sub = null;       // 'themevote' : sous-page du concours
   let themeVoteData = null;
@@ -7718,10 +7721,10 @@
       carry: rest.map((c, i) => ({ ...pureCand(c), rank: from + 1 + i, n: c.n })), carryDay: shiftDay(T, -1),
     };
   }
-  // Le résultat du jour T (une fois le vote fini, à minuit) : lu s'il est enregistré, sinon calculé puis enregistré.
+  // Le résultat du jour T (une fois le vote fini, la veille à 20 h) : lu s'il est enregistré, sinon calculé puis enregistré.
   async function ensureThemeRecord(T, ctx, depth = 0) {
     if (ctx.recs[T]) return ctx.recs[T];
-    if (T < THEME_VOTE_FROM || T > today() || depth > 12) return null;
+    if (T < THEME_VOTE_FROM || !themeVoteEnded(T) || depth > 12) return null;
     const prev = await ensureThemeRecord(shiftDay(T, -1), ctx, depth + 1);
     const hearts = prev && prev.tie ? [] : await db.listThemeVote(T);
     const rec = recordFrom(T, themeTally(T, hearts), prev);
@@ -7741,6 +7744,13 @@
     const t = themeTally(day, hearts);
     const cands = ballot.cands.map((c) => ({ ...c, n: t.counts[c.id] || 0 }));
     const leader = t.leader ? (cands.find((c) => c.id === t.leader.id) || t.leader) : null;
+    // Après 20 h : le vote est fini, le résultat est connu (et enregistré) pour le lendemain.
+    const ended = themeVoteEnded(day);
+    const result = ended ? await ensureThemeRecord(day, ctx) : null;
+    if (result) {
+      if (result.win) themeWinners[day] = result.win; else delete themeWinners[day];
+      if (result.tie && result.next) themeWinners[shiftDay(day, 1)] = result.next;
+    }
     // Pour l'administratrice : combien d'idées restent disponibles (pas au repos).
     const rooms = contestRooms().length ? contestRooms() : [''];
     const avail = {
@@ -7748,7 +7758,7 @@
       object: ballot.bank.object.filter((e) => !ballot.resting.has(restKey(e))).length,
       color: ballot.bank.color.filter((e) => rooms.some((r) => !ballot.resting.has(restKey({ ...e, room: r })))).length,
     };
-    return { day, pool: ctx.pool, recs: ctx.recs, closed: ballot.closed, preset: ballot.preset, queue: ballot.queue, resting: ballot.resting, avail, cands, hearts, leader, tie: t.tie };
+    return { day, ended, result, pool: ctx.pool, recs: ctx.recs, closed: ballot.closed, preset: ballot.preset, queue: ballot.queue, resting: ballot.resting, avail, cands, hearts, leader, tie: t.tie };
   }
   // L'idée élue pour un jour (votée la veille) : chargée pour que planOf puisse l'utiliser. Si c'est l'idée d'une joueuse,
   // son autrice reçoit des pièces (une seule fois). En cas d'égalité, le lendemain est déjà connu.
@@ -7773,7 +7783,7 @@
     cv3Sub = 'themevote';
     $('#ctBody').innerHTML = '<p class="muted">Chargement…</p>';
     const day = shiftDay(today(), 1);
-    try { themeVoteData = await loadThemeVoteData(day); } catch (e) { themeVoteData = { day, pool: [], recs: {}, cands: [], hearts: [], leader: null, queue: { live: [], done: new Set(), waiting: [] }, resting: new Set(), avail: null }; toast('Le vote du thème n\'est pas disponible. Vérifie ta connexion.'); }
+    try { themeVoteData = await loadThemeVoteData(day); } catch (e) { themeVoteData = { day, ended: themeVoteEnded(day), pool: [], recs: {}, cands: [], hearts: [], leader: null, queue: { live: [], done: new Set(), waiting: [] }, resting: new Set(), avail: null }; toast('Le vote du thème n\'est pas disponible. Vérifie ta connexion.'); }
     renderContest();
   }
   // Une ligne d'idée (visuel, type, texte) : pour le bulletin, la file d'attente…
@@ -7817,8 +7827,26 @@
         <p class="cv3-note">Hier, deux idées ont eu autant de cœurs : elles sont jouées l'une après l'autre. Le vote reprend demain.</p><div class="tv-list"></div>`;
       if (d.preset) card.querySelector('.tv-list').appendChild(tvRow(d.preset, `${candKind(d.preset)} · ${dayShort(d.day)}`));
       wrap.appendChild(card);
+    } else if (d.ended) {
+      // Vote terminé à 20 h : le thème de demain est connu, les cœurs restent affichés.
+      const r = d.result;
+      const winText = r && r.win ? candText(r.win) : '';
+      card.innerHTML = `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote terminé à 20 h</div><h2 class="cv3-big"></h2></div></div>
+        <p class="cv3-note tv-res-note"></p><div class="tv-list"></div>`;
+      card.querySelector('.cv3-big').textContent = winText ? `Le thème de demain : ${winText}` : 'Le thème de demain sera tiré au sort';
+      card.querySelector('.tv-res-note').textContent = !winText ? 'Personne n\'a donné de cœur aujourd\'hui.'
+        : r.tie && r.next ? `Égalité ! « ${winText} » demain, puis « ${candText(r.next)} » après-demain. Pas de vote demain.`
+        : 'La 2e et la 3e idée restent dans le vote de demain. Le prochain vote ouvre à minuit.';
+      wrap.appendChild(card);
+      const list = card.querySelector('.tv-list');
+      for (const c of [...d.cands].sort((a, b) => b.n - a.n)) {
+        const row = tvRow(c, candKind(c));
+        if (r && r.win && r.win.id === c.id) { row.classList.add('lead'); row.querySelector('.tv-text').textContent = `🏆 ${candText(c)}`; }
+        row.insertAdjacentHTML('beforeend', `<span class="tv-n">${c.n} ❤️</span>`);
+        list.appendChild(row);
+      }
     } else {
-      card.innerHTML = `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote jusqu'à minuit</div><h2 class="cv3-big">Thème de demain</h2></div>${cvInfo(`Distribue tes ${HEARTS} cœurs entre les idées qui te plaisent. L'idée qui en a le plus devient le thème du concours de demain ; la 2e et la 3e restent dans le vote du lendemain (en repartant de 0). En cas d'égalité, les deux idées sont jouées l'une après l'autre. Tu ne peux pas voter pour ta propre idée.`, 'Plus d\'infos : le conseil')}</div>
+      card.innerHTML = `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote jusqu'à 20 h</div><h2 class="cv3-big">Thème de demain</h2></div>${cvInfo(`Distribue tes ${HEARTS} cœurs entre les idées qui te plaisent. L'idée qui en a le plus devient le thème du concours de demain ; la 2e et la 3e restent dans le vote du lendemain (en repartant de 0). En cas d'égalité, les deux idées sont jouées l'une après l'autre. Tu ne peux pas voter pour ta propre idée.`, 'Plus d\'infos : le conseil')}</div>
         <div class="cv3-chips"><span class="cv3-chip b">❤️ ${left} cœur${left > 1 ? 's' : ''} à donner</span>${d.tie ? '<span class="cv3-chip">⚖️ Égalité en tête : les deux seraient jouées</span>' : ''}</div><div class="tv-list"></div>`;
       wrap.appendChild(card);
       const list = card.querySelector('.tv-list');
@@ -7971,7 +7999,7 @@
     const tip = document.createElement('p');
     tip.className = 'cv3-note';
     const w = themeWinners[today()];
-    tip.textContent = w ? `Idée élue pour aujourd'hui : ${candText(w)}.` : 'À minuit, l\'idée qui a le plus de cœurs devient le thème du concours.';
+    tip.textContent = w ? `Idée élue pour aujourd'hui : ${candText(w)}.` : 'À 20 h, l\'idée qui a le plus de cœurs devient le thème du concours du lendemain.';
     wrap.appendChild(tip);
   }
 
@@ -7981,27 +8009,28 @@
     const day = shiftDay(today(), 1);
     const card = document.createElement('section');
     card.className = 'cv3-card cv3-themecard';
-    const ready = themeVoteData && themeVoteData.day === day;
+    const ready = themeVoteData && themeVoteData.day === day && !!themeVoteData.ended === themeVoteEnded(day);
     if (!ready && !themeVoteLoading) {
       themeVoteLoading = true;
       loadThemeVoteData(day).then((data) => { themeVoteData = data; })
-        .catch(() => { themeVoteData = { day, pool: [], cands: [], hearts: [], leader: null }; })
+        .catch(() => { themeVoteData = { day, ended: themeVoteEnded(day), pool: [], recs: {}, cands: [], hearts: [], leader: null, queue: { live: [], done: new Set(), waiting: [] }, resting: new Set(), avail: null }; })
         .finally(() => { themeVoteLoading = false; if (cv3Step === cvCouncilStep() && !cv3Sub && !screens.contest.hidden) renderContest(); });
     }
     const d = ready ? themeVoteData : null;
     const lead = d && d.leader;
     card.innerHTML = council
-      ? `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-theme-block"><div class="cv3-k">Le conseil · vote jusqu'à minuit</div><h2 class="cv3-big">Le thème de demain</h2></div></div></div>
+      ? `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-theme-block"><div class="cv3-k">Le conseil · vote jusqu'à 20 h</div><h2 class="cv3-big">Le thème de demain</h2></div></div></div>
       <p class="cv3-note">Propose tes idées et distribue tes cœurs : l'idée qui en reçoit le plus devient le thème du concours de demain (${bkEsc(dayShort(day))}).</p>
       <p class="cv3-note tv-card-lead"></p>
       <button type="button" class="cv3-cta tv-card-btn"><span>Voter · proposer une idée</span></button>`
-      : `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote jusqu'à minuit</div><h3 class="cv3-h3 tv-card-title">Thème de demain</h3></div></div>
+      : `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote jusqu'à 20 h</div><h3 class="cv3-h3 tv-card-title">Thème de demain</h3></div></div>
       <p class="cv3-note tv-card-lead"></p>
       <button type="button" class="cv3-cta tv-card-btn"><span>Voter · proposer une idée</span></button>`;
     card.querySelector('.tv-card-lead').textContent = !d ? 'Chargement…'
+      : d.result ? (d.result.win ? `🏆 Le thème de demain : ${candText(d.result.win)}${d.result.tie && d.result.next ? ` (égalité : « ${candText(d.result.next)} » après-demain)` : ''}` : 'Personne n\'a voté : le thème de demain sera tiré au sort.')
       : d.closed ? `Le thème de demain est déjà choisi : égalité d'hier ! ${d.preset ? `(${candText(d.preset)})` : ''}`
       : lead ? `🏆 En tête : ${candText(lead)} (${lead.n} ❤️)` : `${plural(d.cands.length, 'idée')} au choix, pas encore de cœurs.`;
-    if (d && d.closed) card.querySelector('.tv-card-btn span').textContent = 'Proposer une idée';
+    if (d && (d.closed || d.ended)) card.querySelector('.tv-card-btn span').textContent = d.ended ? 'Voir le résultat · proposer une idée' : 'Proposer une idée';
     card.querySelector('.tv-card-btn').addEventListener('click', openThemeVote);
     page.appendChild(card);
   }
