@@ -7876,9 +7876,9 @@
       const votable = d.cands.filter((c) => c.owner !== me);
       const need = Math.min(3, votable.length);
       const saved = myBallot ? myBallot.picks.map((c) => c.id).join('|') : '';
-      card.innerHTML = `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote jusqu'à 20 h</div><h2 class="cv3-big">Thème de demain</h2></div>${cvInfo(`Choisis tes 3 idées préférées, dans l'ordre : ton 1er choix reçoit 3 points, le 2e 2 points, le 3e 1 point. Les points restent secrets jusqu'à 20 h ; tu peux modifier ton bulletin jusque-là. L'idée qui a le plus de points devient le thème du concours de demain ; la 2e et la 3e restent dans le vote du lendemain. Égalité : celle qui a le plus de 1ers choix gagne, sinon les deux sont jouées l'une après l'autre. Tu ne peux pas voter pour ta propre idée. +${setting('themeVoteReward')} 🪙 pour ton premier bulletin du jour.`, 'Plus d\'infos : le conseil')}</div>
-        <div class="cv3-chips"><span class="cv3-chip b">${myBallot ? '✅ Bulletin déposé' : `🗳️ Choisis ${need > 1 ? `tes ${need} idées préférées` : 'ton idée préférée'}`}</span><span class="cv3-chip">${plural(d.ballots || 0, 'bulletin')} déposé${(d.ballots || 0) > 1 ? 's' : ''}</span>${isAdmin && d.tie ? '<span class="cv3-chip">⚖️ Égalité en tête (admin)</span>' : ''}</div>
-        <p class="cv3-note tv-howto">Touche les idées dans l'ordre de tes préférences. Touche à nouveau pour enlever.</p><div class="tv-list"></div>
+      card.innerHTML = `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote jusqu'à 20 h</div><h2 class="cv3-big">Thème de demain</h2></div>${cvInfo(`Choisis 1, 2 ou 3 idées, dans l'ordre de tes préférences : ton 1er choix reçoit 3 points, le 2e 2 points, le 3e 1 point. Les points restent secrets jusqu'à 20 h ; tu peux modifier ton bulletin jusque-là. L'idée qui a le plus de points devient le thème du concours de demain ; la 2e et la 3e restent dans le vote du lendemain. Égalité : celle qui a le plus de 1ers choix gagne, sinon les deux sont jouées l'une après l'autre. Tu ne peux pas voter pour ta propre idée. +${setting('themeVoteReward')} 🪙 pour ton premier bulletin du jour.`, 'Plus d\'infos : le conseil')}</div>
+        <div class="cv3-chips"><span class="cv3-chip b">${myBallot ? '✅ Bulletin déposé' : `🗳️ Choisis ${need > 1 ? `jusqu'à ${need} idées` : 'ton idée préférée'}`}</span><span class="cv3-chip">${plural(d.ballots || 0, 'bulletin')} déposé${(d.ballots || 0) > 1 ? 's' : ''}</span>${isAdmin && d.tie ? '<span class="cv3-chip">⚖️ Égalité en tête (admin)</span>' : ''}</div>
+        <p class="cv3-note tv-howto">Touche 1, 2 ou 3 idées dans l'ordre de tes préférences. Touche à nouveau pour enlever.</p><div class="tv-list"></div>
         <button type="button" class="cv3-cta tv-send"><span></span></button>`;
       wrap.appendChild(card);
       const list = card.querySelector('.tv-list');
@@ -7942,8 +7942,10 @@
       }
       const sendBtn = card.querySelector('.tv-send');
       const draft = tvDraft.picks.join('|');
-      const complete = tvDraft.picks.length === need && need > 0;
-      sendBtn.querySelector('span').textContent = !complete ? `Encore ${plural(need - tvDraft.picks.length, 'choix')}` : myBallot ? (draft === saved ? '✅ Bulletin déposé' : 'Mettre à jour mon bulletin') : 'Déposer mon bulletin';
+      // 1, 2 ou 3 choix : chacun garde les points de son rang (1er = 3, 2e = 2, 3e = 1).
+      const complete = tvDraft.picks.length > 0;
+      const nb = plural(tvDraft.picks.length, 'choix');
+      sendBtn.querySelector('span').textContent = !complete ? 'Choisis au moins une idée' : myBallot ? (draft === saved ? '✅ Bulletin déposé' : `Mettre à jour mon bulletin (${nb})`) : `Déposer mon bulletin (${nb})`;
       sendBtn.disabled = !complete || draft === saved;
       sendBtn.addEventListener('click', async () => {
         sendBtn.disabled = true;
@@ -8104,7 +8106,7 @@
     const lead = d && d.leader;
     card.innerHTML = council
       ? `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-theme-block"><div class="cv3-k">Le conseil · vote jusqu'à 20 h</div><h2 class="cv3-big">Le thème de demain</h2></div></div></div>
-      <p class="cv3-note">Propose tes idées et choisis tes 3 préférées : celle qui reçoit le plus de points devient le thème du concours de demain (${bkEsc(dayShort(day))}).</p>
+      <p class="cv3-note">Propose tes idées et choisis tes préférées (jusqu'à 3) : celle qui reçoit le plus de points devient le thème du concours de demain (${bkEsc(dayShort(day))}).</p>
       <p class="cv3-note tv-card-lead"></p>
       <button type="button" class="cv3-cta tv-card-btn"><span>Voter · proposer une idée</span></button>`
       : `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote jusqu'à 20 h</div><h3 class="cv3-h3 tv-card-title">Thème de demain</h3></div></div>
