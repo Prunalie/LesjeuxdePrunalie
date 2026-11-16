@@ -3059,3 +3059,13 @@ button.bk-slot:focus-visible { box-shadow: 0 0 0 3px #E6B85C, 0 0 16px #E6B85Caa
 .as-player-row small { font-weight: 600; opacity: .75; }
 .as-player-badge { position: fixed; left: 10px; bottom: 10px; z-index: 2500; padding: 6px 12px; border-radius: 999px; border: 2px solid #E6B85C; background: #2A1840; color: #F7E9C4; font: inherit; font-weight: 700; font-size: .8rem; box-shadow: 0 3px 10px rgba(0,0,0,.4); cursor: pointer; }
 .as-player-badge[hidden] { display: none; }
+
+/* Le conseil : proposer une idée (pièce + élément) */
+.tv-lab { display: flex; flex-direction: column; gap: 4px; font-weight: 800; font-size: .85rem; margin: 6px 0 8px; }
+.tv-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+.tv-tab { flex: 1; border: 3px solid var(--c-line); border-radius: 999px; background: var(--c-surface); padding: 6px 10px; font-weight: 800; font-size: .85rem; color: inherit; cursor: pointer; }
+.tv-tab.on { background: var(--c-butter); }
+.tv-compo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto; gap: 8px; }
+.tv-compo[hidden], .tv-new[hidden] { display: none; }
+@media (max-width: 480px) { .tv-compo { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); } .tv-compo .btn { grid-column: 1 / -1; } }
+.tv-alert { font-weight: 800; color: #b5462f; }
