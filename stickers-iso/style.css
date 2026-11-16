@@ -3070,3 +3070,11 @@ button.bk-slot:focus-visible { box-shadow: 0 0 0 3px #E6B85C, 0 0 16px #E6B85Caa
 @media (max-width: 480px) { .tv-compo { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); } .tv-compo .btn { grid-column: 1 / -1; } }
 .tv-alert { font-weight: 800; color: #b5462f; }
 .tv-lab[hidden] { display: none; }
+/* Le conseil : bulletin classé */
+.tv-row.pickable { cursor: pointer; }
+.tv-row.mine { opacity: .75; }
+.tv-rank { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 3px dashed var(--c-line); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: .8rem; }
+.tv-rank.on { border-style: solid; background: var(--c-butter); }
+.tv-row.mine .tv-rank { visibility: hidden; }
+.tv-send { margin-top: 10px; }
+.tv-send:disabled { opacity: .55; cursor: default; }
