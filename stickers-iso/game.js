@@ -8139,7 +8139,7 @@
     if (!d.closed && !d.ended && d.cands.length) {
       const card = document.createElement('section');
       card.className = 'cv3-card';
-      card.innerHTML = `<h3 class="cv3-h3">Admin · cœurs en direct</h3><p class="cv3-note">${plural(d.ballots || 0, 'bulletin')}${d.tie ? ' · ⚖️ égalité en tête' : ''}. Caché aux joueuses jusqu'à 20 h. +1 / −1 : cœurs d'essai.</p><div class="tv-list"></div>`;
+      card.innerHTML = `<h3 class="cv3-h3">Admin · cœurs en direct</h3>${tvMyBallot(d) ? '<div class="tvx-admin-slot"></div>' : ''}<p class="cv3-note">${plural(d.ballots || 0, 'bulletin')}${d.tie ? ' · ⚖️ égalité en tête' : ''}. Caché aux joueuses jusqu'à 20 h. +1 / −1 : cœurs d'essai.</p><div class="tv-list"></div>`;
       const list = card.querySelector('.tv-list');
       const max = Math.max(1, ...d.cands.map((c) => c.n));
       for (const c of [...d.cands].sort((a, b) => b.n - a.n)) {
@@ -8172,6 +8172,8 @@
         }
         list.appendChild(row);
       }
+      const slot = card.querySelector('.tvx-admin-slot');
+      if (slot) slot.appendChild(tvAdminDeleteBtn(d));
       page.appendChild(card);
     }
     tvAdminCards(page, d, tvReload);
@@ -8371,6 +8373,27 @@
     document.body.appendChild(ov);
     seal.focus();
   }
+  // Administratrice : supprimer son bulletin pour recommencer (et retrouver la récompense du jour, pour les essais).
+  async function tvDeleteMyBallot(d) {
+    const mine = tvMyBallot(d);
+    if (!mine) return;
+    if (!confirm('Supprimer ton bulletin pour recommencer ?')) return;
+    try { await db.deleteThemeDoc(mine.id); } catch (err) { toast('Le bulletin n\'a pas pu être supprimé. Vérifie ta connexion.'); return; }
+    if (state.profile.themeVoteDay === today()) { delete state.profile.themeVoteDay; saveProfile(); }
+    tvOrder = null;
+    cv3Sub = null;
+    toast('Bulletin supprimé : tu peux recommencer.');
+    await tvReload();
+    tvTop();
+  }
+  function tvAdminDeleteBtn(d) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-ghost tvx-admin-del';
+    b.textContent = '🗑️ Supprimer mon bulletin (admin)';
+    b.addEventListener('click', () => tvDeleteMyBallot(d));
+    return b;
+  }
   function tvSealedPage(wrap, d) {
     const picks = (tvMyBallot(d).picks || []).filter(Boolean);
     const card = document.createElement('section');
@@ -8391,6 +8414,7 @@
     });
     card.querySelector('.tvx-home').addEventListener('click', () => { cv3Sub = null; cv3Step = cvCouncilStep(); renderContest(); tvTop(); });
     card.querySelector('.tvx-link').addEventListener('click', () => tvGo('rank'));
+    if (adminView()) card.appendChild(tvAdminDeleteBtn(d));
     wrap.appendChild(card);
   }
   async function openThemeVote(sub = 'rank') {

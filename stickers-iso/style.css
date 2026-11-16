@@ -3211,3 +3211,4 @@ button.bk-slot:focus-visible { box-shadow: 0 0 0 3px #E6B85C, 0 0 16px #E6B85Caa
 .tvx-bar { display: block; height: 5px; border-radius: 99px; background: rgba(255,255,255,.12); overflow: hidden; }
 .tvx-bar i { display: block; height: 100%; background: linear-gradient(90deg, #D9566B, #E87A8C); }
 .tvx-bt { flex: none; display: flex; align-items: center; gap: 3px; font-family: 'Cinzel', Georgia, serif; font-weight: 700; font-size: 14px; color: var(--tv-ink); }
+.tvx-admin-del { display: block; margin: 10px auto 4px; }
