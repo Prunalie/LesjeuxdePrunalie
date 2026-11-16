@@ -7716,23 +7716,25 @@
   }
   // Le décompte d'un jour : chaque bulletin donne 3, 2 et 1 points à ses 3 choix (dans l'ordre). Les points d'essai de
   // l'administratrice (docs « heart ») valent 1 point. Chaque doc garde une copie de l'idée : le compte ne dépend pas
-  // du bulletin recalculé. Départage : le plus de 1ers choix ; sinon égalité (les deux idées sont jouées).
+  // du bulletin recalculé. Départage : le plus de 1ers choix, puis de 2es choix ; sinon égalité (les deux idées sont jouées,
+  // dans un ordre tiré au sort d'après la date, et les autres idées à égalité sont reportées).
   const BALLOT_POINTS = [3, 2, 1];
   function themeTally(T, docs) {
     const by = {};
-    const give = (c, id, pts, first) => {
+    const give = (c, id, pts, rank) => {
       if (!c || !id) return;
-      if (!by[id]) by[id] = { ...c, id, n: 0, firsts: 0 };
+      if (!by[id]) by[id] = { ...c, id, n: 0, firsts: 0, seconds: 0 };
       by[id].n += pts;
-      if (first) by[id].firsts++;
+      if (rank === 0) by[id].firsts++;
+      if (rank === 1) by[id].seconds++;
     };
     let ballots = 0;
     for (const h of docs) {
-      if (h.kind === 'heart') give(h.c, h.cand, 1, false);
-      else if (h.kind === 'ballot' && Array.isArray(h.picks)) { ballots++; h.picks.slice(0, 3).forEach((c, i) => give(c, c && c.id, BALLOT_POINTS[i], i === 0)); }
+      if (h.kind === 'heart') give(h.c, h.cand, 1, -1);
+      else if (h.kind === 'ballot' && Array.isArray(h.picks)) { ballots++; h.picks.slice(0, 3).forEach((c, i) => give(c, c && c.id, BALLOT_POINTS[i], i)); }
     }
-    const ranked = Object.values(by).filter((c) => c.n > 0).sort((a, b) => b.n - a.n || b.firsts - a.firsts || seededRank(`${T}|${a.id}`) - seededRank(`${T}|${b.id}`));
-    const tie = ranked.length > 1 && ranked[0].n === ranked[1].n && ranked[0].firsts === ranked[1].firsts;
+    const ranked = Object.values(by).filter((c) => c.n > 0).sort((a, b) => b.n - a.n || b.firsts - a.firsts || b.seconds - a.seconds || seededRank(`${T}|${a.id}`) - seededRank(`${T}|${b.id}`));
+    const tie = ranked.length > 1 && ranked[0].n === ranked[1].n && ranked[0].firsts === ranked[1].firsts && ranked[0].seconds === ranked[1].seconds;
     return { counts: Object.fromEntries(ranked.map((c) => [c.id, c.n])), ranked, leader: ranked[0] || null, tie, ballots };
   }
   function recordFrom(T, t, prev) {
@@ -7876,7 +7878,7 @@
       const votable = d.cands.filter((c) => c.owner !== me);
       const need = Math.min(3, votable.length);
       const saved = myBallot ? myBallot.picks.map((c) => c.id).join('|') : '';
-      card.innerHTML = `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote jusqu'à 20 h</div><h2 class="cv3-big">Thème de demain</h2></div>${cvInfo(`Choisis 1, 2 ou 3 idées, dans l'ordre de tes préférences : ton 1er choix reçoit 3 points, le 2e 2 points, le 3e 1 point. Les points restent secrets jusqu'à 20 h ; tu peux modifier ton bulletin jusque-là. L'idée qui a le plus de points devient le thème du concours de demain ; la 2e et la 3e restent dans le vote du lendemain. Égalité : celle qui a le plus de 1ers choix gagne, sinon les deux sont jouées l'une après l'autre. Tu ne peux pas voter pour ta propre idée. +${setting('themeVoteReward')} 🪙 pour ton premier bulletin du jour.`, 'Plus d\'infos : le conseil')}</div>
+      card.innerHTML = `<div class="cv3-head"><div class="cv3-head-main"><div class="cv3-k">Vote jusqu'à 20 h</div><h2 class="cv3-big">Thème de demain</h2></div>${cvInfo(`Choisis 1, 2 ou 3 idées, dans l'ordre de tes préférences : ton 1er choix reçoit 3 points, le 2e 2 points, le 3e 1 point. Les points restent secrets jusqu'à 20 h ; tu peux modifier ton bulletin jusque-là. L'idée qui a le plus de points devient le thème du concours de demain ; la 2e et la 3e restent dans le vote du lendemain. Égalité de points : celle qui a le plus de 1ers choix gagne, puis le plus de 2es choix ; sinon les deux sont jouées l'une après l'autre. Tu ne peux pas voter pour ta propre idée. +${setting('themeVoteReward')} 🪙 pour ton premier bulletin du jour.`, 'Plus d\'infos : le conseil')}</div>
         <div class="cv3-chips"><span class="cv3-chip b">${myBallot ? '✅ Bulletin déposé' : `🗳️ Choisis ${need > 1 ? `jusqu'à ${need} idées` : 'ton idée préférée'}`}</span><span class="cv3-chip">${plural(d.ballots || 0, 'bulletin')} déposé${(d.ballots || 0) > 1 ? 's' : ''}</span>${isAdmin && d.tie ? '<span class="cv3-chip">⚖️ Égalité en tête (admin)</span>' : ''}</div>
         <p class="cv3-note tv-howto">Touche 1, 2 ou 3 idées dans l'ordre de tes préférences. Touche à nouveau pour enlever.</p><div class="tv-list"></div>
         <button type="button" class="cv3-cta tv-send"><span></span></button>`;
