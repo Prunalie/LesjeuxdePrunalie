@@ -3251,7 +3251,7 @@
     }
     renderPoints();
     goHome();
-    if (state.isAdmin) loadThemeWinner(today());
+    if (themeVoteOn()) loadThemeWinner(today());
     if (isNew) {
       // Premier passage : un message de bienvenue (pas les nouveautés) et un cadeau dans la boîte aux lettres.
       await sendWelcome();
@@ -7403,9 +7403,12 @@
   }
 
   let contestData = { today: null, vote: null, results: null };
+  let winnerCheckedDay = '';
   async function openContest() {
     crumb('ouverture du concours');
     cv3Sub = null;
+    // Le thème élu du jour (le jeu a pu rester ouvert depuis la veille).
+    if (themeVoteOn() && winnerCheckedDay !== today()) { winnerCheckedDay = today(); loadThemeWinner(today()); }
     if (maintBlocked('contest')) return;
     showScreen('contest');
     renderPoints();
@@ -7500,7 +7503,7 @@
   const cv3On = () => trialView() || contestLaunched();
   let cv3Step = 0;
   // Nouvelles étapes (essai administratrice) : 1. Le conseil (thème de demain) · 2. Créer · 3. Résultat (voter + résultats).
-  const cvNewMenu = () => trialView() && themeVoteOn();
+  const cvNewMenu = () => themeVoteOn();
   const cvCouncilStep = () => (cvNewMenu() ? 0 : 1);
   const dayShort = (day) => { const { y, m, dd } = parseDay(day); return new Date(y, m - 1, dd).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); };
   const CV_INK = '#5A3E3A';
@@ -7570,13 +7573,29 @@
   // Égalité en tête : les 2 idées sont jouées l'une après l'autre, sans vote le lendemain.
   // Le résultat de chaque jour est enregistré (doc « tw-jour ») pour retrouver l'historique sans recompter les cœurs.
   // ---------------------------------------------------------------------------
-  const themeVoteOn = () => trialView();
+  // Ouvert à tout le monde à partir de minuit le 17 novembre (heure de l'appareil). Avant : essai admin (et vue « + nouveautés »).
+  // Le 17 garde le thème choisi par l'administratrice ; le premier thème voté par le conseil est celui du 18.
+  const COUNCIL_PUBLIC_AT = new Date(2026, 10, 17, 0, 0, 0).getTime();
+  const themeVoteOn = () => trialView() || Date.now() >= COUNCIL_PUBLIC_AT;
   const THEME_TEXT_MAX = 30;
-  const THEME_VOTE_FROM = '2026-11-17'; // premier thème décidé par ce nouveau conseil
+  const THEME_VOTE_FROM = '2026-11-18'; // premier thème décidé par le conseil (les essais d'avant ne comptent pas)
   // Le vote du thème du jour T se termine la veille à 20 h : on connaît le thème du lendemain dès le soir.
   const themeVoteEnd = (T) => { const { y, m, dd } = parseDay(T); return new Date(y, m - 1, dd - 1, VOTE_END_HOUR).getTime(); };
   const themeVoteEnded = (T) => Date.now() >= themeVoteEnd(T);
   const themeWinners = {}; // jour -> idée élue { type, label, room, imageId?, propId?, owner? }
+  // Copie gardée sur l'appareil : le thème élu s'affiche tout de suite (et même si la connexion est lente).
+  const WINNERS_KEY = 'ma-petite-piece:conseil-gagnants';
+  try {
+    const saved = JSON.parse(localStorage.getItem(WINNERS_KEY) || '{}');
+    for (const [d, w] of Object.entries(saved)) if (d >= THEME_VOTE_FROM && w && w.type) themeWinners[d] = w;
+  } catch (e) { /* rien */ }
+  function saveWinners() {
+    try {
+      const keep = {};
+      for (const [d, w] of Object.entries(themeWinners)) if (d >= shiftDay(today(), -3)) keep[d] = w;
+      localStorage.setItem(WINNERS_KEY, JSON.stringify(keep));
+    } catch (e) { /* rien */ }
+  }
   let cv3Sub = null;       // 'themevote' : sous-page du concours
   let themeVoteData = null;
   let tvDraft = null; // bulletin en cours de remplissage { day, voter, picks: [id…] }
@@ -7770,7 +7789,7 @@
   }
   async function loadThemeCtx() {
     const [poolDocs, recDocs] = await Promise.all([db.listThemeVote('pool'), db.listThemeVote('win')]);
-    return { pool: poolDocs.filter((d) => d.kind === 'prop'), recs: Object.fromEntries(recDocs.filter((r) => r.kind === 'win' && r.day).map((r) => [r.day, r])) };
+    return { pool: poolDocs.filter((d) => d.kind === 'prop'), recs: Object.fromEntries(recDocs.filter((r) => r.kind === 'win' && r.day && r.day >= THEME_VOTE_FROM).map((r) => [r.day, r])) };
   }
   async function loadThemeVoteData(day) {
     const ctx = await loadThemeCtx();
@@ -7786,6 +7805,7 @@
     if (result) {
       if (result.win) themeWinners[day] = result.win; else delete themeWinners[day];
       if (result.tie && result.next) themeWinners[shiftDay(day, 1)] = result.next;
+      saveWinners();
     }
     // Pour l'administratrice : combien d'idées restent disponibles (pas au repos).
     const rooms = contestRooms().length ? contestRooms() : [''];
@@ -7806,6 +7826,7 @@
       const before = JSON.stringify([themeWinners[day], themeWinners[shiftDay(day, 1)]]);
       if (rec && rec.win) themeWinners[day] = rec.win; else delete themeWinners[day];
       if (rec && rec.tie && rec.next) themeWinners[shiftDay(day, 1)] = rec.next;
+      saveWinners();
       if (rec && rec.win && rec.win.propId) await rewardThemeWinner(day, rec.win);
       if (before !== JSON.stringify([themeWinners[day], themeWinners[shiftDay(day, 1)]])) { renderContestTile(); if (!screens.contest.hidden) renderContest(); }
     } catch (e) { /* vote indisponible : on garde le tirage */ }
