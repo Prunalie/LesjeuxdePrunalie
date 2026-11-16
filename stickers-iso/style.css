@@ -3250,3 +3250,7 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .ac-color-pick::-moz-color-swatch { border: 0; border-radius: 50%; }
 .ac-color-name { flex: 1; min-width: 0; }
 .ac-color-del { flex: none; padding: 4px 10px; }
+/* Concours : le compteur d'une tuile (« 4 participations ») passe à la ligne au lieu de dépasser */
+.cv3-count { flex-wrap: wrap; row-gap: 0; min-width: 0; }
+.cv3-count span { min-width: 0; overflow-wrap: anywhere; }
+:root[data-skin="manoir"] .cv3-count span { font-size: 14px; letter-spacing: .02em; }
