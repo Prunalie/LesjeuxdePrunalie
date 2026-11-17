@@ -8269,7 +8269,32 @@
       if (slot) slot.appendChild(tvAdminDeleteBtn(d));
       page.appendChild(card);
     }
+    tvAdminBallots(page, d);
     tvAdminCards(page, d, tvReload);
+  }
+
+  // Administratrice : qui a voté, et ses 3 choix.
+  function tvAdminBallots(page, d) {
+    if (d.closed) return;
+    const ballots = d.hearts.filter((h) => h.kind === 'ballot').sort((a, b) => (a.created || 0) - (b.created || 0));
+    const card = document.createElement('details');
+    card.className = 'cv3-admin tvx-adm-ballots';
+    card.innerHTML = `<summary>Qui a voté ? (admin) · ${plural(ballots.length, 'bulletin')}</summary><ol class="tvx-adm-list"></ol>`;
+    const ol = card.querySelector('ol');
+    if (!ballots.length) ol.innerHTML = '<li class="muted">Personne n\'a encore voté.</li>';
+    const skip = councilSkipped(d.day);
+    for (const b of ballots) {
+      const li = document.createElement('li');
+      const who = ADMIN_PSEUDOS.includes(b.voter) ? ADMIN_DISPLAY_NAME : (b.voterName || b.voter);
+      const at = b.created ? new Date(b.created).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+      li.innerHTML = '<div class="tvx-adm-who"><strong></strong><span class="muted"></span></div><div class="tvx-adm-picks"></div>';
+      li.querySelector('strong').textContent = who;
+      li.querySelector('.muted').textContent = at ? ` · ${at}` : '';
+      li.querySelector('.tvx-adm-picks').textContent = (b.picks || []).filter(Boolean)
+        .map((c, i) => `${i + 1}. ${candText(c)}${skip.has(elemKey(c)) ? ' (retirée)' : ''}`).join('   ');
+      ol.appendChild(li);
+    }
+    page.appendChild(card);
   }
 
   // --- Sous-pages : classement, bulletin scellé, proposer une idée
@@ -8450,7 +8475,7 @@
       if (themeVoteEnded(d.day)) { toast('Le vote est fini depuis 20 h.'); close(); themeVoteData = null; cv3Sub = null; renderContest(); return; }
       const me = state.player.key;
       const had = !!tvMyBallot(d);
-      try { await db.putThemeDoc({ id: `tb-${d.day}-${me}`, kind: 'ballot', themeDay: d.day, voter: me, picks: picks.map(pureCand), created: Date.now() }); }
+      try { await db.putThemeDoc({ id: `tb-${d.day}-${me}`, kind: 'ballot', themeDay: d.day, voter: me, voterName: state.player.name, picks: picks.map(pureCand), created: Date.now() }); }
       catch (err) { toast('Ton bulletin n\'a pas pu être envoyé. Vérifie ta connexion.'); seal.disabled = false; return; }
       const reward = setting('themeVoteReward');
       if (reward > 0 && state.profile.themeVoteDay !== today()) {

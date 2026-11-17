@@ -3297,3 +3297,7 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .cv3, .cv3 > *, .cv3-page, .cv3-page > * { min-width: 0; max-width: 100%; }
 .tvx-mini li { overflow: hidden; }
 .tvx-mt { max-width: 40%; }
+/* Le conseil (admin) : qui a voté */
+.tvx-adm-list { margin: 6px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.tvx-adm-who strong { font-weight: 800; }
+.tvx-adm-picks { font-size: .85rem; white-space: pre-wrap; overflow-wrap: anywhere; }
