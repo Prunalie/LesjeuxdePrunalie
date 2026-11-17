@@ -3096,7 +3096,15 @@
 
   const dailyPoints = () => setting('dailyPoints');
   const playerDocId = (key) => 'player-' + key.replace(/\//g, '_');
-  const today = () => new Date().toLocaleDateString('fr-CA'); // AAAA-MM-JJ, heure locale
+  // Date AAAA-MM-JJ (heure locale), sans passer par toLocaleDateString : sur iPhone, ce calcul « à la française » est lent,
+  // et le jeu le faisait des milliers de fois à l'ouverture de la pièce du concours (page figée puis coupée par Safari).
+  const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  let todayCache = { at: 0, val: '' };
+  const today = () => {
+    const now = Date.now();
+    if (now - todayCache.at > 1000) todayCache = { at: now, val: ymd(new Date(now)) };
+    return todayCache.val;
+  };
 
   // Enveloppes : brouillon (invisible des joueurs), prévue un jour précis, ou en vente. Une seule nouvelle par jour.
   // Les anciennes enveloppes (sans réglage) sont en vente depuis toujours.
@@ -3111,7 +3119,7 @@
   const isNewEnvelope = (env) => isLive(env) && envSlotDay(env) === today();
   const envStatus = (env) => (env.draft ? 'draft' : isLive(env) ? 'live' : 'scheduled');
   // Jour « occupé » par une enveloppe : le jour prévu, ou à défaut le jour de sa création.
-  const envSlotDay = (env) => (env.draft ? '' : env.publishAt || (env.created ? new Date(env.created).toLocaleDateString('fr-CA') : ''));
+  const envSlotDay = (env) => (env.draft ? '' : env.publishAt || (env.created ? ymd(new Date(env.created)) : ''));
   const slotTaken = (day, exceptId) => state.envelopes.some((e) => e.id !== exceptId && envSlotDay(e) === day);
   function nextFreeDay(from = today(), exceptId = null) {
     let day = from;
@@ -5872,7 +5880,7 @@
     };
     let shown = 0;
     // Les dernières sorties (ou prévues) en haut ; l'ordre de la boutique se règle à part (↕️).
-    const dayKey = (e) => envSlotDay(e) || (e.created ? new Date(e.created).toLocaleDateString('fr-CA') : '');
+    const dayKey = (e) => envSlotDay(e) || (e.created ? ymd(new Date(e.created)) : '');
     const newestFirst = [...state.envelopes].sort((a, b) => dayKey(b).localeCompare(dayKey(a)) || (b.created || 0) - (a.created || 0));
     for (const env of newestFirst) {
       const list = stickersOf(env.id);
@@ -7095,7 +7103,7 @@
   const parseDay = (d) => { const [y, m, dd] = d.split('-').map(Number); return { y, m, dd }; };
   function shiftDay(day, n) {
     const { y, m, dd } = parseDay(day);
-    return new Date(y, m - 1, dd + n).toLocaleDateString('fr-CA');
+    return ymd(new Date(y, m - 1, dd + n));
   }
   // ---------------------------------------------------------------------------
   // Nouveau concept du concours (test chez l'administratrice) : chaque jour, une PIÈCE tirée au sort
