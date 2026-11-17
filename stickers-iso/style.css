@@ -3265,3 +3265,10 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .ac-council-day .tv-act .btn { white-space: nowrap; font-size: .8rem; padding: 3px 8px; }
 .ac-council-blocked { display: flex; flex-wrap: wrap; gap: 6px; }
 .ac-plan-old > summary { cursor: pointer; font-weight: 700; margin: 6px 0; }
+/* Concours : les 3 tuiles d'étapes ont toutes la même taille */
+.cv3-steps { align-items: stretch; }
+.cv3-steps .cv3-sep { align-self: center; }
+.cv3-step { flex: 1 1 0; justify-content: center; }
+:root[data-skin="manoir"] .cv3-step { align-content: center; }
+:root[data-skin="manoir"] .cv3-step-name { font-size: 12.5px; white-space: nowrap; letter-spacing: .01em; }
+:root[data-skin="manoir"] .cv3-step-name { flex-basis: 100%; text-align: center; margin-top: 3px; }
