@@ -2940,6 +2940,7 @@
     house: $('#screenHouse'),
     settings: $('#screenSettings'),
     adminContest: $('#screenAdminContest'),
+    adminCouncil: $('#screenAdminCouncil'),
     maintenance: $('#screenMaintenance'),
   };
   function showScreen(name) {
@@ -8305,7 +8306,12 @@
       page.appendChild(card);
     }
     tvAdminBallots(page, d);
-    tvAdminCards(page, d, tvReload);
+    const go = document.createElement('button');
+    go.type = 'button';
+    go.className = 'btn btn-ghost tvx-admin-go';
+    go.textContent = '🗳️ Atelier du conseil (admin) : propositions, réserve, idées à valider →';
+    go.addEventListener('click', openAdminCouncil);
+    page.appendChild(go);
   }
 
   // Administratrice : qui a voté, et ses 3 choix.
@@ -9940,13 +9946,20 @@
       for (const c of b.cands) {
         const bits = [candKind(c)];
         if (c.carry) bits.push(`${c.carry.rank}e la veille`);
-        if (c.reserved && c.owner) bits.push(`idée de ${c.ownerName || c.owner}`);
+        const player = !!(c.reserved && c.owner);
         const row = tvRow(c, bits.join(' · '));
+        row.classList.add('ac-kind-' + c.type);
+        if (player) {
+          // Idée d'une joueuse : mise en valeur.
+          row.classList.add('ac-player');
+          row.querySelector('.tv-main').insertAdjacentHTML('afterbegin', '<span class="ac-player-tag"></span>');
+          row.querySelector('.ac-player-tag').textContent = `💡 Idée de ${ADMIN_PSEUDOS.includes(c.owner) ? ADMIN_DISPLAY_NAME : (c.ownerName || c.owner)}`;
+        }
         row.insertAdjacentHTML('beforeend', '<div class="tv-act"></div>');
         const act = row.querySelector('.tv-act');
-        const r1 = document.createElement('button'); r1.className = 'btn btn-ghost'; r1.textContent = '🔄 Remplacer';
+        const r1 = document.createElement('button'); r1.className = 'btn btn-ghost'; r1.textContent = '🔄'; r1.title = 'Remplacer dans ce vote'; r1.setAttribute('aria-label', `Remplacer « ${candText(c)} » dans ce vote`);
         r1.addEventListener('click', async () => { if (await askConfirm(`Retirer « ${candText(c)} » de ce vote ? Une autre idée prendra sa place.`, 'Remplacer')) skipFor(day, c); });
-        const r2 = document.createElement('button'); r2.className = 'btn btn-ghost'; r2.textContent = '🚫 Ne plus proposer';
+        const r2 = document.createElement('button'); r2.className = 'btn btn-ghost'; r2.textContent = '🚫'; r2.title = 'Ne plus proposer'; r2.setAttribute('aria-label', `Ne plus proposer « ${c.label} »`);
         r2.addEventListener('click', async () => { if (await askConfirm(`Ne plus jamais proposer « ${c.label} » au conseil ? (tu pourras la rétablir)`, 'Ne plus proposer')) block(c); });
         act.append(r1, r2);
         list.appendChild(row);
@@ -9980,11 +9993,28 @@
     }
   }
 
+  // Atelier du conseil : propositions des 3 prochains votes (24 idées), réserve d'idées, idées à valider.
+  async function openAdminCouncil() {
+    if (!state.isAdmin) return;
+    showScreen('adminCouncil');
+    window.scrollTo(0, 0);
+    renderCouncilAdmin();
+    const box = $('#acCouncilAdmin');
+    box.innerHTML = '';
+    try {
+      const d = await loadThemeVoteData(shiftDay(today(), 1));
+      themeVoteData = d;
+      const reload = () => { themeVoteData = null; openAdminCouncil(); };
+      tvAdminCards(box, d, reload);
+    } catch (e) { box.innerHTML = '<p class="muted">Réserve d\'idées indisponible. Vérifie ta connexion.</p>'; }
+  }
+  $('#homeAdminCouncil').addEventListener('click', openAdminCouncil);
+  $('#adminCouncilBack').addEventListener('click', goHome);
+
   let acTimer = null;
   async function openAdminContest() {
     if (!state.isAdmin) return;
     showScreen('adminContest');
-    renderCouncilAdmin();
     $('#acThemes').value = (Array.isArray(state.settings.contestThemes) && state.settings.contestThemes.length ? state.settings.contestThemes : DEFAULT_THEMES).join('\n');
     renderPlanAdmin();
     await refreshAdminContest();
@@ -11972,6 +12002,7 @@
     else if (place.screen === 'contest') openContest();
     else if (place.screen === 'settings') openSettings();
     else if (place.screen === 'adminContest') openAdminContest();
+    else if (place.screen === 'adminCouncil') openAdminCouncil();
     else if (place.screen === 'maintenance') openMaintenance();
     else if (place.screen === 'coffre') openCoffre();
     else if (place.screen === 'players') openPlayers();

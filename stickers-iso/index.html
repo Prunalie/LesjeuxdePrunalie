@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611171700">
+  <link rel="stylesheet" href="style.css?v=202611171800">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -151,6 +151,10 @@
             <button id="homeAdminContest" class="mini home-card admin-card">
               <span class="tile-icon" style="background:#FFF3CC"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><path d="M9 5 H23 V13 A7 7 0 0 1 9 13 Z" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M9 8 H4 C4 14 6 16 9 16 M23 8 H28 C28 14 26 16 23 16" fill="none" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/><rect x="14.5" y="19" width="3" height="5" fill="#5A3E3A"/><rect x="10" y="24" width="12" height="5" rx="1.5" fill="#B07AD8" stroke="#5A3E3A" stroke-width="2.4"/></svg></span>
               <span class="small-text"><span class="card-title">Concours</span><span class="card-sub">Thèmes et résultats en direct</span></span>
+            </button>
+            <button id="homeAdminCouncil" class="mini home-card admin-card">
+              <span class="tile-icon" style="background:#F3E6FF"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect x="6" y="12" width="20" height="15" rx="2.5" fill="#B58AD6" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M11 12 V7 H21 V12" fill="#FBEFD2" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M12 17 H20" stroke="#5A3E3A" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+              <span class="small-text"><span class="card-title">Atelier du conseil</span><span class="card-sub">Propositions du vote</span></span>
             </button>
             <button id="homeCoffre" class="mini home-card admin-card" hidden>
               <span class="tile-icon" style="background:#E2F0E6"><svg class="mn-only mn-ico" width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 14 Q4 6 16 6 Q28 6 28 14Z" fill="#B5543A" stroke="#1B0F14" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/><rect x="4" y="14" width="24" height="13" rx="2" fill="#8A5A3A" stroke="#1B0F14" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/><rect x="14" y="15" width="4" height="7" rx="1" fill="#E6B85C" stroke="#1B0F14" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg><svg class="mn-off" width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 14 A11 9 0 0 1 27 14 Z" fill="#B07AD8" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><rect x="5" y="14" width="22" height="13" rx="2.5" fill="#9C7BD0" stroke="#5A3E3A" stroke-width="2.4"/><rect x="13" y="12" width="6" height="8" rx="1.5" fill="#FFC84A" stroke="#5A3E3A" stroke-width="2.2"/></svg></span>
@@ -646,6 +650,21 @@
     </div>
   </section>
 
+  <!-- Atelier du conseil (administratrice) -->
+  <section id="screenAdminCouncil" class="screen screen-admin-contest" hidden>
+    <header class="topbar">
+      <div class="room-title">
+        <button id="adminCouncilBack" class="btn btn-ghost" title="Menu principal">←<span class="label-long">&nbsp;Menu</span></button>
+        <h1>Atelier du conseil 🗳️</h1>
+      </div>
+    </header>
+    <div class="rooms-body">
+      <p class="muted ac-council-intro">Les prochaines propositions du vote. « Remplacer » retire l'idée de ce vote (une autre de la même sorte prend sa place) ; « Ne plus proposer » la retire de tous les votes.</p>
+      <div id="acCouncil" class="ac-council"><p class="muted">Chargement…</p></div>
+      <div id="acCouncilAdmin"></div>
+    </div>
+  </section>
+
   <!-- Concours (administratrice) -->
   <section id="screenAdminContest" class="screen screen-admin-contest" hidden>
     <header class="topbar">
@@ -656,11 +675,6 @@
     </header>
     <div class="rooms-body">
       <div class="admin-cols">
-        <section class="admin-card-box" id="acCouncilBox">
-          <h2>Le conseil · propositions</h2>
-          <p class="muted">Les idées que les joueuses verront dans le vote. « Remplacer » retire l'idée de ce vote : une autre idée de la même sorte prend sa place. « Ne plus proposer » la retire de tous les votes.</p>
-          <div id="acCouncil" class="ac-council"><p class="muted">Chargement…</p></div>
-        </section>
         <section class="admin-card-box" id="acPlanBox">
           <h2>Pièce + thème du jour</h2>
           <details class="ac-plan-old">
@@ -1349,7 +1363,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611171700"></script>
-  <script src="game.js?v=202611171700"></script>
+  <script src="firebase-config.js?v=202611171800"></script>
+  <script src="game.js?v=202611171800"></script>
 </body>
 </html>
