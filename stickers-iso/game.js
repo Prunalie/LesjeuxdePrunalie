@@ -7765,9 +7765,12 @@
       const i = cands.findIndex((x) => elemKey(x) === elemKey(c));
       if (i >= 0) cands[i].reserved = true; else add(c, { reserved: true });
     }
+    // Idées choisies à la main par l'administratrice pour ce vote (à la place d'une idée remplacée).
+    const forced = (state.settings.councilAdd && Array.isArray(state.settings.councilAdd[T]) ? state.settings.councilAdd[T] : []).filter((c) => c && c.type);
+    for (const c of forced) add(pureCand(c), { forced: true });
     const liveIds = new Set(players.map((c) => c.id));
     const carriedBy = { theme: 0, color: 0, object: 0 };
-    for (const c of cands) if (c.carry && !liveIds.has(c.id) && carriedBy[c.type] !== undefined) carriedBy[c.type]++;
+    for (const c of cands) if ((c.carry || c.forced) && !liveIds.has(c.id) && carriedBy[c.type] !== undefined) carriedBy[c.type]++;
     const quota = {
       theme: Math.max(0, setting('themeSlotsBank') + Math.max(0, setting('themeSlotsPlayer') - players.length) - carriedBy.theme),
       color: Math.max(0, setting('themeSlotsColor') - carriedBy.color),
@@ -9904,6 +9907,58 @@
     renderContestTile();
   });
 
+  // Atelier du conseil : choisir à la main l'idée qui remplace une proposition (même sorte : objet, couleur ou thème).
+  function councilPick(day, old, onPick) {
+    const type = old.type;
+    const dlg = document.createElement('div');
+    dlg.className = 'modal ac-pick';
+    const rooms = contestRooms().filter((r) => r && r !== FREE_ROOM);
+    dlg.innerHTML = `<div class="modal-box" role="dialog" aria-modal="true" aria-label="Choisir une idée">
+      <div class="modal-head"><h2 class="modal-title"></h2><button class="modal-x" type="button" aria-label="Fermer">✕</button></div>
+      <p class="muted ac-pick-old"></p>
+      ${type === 'theme' ? '' : `<label class="tv-lab">Pièce<select class="field ac-pick-room"><option value="">Pièce au choix</option>${rooms.map((r) => `<option value="${cvEsc(r)}">${cvEsc(r)}</option>`).join('')}</select></label>`}
+      <input class="field ac-pick-search" type="search" placeholder="Chercher…" aria-label="Chercher">
+      <div class="ac-pick-grid"></div></div>`;
+    dlg.querySelector('.modal-title').textContent = type === 'object' ? 'Choisir un objet' : type === 'color' ? 'Choisir une couleur' : 'Choisir un thème';
+    dlg.querySelector('.ac-pick-old').textContent = `À la place de « ${candText(old)} » (${dayShort(day)})`;
+    const roomSel = dlg.querySelector('.ac-pick-room');
+    if (roomSel) roomSel.value = tvRoom(old.room);
+    const close = () => dlg.remove();
+    dlg.querySelector('.modal-x').addEventListener('click', close);
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) close(); });
+    const grid = dlg.querySelector('.ac-pick-grid');
+    const items = type === 'object'
+      ? contestObjectPool(true).map((i) => ({ type: 'object', imageId: i.id, label: objectLabel(i), url: i.url }))
+      : type === 'color' ? contestColors().map((c) => ({ type: 'color', label: c.name, hex: c.hex }))
+      : [...new Set(contestThemes())].sort((a, b) => a.localeCompare(b, 'fr')).map((t) => ({ type: 'theme', label: t }));
+    const render = () => {
+      const q = normalizeText(dlg.querySelector('.ac-pick-search').value);
+      grid.innerHTML = '';
+      grid.className = 'ac-pick-grid ' + (type === 'object' ? 'tv-objgrid' : 'ac-pick-list');
+      for (const it of items.filter((x) => !q || normalizeText(x.label).includes(q)).slice(0, 300)) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = type === 'object' ? 'tv-objbtn' : 'btn btn-ghost ac-pick-item';
+        b.innerHTML = type === 'object' ? `<span class="tv-objimg"><img alt="" loading="lazy" src="${cvEsc(it.url)}"></span><span class="tv-objname"></span>`
+          : `${it.hex ? `<span class="cv3-swatch" style="background:${cvEsc(it.hex)}"></span>` : ''}<span class="tv-objname"></span>`;
+        b.querySelector('.tv-objname').textContent = it.label;
+        if (elemKey(it) === elemKey(old)) b.disabled = true;
+        b.addEventListener('click', () => {
+          const nc = { type: it.type, label: it.label, room: type === 'theme' ? '' : (roomSel ? roomSel.value : '') };
+          if (it.imageId) nc.imageId = it.imageId;
+          if (it.hex) nc.hex = it.hex;
+          nc.id = candId(nc);
+          close();
+          onPick(nc);
+        });
+        grid.appendChild(b);
+      }
+      if (!grid.children.length) grid.innerHTML = '<p class="muted">Rien trouvé.</p>';
+    };
+    dlg.querySelector('.ac-pick-search').addEventListener('input', render);
+    render();
+    document.body.appendChild(dlg);
+  }
   // Le conseil : propositions du vote en cours et prévision des prochains votes, avec Remplacer / Ne plus proposer.
   async function renderCouncilAdmin() {
     const box = $('#acCouncil');
@@ -9968,7 +10023,22 @@
         r1.addEventListener('click', async () => { if (await askConfirm(`Retirer « ${candText(c)} » de ce vote ? Une autre idée prendra sa place.`, 'Remplacer')) skipFor(day, c); });
         const r2 = document.createElement('button'); r2.className = 'btn btn-ghost'; r2.textContent = '🚫'; r2.title = 'Ne plus proposer'; r2.setAttribute('aria-label', `Ne plus proposer « ${c.label} »`);
         r2.addEventListener('click', async () => { if (await askConfirm(`Ne plus jamais proposer « ${c.label} » au conseil ? (tu pourras la rétablir)`, 'Ne plus proposer')) block(c); });
-        act.append(r1, r2);
+        const r3 = document.createElement('button'); r3.className = 'btn btn-ghost'; r3.textContent = '✏️'; r3.title = 'Choisir une autre idée'; r3.setAttribute('aria-label', `Choisir une autre idée à la place de « ${candText(c)} »`);
+        r3.addEventListener('click', () => councilPick(day, c, async (nc) => {
+          const skips = { ...(state.settings.councilSkip || {}) };
+          const adds = { ...(state.settings.councilAdd || {}) };
+          for (const d of Object.keys(skips)) if (d < T) delete skips[d];
+          for (const d of Object.keys(adds)) if (d < T) delete adds[d];
+          skips[day] = [...new Set([...(skips[day] || []), elemKey(c)])];
+          adds[day] = [...(adds[day] || []).filter((x) => elemKey(x) !== elemKey(c) && elemKey(x) !== elemKey(nc)), pureCand(nc)];
+          // L'idée choisie ne doit pas être retirée de ce vote.
+          skips[day] = skips[day].filter((k) => k !== elemKey(nc));
+          state.settings.councilSkip = skips;
+          state.settings.councilAdd = adds;
+          await save(`« ${candText(nc)} » remplace « ${candText(c)} » ✓`);
+        }));
+        if (c.forced) { row.classList.add('ac-forced'); row.querySelector('.tv-main').insertAdjacentHTML('afterbegin', '<span class="ac-forced-tag">✏️ choisie par toi</span>'); }
+        act.append(r3, r1, r2);
         list.appendChild(row);
       }
     }
