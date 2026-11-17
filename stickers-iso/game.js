@@ -1197,31 +1197,54 @@
   if ('caches' in window) caches.open('mpp-thumbs-v1').then((c) => { thumbStore = c; }).catch(() => {});
   // (la version de l'image fait partie de la clé : un dessin remplacé refait sa vignette)
   const thumbKey = (img) => `/vignette/${encodeURIComponent(img.id)}-${img.created || 0}-${img.v || img.updated || 0}`;
+  const APPLE_DEVICE = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const THUMB_PAR = APPLE_DEVICE ? 1 : 3;
+  let thumbRunning = 0;
+  const thumbWaiting = [];
+  function thumbQueue(job) {
+    const next = () => {
+      if (thumbRunning >= THUMB_PAR || !thumbWaiting.length) return;
+      thumbRunning++;
+      const j = thumbWaiting.shift();
+      j().catch(() => {}).finally(() => { thumbRunning--; setTimeout(next, APPLE_DEVICE ? 30 : 0); });
+    };
+    thumbWaiting.push(job);
+    next();
+  }
   function smallUrl(img, cb) {
     if (thumbCache.has(img.id)) { cb(thumbCache.get(img.id)); return; }
     if (Math.max(img.w || 0, img.h || 0) <= 160) { thumbCache.set(img.id, img.url); cb(img.url); return; }
     if (thumbPending.has(img.id)) { thumbPending.get(img.id).push(cb); return; }
     thumbPending.set(img.id, [cb]);
     const done = (url) => { thumbCache.set(img.id, url); const list = thumbPending.get(img.id) || []; thumbPending.delete(img.id); list.forEach((f) => f(url)); };
-    const make = () => {
+    // Fabrication d'une vignette : l'image est chargée en pleine taille le temps de la réduire. On en fait peu à la fois
+    // (une seule sur iPhone), et on libère tout de suite l'image et la toile : sinon, à l'ouverture d'une pièce, des dizaines
+    // d'images pleine taille se décodaient en même temps et Safari coupait la page.
+    const make = () => thumbQueue(() => new Promise((release) => {
       const el = new Image();
+      let ended = false;
+      const finish = (url) => { if (ended) return; ended = true; el.onload = el.onerror = null; el.removeAttribute('src'); done(url); release(); };
       el.onload = () => {
+        el.onload = el.onerror = null;
         try {
           const k = 160 / Math.max(el.naturalWidth, el.naturalHeight);
           const c = document.createElement('canvas');
           c.width = Math.max(1, Math.round(el.naturalWidth * k));
           c.height = Math.max(1, Math.round(el.naturalHeight * k));
           c.getContext('2d').drawImage(el, 0, 0, c.width, c.height);
+          el.removeAttribute('src');
           c.toBlob((blob) => {
-            if (!blob) { done(img.url); return; }
+            c.width = 0; c.height = 0;
+            if (!blob) { finish(img.url); return; }
             if (thumbStore) thumbStore.put(thumbKey(img), new Response(blob)).catch(() => {});
-            done(URL.createObjectURL(blob));
+            finish(URL.createObjectURL(blob));
           }, 'image/png');
-        } catch (e) { done(img.url); }
+        } catch (e) { finish(img.url); }
       };
-      el.onerror = () => done(img.url);
+      el.onerror = () => finish(img.url);
+      setTimeout(() => finish(img.url), 15000); // image qui ne vient pas : on ne bloque pas la file
       el.src = img.url;
-    };
+    }));
     if (thumbStore) {
       thumbStore.match(thumbKey(img)).then((res) => (res ? res.blob() : null))
         .then((blob) => { if (blob) done(URL.createObjectURL(blob)); else make(); })
