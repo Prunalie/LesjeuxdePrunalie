@@ -1303,6 +1303,7 @@
       return;
     }
     libSig = sig;
+    crumb(`liste : ${mine.length} vignettes (${mine.filter((i) => thumbCache.has(i.id)).length} prêtes)`);
     if (thumbObserver) thumbObserver.disconnect();
     libraryGrid.innerHTML = '';
     for (const img of mine) {
@@ -1508,7 +1509,7 @@
     scheduleLights();
   }
 
-  function renderStickers() {
+  function renderStickers(skipLibrary = false) {
     layer.innerHTML = '';
     state.stickers.forEach((s, i) => {
       const img = state.images.get(s.imageId);
@@ -1530,7 +1531,7 @@
       layer.appendChild(el);
     });
     select(state.selectedId);
-    renderLibrary();
+    if (!skipLibrary) renderLibrary();
     scheduleLights();
   }
 
@@ -3788,10 +3789,13 @@
     crumb(`pièce : ${state.stickers.length} objets, ${state.lights.length} lumières, ambiance ${state.ambient}, décor ${state.colors.wallLeftDeco || state.colors.wallRightDeco ? 'mur' : '-'}/${state.colors.floorDeco ? 'sol' : '-'}, forme ${state.shape && state.shape.kind === 'garden' ? 'jardin' : 'pièce'}, objet imposé ${lent ? 'oui' : 'non'}`);
     drawRoom();
     crumb('pièce : décor dessiné');
-    renderStickers();
+    // iPhone / iPad : la pièce s'affiche d'abord, la liste des meubles juste après (diagnostic des plantages au concours).
+    const libLater = APPLE_DEVICE;
+    renderStickers(libLater);
     crumb('pièce : objets placés');
     showScreen('room');
     crumb('pièce : affichée');
+    if (libLater) setTimeout(() => { if (state.roomId === r.id && !screens.room.hidden) { renderLibrary(); crumb('pièce : liste des meubles affichée'); } }, 400);
     // Thème du jour changé par l'administratrice après le début de la pièce : on prévient la joueuse (une seule fois).
     if (r.contestDay && r.contestDay === today() && /^Concours · /.test(r.name || '')) {
       const nowName = `Concours · ${themeOf(r.contestDay)}`;
