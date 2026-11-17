@@ -8687,14 +8687,27 @@
     head.className = 'cv3-head';
     const main = document.createElement('div');
     main.className = 'cv3-head-main';
-    main.appendChild(cvThemeBlock(v.day, compact ? `À voter · concours du ${dayShort(v.day)}` : 'Vote'));
+    // La galerie (nouveau menu) : en-tête comme le conseil et l'atelier, puis la pièce et le thème d'hier dans un encadré.
+    const galerie = compact && cvNewMenu() && v2Day(v.day);
+    if (galerie) {
+      head.classList.add('tvx', 'tvx-head');
+      main.innerHTML = `<div class="tvx-k">La galerie · ${cvEsc(dayShort(today()))}</div><h2 class="tvx-title"></h2><p class="tvx-lead"></p>`;
+      main.querySelector('.tvx-title').textContent = votingOver() ? 'Le palmarès d\'hier' : 'Voter pour les pièces d\'hier';
+      main.querySelector('.tvx-lead').textContent = votingOver() ? 'Le vote est terminé : découvre le palmarès juste en dessous.' : 'Dans chaque duel, choisis ta pièce préférée avant 20 h.';
+    } else main.appendChild(cvThemeBlock(v.day, compact ? `À voter · concours du ${dayShort(v.day)}` : 'Vote'));
     head.appendChild(main);
     head.insertAdjacentHTML('beforeend', cvInfo(`Dans chaque duel, clique sur ta pièce préférée en fonction du thème imposé. Remporte ${voteReward()} pièces à la fin des votes.`, 'Plus d\'infos : comment voter'));
     card.appendChild(head);
+    if (galerie) {
+      const tb = cvThemeBlock(v.day, 'La pièce');
+      tb.classList.add('cv3-atelier-theme');
+      tb.insertAdjacentHTML('afterbegin', `<div class="cv3-k cv3-gal-day">Concours du ${cvEsc(dayShort(v.day))}</div>`);
+      card.appendChild(tb);
+    }
     page.appendChild(card);
     const msg = (text, cls = '') => { const p = document.createElement('p'); p.className = 'cv3-note ' + cls; p.textContent = text; card.appendChild(p); };
     if (voteMaintenance()) { msg('Le vote est momentanément fermé pour maintenance. Tu peux toujours créer et publier ta pièce du concours : le vote reviendra bientôt !'); return; }
-    if (votingOver() && compact) { msg('Le vote de ce concours est terminé : les résultats sont juste en dessous.', 'ok'); return; }
+    if (votingOver() && compact) { if (!galerie) msg('Le vote de ce concours est terminé : les résultats sont juste en dessous.', 'ok'); return; }
     if (votingOver()) {
       msg('Le vote d\'hier est terminé : le gagnant est dévoilé !', 'ok');
       const go = document.createElement('button');
@@ -8782,7 +8795,9 @@
     head.className = 'cv3-head';
     const main = document.createElement('div');
     main.className = 'cv3-head-main';
-    main.appendChild(cvThemeBlock(r.day, compact ? `Résultats · concours du ${dayShort(r.day)}` : (r.day === shiftDay(today(), -1) ? 'Résultats de ce soir' : 'Derniers résultats')));
+    // La galerie après 20 h : la pièce et le thème sont déjà dans l'en-tête, on ne les répète pas.
+    if (compact && cvNewMenu() && contestData.vote && r.day === contestData.vote.day && v2Day(r.day)) main.innerHTML = '<div class="cv3-k">Le palmarès</div>';
+    else main.appendChild(cvThemeBlock(r.day, compact ? `Résultats · concours du ${dayShort(r.day)}` : (r.day === shiftDay(today(), -1) ? 'Résultats de ce soir' : 'Derniers résultats')));
     head.appendChild(main);
     head.insertAdjacentHTML('beforeend', cvInfo('Le score indique les duels gagnés sur les duels disputés.', 'Plus d\'infos : le score'));
     card.appendChild(head);

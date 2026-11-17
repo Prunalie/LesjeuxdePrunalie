@@ -3257,3 +3257,4 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 /* L'atelier : la pièce et le thème sous le titre « Pièce du jour » */
 .cv3-atelier-theme { margin: 12px 0 4px; padding: 10px 12px; border-radius: 8px; border: 2px solid var(--c-line, #E6B85C); background: linear-gradient(160deg, rgba(255,255,255,.05), rgba(0,0,0,.18)); }
 :root[data-skin="manoir"] .cv3-atelier-theme { border-color: var(--gold); }
+.cv3-gal-day { font-size: 13px !important; opacity: .85; margin-bottom: 2px; }
