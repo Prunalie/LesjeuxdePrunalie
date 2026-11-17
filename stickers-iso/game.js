@@ -7543,7 +7543,7 @@
     const p = planOf(day);
     // Thème général : il suffit, pas de pièce imposée.
     if (!p.room && p.kind === 'general') {
-      el.innerHTML = `<div class="cv3-k">${label === 'Pièce du jour' ? 'Thème du jour' : label}</div><h2 class="cv3-big"></h2>`;
+      el.innerHTML = `<div class="cv3-k">${label === 'Pièce du jour' ? 'Thème du jour' : label === 'La pièce' ? 'Thème' : label}</div><h2 class="cv3-big"></h2>`;
       el.querySelector('h2').textContent = p.text;
       return el;
     }
@@ -7558,7 +7558,7 @@
     const kindLabel = p.kind === 'object' ? 'Objet à placer' : p.kind === 'color' ? 'Couleur imposée' : 'Thème';
     el.innerHTML = p.room
       ? `<div class="cv3-k">${label}</div><h2 class="cv3-big cv3-room-name"></h2><div class="cv3-k cv3-k2">${kindLabel}</div><div class="cv3-theme">${theme}</div>`
-      : `<div class="cv3-k">${label === 'Pièce du jour' ? 'Thème du jour' : label}</div><div class="cv3-k cv3-k2">${kindLabel}</div><div class="cv3-theme">${theme}</div>`;
+      : `${label === 'La pièce' ? '' : `<div class="cv3-k">${label === 'Pièce du jour' ? 'Thème du jour' : label}</div>`}<div class="cv3-k cv3-k2">${kindLabel}</div><div class="cv3-theme">${theme}</div>`;
     if (p.room) el.querySelector('.cv3-room-name').textContent = p.room;
     return el;
   }
@@ -8574,13 +8574,21 @@
     const infoText = v2Day(t.day)
       ? 'Chaque jour, une pièce à décorer (chambre, salon…) avec un thème : un thème général, une couleur ou un objet. Décore-la avec tous les meubles que tu as obtenus, même ceux posés dans tes autres pièces. Quand tu quittes, elle s\'enregistre automatiquement en brouillon. Clique sur « Publier » pour participer avant minuit. Les votes auront lieu demain. Si le thème est un objet, il est prêté à tous aujourd\'hui, dans la pièce du concours.'
       : 'Pour participer au concours, décore une pièce sur le thème du jour avec tous les meubles que tu as obtenus, même ceux posés dans tes autres pièces. Quand tu quittes, elle s\'enregistre automatiquement en brouillon. Clique sur « Publier » pour participer au concours du jour avant minuit. Les votes de ce thème auront lieu demain.';
-    card.innerHTML = `<div class="cv3-hero">${manoirOn() ? CV_MANOIR.hero : CV_ICON.hero}</div>
-      <div class="cv3-head"><div class="cv3-head-main"></div>${cvInfo(cvEsc(infoText), 'Plus d\'infos : comment créer ma pièce')}</div>
+    // Nouveau menu (L'atelier) : en-tête comme celui du conseil, « Pièce du jour » en titre, sans l'image du haut.
+    const atelier = cvNewMenu() && v2Day(t.day);
+    card.innerHTML = `${atelier ? '' : `<div class="cv3-hero">${manoirOn() ? CV_MANOIR.hero : CV_ICON.hero}</div>`}
+      <div class="cv3-head${atelier ? ' tvx tvx-head' : ''}"><div class="cv3-head-main"></div>${cvInfo(cvEsc(infoText), 'Plus d\'infos : comment créer ma pièce')}</div>
       <h3 class="cv3-h3">Récompenses</h3>
       <div class="cv3-rewards">${rewards.map(([v, l, c]) => `<div class="cv3-reward"><span class="cv3-pill ${c}">${v} ${COIN_SVG(20)}</span><span>${l}</span></div>`).join('')}</div>
       <div class="cv3-cta-zone"></div>
       <div class="cv3-tiles"></div>`;
-    card.querySelector('.cv3-head-main').appendChild(cvThemeBlock(t.day, v2Day(t.day) ? 'Pièce du jour' : 'Thème du jour'));
+    if (atelier) {
+      const hm = card.querySelector('.cv3-head-main');
+      hm.innerHTML = `<div class="tvx-k">L'atelier · ${cvEsc(dayShort(t.day))}</div><h2 class="tvx-title">Pièce du jour</h2><p class="tvx-lead">Décore ta pièce avant minuit pour participer au concours.</p>`;
+      const tb = cvThemeBlock(t.day, 'La pièce');
+      tb.classList.add('cv3-atelier-theme');
+      card.querySelector('.cv3-head').after(tb);
+    } else card.querySelector('.cv3-head-main').appendChild(cvThemeBlock(t.day, v2Day(t.day) ? 'Pièce du jour' : 'Thème du jour'));
     // Bouton principal, ou brouillon / participation en cours
     const zone = card.querySelector('.cv3-cta-zone');
     const mine = t.entries.find((e) => e.owner === me);

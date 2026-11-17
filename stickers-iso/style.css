@@ -3254,3 +3254,6 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .cv3-count { flex-wrap: wrap; row-gap: 0; min-width: 0; }
 .cv3-count span { min-width: 0; overflow-wrap: anywhere; }
 :root[data-skin="manoir"] .cv3-count span { font-size: 14px; letter-spacing: .02em; }
+/* L'atelier : la pièce et le thème sous le titre « Pièce du jour » */
+.cv3-atelier-theme { margin: 12px 0 4px; padding: 10px 12px; border-radius: 8px; border: 2px solid var(--c-line, #E6B85C); background: linear-gradient(160deg, rgba(255,255,255,.05), rgba(0,0,0,.18)); }
+:root[data-skin="manoir"] .cv3-atelier-theme { border-color: var(--gold); }
