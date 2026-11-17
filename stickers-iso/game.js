@@ -7705,6 +7705,12 @@
     const colors = contestColors().map((c) => ({ type: 'color', label: c.name, hex: c.hex, src: 'liste' }));
     return { theme: themes, object: objects, color: colors };
   }
+  // Idées retirées par l'administratrice (réglages) : pour un vote précis (councilSkip[T]) ou pour toujours (councilBlocked).
+  const councilBlocked = () => (Array.isArray(state.settings.councilBlocked) ? state.settings.councilBlocked : []);
+  const councilSkipped = (T) => {
+    const s = state.settings.councilSkip && state.settings.councilSkip[T];
+    return new Set([...councilBlocked(), ...(Array.isArray(s) ? s : [])]);
+  };
   // Le bulletin du jour T (voté la veille) : le même pour tout le monde (tirage fixé par la date).
   function ballotFor(T, pool, recs) {
     const prev = recs[shiftDay(T, -1)];
@@ -7713,11 +7719,12 @@
     const bank = ideaBank(pool, q.done);
     if (prev && prev.tie) return { closed: true, preset: prev.next, cands: [], queue: q, resting, bank };
     const used = new Set();
+    const skip = councilSkipped(T);
     const cands = [];
-    const add = (c, extra = {}) => { const k = elemKey(c); if (used.has(k)) return false; used.add(k); cands.push({ ...c, id: candId(c), ...extra }); return true; };
+    const add = (c, extra = {}) => { const k = elemKey(c); if (used.has(k) || skip.has(k)) return false; used.add(k); cands.push({ ...c, id: candId(c), ...extra }); return true; };
     const carried = (prev && Array.isArray(prev.carry) ? prev.carry : []).filter((c) => c && c.type);
     for (const c of carried) add(pureCand(c), { carry: { rank: c.rank || 2, n: c.n || 0, from: prev.carryDay || shiftDay(T, -2) }, src: c.src, owner: c.owner, ownerName: c.ownerName, propId: c.propId });
-    const players = q.live.map(ideaOfDoc);
+    const players = q.live.map(ideaOfDoc).filter((c) => !skip.has(elemKey(c)));
     for (const c of players) {
       const i = cands.findIndex((x) => elemKey(x) === elemKey(c));
       if (i >= 0) cands[i].reserved = true; else add(c, { reserved: true });
@@ -7754,7 +7761,7 @@
   const BALLOT_POINTS = [3, 2, 1];
   function themeTally(T, docs) {
     const by = {};
-    const give = (c, id, pts, rank) => {
+    let give = (c, id, pts, rank) => {
       if (!c || !id) return;
       if (!by[id]) by[id] = { ...c, id, n: 0, firsts: 0, seconds: 0 };
       by[id].n += pts;
@@ -7762,6 +7769,9 @@
       if (rank === 1) by[id].seconds++;
     };
     let ballots = 0;
+    const skip = councilSkipped(T);
+    const give0 = give;
+    give = (c, id, pts, rank) => { if (c && skip.has(elemKey(c))) return; give0(c, id, pts, rank); };
     for (const h of docs) {
       if (h.kind === 'heart') give(h.c, h.cand, 1, -1);
       else if (h.kind === 'ballot' && Array.isArray(h.picks)) { ballots++; h.picks.slice(0, 3).forEach((c, i) => give(c, c && c.id, BALLOT_POINTS[i], i)); }
@@ -9801,10 +9811,93 @@
     renderContestTile();
   });
 
+  // Le conseil : propositions du vote en cours et prévision des prochains votes, avec Remplacer / Ne plus proposer.
+  async function renderCouncilAdmin() {
+    const box = $('#acCouncil');
+    if (!box) return;
+    let ctx, docs = [];
+    const T = shiftDay(today(), 1);
+    try { ctx = await loadThemeCtx(); docs = await db.listThemeVote(T); } catch (e) { box.innerHTML = '<p class="muted">Le conseil n\'est pas disponible. Vérifie ta connexion.</p>'; return; }
+    box.innerHTML = '';
+    const save = async (msg) => {
+      await saveSettings(msg);
+      themeVoteData = null;
+      renderCouncilAdmin();
+    };
+    const skipFor = async (day, c) => {
+      const all = { ...(state.settings.councilSkip || {}) };
+      // On ne garde que les votes à venir.
+      for (const d of Object.keys(all)) if (d < T) delete all[d];
+      all[day] = [...new Set([...(all[day] || []), elemKey(c)])];
+      state.settings.councilSkip = all;
+      await save(`« ${candText(c)} » est remplacée dans ce vote ✓`);
+    };
+    const block = async (c) => {
+      state.settings.councilBlocked = [...new Set([...councilBlocked(), elemKey(c)])];
+      await save(`« ${c.label} » ne sera plus proposée ✓`);
+    };
+    const ballots = docs.filter((h) => h.kind === 'ballot').length;
+    const days = [
+      { day: T, title: `Vote d'aujourd'hui · thème du ${dayShort(T)}`, note: ballots ? `${plural(ballots, 'bulletin')} déjà déposé${ballots > 1 ? 's' : ''} : les cœurs donnés à une idée remplacée ne comptent plus.` : 'Aucun bulletin pour l\'instant.' },
+      { day: shiftDay(T, 1), title: `Vote de demain · thème du ${dayShort(shiftDay(T, 1))}`, note: 'Prévision : il s\'y ajoutera la 2e et la 3e d\'aujourd\'hui, et les idées proposées d\'ici là.' },
+      { day: shiftDay(T, 2), title: `Vote d'après-demain · thème du ${dayShort(shiftDay(T, 2))}`, note: 'Prévision, qui peut encore changer.' },
+    ];
+    for (const { day, title, note } of days) {
+      const b = ballotFor(day, ctx.pool, ctx.recs);
+      const sec = document.createElement('div');
+      sec.className = 'ac-council-day';
+      sec.innerHTML = `<h3></h3><p class="muted ct-small-text"></p><div class="tv-list"></div>`;
+      sec.querySelector('h3').textContent = title;
+      sec.querySelector('p').textContent = b.closed ? 'Pas de vote ce jour-là (égalité la veille).' : note;
+      const list = sec.querySelector('.tv-list');
+      for (const c of b.cands) {
+        const bits = [candKind(c)];
+        if (c.carry) bits.push(`${c.carry.rank}e la veille`);
+        if (c.reserved && c.owner) bits.push(`idée de ${c.ownerName || c.owner}`);
+        const row = tvRow(c, bits.join(' · '));
+        row.insertAdjacentHTML('beforeend', '<div class="tv-act"></div>');
+        const act = row.querySelector('.tv-act');
+        const r1 = document.createElement('button'); r1.className = 'btn btn-ghost'; r1.textContent = '🔄 Remplacer';
+        r1.addEventListener('click', async () => { if (await askConfirm(`Retirer « ${candText(c)} » de ce vote ? Une autre idée prendra sa place.`, 'Remplacer')) skipFor(day, c); });
+        const r2 = document.createElement('button'); r2.className = 'btn btn-ghost'; r2.textContent = '🚫 Ne plus proposer';
+        r2.addEventListener('click', async () => { if (await askConfirm(`Ne plus jamais proposer « ${c.label} » au conseil ? (tu pourras la rétablir)`, 'Ne plus proposer')) block(c); });
+        act.append(r1, r2);
+        list.appendChild(row);
+      }
+      if (!b.closed && !b.cands.length) list.innerHTML = '<p class="muted">Aucune idée.</p>';
+      box.appendChild(sec);
+    }
+    // Idées retirées pour toujours
+    const blocked = councilBlocked();
+    if (blocked.length) {
+      const sec = document.createElement('div');
+      sec.className = 'ac-council-day';
+      sec.innerHTML = `<h3>Ne plus proposer (${blocked.length})</h3><div class="ac-council-blocked"></div>`;
+      const wrap = sec.querySelector('.ac-council-blocked');
+      for (const k of blocked) {
+        const img = k.startsWith('o:') ? state.images.get(k.slice(2)) : null;
+        const name = k.slice(2);
+        const label = img ? objectLabel(img) : (k.startsWith('c:') ? contestColors().map((x) => x.name) : contestThemes()).find((x) => normalizeText(x) === name) || name;
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'btn btn-ghost';
+        chip.textContent = `↩ ${label}`;
+        chip.title = 'Rétablir';
+        chip.addEventListener('click', async () => {
+          state.settings.councilBlocked = councilBlocked().filter((x) => x !== k);
+          await save(`« ${label} » peut de nouveau être proposée ✓`);
+        });
+        wrap.appendChild(chip);
+      }
+      box.appendChild(sec);
+    }
+  }
+
   let acTimer = null;
   async function openAdminContest() {
     if (!state.isAdmin) return;
     showScreen('adminContest');
+    renderCouncilAdmin();
     $('#acThemes').value = (Array.isArray(state.settings.contestThemes) && state.settings.contestThemes.length ? state.settings.contestThemes : DEFAULT_THEMES).join('\n');
     renderPlanAdmin();
     await refreshAdminContest();

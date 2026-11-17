@@ -3258,3 +3258,10 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .cv3-atelier-theme { margin: 12px 0 4px; padding: 10px 12px; border-radius: 8px; border: 2px solid var(--c-line, #E6B85C); background: linear-gradient(160deg, rgba(255,255,255,.05), rgba(0,0,0,.18)); }
 :root[data-skin="manoir"] .cv3-atelier-theme { border-color: var(--gold); }
 .cv3-gal-day { font-size: 13px !important; opacity: .85; margin-bottom: 2px; }
+/* Admin concours : propositions du conseil */
+.ac-council-day { margin: 10px 0 16px; }
+.ac-council-day h3 { margin: 0 0 2px; font-size: 1rem; }
+.ac-council-day .tv-act { flex-direction: column; }
+.ac-council-day .tv-act .btn { white-space: nowrap; font-size: .8rem; padding: 3px 8px; }
+.ac-council-blocked { display: flex; flex-wrap: wrap; gap: 6px; }
+.ac-plan-old > summary { cursor: pointer; font-weight: 700; margin: 6px 0; }

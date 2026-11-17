@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611171000">
+  <link rel="stylesheet" href="style.css?v=202611171100">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -656,11 +656,19 @@
     </header>
     <div class="rooms-body">
       <div class="admin-cols">
+        <section class="admin-card-box" id="acCouncilBox">
+          <h2>Le conseil · propositions</h2>
+          <p class="muted">Les idées que les joueuses verront dans le vote. « Remplacer » retire l'idée de ce vote : une autre idée de la même sorte prend sa place. « Ne plus proposer » la retire de tous les votes.</p>
+          <div id="acCouncil" class="ac-council"><p class="muted">Chargement…</p></div>
+        </section>
         <section class="admin-card-box" id="acPlanBox">
           <h2>Pièce + thème du jour</h2>
-          <p class="muted">Chaque jour : une pièce tirée au sort, et un thème qui peut être un <strong>objet</strong> (prêté à tous ce jour-là), une <strong>couleur</strong> ou un <strong>thème général</strong>. Tu peux forcer ce que tu veux pour les prochains jours.</p>
-          <div id="acStarted" class="ct-provisional ac-started"></div>
-          <div id="acPlan" class="ac-plan"></div>
+          <details class="ac-plan-old">
+            <summary>Forcer un jour précis (sinon c'est le conseil qui décide)</summary>
+            <p class="muted">Chaque jour : une pièce, et un thème qui peut être un <strong>objet</strong> (prêté à tous ce jour-là), une <strong>couleur</strong> ou un <strong>thème général</strong>. Un choix forcé ici passe avant le vote du conseil.</p>
+            <div id="acStarted" class="ct-provisional ac-started"></div>
+            <div id="acPlan" class="ac-plan"></div>
+          </details>
           <details class="ac-lists" open>
             <summary>Mes listes (pièces, thèmes, couleurs)</summary>
             <label class="contest-themes"><span class="muted">Pièces possibles, une par ligne :</span><textarea id="acRooms" class="field" rows="6"></textarea></label>
@@ -1341,7 +1349,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611171000"></script>
-  <script src="game.js?v=202611171000"></script>
+  <script src="firebase-config.js?v=202611171100"></script>
+  <script src="game.js?v=202611171100"></script>
 </body>
 </html>
