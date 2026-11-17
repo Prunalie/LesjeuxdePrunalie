@@ -9909,8 +9909,11 @@
     const box = $('#acCouncil');
     if (!box) return;
     let ctx, docs = [];
-    const T = shiftDay(today(), 1);
-    try { ctx = await loadThemeCtx(); docs = await db.listThemeVote(T); } catch (e) { box.innerHTML = '<p class="muted">Le conseil n\'est pas disponible. Vérifie ta connexion.</p>'; return; }
+    // Après 20 h, le vote du jour est fini : la liste commence au prochain vote (qui ouvre à minuit).
+    const T0 = shiftDay(today(), 1);
+    const after20 = themeVoteEnded(T0);
+    const T = after20 ? shiftDay(T0, 1) : T0;
+    try { ctx = await loadThemeCtx(); if (after20) await ensureThemeRecord(T0, ctx); docs = await db.listThemeVote(T); } catch (e) { box.innerHTML = '<p class="muted">Le conseil n\'est pas disponible. Vérifie ta connexion.</p>'; return; }
     box.innerHTML = '';
     const save = async (msg) => {
       await saveSettings(msg);
@@ -9935,20 +9938,24 @@
       { day: shiftDay(T, 1), title: `Vote de demain · thème du ${dayShort(shiftDay(T, 1))}`, note: 'Prévision : il s\'y ajoutera la 2e et la 3e d\'aujourd\'hui, et les idées proposées d\'ici là.' },
       { day: shiftDay(T, 2), title: `Vote d'après-demain · thème du ${dayShort(shiftDay(T, 2))}`, note: 'Prévision, qui peut encore changer.' },
     ];
-    for (const { day, title, note } of days) {
+    // Une seule liste : les propositions des 3 prochains votes, chacune avec la date du thème qu'elle peut devenir.
+    const sec = document.createElement('div');
+    sec.className = 'ac-council-day';
+    sec.innerHTML = `<p class="muted ct-small-text"></p><div class="tv-list"></div>`;
+    sec.querySelector('p').textContent = `${after20 ? 'Le vote d\'aujourd\'hui est terminé : voici les prochains.' : days[0].note} Les deux votes suivants sont une prévision (il s'y ajoutera la 2e et la 3e de la veille, et les idées proposées d'ici là).`;
+    const list = sec.querySelector('.tv-list');
+    box.appendChild(sec);
+    const shortDay = (d) => { const { y, m, dd } = parseDay(d); return new Date(y, m - 1, dd).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }); };
+    for (const { day } of days) {
       const b = ballotFor(day, ctx.pool, ctx.recs);
-      const sec = document.createElement('div');
-      sec.className = 'ac-council-day';
-      sec.innerHTML = `<h3></h3><p class="muted ct-small-text"></p><div class="tv-list"></div>`;
-      sec.querySelector('h3').textContent = title;
-      sec.querySelector('p').textContent = b.closed ? 'Pas de vote ce jour-là (égalité la veille).' : note;
-      const list = sec.querySelector('.tv-list');
+      if (b.closed) { list.insertAdjacentHTML('beforeend', `<p class="muted ac-closed">${cvEsc(shortDay(day))} : pas de vote (égalité la veille).</p>`); continue; }
       for (const c of b.cands) {
         const bits = [candKind(c)];
         if (c.carry) bits.push(`${c.carry.rank}e la veille`);
         const player = !!(c.reserved && c.owner);
         const row = tvRow(c, bits.join(' · '));
         row.classList.add('ac-kind-' + c.type);
+        row.querySelector('.tv-main').insertAdjacentHTML('afterbegin', `<span class="ac-day${day === T ? ' now' : ''}">${cvEsc(shortDay(day))}${day === T ? (after20 ? ' · prochain vote (dès minuit)' : ' · vote en cours') : ''}</span>`);
         if (player) {
           // Idée d'une joueuse : mise en valeur.
           row.classList.add('ac-player');
@@ -9964,9 +9971,8 @@
         act.append(r1, r2);
         list.appendChild(row);
       }
-      if (!b.closed && !b.cands.length) list.innerHTML = '<p class="muted">Aucune idée.</p>';
-      box.appendChild(sec);
     }
+    if (!list.children.length) list.innerHTML = '<p class="muted">Aucune idée.</p>';
     // Idées retirées pour toujours
     const blocked = councilBlocked();
     if (blocked.length) {

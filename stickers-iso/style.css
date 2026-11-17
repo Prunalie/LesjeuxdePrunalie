@@ -3331,3 +3331,6 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .ac-council-day .tv-act { flex-direction: row; gap: 4px; }
 .ac-council-day .tv-act .btn { padding: 2px 7px; font-size: 1rem; min-height: 32px; }
 .ac-player-tag { font-size: .7rem; }
+.ac-day { align-self: flex-start; font-size: .68rem; font-weight: 800; letter-spacing: .02em; opacity: .85; }
+.ac-day.now { color: #E6B85C; opacity: 1; }
+.ac-council .tv-main { flex-wrap: wrap; }
