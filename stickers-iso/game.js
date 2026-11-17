@@ -7883,7 +7883,8 @@
       <p class="cv3-note">Propose autant d'idées que tu veux (${MAX_WAIT} en attente au plus, tu en as ${myWaiting}). Les idées des joueuses passent chacune leur tour : la tienne entre dans le vote au plus tôt demain et y reste ${plural(setting('themeReservedDays'), 'jour')}. +${setting('themeWinReward')} 🪙 si elle gagne.</p>
       <label class="tv-lab">Dans quelle pièce ?<select class="field tv-room">${roomOpts}</select></label>
       <div class="tv-tabs" role="tablist"><button type="button" class="tv-tab on" data-tab="compo">Composer</button><button type="button" class="tv-tab" data-tab="new">Nouveau thème</button></div>
-      <form class="tv-compo"><select class="field tv-etype"><option value="color">une couleur</option><option value="theme">un thème</option><option value="object">un objet</option></select><select class="field tv-elem"></select><button class="btn btn-primary" type="submit">Proposer</button></form>
+      <form class="tv-compo"><select class="field tv-etype"><option value="color">une couleur</option><option value="theme">un thème</option><option value="object">un objet</option></select><select class="field tv-elem"></select><button class="btn btn-primary" type="submit">Proposer</button>
+        <div class="tv-objpick" hidden><input class="field tv-objsearch" type="search" placeholder="Chercher un objet…" aria-label="Chercher un objet"><div class="tv-objgrid" role="listbox" aria-label="Choisis un objet"></div></div></form>
       <form class="tv-form tv-new" hidden><input class="field tv-input" type="text" maxlength="${THEME_TEXT_MAX}" placeholder="Ton idée (ex : Fête foraine)" aria-label="Ton idée de thème"><button class="btn btn-primary" type="submit">Proposer</button></form>
       <p class="cv3-note tv-new-note" hidden>Un nouveau thème passe d'abord par l'administratrice.</p>
       <div class="tv-mine"></div>`;
@@ -7894,11 +7895,37 @@
       const isNew = !propCard.querySelector('.tv-new').hidden;
       propCard.querySelector('.tv-lab').hidden = isNew || propCard.querySelector('.tv-etype').value === 'theme';
     };
+    // Un objet : on le choisit en le voyant (grille d'images, avec une recherche), la liste déroulante est cachée.
+    const objPick = propCard.querySelector('.tv-objpick');
+    const objGrid = propCard.querySelector('.tv-objgrid');
+    const renderObjGrid = () => {
+      const q = normalizeText(propCard.querySelector('.tv-objsearch').value);
+      objGrid.innerHTML = '';
+      const shown = objList.filter((o) => !q || normalizeText(o.label).includes(q));
+      for (const o of shown) {
+        const img = state.images.get(o.id);
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'tv-objbtn' + (elemSel.value === o.id ? ' on' : '');
+        b.setAttribute('role', 'option');
+        b.setAttribute('aria-selected', elemSel.value === o.id ? 'true' : 'false');
+        b.innerHTML = `<span class="tv-objimg">${img ? `<img alt="" loading="lazy" src="${cvEsc(img.url)}">` : ''}</span><span class="tv-objname"></span>`;
+        b.querySelector('.tv-objname').textContent = o.label;
+        b.addEventListener('click', () => { elemSel.value = o.id; renderObjGrid(); });
+        objGrid.appendChild(b);
+      }
+      if (!shown.length) objGrid.innerHTML = '<p class="muted">Aucun objet trouvé.</p>';
+    };
+    propCard.querySelector('.tv-objsearch').addEventListener('input', renderObjGrid);
     const fillElems = () => {
       const t = propCard.querySelector('.tv-etype').value;
       syncRoom();
       const opts = t === 'color' ? colList.map((c) => [c.name, c.name]) : t === 'theme' ? themeList.map((x) => [x, x]) : objList.map((o) => [o.id, o.label]);
       elemSel.innerHTML = opts.map(([v, l]) => `<option value="${cvEsc(v)}">${cvEsc(l)}</option>`).join('');
+      const isObj = t === 'object';
+      elemSel.hidden = isObj;
+      objPick.hidden = !isObj;
+      if (isObj) renderObjGrid();
     };
     fillElems();
     propCard.querySelector('.tv-etype').addEventListener('change', fillElems);
