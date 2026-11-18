@@ -10009,61 +10009,96 @@
       await save(`« ${c.label} » ne sera plus proposée ✓`);
     };
     const ballots = docs.filter((h) => h.kind === 'ballot').length;
-    const days = [
-      { day: T, title: `Vote d'aujourd'hui · thème du ${dayShort(T)}`, note: ballots ? `${plural(ballots, 'bulletin')} déjà déposé${ballots > 1 ? 's' : ''} : les cœurs donnés à une idée remplacée ne comptent plus.` : 'Aucun bulletin pour l\'instant.' },
-      { day: shiftDay(T, 1), title: `Vote de demain · thème du ${dayShort(shiftDay(T, 1))}`, note: 'Prévision : il s\'y ajoutera la 2e et la 3e d\'aujourd\'hui, et les idées proposées d\'ici là.' },
-      { day: shiftDay(T, 2), title: `Vote d'après-demain · thème du ${dayShort(shiftDay(T, 2))}`, note: 'Prévision, qui peut encore changer.' },
-    ];
-    // Une seule liste : les propositions des 3 prochains votes, chacune avec la date du thème qu'elle peut devenir.
-    const sec = document.createElement('div');
-    sec.className = 'ac-council-day';
-    sec.innerHTML = `<p class="muted ct-small-text"></p><div class="tv-list"></div>`;
-    sec.querySelector('p').textContent = `${after20 ? 'Le vote d\'aujourd\'hui est terminé : voici les prochains.' : days[0].note} Les deux votes suivants sont une prévision (il s'y ajoutera la 2e et la 3e de la veille, et les idées proposées d'ici là).`;
-    const list = sec.querySelector('.tv-list');
-    box.appendChild(sec);
-    const shortDay = (d) => { const { y, m, dd } = parseDay(d); return new Date(y, m - 1, dd).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }); };
-    for (const { day } of days) {
-      const b = ballotFor(day, ctx.pool, ctx.recs);
-      if (b.closed) { list.insertAdjacentHTML('beforeend', `<p class="muted ac-closed">${cvEsc(shortDay(day))} : pas de vote (égalité la veille).</p>`); continue; }
-      for (const c of b.cands) {
-        const bits = [candKind(c)];
-        if (c.carry) bits.push(`${c.carry.rank}e la veille`);
-        const player = !!(c.reserved && c.owner);
-        const row = tvRow(c, bits.join(' · '));
-        row.classList.add('ac-kind-' + c.type);
-        row.querySelector('.tv-main').insertAdjacentHTML('afterbegin', `<span class="ac-day${day === T ? ' now' : ''}">${cvEsc(shortDay(day))}${day === T ? (after20 ? ' · prochain vote (dès minuit)' : ' · vote en cours') : ''}</span>`);
-        if (player) {
-          // Idée d'une joueuse : mise en valeur.
-          row.classList.add('ac-player');
-          row.querySelector('.tv-main').insertAdjacentHTML('afterbegin', '<span class="ac-player-tag"></span>');
-          row.querySelector('.ac-player-tag').textContent = `💡 Idée de ${ADMIN_PSEUDOS.includes(c.owner) ? ADMIN_DISPLAY_NAME : (c.ownerName || c.owner)}`;
-        }
-        row.insertAdjacentHTML('beforeend', '<div class="tv-act"></div>');
-        const act = row.querySelector('.tv-act');
-        const r1 = document.createElement('button'); r1.className = 'btn btn-ghost'; r1.textContent = '🔄'; r1.title = 'Remplacer dans ce vote'; r1.setAttribute('aria-label', `Remplacer « ${candText(c)} » dans ce vote`);
-        r1.addEventListener('click', async () => { if (await askConfirm(`Retirer « ${candText(c)} » de ce vote ? Une autre idée prendra sa place.`, 'Remplacer')) skipFor(day, c); });
-        const r2 = document.createElement('button'); r2.className = 'btn btn-ghost'; r2.textContent = '🚫'; r2.title = 'Ne plus proposer'; r2.setAttribute('aria-label', `Ne plus proposer « ${c.label} »`);
-        r2.addEventListener('click', async () => { if (await askConfirm(`Ne plus jamais proposer « ${c.label} » au conseil ? (tu pourras la rétablir)`, 'Ne plus proposer')) block(c); });
+    // Jour du vote (calendrier) pour un thème du jour X : la veille de X.
+    const wd = (d) => { const { y, m, dd } = parseDay(d); return new Date(y, m - 1, dd).toLocaleDateString('fr-FR', { weekday: 'short' }); };
+    const voteDayOf = (target) => shiftDay(target, -1);
+    // Jours de vote prévus pour chaque idée de joueuse (simulation de la file sur les 3 prochaines semaines).
+    const plannedDays = new Map(); // id de l'idée -> [jours de vote]
+    for (let k = 0; k < 21; k++) {
+      const tk = shiftDay(T, k);
+      for (const p of playerQueue(tk, ctx.pool, ctx.recs).live) {
+        if (!plannedDays.has(p.id)) plannedDays.set(p.id, []);
+        plannedDays.get(p.id).push(voteDayOf(tk));
+      }
+    }
+    const daysText = (id) => (plannedDays.get(id) || []).map(wd).join(' · ');
+    const nameOf = (c) => (ADMIN_PSEUDOS.includes(c.owner) ? ADMIN_DISPLAY_NAME : (c.ownerName || c.owner));
+    const mkRow = (c, { day = null, tag = '', edit = false, skip = false } = {}) => {
+      const bits = [candKind(c)];
+      if (c.carry) bits.push(`${c.carry.rank}e la veille`);
+      const row = tvRow(c, bits.join(' · '));
+      row.classList.add('ac-kind-' + c.type);
+      if (tag) row.querySelector('.tv-main').insertAdjacentHTML('afterbegin', `<span class="ac-day now">${cvEsc(tag)}</span>`);
+      if (c.owner && c.src === 'joueur') {
+        row.classList.add('ac-player');
+        row.querySelector('.tv-main').insertAdjacentHTML('afterbegin', '<span class="ac-player-tag"></span>');
+        row.querySelector('.ac-player-tag').textContent = `💡 Idée de ${nameOf(c)}`;
+      }
+      if (c.forced) { row.classList.add('ac-forced'); row.querySelector('.tv-main').insertAdjacentHTML('afterbegin', '<span class="ac-forced-tag">✏️ choisie par toi</span>'); }
+      row.insertAdjacentHTML('beforeend', '<div class="tv-act"></div>');
+      const act = row.querySelector('.tv-act');
+      if (edit) {
         const r3 = document.createElement('button'); r3.className = 'btn btn-ghost'; r3.textContent = '✏️'; r3.title = 'Choisir une autre idée'; r3.setAttribute('aria-label', `Choisir une autre idée à la place de « ${candText(c)} »`);
         r3.addEventListener('click', () => councilPick(day, c, async (nc) => {
           const skips = { ...(state.settings.councilSkip || {}) };
           const adds = { ...(state.settings.councilAdd || {}) };
           for (const d of Object.keys(skips)) if (d < T) delete skips[d];
           for (const d of Object.keys(adds)) if (d < T) delete adds[d];
-          skips[day] = [...new Set([...(skips[day] || []), elemKey(c)])];
+          skips[day] = [...new Set([...(skips[day] || []), elemKey(c)])].filter((k) => k !== elemKey(nc));
           adds[day] = [...(adds[day] || []).filter((x) => elemKey(x) !== elemKey(c) && elemKey(x) !== elemKey(nc)), pureCand(nc)];
-          // L'idée choisie ne doit pas être retirée de ce vote.
-          skips[day] = skips[day].filter((k) => k !== elemKey(nc));
           state.settings.councilSkip = skips;
           state.settings.councilAdd = adds;
           await save(`« ${candText(nc)} » remplace « ${candText(c)} » ✓`);
         }));
-        if (c.forced) { row.classList.add('ac-forced'); row.querySelector('.tv-main').insertAdjacentHTML('afterbegin', '<span class="ac-forced-tag">✏️ choisie par toi</span>'); }
-        act.append(r3, r1, r2);
-        list.appendChild(row);
+        act.appendChild(r3);
+      }
+      if (skip) {
+        const r1 = document.createElement('button'); r1.className = 'btn btn-ghost'; r1.textContent = '🔄'; r1.title = 'Remplacer au hasard'; r1.setAttribute('aria-label', `Remplacer « ${candText(c)} »`);
+        r1.addEventListener('click', async () => { if (await askConfirm(`Retirer « ${candText(c)} » ? Une autre idée de la même sorte prendra sa place.`, 'Remplacer')) skipFor(day, c); });
+        act.appendChild(r1);
+      }
+      const r2 = document.createElement('button'); r2.className = 'btn btn-ghost'; r2.textContent = '🚫'; r2.title = 'Ne plus proposer'; r2.setAttribute('aria-label', `Ne plus proposer « ${c.label} »`);
+      r2.addEventListener('click', async () => { if (await askConfirm(`Ne plus jamais proposer « ${c.label} » au conseil ? (tu pourras la rétablir)`, 'Ne plus proposer')) block(c); });
+      act.appendChild(r2);
+      return row;
+    };
+    const section = (title, note) => {
+      const sec = document.createElement('div');
+      sec.className = 'ac-council-day';
+      sec.innerHTML = '<h3></h3><p class="muted ct-small-text"></p><div class="tv-list"></div>';
+      sec.querySelector('h3').textContent = title;
+      sec.querySelector('p').textContent = note;
+      if (!note) sec.querySelector('p').remove();
+      box.appendChild(sec);
+      return sec.querySelector('.tv-list');
+    };
+    // 1. Le vote du jour (8 propositions)
+    const b0 = ballotFor(T, ctx.pool, ctx.recs);
+    const l1 = section(`${after20 ? 'Prochain vote (dès minuit)' : 'Vote du jour'} · thème du ${dayShort(T)}`,
+      b0.closed ? 'Pas de vote : égalité la veille.' : ballots ? `${plural(ballots, 'bulletin')} déjà déposé${ballots > 1 ? 's' : ''} : les cœurs donnés à une idée remplacée ne comptent plus.` : 'Aucun bulletin pour l\'instant.');
+    for (const c of b0.cands) l1.appendChild(mkRow(c, { day: T, tag: c.reserved && c.propId ? daysText(c.propId) : '', edit: true, skip: true }));
+    // 2. Idées de joueuses en attente, dans l'ordre de passage prévu (une ligne chacune, avec ses jours de vote)
+    const inToday = new Set(b0.cands.map((c) => c.propId).filter(Boolean));
+    const waiting = ctx.pool.filter((p) => p.status === 'accepted' && !inToday.has(p.id) && plannedDays.has(p.id) && plannedDays.get(p.id)[0] > voteDayOf(T))
+      .sort((x, y) => plannedDays.get(x.id)[0].localeCompare(plannedDays.get(y.id)[0]) || (x.readyAt || 0) - (y.readyAt || 0));
+    const later = b0.queue.waiting.filter((p) => !plannedDays.has(p.id));
+    const l2 = section(`Idées de joueuses en attente (${waiting.length + later.length})`, waiting.length + later.length ? 'Dans l\'ordre de passage prévu, avec leurs jours de vote.' : 'Aucune idée en attente.');
+    for (const p of waiting) l2.appendChild(mkRow(ideaOfDoc(p), { tag: daysText(p.id) }));
+    for (const p of later) l2.appendChild(mkRow(ideaOfDoc(p), { tag: 'plus tard' }));
+    // 3. La réserve : les prochaines idées tirées dans la liste (au moins 16), pour contrôler leur cohérence
+    const seen = new Set(b0.cands.map((c) => elemKey(c)));
+    const reserve = [];
+    for (let k = 1; k < 30 && reserve.length < 16; k++) {
+      const tk = shiftDay(T, k);
+      const bk = ballotFor(tk, ctx.pool, ctx.recs);
+      for (const c of bk.cands) {
+        if (c.reserved || c.carry || c.forced || seen.has(elemKey(c))) continue;
+        seen.add(elemKey(c));
+        reserve.push({ c, day: tk });
       }
     }
-    if (!list.children.length) list.innerHTML = '<p class="muted">Aucune idée.</p>';
+    const l3 = section(`Réserve : prochaines idées (${reserve.length})`, 'Elles arriveront dans les prochains votes, dans cet ordre à peu près.');
+    for (const { c, day } of reserve) l3.appendChild(mkRow(c, { day, skip: true }));
     // Idées retirées pour toujours
     const blocked = councilBlocked();
     if (blocked.length) {
