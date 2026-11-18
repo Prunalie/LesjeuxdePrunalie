@@ -365,6 +365,8 @@
         putThemeDoc: ({ id, ...r }) => rooms.doc(id).set(clean({ ...r, type: 'themevote' })),
         listThemeVote: (day) => all(rooms.where('themeDay', '==', day)),
         deleteThemeDoc: (id) => rooms.doc(id).delete(),
+        // Relecture sur le serveur (pas la copie de l'appareil) : pour vérifier qu'une idée est vraiment enregistrée.
+        getThemeDoc: async (id) => { const d = await rooms.doc(id).get({ source: 'server' }); return d.exists ? { ...d.data(), id: d.id } : null; },
         putReport: ({ id, ...r }) => rooms.doc(id).set(clean({ ...r, type: 'report' })),
         listReports: () => all(rooms.where('type', '==', 'report')),
         deleteReport: (id) => rooms.doc(id).delete(),
@@ -466,6 +468,7 @@
       putThemeDoc: (r) => run('contest', 'readwrite', (s) => s.put({ ...r, type: 'themevote' })),
       listThemeVote: async (day) => (await getAll('contest')).filter((c) => c.themeDay === day),
       deleteThemeDoc: (id) => run('contest', 'readwrite', (s) => s.delete(id)),
+      getThemeDoc: async (id) => (await getAll('contest')).find((c) => c.id === id) || null,
       putReport: (r) => run('contest', 'readwrite', (s) => s.put({ ...r, type: 'report' })),
       listReports: async () => (await getAll('contest')).filter((c) => c.type === 'report'),
       deleteReport: (id) => run('contest', 'readwrite', (s) => s.delete(id)),
@@ -7904,6 +7907,18 @@
     row.querySelector('.tv-text').textContent = candText(c);
     return row;
   }
+  // Enregistre une idée de joueuse puis relit le serveur pour être sûr qu'elle y est (avec le bon état) ; un second essai sinon.
+  async function putThemeDocChecked(doc) {
+    for (let i = 0; i < 2; i++) {
+      await db.putThemeDoc(doc);
+      try {
+        const back = db.getThemeDoc ? await db.getThemeDoc(doc.id) : doc;
+        if (back && back.status === doc.status && back.text === doc.text) return true;
+        crumb(`idée non retrouvée après enregistrement (${doc.id}, essai ${i + 1})`);
+      } catch (e) { crumb(`vérification de l'idée impossible (${doc.id})`); return true; } // relecture impossible : on fait confiance à l'envoi
+    }
+    return false;
+  }
   // Formulaire « Proposer une idée » (composer / nouveau thème) et la liste de mes idées.
   function tvProposeCards(wrap, d, reload) {
     const me = state.player.key;
@@ -7982,7 +7997,10 @@
       if (myWaiting >= MAX_WAIT) { toast(`Tu as déjà ${MAX_WAIT} idées en attente : attends qu'elles passent au vote !`); return; }
       if (d.resting.has(restKey(c))) { toast(`« ${candText(c)} » a été joué il y a peu : cette idée se repose encore un peu.`); return; }
       if (openIdea(c) || d.cands.some((x) => x.id === c.id)) { toast('Cette idée est déjà proposée.'); return; }
-      try { await db.putThemeDoc({ id: `tp-${me}-${Date.now()}`, kind: 'prop', themeDay: 'pool', owner: me, ownerName: state.player.name, created: Date.now(), proposedDay: today(), ...doc }); } catch (err) { toast('L\'idée n\'a pas pu être envoyée. Vérifie ta connexion.'); return; }
+      try {
+        const ok = await putThemeDocChecked({ id: `tp-${me}-${Date.now()}`, kind: 'prop', themeDay: 'pool', owner: me, ownerName: state.player.name, created: Date.now(), proposedDay: today(), ...doc });
+        if (!ok) { toast('⚠️ Ton idée n\'a pas été enregistrée. Réessaie dans un instant.'); return; }
+      } catch (err) { toast('L\'idée n\'a pas pu être envoyée. Vérifie ta connexion.'); return; }
       toast(`Idée envoyée 🗳️${doc.status === 'pending' ? ' : elle sera validée avant le vote.' : ' : elle entre dans le vote dès que c\'est ton tour.'}`);
       reload();
     };
@@ -8046,7 +8064,10 @@
           const act = row.querySelector('.tv-act');
           const set = (status) => async () => {
             const upd = status === 'accepted' ? { ...p, status, readyDay: today(), readyAt: Date.now() } : { ...p, status };
-            try { await db.putThemeDoc(upd); } catch (err) { toast('Le choix n\'a pas pu être enregistré.'); return; }
+            try {
+              if (!(await putThemeDocChecked(upd))) { toast('⚠️ Ta validation n\'a pas été enregistrée. Réessaie.'); return; }
+            } catch (err) { toast('Le choix n\'a pas pu être enregistré.'); return; }
+            toast(status === 'accepted' ? `« ${p.text} » est acceptée ✓ (vérifié)` : `« ${p.text} » est refusée ✓`);
             reload();
           };
           const ok = document.createElement('button'); ok.className = 'btn btn-primary'; ok.textContent = '✓ Accepter'; ok.addEventListener('click', set('accepted'));
