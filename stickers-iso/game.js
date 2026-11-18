@@ -9929,7 +9929,7 @@
   });
 
   // Atelier du conseil : choisir à la main l'idée qui remplace une proposition (même sorte : objet, couleur ou thème).
-  function councilPick(day, old, onPick) {
+  function councilPick(day, old, onPick, opts = {}) {
     const type = old.type;
     const dlg = document.createElement('div');
     dlg.className = 'modal ac-pick';
@@ -9938,6 +9938,7 @@
       <div class="modal-head"><h2 class="modal-title"></h2><button class="modal-x" type="button" aria-label="Fermer">✕</button></div>
       <p class="muted ac-pick-old"></p>
       ${type === 'theme' ? '' : `<label class="tv-lab">Pièce<select class="field ac-pick-room"><option value="">Pièce au choix</option>${rooms.map((r) => `<option value="${cvEsc(r)}">${cvEsc(r)}</option>`).join('')}</select></label>`}
+      ${type === 'theme' ? `<form class="tv-form ac-pick-free"><input class="field" type="text" maxlength="${THEME_TEXT_MAX}" placeholder="Ou écris l'intitulé" aria-label="Intitulé du thème"><button class="btn btn-primary" type="submit">OK</button></form>` : ''}
       <input class="field ac-pick-search" type="search" placeholder="Chercher…" aria-label="Chercher">
       <div class="ac-pick-grid"></div></div>`;
     dlg.querySelector('.modal-title').textContent = type === 'object' ? 'Choisir un objet' : type === 'color' ? 'Choisir une couleur' : 'Choisir un thème';
@@ -9977,6 +9978,20 @@
       if (!grid.children.length) grid.innerHTML = '<p class="muted">Rien trouvé.</p>';
     };
     dlg.querySelector('.ac-pick-search').addEventListener('input', render);
+    const free = dlg.querySelector('.ac-pick-free');
+    if (free) {
+      const inp = free.querySelector('input');
+      if (opts.text) inp.value = old.label;
+      free.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const text = inp.value.trim().replace(/\s+/g, ' ');
+        if (text.length < 2) { toast('Écris au moins 2 lettres.'); return; }
+        const nc = { type: 'theme', label: text, room: '' };
+        nc.id = candId(nc);
+        close();
+        onPick(nc);
+      });
+    }
     render();
     document.body.appendChild(dlg);
   }
@@ -10037,7 +10052,21 @@
       if (c.forced) { row.classList.add('ac-forced'); row.querySelector('.tv-main').insertAdjacentHTML('afterbegin', '<span class="ac-forced-tag">✏️ choisie par toi</span>'); }
       row.insertAdjacentHTML('beforeend', '<div class="tv-act"></div>');
       const act = row.querySelector('.tv-act');
-      if (edit) {
+      if (edit && c.src === 'joueur' && c.propId) {
+        const r3 = document.createElement('button'); r3.className = 'btn btn-ghost'; r3.textContent = '✏️'; r3.title = 'Modifier cette idée'; r3.setAttribute('aria-label', `Modifier l'idée « ${candText(c)} »`);
+        r3.addEventListener('click', () => councilPick(day || T, c, async (nc) => {
+          const doc = ctx.pool.find((x) => x.id === c.propId);
+          if (!doc) { toast('Idée introuvable.'); return; }
+          const upd = { ...doc, text: nc.label, room: nc.room || '' };
+          if (nc.imageId) upd.imageId = nc.imageId;
+          try { if (!(await putThemeDocChecked(upd))) { toast('⚠️ La modification n\'a pas été enregistrée. Réessaie.'); return; } }
+          catch (err) { toast('La modification n\'a pas pu être enregistrée.'); return; }
+          toast(`L'idée de ${nameOf(c)} devient « ${candText(nc)} » ✓`);
+          themeVoteData = null;
+          renderCouncilAdmin();
+        }, { text: true }));
+        act.appendChild(r3);
+      } else if (edit) {
         const r3 = document.createElement('button'); r3.className = 'btn btn-ghost'; r3.textContent = '✏️'; r3.title = 'Choisir une autre idée'; r3.setAttribute('aria-label', `Choisir une autre idée à la place de « ${candText(c)} »`);
         r3.addEventListener('click', () => councilPick(day, c, async (nc) => {
           const skips = { ...(state.settings.councilSkip || {}) };
@@ -10083,8 +10112,8 @@
       .sort((x, y) => plannedDays.get(x.id)[0].localeCompare(plannedDays.get(y.id)[0]) || (x.readyAt || 0) - (y.readyAt || 0));
     const later = b0.queue.waiting.filter((p) => !plannedDays.has(p.id));
     const l2 = section(`Idées de joueuses en attente (${waiting.length + later.length})`, waiting.length + later.length ? 'Dans l\'ordre de passage prévu, avec leurs jours de vote.' : 'Aucune idée en attente.');
-    for (const p of waiting) l2.appendChild(mkRow(ideaOfDoc(p), { tag: daysText(p.id) }));
-    for (const p of later) l2.appendChild(mkRow(ideaOfDoc(p), { tag: 'plus tard' }));
+    for (const p of waiting) l2.appendChild(mkRow(ideaOfDoc(p), { tag: daysText(p.id), edit: true }));
+    for (const p of later) l2.appendChild(mkRow(ideaOfDoc(p), { tag: 'plus tard', edit: true }));
     // 3. La réserve : les prochaines idées tirées dans la liste (au moins 16), pour contrôler leur cohérence
     const seen = new Set(b0.cands.map((c) => elemKey(c)));
     const reserve = [];
@@ -10092,13 +10121,13 @@
       const tk = shiftDay(T, k);
       const bk = ballotFor(tk, ctx.pool, ctx.recs);
       for (const c of bk.cands) {
-        if (c.reserved || c.carry || c.forced || seen.has(elemKey(c))) continue;
+        if (c.reserved || c.carry || seen.has(elemKey(c))) continue;
         seen.add(elemKey(c));
         reserve.push({ c, day: tk });
       }
     }
     const l3 = section(`Réserve : prochaines idées (${reserve.length})`, 'Elles arriveront dans les prochains votes, dans cet ordre à peu près.');
-    for (const { c, day } of reserve) l3.appendChild(mkRow(c, { day, skip: true }));
+    for (const { c, day } of reserve) l3.appendChild(mkRow(c, { day, edit: true, skip: true }));
     // Idées retirées pour toujours
     const blocked = councilBlocked();
     if (blocked.length) {
