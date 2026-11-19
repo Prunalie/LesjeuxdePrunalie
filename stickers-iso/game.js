@@ -2976,6 +2976,7 @@
     ctHistory: $('#screenCtHistory'),
     todo: $('#screenTodo'),
     house: $('#screenHouse'),
+    maison: $('#screenMaison'),
     settings: $('#screenSettings'),
     adminContest: $('#screenAdminContest'),
     adminCouncil: $('#screenAdminCouncil'),
@@ -3381,7 +3382,7 @@
     try {
       const fresh = await db.getPlayer(playerDocId(state.player.key));
       if (!fresh) return;
-      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'carnetLast', 'carnetStreak', 'themeVoteDay', 'joinRewardDay', 'contestCount', 'contestMilestones', 'stairsGift', 'decos', 'house', 'nightPlayer']) {
+      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'carnetLast', 'carnetStreak', 'themeVoteDay', 'joinRewardDay', 'contestCount', 'contestMilestones', 'stairsGift', 'decos', 'house', 'maison', 'nightPlayer']) {
         if (fresh[k] !== undefined) state.profile[k] = fresh[k];
       }
       state.profile.inventory = state.profile.inventory || {};
@@ -6250,6 +6251,7 @@
     const envs = liveEnvelopes().filter((env) => stickersOf(env.id).length).length;
     const nRooms = realRooms().length;
     // L'administratrice a une seule entrée : « Ma maison » (pièces placées + brouillons).
+    $('#homeMaison').hidden = !trialView();
     $('#homeRooms .card-title').textContent = houseOn() ? 'Ma maison' : 'Mes pièces';
     const placed = houseOn() ? houseEntries().length : 0;
     $('#homeRoomsSub').textContent = !nRooms ? (houseOn() ? 'Crée ta première pièce' : 'Crée ta première pièce')
@@ -12512,7 +12514,296 @@
     else if (place.screen === 'maintenance') openMaintenance();
     else if (place.screen === 'coffre') openCoffre();
     else if (place.screen === 'players') openPlayers();
+    else if (place.screen === 'maison') openMaison();
   }
+
+  // ---------------------------------------------------------------------------
+  // Ma grande maison (essai administratrice) : UNE maison à modeler, sur 2 étages, à part des pièces.
+  // Chaque étage est un ensemble de carreaux. Les murs ne sont que sur le contour du fond ; un mur qui cacherait
+  // du sol devient un muret. Le 1er étage est dessiné « éclaté », au-dessus du rez-de-chaussée, pour que rien
+  // ne soit jamais caché. Une plate-forme surélève le rez-de-chaussée ; des marches descendent dehors.
+  // ---------------------------------------------------------------------------
+  const maisonOn = () => trialView();
+  const MS_STEP_Z = 0.2; // hauteur d'une marche (en carreaux)
+  const MS_GRID = 12; // taille de la grille où l'on peut construire
+  const MS_COLORS = { wall: '#e8a6b8', floor: '#f3d6bf', base: '#9c7468', ground: '#efe6df' };
+  const msKey = (u, v) => u + ',' + v;
+  const msCells = (keys) => keys.map((k) => k.split(',').map(Number));
+  function msDefault() {
+    const f0 = [], f1 = [];
+    for (let u = 0; u < 6; u++) for (let v = 0; v < 3; v++) f0.push(msKey(u, v));
+    for (let u = 3; u < 6; u++) for (let v = 3; v < 6; v++) f0.push(msKey(u, v));
+    for (let u = 0; u < 4; u++) for (let v = 0; v < 3; v++) f1.push(msKey(u, v));
+    for (let u = 2; u < 4; u++) for (let v = 3; v < 5; v++) f1.push(msKey(u, v));
+    return { v: 1, platform: 3, wallH: 5, colors: { ...MS_COLORS }, floors: [{ cells: f0 }, { cells: f1 }], stairs: { u: 4, v: 5, dir: '-v' }, steps: [{ u: 1, v: 2, side: 'v' }, { u: 5, v: 4, side: 'u' }] };
+  }
+  function getMaison() {
+    const p = state.profile;
+    if (!p.maison || !Array.isArray(p.maison.floors) || p.maison.floors.length < 2) p.maison = msDefault();
+    p.maison.colors = { ...MS_COLORS, ...(p.maison.colors || {}) };
+    p.maison.steps = p.maison.steps || [];
+    return p.maison;
+  }
+  const MS_DIRS = { '-u': [-1, 0], '-v': [0, -1], '+u': [1, 0], '+v': [0, 1] };
+  const msStairCells = (st) => { const [du, dv] = MS_DIRS[st.dir]; return [0, 1, 2].map((i) => [st.u + du * i, st.v + dv * i]); };
+
+  // Dessin : renvoie le SVG et sa boîte (pour le cadrage).
+  function maisonSvg(m, edit = null) {
+    const TX = TILE_X, TY = TILE_Y, TZ = TILE_Z;
+    const H = m.wallH * 0.5, p = m.platform * MS_STEP_Z, col = m.colors;
+    const P = (u, v, z, dy = 0) => ({ x: (u - v) * TX, y: (u + v) * TY - z * TZ + dy });
+    const inside = (pt, poly) => {
+      let c = false;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const a = poly[i], b = poly[j];
+        if ((a.y > pt.y) !== (b.y > pt.y) && pt.x < ((b.x - a.x) * (pt.y - a.y)) / (b.y - a.y) + a.x) c = !c;
+      }
+      return c;
+    };
+    const ink = '#5a3e3a';
+    // Un étage : liste d'éléments { key (ordre de dessin), poly, fill, extra }
+    const floorItems = (fi, zf, zb, dy) => {
+      const S = new Set(m.floors[fi].cells);
+      const has = (u, v) => S.has(msKey(u, v));
+      const cells = msCells(m.floors[fi].cells);
+      const items = [];
+      const add = (depth, layer, poly, fill, attrs = '') => items.push({ key: depth * 10 + layer, poly, fill, attrs });
+      const T = 0.12; // épaisseur des murs
+      const hides = (wall, u0, v0) => cells.some(([cu, cv]) => (cu !== u0 || cv !== v0) && [[0.3, 0.3], [0.7, 0.3], [0.3, 0.7], [0.7, 0.7]].some(([a, b]) => inside(P(cu + a, cv + b, zf, dy), wall)));
+      for (const [u, v] of cells) {
+        const d = u + v;
+        const pick = edit === fi ? ` data-u="${u}" data-v="${v}" class="ms-cell"` : '';
+        // Murs du fond (gauche : côté -u ; droit : côté -v)
+        const hs = {};
+        for (const side of ['L', 'R']) {
+          if (side === 'L' ? has(u - 1, v) : has(u, v - 1)) continue;
+          const a = side === 'L' ? [u, v] : [u, v], b = side === 'L' ? [u, v + 1] : [u + 1, v];
+          const full = [P(a[0], a[1], zf, dy), P(b[0], b[1], zf, dy), P(b[0], b[1], zf + H, dy), P(a[0], a[1], zf + H, dy)];
+          const h = hides(full, u, v) ? 0.35 : H;
+          hs[side] = h;
+          const fill = side === 'L' ? col.wall : shade(col.wall, -0.1);
+          add(d, 0, [P(a[0], a[1], zf, dy), P(b[0], b[1], zf, dy), P(b[0], b[1], zf + h, dy), P(a[0], a[1], zf + h, dy)], fill);
+          // Dessus du mur (épaisseur)
+          const o = side === 'L' ? [-T, 0] : [0, -T];
+          add(d, 0.5, [P(a[0], a[1], zf + h, dy), P(b[0], b[1], zf + h, dy), P(b[0] + o[0], b[1] + o[1], zf + h, dy), P(a[0] + o[0], a[1] + o[1], zf + h, dy)], shade(col.base, 0.15));
+        }
+        if (!has(u - 1, v) && !has(u, v - 1)) {
+          const z = zf + Math.min(hs.L, hs.R);
+          add(d, 0.6, [P(u - T, v - T, z, dy), P(u, v - T, z, dy), P(u, v, z, dy), P(u - T, v, z, dy)], shade(col.base, 0.15));
+        }
+        // Sol (lames de parquet)
+        add(d, 1, [P(u, v, zf, dy), P(u + 1, v, zf, dy), P(u + 1, v + 1, zf, dy), P(u, v + 1, zf, dy)], col.floor, pick);
+        for (const t of [0.25, 0.5, 0.75]) items.push({ key: d * 10 + 1.1, line: [P(u, v + t, zf, dy), P(u + 1, v + t, zf, dy)], stroke: shade(col.floor, -0.12) });
+        // Tranches du socle (devant)
+        if (!has(u + 1, v)) add(d, 2, [P(u + 1, v, zf, dy), P(u + 1, v + 1, zf, dy), P(u + 1, v + 1, zb, dy), P(u + 1, v, zb, dy)], shade(col.base, -0.12));
+        if (!has(u, v + 1)) add(d, 2, [P(u, v + 1, zf, dy), P(u + 1, v + 1, zf, dy), P(u + 1, v + 1, zb, dy), P(u, v + 1, zb, dy)], col.base);
+      }
+      // Un bloc (marche) : dessus + deux faces visibles
+      const box = (u0, v0, u1, v1, za, zz, c, depth) => {
+        add(depth, 3, [P(u1, v0, za, dy), P(u1, v1, za, dy), P(u1, v1, zz, dy), P(u1, v0, zz, dy)], shade(c, -0.18));
+        add(depth, 3, [P(u0, v1, za, dy), P(u1, v1, za, dy), P(u1, v1, zz, dy), P(u0, v1, zz, dy)], shade(c, -0.08));
+        add(depth, 3.1, [P(u0, v0, zz, dy), P(u1, v0, zz, dy), P(u1, v1, zz, dy), P(u0, v1, zz, dy)], shade(c, 0.12));
+      };
+      if (fi === 0 && m.stairs && msStairCells(m.stairs).every(([a, b]) => has(a, b))) {
+        // Escalier : 8 marches sur 3 carreaux, de la case de départ vers sa direction.
+        const [du, dv] = MS_DIRS[m.stairs.dir], n = 8, L = 3;
+        for (let i = 0; i < n; i++) {
+          const s0 = (i * L) / n, s1 = ((i + 1) * L) / n;
+          const a = [m.stairs.u + (du < 0 ? 1 : 0) + du * s0, m.stairs.v + (dv < 0 ? 1 : 0) + dv * s0];
+          const b = [m.stairs.u + (du < 0 ? 1 : 0) + du * s1, m.stairs.v + (dv < 0 ? 1 : 0) + dv * s1];
+          let u0, u1, v0, v1;
+          if (du) { u0 = Math.min(a[0], b[0]); u1 = Math.max(a[0], b[0]); v0 = m.stairs.v; v1 = m.stairs.v + 1; } else { v0 = Math.min(a[1], b[1]); v1 = Math.max(a[1], b[1]); u0 = m.stairs.u; u1 = m.stairs.u + 1; }
+          box(u0, v0, u1, v1, zf, zf + ((i + 1) * H) / n, col.floor, (u0 + u1) / 2 + (v0 + v1) / 2 - 0.5);
+        }
+      }
+      if (fi === 0 && p > 0) {
+        // Marches dehors : de la plate-forme jusqu'au sol, sur le carreau d'à côté.
+        for (const s of m.steps) {
+          if (!has(s.u, s.v)) continue;
+          const n = m.platform;
+          for (let i = 0; i < n; i++) {
+            const z = p - ((i + 1) * p) / (n + 1) + 0.0001;
+            if (s.side === 'u') box(s.u + 1 + (i * 1) / n * 0.9, s.v + 0.1, s.u + 1 + ((i + 1) / n) * 0.9, s.v + 0.9, 0, z, col.base, s.u + 1 + s.v + i / n);
+            else box(s.u + 0.1, s.v + 1 + (i / n) * 0.9, s.u + 0.9, s.v + 1 + ((i + 1) / n) * 0.9, 0, z, col.base, s.u + s.v + 1 + i / n);
+          }
+        }
+      }
+      return items;
+    };
+    const span = (items) => {
+      const pts = items.flatMap((it) => it.poly || it.line || []);
+      return pts;
+    };
+    // Rez-de-chaussée, puis 1er étage posé au-dessus, poussé vers le haut tant qu'il chevauche.
+    const f0 = floorItems(0, p, Math.min(0, p) - 0.15, 0);
+    const z1 = p + H + 0.3;
+    let f1 = floorItems(1, z1, z1 - 0.3, 0);
+    const polys0 = f0.filter((it) => it.poly).map((it) => it.poly), polys1 = f1.filter((it) => it.poly).map((it) => it.poly);
+    const colSpan = (polys, x) => {
+      let lo = Infinity, hi = -Infinity;
+      for (const poly of polys) for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const a = poly[i], b = poly[j];
+        if ((a.x - x) * (b.x - x) > 0 || a.x === b.x) continue;
+        const y = a.y + ((x - a.x) * (b.y - a.y)) / (b.x - a.x);
+        lo = Math.min(lo, y); hi = Math.max(hi, y);
+      }
+      return [lo, hi];
+    };
+    let dy1 = 0;
+    if (polys1.length && polys0.length) {
+      const xs = polys1.flat().map((q) => q.x);
+      for (let x = Math.min(...xs) + 0.5; x < Math.max(...xs); x += 4) {
+        const [lo0] = colSpan(polys0, x), [, hi1] = colSpan(polys1, x);
+        if (lo0 < Infinity && hi1 > -Infinity) dy1 = Math.max(dy1, hi1 - lo0 + 28);
+      }
+      if (dy1) f1 = floorItems(1, z1, z1 - 0.3, -dy1);
+    }
+    // Grille fantôme de l'étage modifié : les carreaux libres autour, à toucher pour agrandir.
+    const ghosts = [];
+    if (edit !== null) {
+      const zf = edit === 0 ? p : z1, dy = edit === 0 ? 0 : -dy1;
+      const S = new Set(m.floors[edit].cells);
+      const cs = msCells(m.floors[edit].cells.length ? m.floors[edit].cells : m.floors[0].cells);
+      const lo = (i) => Math.max(0, Math.min(...cs.map((c) => c[i])) - 2), hi = (i) => Math.min(MS_GRID - 1, Math.max(...cs.map((c) => c[i])) + 2);
+      for (let u = lo(0); u <= hi(0); u++) for (let v = lo(1); v <= hi(1); v++) {
+        if (S.has(msKey(u, v))) continue;
+        ghosts.push({ poly: [P(u, v, zf, dy), P(u + 1, v, zf, dy), P(u + 1, v + 1, zf, dy), P(u, v + 1, zf, dy)], u, v });
+      }
+    }
+    // Sol dehors : un grand losange clair sous le rez-de-chaussée.
+    const c0 = msCells(m.floors[0].cells);
+    let ground = '';
+    if (c0.length) {
+      const u0 = Math.min(...c0.map((c) => c[0])) - 1.5, u1 = Math.max(...c0.map((c) => c[0])) + 2.5, v0 = Math.min(...c0.map((c) => c[1])) - 1.5, v1 = Math.max(...c0.map((c) => c[1])) + 2.5;
+      ground = `<polygon points="${pts(P(u0, v0, 0), P(u1, v0, 0), P(u1, v1, 0), P(u0, v1, 0))}" fill="${col.ground}"/>`;
+    }
+    const draw = (items, dim) => {
+      const out = [...items].sort((a, b) => a.key - b.key).map((it) => (it.line
+        ? `<line x1="${it.line[0].x.toFixed(1)}" y1="${it.line[0].y.toFixed(1)}" x2="${it.line[1].x.toFixed(1)}" y2="${it.line[1].y.toFixed(1)}" stroke="${it.stroke}" stroke-width="1.2"/>`
+        : `<polygon points="${pts(...it.poly)}" fill="${it.fill}" stroke="${ink}" stroke-width="1.6" stroke-linejoin="round"${it.attrs}/>`)).join('');
+      return `<g${dim ? ' opacity=".3" pointer-events="none"' : ''}>${out}</g>`;
+    };
+    const ghostSvg = ghosts.map((g) => `<polygon class="ms-ghost" data-u="${g.u}" data-v="${g.v}" points="${pts(...g.poly)}"/>`).join('');
+    const all = [...span(f0), ...span(f1), ...ghosts.flatMap((g) => g.poly)];
+    const box = all.length ? { x0: Math.min(...all.map((q) => q.x)), x1: Math.max(...all.map((q) => q.x)), y0: Math.min(...all.map((q) => q.y)), y1: Math.max(...all.map((q) => q.y)) } : { x0: -100, x1: 100, y0: -100, y1: 100 };
+    const svg = ground + (edit === 1 ? draw(f0, true) + draw(f1, false) + ghostSvg : draw(f0, edit === 1) + (edit === 0 ? ghostSvg : '') + draw(f1, edit === 0));
+    return { svg, box };
+  }
+
+  let msFloor = 0, msTool = 'paint', msSaveT = 0;
+  const MS_TOOLS = [['paint', '🧱 Agrandir / réduire'], ['stairs', '🪜 Escalier'], ['steps', '👣 Marches'], ['look', '👀 Regarder']];
+  function msSave() { clearTimeout(msSaveT); msSaveT = setTimeout(() => saveProfile(), 600); }
+  function renderMaison() {
+    const m = getMaison();
+    if (msFloor === 1 && (msTool === 'stairs' || msTool === 'steps')) msTool = 'paint';
+    const edit = msTool === 'look' ? null : msFloor;
+    const { svg, box } = maisonSvg(m, edit);
+    const el = $('#msPlan');
+    const pad = 30;
+    el.setAttribute('viewBox', `${(box.x0 - pad).toFixed(0)} ${(box.y0 - pad).toFixed(0)} ${(box.x1 - box.x0 + pad * 2).toFixed(0)} ${(box.y1 - box.y0 + pad * 2).toFixed(0)}`);
+    el.innerHTML = svg;
+    const fl = $('#msFloors');
+    fl.innerHTML = '';
+    ['Rez-de-chaussée', '1er étage'].forEach((t, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn' + (msFloor === i ? ' btn-primary' : '');
+      b.textContent = t;
+      b.addEventListener('click', () => { msFloor = i; renderMaison(); });
+      fl.appendChild(b);
+    });
+    const tl = $('#msTools');
+    tl.innerHTML = '';
+    for (const [k, t] of MS_TOOLS) {
+      if (msFloor === 1 && (k === 'stairs' || k === 'steps')) continue;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn' + (msTool === k ? ' btn-primary' : '');
+      b.textContent = t;
+      b.addEventListener('click', () => { msTool = k; renderMaison(); });
+      tl.appendChild(b);
+    }
+    if (msTool === 'stairs' && m.stairs) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-ghost';
+      b.textContent = '✕ Retirer l\'escalier';
+      b.addEventListener('click', () => { m.stairs = null; msSave(); renderMaison(); });
+      tl.appendChild(b);
+    }
+    $('#msHint').textContent = {
+      paint: 'Touche un carreau en pointillés pour agrandir l\'étage, un carreau du sol pour le retirer.',
+      stairs: 'Touche un carreau du sol pour y poser le bas de l\'escalier (3 carreaux). Touche-le encore pour le tourner.',
+      steps: m.platform ? 'Touche un carreau au bord du rez-de-chaussée pour y ajouter des marches. Touche encore pour changer de côté ou les retirer.' : 'Monte d\'abord la plate-forme pour pouvoir ajouter des marches.',
+      look: 'Toute ta maison, sans les outils.',
+    }[msTool];
+    $('#msPlatform').value = m.platform;
+    $('#msPlatformOut').textContent = m.platform ? plural(m.platform, 'marche') : 'au sol';
+    $('#msWallH').value = m.wallH;
+    $('#msWallHOut').textContent = (m.wallH * 0.5).toString().replace('.', ',');
+    $('#msColWall').value = m.colors.wall;
+    $('#msColFloor').value = m.colors.floor;
+    $('#msColBase').value = m.colors.base;
+    $('#msColGround').value = m.colors.ground;
+  }
+  function msTap(u, v) {
+    const m = getMaison();
+    const f = m.floors[msFloor];
+    const k = msKey(u, v);
+    const S = new Set(f.cells);
+    if (msTool === 'paint') {
+      if (S.has(k)) {
+        if (f.cells.length <= 1 && msFloor === 0) { toast('Le rez-de-chaussée garde au moins un carreau.'); return; }
+        f.cells = f.cells.filter((x) => x !== k);
+        if (msFloor === 0) {
+          if (m.stairs && msStairCells(m.stairs).some(([a, b]) => a === u && b === v)) m.stairs = null;
+          m.steps = m.steps.filter((s) => !(s.u === u && s.v === v));
+        }
+      } else {
+        f.cells.push(k);
+        // Une marche dehors à cet endroit n'a plus de place.
+        if (msFloor === 0) m.steps = m.steps.filter((s) => !(s.side === 'u' ? s.u + 1 === u && s.v === v : s.u === u && s.v + 1 === v));
+      }
+    } else if (msTool === 'stairs') {
+      if (!S.has(k)) return;
+      const order = ['-v', '-u', '+v', '+u'];
+      const fits = (dir) => msStairCells({ u, v, dir }).every(([a, b]) => S.has(msKey(a, b)));
+      let start = 0;
+      if (m.stairs && m.stairs.u === u && m.stairs.v === v) start = order.indexOf(m.stairs.dir) + 1;
+      let dir = null;
+      for (let i = 0; i < 4; i++) { const d = order[(start + i) % 4]; if (fits(d)) { dir = d; break; } }
+      if (!dir) { toast('Pas assez de place ici : il faut 3 carreaux en ligne.'); return; }
+      m.stairs = { u, v, dir };
+    } else if (msTool === 'steps') {
+      if (!m.platform || !S.has(k)) return;
+      const sides = ['u', 'v'].filter((sd) => !(sd === 'u' ? S.has(msKey(u + 1, v)) : S.has(msKey(u, v + 1))));
+      if (!sides.length) { toast('Les marches se posent au bord, devant la maison.'); return; }
+      const cur = m.steps.find((s) => s.u === u && s.v === v);
+      m.steps = m.steps.filter((s) => s !== cur);
+      const next = cur ? sides[sides.indexOf(cur.side) + 1] : sides[0];
+      if (next) m.steps.push({ u, v, side: next });
+    } else return;
+    msSave();
+    renderMaison();
+  }
+  $('#msPlan').addEventListener('click', (e) => {
+    const t = e.target.closest && e.target.closest('[data-u]');
+    if (!t) return;
+    msTap(Number(t.dataset.u), Number(t.dataset.v));
+  });
+  for (const [id, key, conv] of [['#msPlatform', 'platform', Number], ['#msWallH', 'wallH', Number]]) {
+    $(id).addEventListener('input', (e) => { getMaison()[key] = conv(e.target.value); msSave(); renderMaison(); });
+  }
+  for (const [id, key] of [['#msColWall', 'wall'], ['#msColFloor', 'floor'], ['#msColBase', 'base'], ['#msColGround', 'ground']]) {
+    $(id).addEventListener('input', (e) => { getMaison().colors[key] = e.target.value; msSave(); renderMaison(); });
+  }
+  function openMaison() {
+    if (!maisonOn()) return;
+    showScreen('maison');
+    renderMaison();
+  }
+  $('#homeMaison').addEventListener('click', openMaison);
+  $('#msBack').addEventListener('click', () => { clearTimeout(msSaveT); saveProfile(); goHome(); });
 
   init();
 })();

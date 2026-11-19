@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611192010">
+  <link rel="stylesheet" href="style.css?v=202611192100">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -126,6 +126,10 @@
           <button id="homeHouse" class="card home-card small" hidden>
             <span class="tile-icon" style="background:#E3EEF9"><svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M3 15 L16 4 L29 15 V28 H3 Z" fill="#FFF8EF" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M3 15 L16 4 L29 15" fill="#F0658A" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><rect x="7" y="17" width="7" height="11" fill="#FFE08A" stroke="#5A3E3A" stroke-width="2"/><rect x="18" y="17" width="7" height="11" fill="#2E2B28" stroke="#5A3E3A" stroke-width="2"/></svg></span>
             <span class="small-text"><span class="card-title">Ma maison</span><span id="homeHouseSub" class="card-sub">Assemble tes pièces</span></span>
+          </button>
+          <button id="homeMaison" class="card home-card small" hidden>
+            <span class="tile-icon" style="background:#FCE3EA"><svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 12 L16 6 L28 12 L16 18 Z" fill="#F7D9C0" stroke="#5A3E3A" stroke-width="2.2" stroke-linejoin="round"/><path d="M4 12 V22 L16 28 V18 Z" fill="#E8A0B4" stroke="#5A3E3A" stroke-width="2.2" stroke-linejoin="round"/><path d="M28 12 V22 L16 28 V18 Z" fill="#D98AA0" stroke="#5A3E3A" stroke-width="2.2" stroke-linejoin="round"/></svg></span>
+            <span class="small-text"><span class="card-title">Ma grande maison</span><span class="card-sub">Essai · 2 étages</span></span>
           </button>
           <button id="homeCreations" class="card home-card small">
             <span class="tile-icon" style="background:#F1E7F8"><svg class="mn-only mn-ico" width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M27 4 C17 4 9 10 8 22 L11 24 C22 22 27 14 27 4Z" fill="#FBEFD2" stroke="#1B0F14" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M8 22 L4 28 M12 20 L20 11" fill="none" stroke="#1B0F14" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg><svg class="mn-off" width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 27 L7 19 L21 5 L27 11 L13 25 Z" fill="#FF9B6B" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M5 27 L7 19 L13 25 Z" fill="#FFF8EF" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M18 8 L24 14" stroke="#5A3E3A" stroke-width="2.2"/></svg></span>
@@ -575,6 +579,34 @@
     </header>
     <div class="rooms-body">
       <div id="ctHistBody" class="ct-body"></div>
+    </div>
+  </section>
+
+  <!-- Ma grande maison (essai administratrice) : une seule maison à modeler, sur 2 étages -->
+  <section id="screenMaison" class="screen screen-maison" hidden>
+    <header class="topbar">
+      <div class="room-title">
+        <button id="msBack" class="btn btn-ghost" title="Retour">←<span class="label-long">&nbsp;Retour</span></button>
+        <h1>Ma grande maison</h1>
+      </div>
+    </header>
+    <div id="msView" class="ms-view">
+      <svg id="msPlan" class="ms-plan" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ma maison"></svg>
+    </div>
+    <div class="ms-bar">
+      <div class="ms-row" id="msFloors"></div>
+      <div class="ms-row" id="msTools"></div>
+      <p id="msHint" class="ms-hint muted"></p>
+      <div class="ms-row ms-sliders">
+        <label>Plate-forme <input id="msPlatform" type="range" min="0" max="6" step="1"><output id="msPlatformOut"></output></label>
+        <label>Murs <input id="msWallH" type="range" min="4" max="8" step="1"><output id="msWallHOut"></output></label>
+      </div>
+      <div class="ms-row ms-colors">
+        <label>Murs <input id="msColWall" type="color"></label>
+        <label>Sol <input id="msColFloor" type="color"></label>
+        <label>Socle <input id="msColBase" type="color"></label>
+        <label>Dehors <input id="msColGround" type="color"></label>
+      </div>
     </div>
   </section>
 
@@ -1393,7 +1425,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611192010"></script>
-  <script src="game.js?v=202611192010"></script>
+  <script src="firebase-config.js?v=202611192100"></script>
+  <script src="game.js?v=202611192100"></script>
 </body>
 </html>
