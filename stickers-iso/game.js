@@ -830,10 +830,11 @@
     const postsSvg = () => {
       if (!garden || !trialView()) return ''; // côté administratrice pour l'instant
       const decoP = decoFor('postDeco');
-      const spots = [g.gwL === 'half' ? [0, D] : null, g.gwR === 'half' ? [W, 0] : null].filter(Boolean); // aux deux bouts seulement, pas dans le coin
-      const hpx = Math.max(g.wallL, g.wallR, g.wallPx * (g.gwL === 'full' || g.gwR === 'full' ? 0 : 1)) * 1.15 || g.wallPx * 1.15;
+      // Aux deux bouts seulement (pas dans le coin), et seulement au bout d'un demi-mur : à la hauteur de ce demi-mur.
+      const spots = [g.gwL === 'half' ? [0, D, g.wallL] : null, g.gwR === 'half' ? [W, 0, g.wallR] : null].filter(Boolean);
       const lw = 2.5 * Math.max(k, 0.6);
-      return spots.map(([u, v]) => {
+      return spots.map(([u, v, wh]) => {
+        const hpx = wh * 1.15;
         const b = P(u, v);
         if (decoP) {
           const wpx = hpx * decoP.w / decoP.h;
