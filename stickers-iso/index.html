@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611191100">
+  <link rel="stylesheet" href="style.css?v=202611191200">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -322,13 +322,20 @@
           <button id="bgReset" class="pipette-btn bg-reset" title="Remettre le fond par défaut" hidden>↺</button>
         </div>
         <div id="holesPanel" class="holes-panel" hidden>
-          <h3>Ouvertures dans les murs <small>(essai)</small></h3>
-          <p class="muted holes-hint">On voit la couleur du fond à travers.</p>
-          <div class="holes-add"><select id="holeWall" class="field" aria-label="Quel mur"><option value="L">Mur gauche</option><option value="R">Mur droit</option></select>
-            <button id="holeAddDoor" class="btn btn-ghost" type="button">+ 🚪 Porte</button><button id="holeAddWindow" class="btn btn-ghost" type="button">+ 🪟 Fenêtre</button></div>
-          <div class="holes-list"></div>
+          <button id="holesOpen" class="btn btn-ghost holes-open" type="button">🕳️ Percer une porte ou une fenêtre <small>(essai)</small></button>
         </div>
       </aside>
+
+      <div id="holesBar" class="holes-bar" hidden role="group" aria-label="Ouvertures dans les murs">
+        <div class="hb-top">
+          <select id="holeWall" class="field" aria-label="Quel mur"><option value="L">Mur gauche</option><option value="R">Mur droit</option></select>
+          <button id="holeAddDoor" class="btn btn-ghost" type="button" title="Ajouter une porte">+ 🚪</button>
+          <button id="holeAddWindow" class="btn btn-ghost" type="button" title="Ajouter une fenêtre">+ 🪟</button>
+          <button id="holesDone" class="btn btn-primary" type="button">OK</button>
+        </div>
+        <div class="hb-chips"></div>
+        <div class="hb-edit"></div>
+      </div>
 
       <aside id="layersPanel" class="layers-panel" hidden aria-label="Objets posés">
         <div class="layers-head">
@@ -1383,7 +1390,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611191100"></script>
-  <script src="game.js?v=202611191100"></script>
+  <script src="firebase-config.js?v=202611191200"></script>
+  <script src="game.js?v=202611191200"></script>
 </body>
 </html>

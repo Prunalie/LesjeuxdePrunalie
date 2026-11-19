@@ -3396,3 +3396,16 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .hole-head { display: flex; align-items: center; justify-content: space-between; font-size: .85rem; }
 .hole-sl { display: flex; align-items: center; gap: 6px; font-size: .78rem; font-weight: 700; }
 .hole-sl input { flex: 1; min-width: 0; }
+/* Ouvertures : barre de réglage en bas de la pièce (la pièce reste visible) */
+.holes-open { width: 100%; }
+.holes-bar { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 40; max-height: 42%; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 14px; border: 2px solid var(--line, #8A6425); background: var(--panel, #fff); box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+.holes-bar[hidden] { display: none; }
+.hb-top { display: flex; gap: 6px; align-items: center; }
+.hb-top .field { flex: 1; min-width: 0; padding: 4px 6px; }
+.hb-top .btn { padding: 4px 9px; font-size: .9rem; }
+.hb-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.hb-chip { border: 2px solid var(--line, #8A6425); border-radius: 999px; padding: 2px 10px; background: transparent; color: inherit; font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer; }
+.hb-chip.on { background: #E6B85C; color: #2A1230; border-color: #E6B85C; }
+.hb-edit { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; align-items: center; }
+.hb-edit .hb-del { grid-column: 1 / -1; justify-self: end; padding: 3px 10px; font-size: .8rem; }
+.hb-edit .hole-sl { font-size: .74rem; }
