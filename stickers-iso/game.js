@@ -844,7 +844,7 @@
           return `<image href="${decoP.url}" x="${(b.x - wpx / 2).toFixed(1)}" y="${(b.y + TILE_Y * k * 0.2 - hpx).toFixed(1)}" width="${wpx.toFixed(1)}" height="${hpx.toFixed(1)}" preserveAspectRatio="xMidYMax meet"/>`;
         }
         // Poteau par défaut : un petit bloc de bois avec un chapeau un peu plus large.
-        const wood = '#C9976A', ink = '#5A3E3A', zh = hpx / (TILE_Z * k);
+        const wood = (colors && colors.postColor) || '#C9976A', ink = '#5A3E3A', zh = hpx / (TILE_Z * k);
         const box = (s, z0, z1) => {
           const A = (du, dv, z) => P(u + du * s, v + dv * s, z);
           return `<polygon points="${pts(A(-1, 1, z0), A(1, 1, z0), A(1, 1, z1), A(-1, 1, z1))}" fill="${shade(wood, -0.12)}" stroke="${ink}" stroke-width="${lw}" stroke-linejoin="round"/>`
@@ -2199,6 +2199,7 @@
     levelLeft: $('#colorLevelLeft'),
     levelRight: $('#colorLevelRight'),
     levelFloor: $('#colorLevelFloor'),
+    postColor: $('#colorPost'),
   };
   // Chaque carré de couleur ouvre la palette maison.
   for (const [key, input] of Object.entries(colorInputs)) {
@@ -2207,7 +2208,7 @@
   const currentColor = (key) => {
     const lc = levelColors(state.colors, state.shape);
     const base = normShape(state.shape).kind === 'garden' ? GARDEN_COLORS : DEFAULT_COLORS;
-    return state.colors[key] || lc[key] || base[key] || (key === 'background' ? DEFAULT_BACKGROUND : '#cccccc');
+    return state.colors[key] || lc[key] || base[key] || (key === 'background' ? DEFAULT_BACKGROUND : key === 'postColor' ? '#C9976A' : '#cccccc');
   };
   function syncColorInputs() {
     for (const [key, input] of Object.entries(colorInputs)) {
@@ -2217,6 +2218,10 @@
       input.title = c;
     }
     $('#bgReset').hidden = !state.colors.background;
+    // Couleur du poteau (jardin, côté administratrice) : seulement s'il y a un demi-mur, donc un poteau.
+    const shp = normShape(state.shape);
+    const hasPost = shp.kind === 'garden' && trialView() && (shp.gwL !== 'none' && shp.gwL !== 'full' || shp.gwR !== 'none' && shp.gwR !== 'full');
+    document.querySelectorAll('.post-color').forEach((el) => { el.hidden = !hasPost; });
     syncDecoSwatches();
   }
 
@@ -2238,7 +2243,7 @@
   const cpCurrent = () => (cpTarget ? cpTarget.get() : currentColor(cpKey));
   const CP_LABELS = {
     wallLeft: 'Mur gauche', wallRight: 'Mur droit', floor: 'Sol', background: 'Fond',
-    levelLeft: 'Étage, côté gauche', levelRight: 'Étage, côté droit', levelFloor: 'Sol de l\'étage',
+    levelLeft: 'Étage, côté gauche', levelRight: 'Étage, côté droit', levelFloor: 'Sol de l\'étage', postColor: 'Poteaux',
   };
 
   function hexToHsl(hex) {
@@ -2534,7 +2539,7 @@
   let pipetteKey = null;
   const PIPETTE_NAMES = {
     wallLeft: 'le mur gauche', wallRight: 'le mur droit', floor: 'le sol', background: 'le fond',
-    levelLeft: 'les murs de l\'étage (gauche)', levelRight: 'les murs de l\'étage (droite)', levelFloor: 'le sol de l\'étage',
+    levelLeft: 'les murs de l\'étage (gauche)', levelRight: 'les murs de l\'étage (droite)', levelFloor: 'le sol de l\'étage', postColor: 'les poteaux',
   };
 
   // La pipette se lance depuis la palette (bouton « 💧 Pipette » à côté des couleurs gardées).
@@ -4035,7 +4040,7 @@
             b.addEventListener('click', () => {
               if (cur === mode) return;
               changeShape('gw' + side, (x) => { x['gw' + side] = mode; });
-              syncDecoSwatches();
+              syncColorInputs();
               drawRoom();
               renderShapeDialog();
             });
@@ -4052,7 +4057,7 @@
           b.textContent = txt;
           b.addEventListener('click', () => {
             changeShape('gwL', (x) => { x.gwL = mode; x.gwR = mode; });
-            syncDecoSwatches();
+            syncColorInputs();
             drawRoom();
             renderShapeDialog();
           });

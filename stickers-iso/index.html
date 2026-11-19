@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611191800">
+  <link rel="stylesheet" href="style.css?v=202611191900">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -316,6 +316,9 @@
         <div class="color-row level-color" hidden>
           <label class="color-pick" title="Couleur du sol de l'étage">Sol étage <button type="button" class="swatch-btn" id="colorLevelFloor" aria-haspopup="dialog"></button></label>
           <button type="button" class="swatch-btn deco-swatch" data-deco="levelFloorDeco" title="Sol à motif de l'étage" hidden></button>
+        </div>
+        <div class="color-row post-color" hidden>
+          <label class="color-pick" title="Couleur des poteaux du jardin">Poteaux <button type="button" class="swatch-btn" id="colorPost" aria-haspopup="dialog"></button></label>
         </div>
         <div class="color-row">
           <label class="color-pick" title="Couleur du fond autour de la pièce">Fond <button type="button" class="swatch-btn" id="colorBackground" aria-haspopup="dialog"></button></label>
@@ -1390,7 +1393,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611191800"></script>
-  <script src="game.js?v=202611191800"></script>
+  <script src="firebase-config.js?v=202611191900"></script>
+  <script src="game.js?v=202611191900"></script>
 </body>
 </html>
