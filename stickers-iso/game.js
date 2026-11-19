@@ -8558,7 +8558,8 @@
         state.profile.points = (state.profile.points || 0) + reward;
         saveProfile();
         toast(`Bulletin scellé 🗳️ +${reward} 🪙 !`);
-      } else toast(had ? 'Bulletin modifié et scellé 🗳️' : 'Bulletin scellé 🗳️ Résultat à 20 h.');
+      } else if (had) toast('Bulletin modifié et scellé 🗳️');
+      else if (carnetOn()) toast('Bulletin scellé 🗳️ Résultat à 20 h.');
       close();
       cv3Sub = 'sealed';
       await tvReload();
