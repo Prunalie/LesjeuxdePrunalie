@@ -640,7 +640,9 @@
     const garden = sh.kind === 'garden';
     const levelsH = sh.levels.reduce((a, l) => a + l.h, 0);
     // Les murs dépassent toujours un peu du dernier étage.
-    const wallTiles = garden ? Math.max(1.2, levelsH + 1.2) : Math.max(sh.h, levelsH + 2);
+    const gw = (side) => (garden ? (sh['gw' + side] === 'none' || sh['gw' + side] === 'full' ? sh['gw' + side] : 'half') : 'full');
+    const halfTiles = Math.max(1.2, levelsH + 1.2), fullTiles = Math.max(sh.h, levelsH + 2);
+    const wallTiles = garden && gw('L') !== 'full' && gw('R') !== 'full' ? halfTiles : fullTiles;
     const span = sh.w + sh.d;
     // Dans la maison, les pièces voisines sont dessinées à la même échelle et à un endroit imposé (opts).
     const k = opts && opts.k ? opts.k : Math.min(1, 840 / (span * TILE_X), 738 / (wallTiles * TILE_Z + span * TILE_Y + 18));
@@ -653,7 +655,8 @@
       x: C.x + (u - v) * TILE_X * k,
       y: C.y + (u + v) * TILE_Y * k - z * TILE_Z * k,
     });
-    return { sh, k, C, P, wallPx, wallTiles, garden };
+    const sidePx = (side) => (gw(side) === 'none' ? 0 : (gw(side) === 'full' ? fullTiles : halfTiles) * TILE_Z * k);
+    return { sh, k, C, P, wallPx, wallTiles, garden, gwL: gw('L'), gwR: gw('R'), wallL: garden ? sidePx('L') : wallPx, wallR: garden ? sidePx('R') : wallPx };
   }
 
   const pts = (...ps) => ps.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
@@ -721,7 +724,7 @@
     const defs = [];
     const decoFor = (key) => {
       const half = key === 'halfLeftDeco' || key === 'halfRightDeco' || key === 'postDeco';
-      const d = colors && colors[key] && (garden ? (half || key === 'floorDeco' || key === 'levelFloorDeco') : !half) ? state.decos.get(colors[key]) : null;
+      const d = colors && colors[key] && (garden ? (half || key === 'floorDeco' || key === 'levelFloorDeco' || (key === 'wallLeftDeco' && g.gwL === 'full') || (key === 'wallRightDeco' && g.gwR === 'full')) : !half) ? state.decos.get(colors[key]) : null;
       return d && d.w && d.h ? d : null;
     };
     // along : vecteur écran d'un carreau vers la droite du motif ; down : vers le bas du motif.
@@ -735,18 +738,19 @@
       defs.push(`<pattern id="${id}" patternUnits="userSpaceOnUse" x="0" y="0" width="${d.w}" height="${d.h}" patternTransform="matrix(${m})"><image href="${d.data}" width="${d.w}" height="${d.h}" preserveAspectRatio="none"/></pattern>`);
       return `url(#${id})`;
     };
-    const decoWL = decoFor(garden ? 'halfLeftDeco' : 'wallLeftDeco'), decoWR = decoFor(garden ? 'halfRightDeco' : 'wallRightDeco'), decoF = decoFor('floorDeco'), decoLF = decoFor('levelFloorDeco');
+    const decoWL = decoFor(garden && g.gwL !== 'full' ? 'halfLeftDeco' : 'wallLeftDeco'), decoWR = decoFor(garden && g.gwR !== 'full' ? 'halfRightDeco' : 'wallRightDeco'), decoF = decoFor('floorDeco'), decoLF = decoFor('levelFloorDeco');
     const W = sh.w, D = sh.d, Z = g.wallTiles;
     const C = P(0, 0), R = P(W, 0), L = P(0, D), B = P(W, D);
     const up = (p) => ({ x: p.x, y: p.y - g.wallPx });
+    const upL = (p) => ({ x: p.x, y: p.y - g.wallL }), upR = (p) => ({ x: p.x, y: p.y - g.wallR });
     const off = (p, dx, dy) => ({ x: p.x + dx, y: p.y + dy });
     const T = 16 * Math.max(k, 0.5);
     const parts = [];
 
     // Murs (ou haies pour un jardin)
     const wallDown = { x: 0, y: TILE_Z * k * DECO_VK };
-    const fillWL = decoWL ? texture(decoWL, { x: -TILE_X * k, y: TILE_Y * k }, wallDown, up(C), -1) : wallLeft;
-    const fillWR = decoWR ? texture(decoWR, { x: TILE_X * k, y: TILE_Y * k }, wallDown, up(C)) : wallRight;
+    const fillWL = decoWL ? texture(decoWL, { x: -TILE_X * k, y: TILE_Y * k }, wallDown, upL(C), -1) : wallLeft;
+    const fillWR = decoWR ? texture(decoWR, { x: TILE_X * k, y: TILE_Y * k }, wallDown, upR(C)) : wallRight;
     // Ouvertures dans les murs (essai admin) : { wall: 'L' | 'R', x: milieu (0-1 le long du mur), w: largeur, y: bas, h: hauteur (0-1) }.
     const holes = !garden && trialView() && Array.isArray(colors && colors.holes) ? colors.holes.filter((h) => h && (h.wall === 'L' || h.wall === 'R')) : [];
     const holePts = (h) => {
@@ -757,8 +761,8 @@
       return [at(t0, z0), at(t1, z0), at(t1, z1), at(t0, z1)];
     };
     const wallStart = parts.length;
-    parts.push(`<polygon points="${pts(L, C, up(C), up(L))}" fill="${fillWL}"/>`);
-    parts.push(`<polygon points="${pts(C, R, up(R), up(C))}" fill="${fillWR}"/>`);
+    if (g.wallL) parts.push(`<polygon points="${pts(L, C, upL(C), upL(L))}" fill="${fillWL}"/>`);
+    if (g.wallR) parts.push(`<polygon points="${pts(C, R, upR(R), upR(C))}" fill="${fillWR}"/>`);
     if (garden) {
       // Feuillage : quelques bosses sur le haut des haies.
       const bumps = (a, b, n, fill) => {
@@ -769,8 +773,8 @@
         }
       };
       // Un demi-mur à motif (barrière, haie…) remplace le feuillage de son côté. Côté administratrice : plus de ronds du tout.
-      if (!decoWL && !trialView()) bumps(L, C, D, shade(wallLeft, 0.12));
-      if (!decoWR && !trialView()) bumps(C, R, W, shade(wallRight, 0.12));
+      if (!decoWL && !trialView() && g.gwL === 'half') bumps(L, C, D, shade(wallLeft, 0.12));
+      if (!decoWR && !trialView() && g.gwR === 'half') bumps(C, R, W, shade(wallRight, 0.12));
     } else {
       // Plinthes
       const BASE = 14 * Math.max(k, 0.5);
@@ -797,7 +801,7 @@
       }
     }
     // Arête du coin
-    if (!garden) parts.push(`<line x1="${C.x.toFixed(1)}" y1="${C.y.toFixed(1)}" x2="${C.x.toFixed(1)}" y2="${up(C).y.toFixed(1)}" stroke="${shade(wallLeft, -0.3)}" stroke-opacity=".35" stroke-width="2"/>`);
+    if (!garden || (g.wallL && g.wallR)) parts.push(`<line x1="${C.x.toFixed(1)}" y1="${C.y.toFixed(1)}" x2="${C.x.toFixed(1)}" y2="${(C.y - Math.min(g.wallL, g.wallR)).toFixed(1)}" stroke="${shade(wallLeft, -0.3)}" stroke-opacity=".35" stroke-width="2"/>`);
 
     // Sol
     const fillF = decoF ? texture(decoF, { x: TILE_X * k, y: TILE_Y * k }, { x: -TILE_X * k, y: TILE_Y * k }, C) : floor;
@@ -826,8 +830,8 @@
     const postsSvg = () => {
       if (!garden || !trialView()) return ''; // côté administratrice pour l'instant
       const decoP = decoFor('postDeco');
-      const spots = [[0, D], [W, 0]]; // aux deux bouts seulement, pas dans le coin
-      const hpx = g.wallPx * 1.15;
+      const spots = [g.gwL === 'half' ? [0, D] : null, g.gwR === 'half' ? [W, 0] : null].filter(Boolean); // aux deux bouts seulement, pas dans le coin
+      const hpx = Math.max(g.wallL, g.wallR, g.wallPx * (g.gwL === 'full' || g.gwR === 'full' ? 0 : 1)) * 1.15 || g.wallPx * 1.15;
       const lw = 2.5 * Math.max(k, 0.6);
       return spots.map(([u, v]) => {
         const b = P(u, v);
@@ -850,13 +854,11 @@
     const flat = !!(geomOpts && geomOpts.flat);
     if (flat) return (defs.length ? `<defs>${defs.join('')}</defs>` : '') + parts.join('') + postsSvg();
     // Épaisseur des murs (tranche du dessus) et du sol
-    if (!garden) {
-      parts.push(`<polygon points="${pts(up(L), up(C), off(up(C), 0, -T / 2), off(up(L), -T, -T / 2))}" fill="${shade(wallLeft, 0.35)}"/>`);
-      parts.push(`<polygon points="${pts(up(C), up(R), off(up(R), T, -T / 2), off(up(C), 0, -T / 2))}" fill="${shade(wallRight, 0.35)}"/>`);
-    }
+    if (!garden || g.gwL === 'full') parts.push(`<polygon points="${pts(upL(L), upL(C), off(upL(C), 0, -T / 2), off(upL(L), -T, -T / 2))}" fill="${shade(wallLeft, 0.35)}"/>`);
+    if (!garden || g.gwR === 'full') parts.push(`<polygon points="${pts(upR(C), upR(R), off(upR(R), T, -T / 2), off(upR(C), 0, -T / 2))}" fill="${shade(wallRight, 0.35)}"/>`);
     // Bout du mur : pas pour un demi-mur à motif (jardin), il se termine net.
-    if (!(garden && decoWL)) parts.push(`<polygon points="${pts(L, off(L, -T, -T / 2), off(up(L), -T, -T / 2), up(L))}" fill="${shade(wallLeft, -0.25)}"/>`);
-    if (!(garden && decoWR)) parts.push(`<polygon points="${pts(R, off(R, T, -T / 2), off(up(R), T, -T / 2), up(R))}" fill="${shade(wallRight, -0.3)}"/>`);
+    if (g.wallL && !(garden && decoWL && g.gwL !== 'full')) parts.push(`<polygon points="${pts(L, off(L, -T, -T / 2), off(upL(L), -T, -T / 2), upL(L))}" fill="${shade(wallLeft, -0.25)}"/>`);
+    if (g.wallR && !(garden && decoWR && g.gwR !== 'full')) parts.push(`<polygon points="${pts(R, off(R, T, -T / 2), off(upR(R), T, -T / 2), upR(R))}" fill="${shade(wallRight, -0.3)}"/>`);
     const SLAB = 18 * Math.max(k, 0.5);
     const slabColor = garden ? '#9b7653' : floor;
     const LT = off(L, -T, -T / 2), RT = off(R, T, -T / 2);
@@ -3993,6 +3995,10 @@
           // Couleurs de départ adaptées (on garde la couleur du fond choisie à la main).
           const bg = state.colors.background;
           state.colors = kind === 'garden' ? { ...GARDEN_COLORS } : { ...DEFAULT_COLORS, ...(bg && bg !== GARDEN_COLORS.background ? { background: bg } : {}) };
+          if (kind === 'garden' && trialView()) {
+            const grass = [...state.decos.values()].find((d) => d.kind === 'floor' && normalizeText(d.name) === 'herbe');
+            if (grass) state.colors.floorDeco = grass.id;
+          }
           syncColorInputs();
           drawRoom();
           renderShapeDialog();
@@ -4001,6 +4007,48 @@
       }
       inner.appendChild(row);
     });
+
+    if (sh.kind === 'garden' && trialView()) {
+      section('gardenWalls', 'Murs du jardin', (inner) => {
+        for (const [side, label] of [['L', 'Côté gauche'], ['R', 'Côté droit']]) {
+          const row = document.createElement('div');
+          row.className = 'shape-kind gw-row';
+          row.innerHTML = `<span class="gw-label">${label}</span>`;
+          const cur = sh['gw' + side] === 'none' || sh['gw' + side] === 'full' ? sh['gw' + side] : 'half';
+          for (const [mode, txt] of [['half', 'Demi-mur'], ['full', 'Mur plein'], ['none', 'Aucun']]) {
+            const b = document.createElement('button');
+            b.className = 'btn' + (cur === mode ? ' btn-primary' : '');
+            b.textContent = txt;
+            b.setAttribute('aria-pressed', cur === mode);
+            b.addEventListener('click', () => {
+              if (cur === mode) return;
+              changeShape('gw' + side, (x) => { x['gw' + side] = mode; });
+              syncDecoSwatches();
+              drawRoom();
+              renderShapeDialog();
+            });
+            row.appendChild(b);
+          }
+          inner.appendChild(row);
+        }
+        const both = document.createElement('div');
+        both.className = 'shape-kind gw-row';
+        both.innerHTML = '<span class="gw-label">Les deux</span>';
+        for (const [mode, txt] of [['half', 'Demi-murs'], ['full', 'Murs pleins'], ['none', 'Aucun']]) {
+          const b = document.createElement('button');
+          b.className = 'btn';
+          b.textContent = txt;
+          b.addEventListener('click', () => {
+            changeShape('gwL', (x) => { x.gwL = mode; x.gwR = mode; });
+            syncDecoSwatches();
+            drawRoom();
+            renderShapeDialog();
+          });
+          both.appendChild(b);
+        }
+        inner.appendChild(both);
+      });
+    }
 
     section('size', 'Taille', (inner) => {
       slider(inner, 'Largeur', sh.w, SIZE_MIN, SIZE_MAX, (v) => changeShape('w', (x) => { x.w = v; }));
@@ -5261,7 +5309,14 @@
     for (const b of decoSwatches) {
       // Jardin : seulement le sol à motif, et côté administratrice pour l'instant.
       const half = b.dataset.deco.startsWith('half') || b.dataset.deco === 'postDeco';
-      b.hidden = !show || (garden ? !(trialView() && (half || b.dataset.deco === 'floorDeco')) : half);
+      // Jardin : demi-mur à motif (côté demi-mur), papier peint (côté mur plein), rien (côté sans mur) ; sol à motif.
+      const sh = normShape(state.shape);
+      const sideMode = (side) => (sh['gw' + side] === 'none' || sh['gw' + side] === 'full' ? sh['gw' + side] : 'half');
+      const dk = b.dataset.deco;
+      const gardenOk = dk === 'floorDeco' || dk === 'postDeco'
+        || (dk === 'halfLeftDeco' && sideMode('L') === 'half') || (dk === 'halfRightDeco' && sideMode('R') === 'half')
+        || (dk === 'wallLeftDeco' && sideMode('L') === 'full') || (dk === 'wallRightDeco' && sideMode('R') === 'full');
+      b.hidden = !show || (garden ? !(trialView() && gardenOk) : half);
       const d = state.decos.get(state.colors[b.dataset.deco] || '');
       b.classList.toggle('empty', !d);
       b.style.backgroundImage = d ? `url("${d.url}")` : '';
