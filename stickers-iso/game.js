@@ -684,7 +684,7 @@
 
   // Quadrillage (ou herbe pour un jardin) d'un sol rectangulaire à la hauteur z.
   function floorPattern(parts, P, w, d, z, floor, garden, k) {
-    if (garden && trialView()) return; // jardin sans motif : couleur unie
+    if (garden) return; // jardin sans motif : couleur unie
     if (garden) {
       // Petites touffes d'herbe, placées toujours au même endroit.
       const tuft = shade(floor, -0.18);
@@ -766,19 +766,7 @@
     const wallStart = parts.length;
     if (g.wallL) parts.push(`<polygon points="${pts(L, C, upL(C), upL(L))}" fill="${fillWL}"/>`);
     if (g.wallR) parts.push(`<polygon points="${pts(C, R, upR(R), upR(C))}" fill="${fillWR}"/>`);
-    if (garden) {
-      // Feuillage : quelques bosses sur le haut des haies.
-      const bumps = (a, b, n, fill) => {
-        for (let i = 0; i < n; i++) {
-          const t = (i + 0.5) / n;
-          const c = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t - g.wallPx };
-          parts.push(`<ellipse cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" rx="${(30 * k).toFixed(1)}" ry="${(14 * k).toFixed(1)}" fill="${fill}"/>`);
-        }
-      };
-      // Un demi-mur à motif (barrière, haie…) remplace le feuillage de son côté. Côté administratrice : plus de ronds du tout.
-      if (!decoWL && !trialView() && g.gwL === 'half') bumps(L, C, D, shade(wallLeft, 0.12));
-      if (!decoWR && !trialView() && g.gwR === 'half') bumps(C, R, W, shade(wallRight, 0.12));
-    } else {
+    if (!garden) {
       // Plinthes
       const BASE = 14 * Math.max(k, 0.5);
       parts.push(`<polygon points="${pts(L, C, off(C, 0, -BASE), off(L, 0, -BASE))}" fill="${shade(wallLeft, -0.18)}"/>`);
@@ -831,7 +819,7 @@
     // Jardin (côté administratrice) : des poteaux aux deux bouts des murs, avec ou sans demi-mur à motif.
     // Par défaut, un poteau en bois ; on peut en choisir un autre dans l'Atelier décor (type « Poteau »).
     const postsSvg = () => {
-      if (!garden || !trialView()) return ''; // côté administratrice pour l'instant
+      if (!garden) return '';
       const decoP = decoFor('postDeco');
       // Aux deux bouts d'un demi-mur, à sa hauteur (dans le coin seulement s'il n'y a pas de mur de l'autre côté).
       const spots = [g.gwL === 'half' ? [0, D, g.wallL] : null, g.gwR === 'half' ? [W, 0, g.wallR] : null].filter(Boolean);
@@ -2223,7 +2211,7 @@
     $('#bgReset').hidden = !state.colors.background;
     // Couleur du poteau (jardin, côté administratrice) : seulement s'il y a un demi-mur, donc un poteau.
     const shp = normShape(state.shape);
-    const hasPost = shp.kind === 'garden' && trialView() && (shp.gwL !== 'none' && shp.gwL !== 'full' || shp.gwR !== 'none' && shp.gwR !== 'full');
+    const hasPost = shp.kind === 'garden' && (shp.gwL !== 'none' && shp.gwL !== 'full' || shp.gwR !== 'none' && shp.gwR !== 'full');
     document.querySelectorAll('.post-color').forEach((el) => { el.hidden = !hasPost; });
     syncDecoSwatches();
   }
@@ -4015,7 +4003,7 @@
           // Couleurs de départ adaptées (on garde la couleur du fond choisie à la main).
           const bg = state.colors.background;
           state.colors = kind === 'garden' ? { ...GARDEN_COLORS } : { ...DEFAULT_COLORS, ...(bg && bg !== GARDEN_COLORS.background ? { background: bg } : {}) };
-          if (kind === 'garden' && trialView()) {
+          if (kind === 'garden') {
             const grass = grassDeco();
             if (grass) state.colors.floorDeco = grass.id;
           }
@@ -4028,8 +4016,8 @@
       inner.appendChild(row);
     });
 
-    if (sh.kind === 'garden' && trialView()) {
-      section('gardenWalls', 'Murs du jardin', (inner) => {
+    if (sh.kind === 'garden') {
+      section('garden', 'Murs du jardin', (inner) => {
         for (const [side, label] of [['L', 'Côté gauche'], ['R', 'Côté droit']]) {
           const row = document.createElement('div');
           row.className = 'shape-kind gw-row';
@@ -4110,7 +4098,7 @@
             x.levels.push({ w: Math.max(1, Math.ceil(prev.w * 0.6)), d: Math.max(1, Math.ceil(prev.d * 0.5)), h: 2 });
           });
           // Jardin : le dessus des étages en herbe aussi (si aucun motif n'est déjà choisi).
-          if (sh.kind === 'garden' && trialView() && !state.colors.levelFloorDeco) {
+          if (sh.kind === 'garden' && !state.colors.levelFloorDeco) {
             const grass = grassDeco();
             if (grass) { state.colors.levelFloorDeco = grass.id; syncColorInputs(); drawRoom(); scheduleSave(); }
           }
@@ -5341,7 +5329,7 @@
       const gardenOk = dk === 'floorDeco' || dk === 'postDeco'
         || (dk === 'halfLeftDeco' && sideMode('L') === 'half') || (dk === 'halfRightDeco' && sideMode('R') === 'half')
         || (dk === 'wallLeftDeco' && sideMode('L') === 'full') || (dk === 'wallRightDeco' && sideMode('R') === 'full');
-      b.hidden = !show || (garden ? !(trialView() && gardenOk) : half);
+      b.hidden = !show || (garden ? !(gardenOk && (!half || trialView())) : half);
       const d = state.decos.get(state.colors[b.dataset.deco] || '');
       b.classList.toggle('empty', !d);
       b.style.backgroundImage = d ? `url("${d.url}")` : '';
