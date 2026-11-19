@@ -3333,8 +3333,10 @@
     }
     if (gained) toast(`+${gained} 🪙 : tes points du jour ! Va les dépenser dans la boutique.`);
     showNewsPopup();
+    // Toujours : la tuile se cache pour un compte sans carnet (même si l'administratrice était connectée juste avant).
+    renderCarnetTile();
+    if (!carnetOn()) $('#carnetDialog').hidden = true;
     if (carnetOn()) {
-      renderCarnetTile();
       carnetCheck();
       // Première connexion du jour : le carnet s'ouvre sur la bourse (sauf si une autre fenêtre est déjà ouverte).
       if (state.profile.lastDaily !== today()) setTimeout(() => { if (!document.querySelector('.modal:not([hidden])')) openCarnet(); }, 1200);
@@ -3660,6 +3662,9 @@
     state.player = null;
     state.profile = null;
     state.isAdmin = false;
+    carnetLast = null;
+    $('#homeCarnet').hidden = true;
+    $('#carnetDialog').hidden = true;
     state.rooms = [];
     showScreen('start');
     $('#pseudoInput').focus();
