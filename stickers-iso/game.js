@@ -833,8 +833,11 @@
     const postsSvg = () => {
       if (!garden || !trialView()) return ''; // côté administratrice pour l'instant
       const decoP = decoFor('postDeco');
-      // Aux deux bouts seulement (pas dans le coin), et seulement au bout d'un demi-mur : à la hauteur de ce demi-mur.
+      // Aux deux bouts d'un demi-mur, à sa hauteur (dans le coin seulement s'il n'y a pas de mur de l'autre côté).
       const spots = [g.gwL === 'half' ? [0, D, g.wallL] : null, g.gwR === 'half' ? [W, 0, g.wallR] : null].filter(Boolean);
+      // Un seul demi-mur (et rien de l'autre côté) : un poteau aussi dans le coin, au bout de ce demi-mur.
+      if (g.gwL === 'half' && g.gwR === 'none') spots.unshift([0, 0, g.wallL]);
+      if (g.gwR === 'half' && g.gwL === 'none') spots.unshift([0, 0, g.wallR]);
       const lw = 2.5 * Math.max(k, 0.6);
       return spots.map(([u, v, wh]) => {
         const hpx = wh * 1.15;
