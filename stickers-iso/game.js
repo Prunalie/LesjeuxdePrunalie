@@ -12640,7 +12640,8 @@
     if (edit !== null) {
       const zf = zOf[edit];
       const cs = msCells(m.floors[edit].cells.length ? m.floors[edit].cells : m.floors[1 - edit].cells);
-      const lo = (i) => Math.max(0, Math.min(...cs.map((c) => c[i])) - 2), hi = (i) => Math.min(MS_GRID * 2, Math.max(...cs.map((c) => c[i])) + 2);
+      // On peut construire de tous les côtés, aussi vers le fond (carreaux négatifs).
+      const lo = (i) => Math.max(-MS_GRID * 2, Math.min(...cs.map((c) => c[i])) - 2), hi = (i) => Math.min(MS_GRID * 3, Math.max(...cs.map((c) => c[i])) + 2);
       for (let u = lo(0); u <= hi(0); u++) for (let v = lo(1); v <= hi(1); v++) {
         if (sets[0].has(msKey(u, v)) || sets[1].has(msKey(u, v))) continue;
         ghosts.push({ poly: [P(u, v, zf), P(u + 1, v, zf), P(u + 1, v + 1, zf), P(u, v + 1, zf)], u, v });
