@@ -659,6 +659,8 @@
     return { sh, k, C, P, wallPx, wallTiles, garden, gwL: gw('L'), gwR: gw('R'), wallL: garden ? sidePx('L') : wallPx, wallR: garden ? sidePx('R') : wallPx };
   }
 
+  // Le sol « Herbe » de l'Atelier décor (sol par défaut d'un jardin, côté administratrice pour l'instant).
+  const grassDeco = () => [...state.decos.values()].find((d) => d.kind === 'floor' && normalizeText(d.name) === 'herbe') || null;
   const pts = (...ps) => ps.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
 
   function shade(hex, amount) {
@@ -682,6 +684,7 @@
 
   // Quadrillage (ou herbe pour un jardin) d'un sol rectangulaire à la hauteur z.
   function floorPattern(parts, P, w, d, z, floor, garden, k) {
+    if (garden && trialView()) return; // jardin sans motif : couleur unie
     if (garden) {
       // Petites touffes d'herbe, placées toujours au même endroit.
       const tuft = shade(floor, -0.18);
@@ -4005,7 +4008,7 @@
           const bg = state.colors.background;
           state.colors = kind === 'garden' ? { ...GARDEN_COLORS } : { ...DEFAULT_COLORS, ...(bg && bg !== GARDEN_COLORS.background ? { background: bg } : {}) };
           if (kind === 'garden' && trialView()) {
-            const grass = [...state.decos.values()].find((d) => d.kind === 'floor' && normalizeText(d.name) === 'herbe');
+            const grass = grassDeco();
             if (grass) state.colors.floorDeco = grass.id;
           }
           syncColorInputs();
@@ -4098,6 +4101,11 @@
             const prev = x.levels[x.levels.length - 1] || { w: x.w, d: x.d };
             x.levels.push({ w: Math.max(1, Math.ceil(prev.w * 0.6)), d: Math.max(1, Math.ceil(prev.d * 0.5)), h: 2 });
           });
+          // Jardin : le dessus des étages en herbe aussi (si aucun motif n'est déjà choisi).
+          if (sh.kind === 'garden' && trialView() && !state.colors.levelFloorDeco) {
+            const grass = grassDeco();
+            if (grass) { state.colors.levelFloorDeco = grass.id; syncColorInputs(); drawRoom(); scheduleSave(); }
+          }
           renderShapeDialog();
         });
         inner.appendChild(add);
