@@ -3383,3 +3383,16 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .carnet-step .btn { flex: none; padding: 6px 10px; font-size: .85rem; }
 .carnet-foot { margin: 12px 0 0; font-weight: 700; font-size: .9rem; }
 @media (prefers-reduced-motion: reduce) { .carnet-bourse svg { animation: none !important; } }
+/* Ouvertures dans les murs (essai admin) */
+.holes-panel { border-top: 1.5px dashed var(--line, #8A6425); margin-top: 8px; padding-top: 8px; }
+.holes-panel[hidden] { display: none; }
+.holes-panel h3 { margin: 0; font-size: .95rem; }
+.holes-hint { margin: 2px 0 6px; font-size: .78rem; }
+.holes-add { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.holes-add .field { flex: 1 1 100%; }
+.holes-add .btn { flex: 1; padding: 4px 8px; font-size: .85rem; }
+.holes-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.hole-row { border: 1.5px solid var(--line, #8A6425); border-radius: 10px; padding: 6px 8px; }
+.hole-head { display: flex; align-items: center; justify-content: space-between; font-size: .85rem; }
+.hole-sl { display: flex; align-items: center; gap: 6px; font-size: .78rem; font-weight: 700; }
+.hole-sl input { flex: 1; min-width: 0; }

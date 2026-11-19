@@ -747,6 +747,16 @@
     const wallDown = { x: 0, y: TILE_Z * k * DECO_VK };
     const fillWL = decoWL ? texture(decoWL, { x: -TILE_X * k, y: TILE_Y * k }, wallDown, up(C), -1) : wallLeft;
     const fillWR = decoWR ? texture(decoWR, { x: TILE_X * k, y: TILE_Y * k }, wallDown, up(C)) : wallRight;
+    // Ouvertures dans les murs (essai admin) : { wall: 'L' | 'R', x: milieu (0-1 le long du mur), w: largeur, y: bas, h: hauteur (0-1) }.
+    const holes = !garden && trialView() && Array.isArray(colors && colors.holes) ? colors.holes.filter((h) => h && (h.wall === 'L' || h.wall === 'R')) : [];
+    const holePts = (h) => {
+      const end = h.wall === 'L' ? L : R;
+      const at = (t, z) => ({ x: C.x + (end.x - C.x) * t, y: C.y + (end.y - C.y) * t - g.wallPx * z });
+      const t0 = Math.max(0.01, h.x - h.w / 2), t1 = Math.min(0.99, h.x + h.w / 2);
+      const z0 = Math.max(0, h.y), z1 = Math.min(0.97, h.y + h.h);
+      return [at(t0, z0), at(t1, z0), at(t1, z1), at(t0, z1)];
+    };
+    const wallStart = parts.length;
     parts.push(`<polygon points="${pts(L, C, up(C), up(L))}" fill="${fillWL}"/>`);
     parts.push(`<polygon points="${pts(C, R, up(R), up(C))}" fill="${fillWR}"/>`);
     if (garden) {
@@ -768,6 +778,21 @@
       parts.push(`<polygon points="${pts(C, R, off(R, 0, -BASE), off(C, 0, -BASE))}" fill="${shade(wallRight, -0.18)}"/>`);
     }
 
+    if (holes.length) {
+      const mid = `holes${++decoSeq}`;
+      defs.push(`<mask id="${mid}" maskUnits="userSpaceOnUse" x="-4000" y="-4000" width="10000" height="10000"><rect x="-4000" y="-4000" width="10000" height="10000" fill="#fff"/>${holes.map((h) => `<polygon points="${pts(...holePts(h))}" fill="#000"/>`).join('')}</mask>`);
+      const wallParts = parts.splice(wallStart);
+      parts.push(`<g mask="url(#${mid})">${wallParts.join('')}</g>`);
+      // Le tour de l'ouverture : l'épaisseur du mur, un peu plus sombre.
+      for (const h of holes) {
+        const [a, b2, c2, d2] = holePts(h);
+        const side = h.wall === 'L' ? wallLeft : wallRight;
+        const dx = (h.wall === 'L' ? -1 : 1) * T * 0.6, dy = -T * 0.3;
+        parts.push(`<polygon points="${pts(d2, c2, off(c2, dx, dy), off(d2, dx, dy))}" fill="${shade(side, -0.3)}"/>`);
+        parts.push(`<polygon points="${pts(h.wall === 'L' ? b2 : a, h.wall === 'L' ? c2 : d2, off(h.wall === 'L' ? c2 : d2, dx, dy), off(h.wall === 'L' ? b2 : a, dx, dy))}" fill="${shade(side, -0.2)}"/>`);
+        parts.push(`<polygon points="${pts(a, b2, c2, d2)}" fill="none" stroke="${shade(side, -0.4)}" stroke-width="2"/>`);
+      }
+    }
     // Arête du coin
     if (!garden) parts.push(`<line x1="${C.x.toFixed(1)}" y1="${C.y.toFixed(1)}" x2="${C.x.toFixed(1)}" y2="${up(C).y.toFixed(1)}" stroke="${shade(wallLeft, -0.3)}" stroke-opacity=".35" stroke-width="2"/>`);
 
@@ -4076,7 +4101,44 @@
 
   // Panneau « Couleurs » (bouton 🎨 à côté des flèches).
   const colorsPanel = $('#colorsPanel');
+  // Ouvertures dans les murs (essai admin) : ajout, réglages, suppression.
+  const HOLE_PRESETS = { door: { y: 0, w: 0.16, h: 0.72 }, window: { y: 0.36, w: 0.18, h: 0.36 } };
+  function renderHolesPanel() {
+    const box = $('#holesPanel');
+    if (!box) return;
+    const garden = normShape(state.shape).kind === 'garden';
+    box.hidden = !trialView() || garden;
+    if (box.hidden) return;
+    const holes = Array.isArray(state.colors.holes) ? state.colors.holes : [];
+    const list = box.querySelector('.holes-list');
+    list.innerHTML = '';
+    holes.forEach((h, i) => {
+      const row = document.createElement('div');
+      row.className = 'hole-row';
+      row.innerHTML = `<div class="hole-head"><strong>${h.y > 0.05 ? '🪟 Fenêtre' : '🚪 Porte'} · mur ${h.wall === 'L' ? 'gauche' : 'droit'}</strong><button type="button" class="pipette-btn hole-del" title="Retirer">✕</button></div>`
+        + [['x', 'Position', 0.05, 0.95], ['w', 'Largeur', 0.06, 0.6], ['h', 'Hauteur', 0.1, 0.95], ['y', 'Bas', 0, 0.8]]
+          .map(([k, label, mn, mx]) => `<label class="hole-sl">${label}<input type="range" min="${mn}" max="${mx}" step="0.01" value="${h[k]}" data-k="${k}"></label>`).join('');
+      row.querySelector('.hole-del').addEventListener('click', () => { state.colors.holes = holes.filter((_, j) => j !== i); drawRoom(); scheduleSave(); renderHolesPanel(); });
+      row.querySelectorAll('input').forEach((inp) => inp.addEventListener('input', () => {
+        h[inp.dataset.k] = Number(inp.value);
+        drawRoom();
+        scheduleSave();
+      }));
+      list.appendChild(row);
+    });
+  }
+  function addHole(kind) {
+    const wall = $('#holeWall').value === 'R' ? 'R' : 'L';
+    const holes = Array.isArray(state.colors.holes) ? state.colors.holes : [];
+    state.colors.holes = [...holes, { wall, x: 0.5, ...HOLE_PRESETS[kind] }];
+    drawRoom();
+    scheduleSave();
+    renderHolesPanel();
+  }
+  $('#holeAddDoor').addEventListener('click', () => addHole('door'));
+  $('#holeAddWindow').addEventListener('click', () => addHole('window'));
   function setColorsPanel(open) {
+    if (open) renderHolesPanel();
     colorsPanel.hidden = !open;
     $('#btnColors').setAttribute('aria-expanded', open);
     if (open && !layersPanel.hidden) closeLayers();
