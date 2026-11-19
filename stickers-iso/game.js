@@ -103,7 +103,7 @@
     { group: 'Concours', key: 'contestMilestoneReward', label: 'Bonus de fidélité (0 = pas de bonus)', unit: '🪙', def: () => 500, max: 1000000, step: 50 },
     { group: 'Concours', key: 'voteReward', label: 'Pour avoir fini ses duels', unit: '🪙', def: () => 20, max: 100000, step: 5 },
     { group: 'Concours', key: 'themeWinReward', label: 'Pièces quand l\'idée de thème d\'un joueur gagne', unit: '🪙', def: () => 100, max: 100000, step: 10 },
-    { group: 'Le carnet du jour (essai admin)', key: 'carnetStep', label: 'Bourse du matin : pièces en plus par jour de carnet complet d\'affilée', unit: '🪙', def: () => 20, max: 10000, step: 5 },
+    { group: 'Le carnet du jour (essai admin)', key: 'carnetStep', label: 'Bourse du matin : pièces en plus par jour de carnet complet d\'affilée', unit: '🪙', def: () => 40, max: 10000, step: 5 },
     { group: 'Le carnet du jour (essai admin)', key: 'carnetDays', label: 'Bourse du matin : nombre de jours pour atteindre le maximum', unit: 'jours', def: () => 7, min: 1, max: 60, step: 1 },
     { group: 'Le conseil (vote du thème, essai admin)', key: 'themeVoteReward', label: 'Pièces pour avoir déposé son bulletin (une fois par jour)', unit: '🪙', def: () => 20, max: 100000, step: 5 },
     { group: 'Le conseil (vote du thème, essai admin)', key: 'themeMaxWaiting', label: 'Idées en attente par joueuse', unit: 'au plus', def: () => 10, min: 1, max: 100, step: 1 },
@@ -12131,7 +12131,7 @@
 
   // ---------------------------------------------------------------------------
   // Le carnet du jour (essai admin) : la bourse du matin à ouvrir, puis 3 actions (bulletin du conseil, une idée,
-  // les duels du concours d'hier). Carnet complet → la bourse du lendemain vaut 20 pièces de plus (jusqu'au 7e jour).
+  // les duels du concours d'hier). Carnet complet → la bourse du lendemain vaut 40 pièces de plus (réglable) (jusqu'au 7e jour).
   // Un jour manqué : on retombe à la bourse de base (300), jamais en dessous.
   // ---------------------------------------------------------------------------
   const carnetOn = () => trialView();
