@@ -5273,10 +5273,12 @@
   // Vendus un par un. Dans une pièce : un papier peint pour les deux murs, ou pour un seul.
   // ---------------------------------------------------------------------------
   let decoAsPlayer = asPlayer; // admin : ne voir que ses achats, comme un joueur
-  const decoOwned = (id) => (state.isAdmin && !decoAsPlayer) || !!(state.profile && state.profile.decos && state.profile.decos[id]);
+  // L'herbe du jardin est offerte à toutes : pas en vente, et toujours dans les sols de chacune.
+  const isGrass = (d) => !!d && d.kind === 'floor' && normalizeText(d.name || '') === 'herbe';
+  const decoOwned = (id) => (state.isAdmin && !decoAsPlayer) || isGrass(state.decos.get(id)) || !!(state.profile && state.profile.decos && state.profile.decos[id]);
   const decoByName = (a, b) => (a.collection || '').localeCompare(b.collection || '', 'fr') || (a.name || '').localeCompare(b.name || '', 'fr');
   // Les décors privés (🔒) ne sont ni en vente ni chez les joueurs : l'administratrice les pose gratuitement.
-  const decoList = (kind, forShop = false) => [...state.decos.values()].filter((d) => d.kind === kind && ((!d.adminOnly && d.kind !== 'halfwall' && d.kind !== 'post') || (!forShop && state.isAdmin && !decoAsPlayer))).sort(decoByName);
+  const decoList = (kind, forShop = false) => [...state.decos.values()].filter((d) => d.kind === kind && !(forShop && isGrass(d)) && ((!d.adminOnly && d.kind !== 'halfwall' && d.kind !== 'post') || (!forShop && state.isAdmin && !decoAsPlayer))).sort(decoByName);
   // Aperçu à plat : la largeur de la vignette représente 4 carreaux de pièce, donc un motif de « taille 2 »
   // y apparaît deux fois, un motif de « taille 1 » quatre fois (au plus un motif entier si la taille est grande).
   const decoBgSize = (d) => `${Math.min(100, Math.max(8, ((Number(d.size) || 2) / 4) * 100))}% auto`;
