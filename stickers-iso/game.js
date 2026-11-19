@@ -861,7 +861,8 @@
     if (g.wallR && !(garden && decoWR && g.gwR !== 'full')) parts.push(`<polygon points="${pts(R, off(R, T, -T / 2), off(upR(R), T, -T / 2), upR(R))}" fill="${shade(wallRight, -0.3)}"/>`);
     const SLAB = 18 * Math.max(k, 0.5);
     const slabColor = garden ? '#9b7653' : floor;
-    const LT = off(L, -T, -T / 2), RT = off(R, T, -T / 2);
+    // Sans mur d'un côté (jardin), le sol s'arrête net : pas de bout qui dépasse sous l'épaisseur du mur absent.
+    const LT = g.wallL ? off(L, -T, -T / 2) : L, RT = g.wallR ? off(R, T, -T / 2) : R;
     parts.push(`<polygon points="${pts(LT, B, off(B, 0, SLAB), off(LT, 0, SLAB))}" fill="${shade(slabColor, -0.25)}"/>`);
     parts.push(`<polygon points="${pts(B, RT, off(RT, 0, SLAB), off(B, 0, SLAB))}" fill="${shade(slabColor, -0.38)}"/>`);
     parts.push(`<polygon points="${pts(LT, L, B)}" fill="${floor}"/>`);
