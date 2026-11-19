@@ -12520,8 +12520,7 @@
   // ---------------------------------------------------------------------------
   // Ma grande maison (essai administratrice) : UNE maison à modeler, sur 2 étages, à part des pièces.
   // Chaque étage est un ensemble de carreaux. Les murs ne sont que sur le contour du fond ; un mur qui cacherait
-  // du sol devient un muret. Le 1er étage est dessiné « éclaté », au-dessus du rez-de-chaussée, pour que rien
-  // ne soit jamais caché. Une plate-forme surélève le rez-de-chaussée ; des marches descendent dehors.
+  // du sol devient un muret. L'étage est à côté du rez-de-chaussée (jamais au-dessus), au niveau du haut des murs. Une plate-forme surélève le rez-de-chaussée ; des marches descendent dehors.
   // ---------------------------------------------------------------------------
   const maisonOn = () => trialView();
   const MS_STEP_Z = 0.2; // hauteur d'une marche (en carreaux)
@@ -12531,27 +12530,35 @@
   const msCells = (keys) => keys.map((k) => k.split(',').map(Number));
   function msDefault() {
     const f0 = [], f1 = [];
-    for (let u = 0; u < 6; u++) for (let v = 0; v < 3; v++) f0.push(msKey(u, v));
-    for (let u = 3; u < 6; u++) for (let v = 3; v < 6; v++) f0.push(msKey(u, v));
-    for (let u = 0; u < 4; u++) for (let v = 0; v < 3; v++) f1.push(msKey(u, v));
-    for (let u = 2; u < 4; u++) for (let v = 3; v < 5; v++) f1.push(msKey(u, v));
-    return { v: 1, platform: 3, wallH: 5, colors: { ...MS_COLORS }, floors: [{ cells: f0 }, { cells: f1 }], stairs: { u: 4, v: 5, dir: '-v' }, steps: [{ u: 1, v: 2, side: 'v' }, { u: 5, v: 4, side: 'u' }] };
+    for (let u = 0; u < 6; u++) for (let v = 0; v < 3; v++) f1.push(msKey(u, v));
+    for (let u = 0; u < 6; u++) for (let v = 3; v < 7; v++) f0.push(msKey(u, v));
+    return { v: 2, platform: 3, wallH: 5, colors: { ...MS_COLORS }, floors: [{ cells: f0 }, { cells: f1 }], stairs: { u: 2, v: 5, dir: '-v' }, steps: [{ u: 4, v: 6, side: 'v' }] };
   }
   function getMaison() {
     const p = state.profile;
     if (!p.maison || !Array.isArray(p.maison.floors) || p.maison.floors.length < 2) p.maison = msDefault();
-    p.maison.colors = { ...MS_COLORS, ...(p.maison.colors || {}) };
-    p.maison.steps = p.maison.steps || [];
-    return p.maison;
+    const m = p.maison;
+    m.colors = { ...MS_COLORS, ...(m.colors || {}) };
+    m.steps = m.steps || [];
+    // Version 1 : l'étage était dessiné à part, au-dessus. Maintenant il est à sa vraie place, à côté du rez-de-chaussée :
+    // on repart de la maison d'exemple, en gardant les couleurs et les hauteurs.
+    if ((m.v || 1) < 2) {
+      const d = msDefault();
+      m.floors = d.floors; m.stairs = d.stairs; m.steps = d.steps; m.v = 2;
+    }
+    return m;
   }
   const MS_DIRS = { '-u': [-1, 0], '-v': [0, -1], '+u': [1, 0], '+v': [0, 1] };
   const msStairCells = (st) => { const [du, dv] = MS_DIRS[st.dir]; return [0, 1, 2].map((i) => [st.u + du * i, st.v + dv * i]); };
 
   // Dessin : renvoie le SVG et sa boîte (pour le cadrage).
+  // L'étage est à sa vraie place : son sol au niveau du haut des murs du rez-de-chaussée, sur un grand socle qui
+  // descend jusqu'au sol dehors. Les deux étages ne se superposent jamais (chaque carreau est à l'un ou à l'autre).
   function maisonSvg(m, edit = null) {
     const TX = TILE_X, TY = TILE_Y, TZ = TILE_Z;
     const H = m.wallH * 0.5, p = m.platform * MS_STEP_Z, col = m.colors;
-    const P = (u, v, z, dy = 0) => ({ x: (u - v) * TX, y: (u + v) * TY - z * TZ + dy });
+    const zOf = [p, p + H];
+    const P = (u, v, z) => ({ x: (u - v) * TX, y: (u + v) * TY - z * TZ });
     const inside = (pt, poly) => {
       let c = false;
       for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
@@ -12561,62 +12568,51 @@
       return c;
     };
     const ink = '#5a3e3a';
-    // Un étage : liste d'éléments { key (ordre de dessin), poly, fill, extra }
-    // under(x) : haut du rez-de-chaussée à l'écran ; les tranches du 1er étage descendent jusque-là (un grand socle, sans trou).
-    const floorItems = (fi, zf, zb, dy, under = null) => {
-      const S = new Set(m.floors[fi].cells);
-      const has = (u, v) => S.has(msKey(u, v));
-      const cells = msCells(m.floors[fi].cells);
-      const items = [];
-      const add = (depth, layer, poly, fill, attrs = '') => items.push({ key: depth * 10 + layer, poly, fill, attrs });
-      const T = 0.12; // épaisseur des murs
-      const hides = (wall, u0, v0) => cells.some(([cu, cv]) => (cu !== u0 || cv !== v0) && [[0.3, 0.3], [0.7, 0.3], [0.3, 0.7], [0.7, 0.7]].some(([a, b]) => inside(P(cu + a, cv + b, zf, dy), wall)));
-      for (const [u, v] of cells) {
+    const sets = m.floors.map((f) => new Set(f.cells));
+    const hasF = (fi, u, v) => sets[fi].has(msKey(u, v));
+    const allCells = [0, 1].flatMap((fi) => msCells(m.floors[fi].cells).map(([u, v]) => [u, v, fi]));
+    const items = [];
+    const T = 0.12; // épaisseur des murs
+    for (const fi of [0, 1]) {
+      const zf = zOf[fi], zb = -0.15, dim = edit !== null && edit !== fi;
+      const has = (u, v) => hasF(fi, u, v);
+      const add = (depth, layer, poly, fill, attrs = '') => items.push({ key: depth * 10 + layer, poly, fill, attrs, dim });
+      // Un mur cacherait-il un bout de sol (de n'importe quel étage) ? Alors il devient un muret.
+      const hides = (wall, u0, v0) => allCells.some(([cu, cv, cf]) => (cu !== u0 || cv !== v0 || cf !== fi) && [[0.3, 0.3], [0.7, 0.3], [0.3, 0.7], [0.7, 0.7]].some(([a, b]) => inside(P(cu + a, cv + b, zOf[cf]), wall)));
+      for (const [u, v] of msCells(m.floors[fi].cells)) {
         const d = u + v;
         const pick = edit === fi ? ` data-u="${u}" data-v="${v}" class="ms-cell"` : '';
-        // Murs du fond (gauche : côté -u ; droit : côté -v)
         const hs = {};
         for (const side of ['L', 'R']) {
           if (side === 'L' ? has(u - 1, v) : has(u, v - 1)) continue;
-          const a = side === 'L' ? [u, v] : [u, v], b = side === 'L' ? [u, v + 1] : [u + 1, v];
-          const full = [P(a[0], a[1], zf, dy), P(b[0], b[1], zf, dy), P(b[0], b[1], zf + H, dy), P(a[0], a[1], zf + H, dy)];
-          const h = hides(full, u, v) ? 0.35 : H;
-          hs[side] = h;
-          const fill = side === 'L' ? col.wall : shade(col.wall, -0.1);
-          add(d, 0, [P(a[0], a[1], zf, dy), P(b[0], b[1], zf, dy), P(b[0], b[1], zf + h, dy), P(a[0], a[1], zf + h, dy)], fill);
-          // Dessus du mur (épaisseur)
+          const a = [u, v], b = side === 'L' ? [u, v + 1] : [u + 1, v];
+          const behind1 = fi === 0 && (side === 'L' ? hasF(1, u - 1, v) : hasF(1, u, v - 1)); // contre le socle de l'étage
+          const full = [P(a[0], a[1], zf), P(b[0], b[1], zf), P(b[0], b[1], zf + H), P(a[0], a[1], zf + H)];
+          const h = behind1 ? H : hides(full, u, v) ? 0.35 : H;
+          hs[side] = behind1 ? 0 : h;
+          add(d, 0, [P(a[0], a[1], zf), P(b[0], b[1], zf), P(b[0], b[1], zf + h), P(a[0], a[1], zf + h)], side === 'L' ? col.wall : shade(col.wall, -0.1));
+          if (behind1) continue; // pas de dessus de mur : le sol de l'étage arrive juste là
           const o = side === 'L' ? [-T, 0] : [0, -T];
-          add(d, 0.5, [P(a[0], a[1], zf + h, dy), P(b[0], b[1], zf + h, dy), P(b[0] + o[0], b[1] + o[1], zf + h, dy), P(a[0] + o[0], a[1] + o[1], zf + h, dy)], shade(col.base, 0.15));
+          add(d, 0.5, [P(a[0], a[1], zf + h), P(b[0], b[1], zf + h), P(b[0] + o[0], b[1] + o[1], zf + h), P(a[0] + o[0], a[1] + o[1], zf + h)], shade(col.base, 0.15));
         }
-        if (!has(u - 1, v) && !has(u, v - 1)) {
+        if (hs.L && hs.R) {
           const z = zf + Math.min(hs.L, hs.R);
-          add(d, 0.6, [P(u - T, v - T, z, dy), P(u, v - T, z, dy), P(u, v, z, dy), P(u - T, v, z, dy)], shade(col.base, 0.15));
+          add(d, 0.6, [P(u - T, v - T, z), P(u, v - T, z), P(u, v, z), P(u - T, v, z)], shade(col.base, 0.15));
         }
-        // Sol (lames de parquet)
-        add(d, 1, [P(u, v, zf, dy), P(u + 1, v, zf, dy), P(u + 1, v + 1, zf, dy), P(u, v + 1, zf, dy)], col.floor, pick);
-        for (const t of [0.25, 0.5, 0.75]) items.push({ key: d * 10 + 1.1, line: [P(u, v + t, zf, dy), P(u + 1, v + t, zf, dy)], stroke: shade(col.floor, -0.12) });
-        // Tranches du socle (devant)
-        const face = (a, b) => {
-          const top = [P(a[0], a[1], zf, dy), P(b[0], b[1], zf, dy)], bot = [P(b[0], b[1], zb, dy), P(a[0], a[1], zb, dy)];
-          if (!under) return [...top, ...bot];
-          const n = 8, low = [];
-          for (let i = n; i >= 0; i--) {
-            const x = bot[1].x + ((bot[0].x - bot[1].x) * i) / n, y0 = bot[1].y + ((bot[0].y - bot[1].y) * i) / n, yu = under(x);
-            low.push({ x, y: yu > y0 && yu < Infinity ? yu : y0 });
-          }
-          return [...top, ...low];
-        };
-        if (!has(u + 1, v)) add(d, 2, face([u + 1, v], [u + 1, v + 1]), shade(col.base, -0.12));
-        if (!has(u, v + 1)) add(d, 2, face([u, v + 1], [u + 1, v + 1]), col.base);
+        add(d, 1, [P(u, v, zf), P(u + 1, v, zf), P(u + 1, v + 1, zf), P(u, v + 1, zf)], col.floor, pick);
+        for (const t of [0.25, 0.5, 0.75]) items.push({ key: d * 10 + 1.1, line: [P(u, v + t, zf), P(u + 1, v + t, zf)], stroke: shade(col.floor, -0.12), dim });
+        // Tranches du socle, devant : jusqu'au sol dehors (l'étage n'en a pas là où le rez-de-chaussée le touche).
+        const other = fi === 1 ? (a, b) => hasF(0, a, b) : () => false;
+        if (!has(u + 1, v) && !other(u + 1, v)) add(d, 2, [P(u + 1, v, zf), P(u + 1, v + 1, zf), P(u + 1, v + 1, zb), P(u + 1, v, zb)], shade(col.base, -0.12));
+        if (!has(u, v + 1) && !other(u, v + 1)) add(d, 2, [P(u, v + 1, zf), P(u + 1, v + 1, zf), P(u + 1, v + 1, zb), P(u, v + 1, zb)], col.base);
       }
-      // Un bloc (marche) : dessus + deux faces visibles
       const box = (u0, v0, u1, v1, za, zz, c, depth) => {
-        add(depth, 3, [P(u1, v0, za, dy), P(u1, v1, za, dy), P(u1, v1, zz, dy), P(u1, v0, zz, dy)], shade(c, -0.18));
-        add(depth, 3, [P(u0, v1, za, dy), P(u1, v1, za, dy), P(u1, v1, zz, dy), P(u0, v1, zz, dy)], shade(c, -0.08));
-        add(depth, 3.1, [P(u0, v0, zz, dy), P(u1, v0, zz, dy), P(u1, v1, zz, dy), P(u0, v1, zz, dy)], shade(c, 0.12));
+        add(depth, 3, [P(u1, v0, za), P(u1, v1, za), P(u1, v1, zz), P(u1, v0, zz)], shade(c, -0.18));
+        add(depth, 3, [P(u0, v1, za), P(u1, v1, za), P(u1, v1, zz), P(u0, v1, zz)], shade(c, -0.08));
+        add(depth, 3.1, [P(u0, v0, zz), P(u1, v0, zz), P(u1, v1, zz), P(u0, v1, zz)], shade(c, 0.12));
       };
       if (fi === 0 && m.stairs && msStairCells(m.stairs).every(([a, b]) => has(a, b))) {
-        // Escalier : 8 marches sur 3 carreaux, de la case de départ vers sa direction.
+        // Escalier : 8 marches sur 3 carreaux ; la dernière arrive au niveau du sol de l'étage.
         const [du, dv] = MS_DIRS[m.stairs.dir], n = 8, L = 3;
         for (let i = 0; i < n; i++) {
           const s0 = (i * L) / n, s1 = ((i + 1) * L) / n;
@@ -12628,78 +12624,45 @@
         }
       }
       if (fi === 0 && p > 0) {
-        // Marches dehors : de la plate-forme jusqu'au sol, sur le carreau d'à côté.
         for (const s of m.steps) {
           if (!has(s.u, s.v)) continue;
           const n = m.platform;
           for (let i = 0; i < n; i++) {
             const z = p - ((i + 1) * p) / (n + 1) + 0.0001;
-            if (s.side === 'u') box(s.u + 1 + (i * 1) / n * 0.9, s.v + 0.1, s.u + 1 + ((i + 1) / n) * 0.9, s.v + 0.9, 0, z, col.base, s.u + 1 + s.v + i / n);
+            if (s.side === 'u') box(s.u + 1 + (i / n) * 0.9, s.v + 0.1, s.u + 1 + ((i + 1) / n) * 0.9, s.v + 0.9, 0, z, col.base, s.u + 1 + s.v + i / n);
             else box(s.u + 0.1, s.v + 1 + (i / n) * 0.9, s.u + 0.9, s.v + 1 + ((i + 1) / n) * 0.9, 0, z, col.base, s.u + s.v + 1 + i / n);
           }
         }
       }
-      return items;
-    };
-    const span = (items) => {
-      const pts = items.flatMap((it) => it.poly || it.line || []);
-      return pts;
-    };
-    // Rez-de-chaussée, puis 1er étage posé au-dessus, poussé vers le haut tant qu'il chevauche.
-    const f0 = floorItems(0, p, Math.min(0, p) - 0.15, 0);
-    // Le 1er étage repose sur un gros socle, comme une grande plate-forme.
-    const T1 = 0.9, z1 = p + H + T1;
-    let f1 = floorItems(1, z1, z1 - T1, 0);
-    const polys0 = f0.filter((it) => it.poly).map((it) => it.poly), polys1 = f1.filter((it) => it.poly).map((it) => it.poly);
-    const colSpan = (polys, x) => {
-      let lo = Infinity, hi = -Infinity;
-      for (const poly of polys) for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-        const a = poly[i], b = poly[j];
-        if ((a.x - x) * (b.x - x) > 0 || a.x === b.x) continue;
-        const y = a.y + ((x - a.x) * (b.y - a.y)) / (b.x - a.x);
-        lo = Math.min(lo, y); hi = Math.max(hi, y);
-      }
-      return [lo, hi];
-    };
-    let dy1 = 0;
-    if (polys1.length && polys0.length) {
-      const xs = polys1.flat().map((q) => q.x);
-      for (let x = Math.min(...xs) + 0.5; x < Math.max(...xs); x += 2) {
-        const [lo0] = colSpan(polys0, x), [, hi1] = colSpan(polys1, x);
-        if (lo0 < Infinity && hi1 > -Infinity) dy1 = Math.max(dy1, hi1 - lo0); // l'étage vient toucher le haut du rez-de-chaussée
-      }
-      f1 = floorItems(1, z1, z1 - T1, -dy1, (x) => colSpan(polys0, x)[0]);
     }
-    // Grille fantôme de l'étage modifié : les carreaux libres autour, à toucher pour agrandir.
+    // Grille de l'étage modifié : les carreaux libres autour (pas ceux de l'autre étage), à toucher pour agrandir.
     const ghosts = [];
     if (edit !== null) {
-      const zf = edit === 0 ? p : z1, dy = edit === 0 ? 0 : -dy1;
-      const S = new Set(m.floors[edit].cells);
-      const cs = msCells(m.floors[edit].cells.length ? m.floors[edit].cells : m.floors[0].cells);
-      const lo = (i) => Math.max(0, Math.min(...cs.map((c) => c[i])) - 2), hi = (i) => Math.min(MS_GRID - 1, Math.max(...cs.map((c) => c[i])) + 2);
+      const zf = zOf[edit];
+      const cs = msCells(m.floors[edit].cells.length ? m.floors[edit].cells : m.floors[1 - edit].cells);
+      const lo = (i) => Math.max(0, Math.min(...cs.map((c) => c[i])) - 2), hi = (i) => Math.min(MS_GRID * 2, Math.max(...cs.map((c) => c[i])) + 2);
       for (let u = lo(0); u <= hi(0); u++) for (let v = lo(1); v <= hi(1); v++) {
-        if (S.has(msKey(u, v))) continue;
-        ghosts.push({ poly: [P(u, v, zf, dy), P(u + 1, v, zf, dy), P(u + 1, v + 1, zf, dy), P(u, v + 1, zf, dy)], u, v });
+        if (sets[0].has(msKey(u, v)) || sets[1].has(msKey(u, v))) continue;
+        ghosts.push({ poly: [P(u, v, zf), P(u + 1, v, zf), P(u + 1, v + 1, zf), P(u, v + 1, zf)], u, v });
       }
     }
-    // Sol dehors : un grand losange clair sous le rez-de-chaussée.
-    const c0 = msCells(m.floors[0].cells);
+    // Sol dehors : un grand losange clair sous la maison.
+    const cAll = allCells;
     let ground = '';
-    if (c0.length) {
-      const u0 = Math.min(...c0.map((c) => c[0])) - 1.5, u1 = Math.max(...c0.map((c) => c[0])) + 2.5, v0 = Math.min(...c0.map((c) => c[1])) - 1.5, v1 = Math.max(...c0.map((c) => c[1])) + 2.5;
+    if (cAll.length) {
+      const u0 = Math.min(...cAll.map((c) => c[0])) - 1.5, u1 = Math.max(...cAll.map((c) => c[0])) + 2.5, v0 = Math.min(...cAll.map((c) => c[1])) - 1.5, v1 = Math.max(...cAll.map((c) => c[1])) + 2.5;
       ground = `<polygon points="${pts(P(u0, v0, 0), P(u1, v0, 0), P(u1, v1, 0), P(u0, v1, 0))}" fill="${col.ground}"/>`;
     }
-    const draw = (items, dim) => {
-      const out = [...items].sort((a, b) => a.key - b.key).map((it) => (it.line
-        ? `<line x1="${it.line[0].x.toFixed(1)}" y1="${it.line[0].y.toFixed(1)}" x2="${it.line[1].x.toFixed(1)}" y2="${it.line[1].y.toFixed(1)}" stroke="${it.stroke}" stroke-width="1.2"/>`
-        : `<polygon points="${pts(...it.poly)}" fill="${it.fill}" stroke="${ink}" stroke-width="1.6" stroke-linejoin="round"${it.attrs}/>`)).join('');
-      return `<g${dim ? ' opacity=".3" pointer-events="none"' : ''}>${out}</g>`;
-    };
+    const body = [...items].sort((a, b) => a.key - b.key).map((it) => {
+      const op = it.dim ? ' opacity=".35" pointer-events="none"' : '';
+      return it.line
+        ? `<line x1="${it.line[0].x.toFixed(1)}" y1="${it.line[0].y.toFixed(1)}" x2="${it.line[1].x.toFixed(1)}" y2="${it.line[1].y.toFixed(1)}" stroke="${it.stroke}" stroke-width="1.2"${op}/>`
+        : `<polygon points="${pts(...it.poly)}" fill="${it.fill}" stroke="${ink}" stroke-width="1.6" stroke-linejoin="round"${it.attrs}${op}/>`;
+    }).join('');
     const ghostSvg = ghosts.map((g) => `<polygon class="ms-ghost" data-u="${g.u}" data-v="${g.v}" points="${pts(...g.poly)}"/>`).join('');
-    const all = [...span(f0), ...span(f1), ...ghosts.flatMap((g) => g.poly)];
-    const box = all.length ? { x0: Math.min(...all.map((q) => q.x)), x1: Math.max(...all.map((q) => q.x)), y0: Math.min(...all.map((q) => q.y)), y1: Math.max(...all.map((q) => q.y)) } : { x0: -100, x1: 100, y0: -100, y1: 100 };
-    const svg = ground + (edit === 1 ? draw(f0, true) + draw(f1, false) + ghostSvg : draw(f0, edit === 1) + (edit === 0 ? ghostSvg : '') + draw(f1, edit === 0));
-    return { svg, box };
+    const all = [...items.flatMap((it) => it.poly || it.line || []), ...ghosts.flatMap((g) => g.poly)];
+    const bx = all.length ? { x0: Math.min(...all.map((q) => q.x)), x1: Math.max(...all.map((q) => q.x)), y0: Math.min(...all.map((q) => q.y)), y1: Math.max(...all.map((q) => q.y)) } : { x0: -100, x1: 100, y0: -100, y1: 100 };
+    return { svg: ground + body + ghostSvg, box: bx };
   }
 
   let msFloor = 0, msTool = 'paint', msSaveT = 0;
