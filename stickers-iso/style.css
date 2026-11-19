@@ -3342,3 +3342,44 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .ac-pick-item:disabled { opacity: .4; }
 .ac-council .tv-row.ac-forced { border-style: dashed; }
 .ac-forced-tag { font-size: .7rem; font-weight: 800; opacity: .9; }
+
+/* ===== Le carnet du jour ===== */
+.home-carnet { display: flex; align-items: center; gap: 12px; width: 100%; margin: 6px 0 10px; padding: 10px 14px; border-radius: 16px; border: 3px solid var(--c-line, #5A3E3A); background: var(--c-butter, #FFF1C9); color: inherit; font: inherit; text-align: left; cursor: pointer; position: relative; box-shadow: 0 3px 0 var(--c-line, #5A3E3A); }
+.home-carnet[hidden] { display: none; }
+.home-carnet.done { opacity: .85; }
+.carnet-tile-ico { font-size: 1.8rem; line-height: 1; }
+.carnet-tile-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.carnet-tile-title { font-family: var(--font-title); font-weight: 700; font-size: 1.05rem; }
+.carnet-tile-sub { font-weight: 700; font-size: .85rem; opacity: .85; }
+.carnet-tile-go { font-size: 1.6rem; font-weight: 800; }
+:root[data-skin="manoir"] .home-carnet { border: 2px solid var(--gold); background: linear-gradient(100deg, rgba(230,184,92,.22), rgba(53,32,77,.9)); color: var(--ink); box-shadow: 0 0 16px rgba(230,184,92,.25), 0 4px 0 #0E0818; }
+:root[data-skin="manoir"] .carnet-tile-title { color: var(--gold-light); }
+.carnet-box { max-width: 420px; max-height: 92vh; overflow-y: auto; }
+.carnet-date { margin: 0 0 6px; font-weight: 700; opacity: .8; }
+.carnet-date::first-letter { text-transform: uppercase; }
+.carnet-streak { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-weight: 700; margin-bottom: 10px; }
+.carnet-flames { display: inline-flex; gap: 3px; }
+.carnet-flames i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; opacity: .35; }
+.carnet-flames i.on { background: #E6B85C; border-color: #B8862A; opacity: 1; box-shadow: 0 0 6px #E6B85C; }
+.carnet-bourse-zone { display: flex; justify-content: center; margin: 4px 0 12px; }
+.carnet-bourse { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 22px 12px; border-radius: 18px; border: 2px dashed #E6B85C; background: radial-gradient(circle at 50% 40%, rgba(255,215,106,.35), transparent 70%); color: inherit; font: inherit; font-weight: 800; cursor: pointer; }
+.carnet-bourse b { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-title); font-size: 1.2rem; }
+.carnet-bourse svg { animation: bourseIdle 2.4s ease-in-out infinite; transform-origin: 50% 90%; }
+.carnet-bourse.open svg { animation: bourseOpen .55s ease-out forwards; }
+@keyframes bourseIdle { 0%, 100% { transform: rotate(0); } 8% { transform: rotate(-6deg); } 16% { transform: rotate(5deg); } 24% { transform: rotate(0); } }
+@keyframes bourseOpen { 0% { transform: scale(1); } 30% { transform: scale(1.15, .9); } 60% { transform: scale(.95, 1.1) translateY(-6px); } 100% { transform: scale(1) ; } }
+.carnet-got { margin: 0; font-weight: 800; color: #3d8a5f; }
+:root[data-skin="manoir"] .carnet-got { color: #9FDDBE; }
+.fly-coin { position: fixed; z-index: 4000; width: 26px; height: 26px; pointer-events: none; transition: transform .7s cubic-bezier(.5, -0.3, .7, 1), opacity .7s ease-in; }
+.points-pill.pulse { animation: pillPulse .6s ease-out; }
+@keyframes pillPulse { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.carnet-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.carnet-step { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 14px; border: 2px solid var(--line, #8A6425); }
+.carnet-step.ok { opacity: .75; border-style: dashed; }
+.carnet-check { flex: none; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 800; background: rgba(230,184,92,.18); }
+.carnet-step.ok .carnet-check { background: #6FCF97; color: #1B0F14; }
+.carnet-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
+.carnet-txt span { font-size: .82rem; opacity: .85; }
+.carnet-step .btn { flex: none; padding: 6px 10px; font-size: .85rem; }
+.carnet-foot { margin: 12px 0 0; font-weight: 700; font-size: .9rem; }
+@media (prefers-reduced-motion: reduce) { .carnet-bourse svg { animation: none !important; } }

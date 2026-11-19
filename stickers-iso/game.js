@@ -103,6 +103,8 @@
     { group: 'Concours', key: 'contestMilestoneReward', label: 'Bonus de fidélité (0 = pas de bonus)', unit: '🪙', def: () => 500, max: 1000000, step: 50 },
     { group: 'Concours', key: 'voteReward', label: 'Pour avoir fini ses duels', unit: '🪙', def: () => 20, max: 100000, step: 5 },
     { group: 'Concours', key: 'themeWinReward', label: 'Pièces quand l\'idée de thème d\'un joueur gagne', unit: '🪙', def: () => 100, max: 100000, step: 10 },
+    { group: 'Le carnet du jour (essai admin)', key: 'carnetStep', label: 'Bourse du matin : pièces en plus par jour de carnet complet d\'affilée', unit: '🪙', def: () => 20, max: 10000, step: 5 },
+    { group: 'Le carnet du jour (essai admin)', key: 'carnetDays', label: 'Bourse du matin : nombre de jours pour atteindre le maximum', unit: 'jours', def: () => 7, min: 1, max: 60, step: 1 },
     { group: 'Le conseil (vote du thème, essai admin)', key: 'themeVoteReward', label: 'Pièces pour avoir déposé son bulletin (une fois par jour)', unit: '🪙', def: () => 20, max: 100000, step: 5 },
     { group: 'Le conseil (vote du thème, essai admin)', key: 'themeMaxWaiting', label: 'Idées en attente par joueuse', unit: 'au plus', def: () => 10, min: 1, max: 100, step: 1 },
     { group: 'Le conseil (vote du thème, essai admin)', key: 'themeSlotsPlayer', label: 'Bulletin : places pour les idées des joueuses', unit: 'idées', def: () => 3, max: 10, step: 1 },
@@ -3273,7 +3275,7 @@
         setTimeout(() => toast('Ta carte de tampons est complète : tu gagnes une étoile 🌟 !'), 2500);
       }
       // Points du jour : une fois par jour, à la première connexion.
-      if (state.profile.lastDaily !== today()) {
+      if (state.profile.lastDaily !== today() && !carnetOn()) {
         state.profile.points = (state.profile.points || 0) + dailyPoints();
         state.profile.lastDaily = today();
         gained = dailyPoints();
@@ -3297,6 +3299,12 @@
     }
     if (gained) toast(`+${gained} 🪙 : tes points du jour ! Va les dépenser dans la boutique.`);
     showNewsPopup();
+    if (carnetOn()) {
+      renderCarnetTile();
+      carnetCheck();
+      // Première connexion du jour : le carnet s'ouvre sur la bourse (sauf si une autre fenêtre est déjà ouverte).
+      if (state.profile.lastDaily !== today()) setTimeout(() => { if (!document.querySelector('.modal:not([hidden])')) openCarnet(); }, 1200);
+    }
   }
 
   async function sendWelcome() {
@@ -3338,7 +3346,7 @@
     try {
       const fresh = await db.getPlayer(playerDocId(state.player.key));
       if (!fresh) return;
-      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'joinRewardDay', 'contestCount', 'contestMilestones', 'stairsGift', 'decos', 'house', 'nightPlayer']) {
+      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'carnetLast', 'carnetStreak', 'themeVoteDay', 'joinRewardDay', 'contestCount', 'contestMilestones', 'stairsGift', 'decos', 'house', 'nightPlayer']) {
         if (fresh[k] !== undefined) state.profile[k] = fresh[k];
       }
       state.profile.inventory = state.profile.inventory || {};
@@ -6025,7 +6033,7 @@
     showFee(tile, left > 0, 'Duels à voter'); // la luciole : il reste des duels à voter
     $('#homeContestChip').textContent = voteMaintenance() ? 'vote en maintenance'
       : (votingOver() ? 'Gagnant dévoilé !'
-        : (left ? `+${voteReward()} 🪙 · jusqu'à 20 h` : 'votes jusqu\'à 20 h'));
+        : (left ? (voteReward() ? `+${voteReward()} 🪙 · jusqu'à 20 h` : 'à voter jusqu\'à 20 h') : 'votes jusqu\'à 20 h'));
   }
   function setHomeVote(v) {
     const plan = duelPlan(v, state.player.key);
@@ -7264,7 +7272,7 @@
   // Votes en duels : on montre 2 pièces, on touche sa préférée. Classement au % de duels gagnés.
   const DUELS_MAX = 10;                // duels par joueur et par jour
   const VOTE_REWARD = 20;              // pièces pour avoir fini ses duels du jour
-  const voteReward = () => setting('voteReward');
+  const voteReward = () => (carnetOn() ? 0 : setting('voteReward'));
   // Gagnant d'office (une seule participation) : moitié de la récompense par défaut.
   const soloReward = () => setting('contestSoloReward');
 
@@ -8003,6 +8011,7 @@
       } catch (err) { toast('L\'idée n\'a pas pu être envoyée. Vérifie ta connexion.'); return; }
       toast(`Idée envoyée 🗳️${doc.status === 'pending' ? ' : elle sera validée avant le vote.' : ' : elle entre dans le vote dès que c\'est ton tour.'}`);
       reload();
+      if (carnetOn()) carnetCheck();
     };
     propCard.querySelector('.tv-compo').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -8182,7 +8191,7 @@
       <span class="tvx-prop-txt"><span class="tvx-prop-t">Proposer une idée</span><span class="tvx-prop-s">+${setting('themeWinReward')} ${COIN_SVG(15)} si elle devient le thème</span></span>
       <span class="tvx-plus" aria-hidden="true"><b>+</b></span></button>`;
   }
-  const tvRules = () => `Classe tes ${TV_BALLOT} propositions préférées : la 1<sup>re</sup> reçoit 3 ${tvHeart(13)}, la 2<sup>e</sup> 2 ${tvHeart(13)}, la 3<sup>e</sup> 1 ${tvHeart(13)}.<br>À 20 h, celle qui a le plus de cœurs devient le thème du concours de demain. Le vote reste secret jusque-là ; tu peux modifier ton bulletin jusqu'à 20 h. En cas d'égalité : le plus de 1<sup>ers</sup> choix, puis de 2<sup>es</sup> choix ; sinon les deux idées sont jouées l'une après l'autre. La 2<sup>e</sup> et la 3<sup>e</sup> restent dans le vote du lendemain. +${setting('themeVoteReward')} 🪙 pour ton premier bulletin du jour.`;
+  const tvRules = () => `Classe tes ${TV_BALLOT} propositions préférées : la 1<sup>re</sup> reçoit 3 ${tvHeart(13)}, la 2<sup>e</sup> 2 ${tvHeart(13)}, la 3<sup>e</sup> 1 ${tvHeart(13)}.<br>À 20 h, celle qui a le plus de cœurs devient le thème du concours de demain. Le vote reste secret jusque-là ; tu peux modifier ton bulletin jusqu'à 20 h. En cas d'égalité : le plus de 1<sup>ers</sup> choix, puis de 2<sup>es</sup> choix ; sinon les deux idées sont jouées l'une après l'autre. La 2<sup>e</sup> et la 3<sup>e</sup> restent dans le vote du lendemain. ${carnetOn() ? '' : `+${setting('themeVoteReward')} 🪙 pour ton premier bulletin du jour.`}`;
 
   // --- Étape 1 : la page du conseil (vote ouvert, journée sans vote, ou résultats à 20 h)
   let themeVoteLoading = false;
@@ -8542,13 +8551,14 @@
       const had = !!tvMyBallot(d);
       try { await db.putThemeDoc({ id: `tb-${d.day}-${me}`, kind: 'ballot', themeDay: d.day, voter: me, voterName: state.player.name, picks: picks.map(pureCand), created: Date.now() }); }
       catch (err) { toast('Ton bulletin n\'a pas pu être envoyé. Vérifie ta connexion.'); seal.disabled = false; return; }
-      const reward = setting('themeVoteReward');
+      const reward = carnetOn() ? 0 : setting('themeVoteReward');
+      if (carnetOn()) carnetCheck();
       if (reward > 0 && state.profile.themeVoteDay !== today()) {
         state.profile.themeVoteDay = today();
         state.profile.points = (state.profile.points || 0) + reward;
         saveProfile();
         toast(`Bulletin scellé 🗳️ +${reward} 🪙 !`);
-      } else if (had) toast('Bulletin modifié et scellé 🗳️');
+      } else toast(had ? 'Bulletin modifié et scellé 🗳️' : 'Bulletin scellé 🗳️ Résultat à 20 h.');
       close();
       cv3Sub = 'sealed';
       await tvReload();
@@ -8823,7 +8833,7 @@
       main.querySelector('.tvx-lead').textContent = votingOver() ? 'Le vote est terminé : découvre le palmarès juste en dessous.' : 'Dans chaque duel, choisis ta pièce préférée avant 20 h.';
     } else main.appendChild(cvThemeBlock(v.day, compact ? `À voter · concours du ${dayShort(v.day)}` : 'Vote'));
     head.appendChild(main);
-    head.insertAdjacentHTML('beforeend', cvInfo(`Dans chaque duel, clique sur ta pièce préférée en fonction du thème imposé. Remporte ${voteReward()} pièces à la fin des votes.`, 'Plus d\'infos : comment voter'));
+    head.insertAdjacentHTML('beforeend', cvInfo(`Dans chaque duel, clique sur ta pièce préférée en fonction du thème imposé.${voteReward() ? ` Remporte ${voteReward()} pièces à la fin des votes.` : ''}`, 'Plus d\'infos : comment voter'));
     card.appendChild(head);
     if (galerie) {
       const tb = cvThemeBlock(v.day, 'La pièce');
@@ -8851,7 +8861,7 @@
     if (!plan.total) { msg('Tu as participé hier et il n\'y a qu\'une autre pièce : tu ne peux pas voter aujourd\'hui. Les autres joueurs départagent !'); return; }
     const chips = document.createElement('div');
     chips.className = 'cv3-chips';
-    chips.innerHTML = `<span class="cv3-chip b">${CV_ICON.swords} ${plan.total} duel${plan.total > 1 ? 's' : ''}</span><span class="cv3-chip">+${voteReward()} ${COIN_SVG(18)} en récompense</span>`;
+    chips.innerHTML = `<span class="cv3-chip b">${CV_ICON.swords} ${plan.total} duel${plan.total > 1 ? 's' : ''}</span>${voteReward() ? `<span class="cv3-chip">+${voteReward()} ${COIN_SVG(18)} en récompense</span>` : ''}`;
     card.appendChild(chips);
     const finished = plan.done >= plan.total;
     const dots = document.createElement('div');
@@ -9121,7 +9131,7 @@
       if (!v.entries.length) sub = 'Personne n\'a participé hier : rien à voter aujourd\'hui.';
       else if (v.entries.length === 1) sub = `Une seule participation hier : pas de vote aujourd'hui. ${v.entries[0].owner === me ? 'Tu gagnes' : `${v.entries[0].ownerName || v.entries[0].owner} gagne`} d'office à 20 h !`;
       else if (!plan.total) sub = 'Tu as participé hier et il n\'y a qu\'une autre pièce : tu ne peux pas voter aujourd\'hui. Les autres joueurs départagent !';
-      else sub = `Touche ta pièce préférée dans chaque duel (jamais la tienne). ${plan.total > 1 ? `Termine tes ${plan.total} duels` : 'Fais ton duel'} pour gagner ${voteReward()} 🪙. Gagnant dévoilé à 20 h !`;
+      else sub = `Touche ta pièce préférée dans chaque duel (jamais la tienne). ${voteReward() ? `${plan.total > 1 ? `Termine tes ${plan.total} duels` : 'Fais ton duel'} pour gagner ${voteReward()} 🪙. ` : ''}Gagnant dévoilé à 20 h !`;
       const c2 = section('ct-vote', title, sub);
       if (plan.total) {
         const finished = plan.done >= plan.total;
@@ -9292,7 +9302,7 @@
     if (!v) return;
     const plan = duelPlan(v, state.player.key);
     $('#duelTitle').textContent = `Vote : ${themeOf(v.day)}`;
-    $('#duelSub').textContent = `Touche la pièce que tu préfères (jamais la tienne). ${plan.total > 1 ? `Termine tes ${plan.total} duels` : 'Fais ton duel'} pour gagner ${voteReward()} 🪙. Gagnant dévoilé à 20 h !`;
+    $('#duelSub').textContent = `Touche la pièce que tu préfères (jamais la tienne). ${voteReward() ? `${plan.total > 1 ? `Termine tes ${plan.total} duels` : 'Fais ton duel'} pour gagner ${voteReward()} 🪙. ` : ''}Gagnant dévoilé à 20 h !`;
     const box = $('#duelBody');
     box.innerHTML = '';
     renderDuel(box, v, plan);
@@ -9377,7 +9387,8 @@
     setHomeVote(v);
     const plan = duelPlan(v, me);
     // Récompense une fois les duels du jour terminés.
-    if (plan.done >= plan.total && state.profile.voteRewardDay !== v.day) {
+    if (plan.done >= plan.total && carnetOn()) carnetCheck();
+    if (plan.done >= plan.total && voteReward() > 0 && state.profile.voteRewardDay !== v.day) {
       await refreshProfile();
       if (state.profile.voteRewardDay !== v.day) {
         state.profile.voteRewardDay = v.day;
@@ -12116,6 +12127,185 @@
     };
     try { await db.createMail(m); toast('Merci, c\'est envoyé ✉️'); } catch (e) { toast('Le message n\'a pas pu être envoyé.'); }
   }
+
+  // ---------------------------------------------------------------------------
+  // Le carnet du jour (essai admin) : la bourse du matin à ouvrir, puis 3 actions (bulletin du conseil, une idée,
+  // les duels du concours d'hier). Carnet complet → la bourse du lendemain vaut 20 pièces de plus (jusqu'au 7e jour).
+  // Un jour manqué : on retombe à la bourse de base (300), jamais en dessous.
+  // ---------------------------------------------------------------------------
+  const carnetOn = () => trialView();
+  const carnetStreakBefore = () => {
+    const p = state.profile || {};
+    if (p.carnetLast === shiftDay(today(), -1)) return p.carnetStreak || 0;
+    if (p.carnetLast === today()) return Math.max(0, (p.carnetStreak || 1) - 1);
+    return 0;
+  };
+  const bourseAmount = (streak = carnetStreakBefore()) => dailyPoints() + setting('carnetStep') * Math.min(streak, Math.max(1, setting('carnetDays')) - 1);
+  let carnetLast = null; // dernier état calculé
+  async function carnetStatus() {
+    const me = state.player.key;
+    const day = today();
+    const T = shiftDay(day, 1);
+    const s = { day, bourse: state.profile.lastDaily === day, conseil: false, idee: false, duels: false, notes: {} };
+    try {
+      const ctx = await loadThemeCtx();
+      await ensureThemeRecord(day, ctx);
+      const ballot = ballotFor(T, ctx.pool, ctx.recs);
+      if (ballot.closed) { s.conseil = true; s.notes.conseil = 'pas de vote aujourd\'hui'; }
+      else if (themeVoteEnded(T)) {
+        const docs = await db.listThemeVote(T);
+        s.conseil = docs.some((h) => h.kind === 'ballot' && h.voter === me);
+        if (!s.conseil) s.notes.conseil = 'vote terminé à 20 h';
+      } else {
+        const docs = await db.listThemeVote(T);
+        s.conseil = docs.some((h) => h.kind === 'ballot' && h.voter === me);
+      }
+      const mine = ctx.pool.filter((p) => p.owner === me);
+      s.idee = mine.some((p) => p.proposedDay === day);
+      const waitIds = new Set(ballot.queue.waiting.map((p) => p.id));
+      const myWaiting = mine.filter((p) => p.status === 'pending' || (p.status === 'accepted' && waitIds.has(p.id))).length;
+      if (!s.idee && myWaiting >= setting('themeMaxWaiting')) { s.idee = true; s.notes.idee = 'tu as déjà assez d\'idées en attente'; }
+    } catch (e) { s.offline = true; }
+    try {
+      const v = await loadContestDay(shiftDay(day, -1));
+      setHomeVote(v);
+      const plan = duelPlan(v, me);
+      if (voteMaintenance()) { s.duels = true; s.notes.duels = 'vote en maintenance'; }
+      else if (!plan.total) { s.duels = true; s.notes.duels = 'pas de duel pour toi aujourd\'hui'; }
+      else {
+        s.duels = plan.done >= plan.total;
+        s.notes.duels = s.duels ? '' : votingOver() ? 'vote terminé à 20 h' : `${plan.done}/${plan.total} duels`;
+      }
+    } catch (e) { s.offline = true; }
+    s.count = ['bourse', 'conseil', 'idee', 'duels'].filter((k) => s[k]).length;
+    s.done = s.count === 4;
+    carnetLast = s;
+    return s;
+  }
+  // Après chaque action : le carnet est-il complet ? (une seule fois par jour : la série avance)
+  async function carnetCheck() {
+    if (!carnetOn() || !state.profile) return null;
+    const s = await carnetStatus();
+    if (s.done && state.profile.carnetLast !== today()) {
+      const streak = state.profile.carnetLast === shiftDay(today(), -1) ? (state.profile.carnetStreak || 0) + 1 : 1;
+      state.profile.carnetLast = today();
+      state.profile.carnetStreak = streak;
+      saveProfile();
+      setTimeout(() => toast(`📖 Carnet complet ! ${streak > 1 ? `${streak} jours d'affilée. ` : ''}Ta bourse de demain : ${bourseAmount(streak)} 🪙`), 600);
+    }
+    renderCarnetTile();
+    if (!$('#carnetDialog').hidden) renderCarnet(s);
+    return s;
+  }
+  function renderCarnetTile() {
+    const tile = $('#homeCarnet');
+    if (!tile) return;
+    tile.hidden = !carnetOn() || !state.profile;
+    if (tile.hidden) return;
+    const s = carnetLast && carnetLast.day === today() ? carnetLast : null;
+    const n = s ? s.count : (state.profile.lastDaily === today() ? 1 : 0);
+    const done = state.profile.carnetLast === today();
+    tile.querySelector('.carnet-tile-sub').textContent = done ? `Complet ✓ · bourse de demain : ${bourseAmount(state.profile.carnetStreak || 1)} 🪙`
+      : state.profile.lastDaily !== today() ? `Ta bourse t'attend : ${bourseAmount()} 🪙` : `${n}/4 · encore ${4 - n} action${4 - n > 1 ? 's' : ''}`;
+    tile.classList.toggle('done', done);
+    showFee(tile, !done, 'Carnet du jour à compléter');
+  }
+  // La bourse : on la touche, elle s'ouvre, les pièces s'envolent vers le compteur.
+  function claimBourse(btn) {
+    if (state.profile.lastDaily === today()) return;
+    const amount = bourseAmount();
+    state.profile.points = (state.profile.points || 0) + amount;
+    state.profile.lastDaily = today();
+    saveProfile();
+    btn.disabled = true;
+    btn.classList.add('open');
+    const from = btn.getBoundingClientRect();
+    const target = [...document.querySelectorAll('.points-pill')].find((el) => el.offsetParent !== null);
+    const to = target ? target.getBoundingClientRect() : { left: window.innerWidth - 60, top: 20, width: 40, height: 30 };
+    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const N = reduce ? 0 : 12;
+    for (let i = 0; i < N; i++) {
+      const c = document.createElement('span');
+      c.className = 'fly-coin';
+      c.innerHTML = COIN_SVG(26);
+      const x0 = from.left + from.width / 2 - 13 + (Math.random() - 0.5) * 40;
+      const y0 = from.top + from.height / 3;
+      c.style.left = `${x0}px`;
+      c.style.top = `${y0}px`;
+      document.body.appendChild(c);
+      const dx = to.left + to.width / 2 - 13 - x0, dy = to.top + to.height / 2 - 13 - y0;
+      setTimeout(() => {
+        c.style.transform = `translate(${dx}px, ${dy}px) scale(.7)`;
+        c.style.opacity = '0.2';
+      }, 350 + i * 55);
+      setTimeout(() => c.remove(), 350 + i * 55 + 750);
+    }
+    setTimeout(() => {
+      renderPoints();
+      document.querySelectorAll('.points-pill').forEach((el) => { el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); });
+      toast(`+${amount} 🪙 : ta bourse du matin !`);
+      carnetCheck();
+    }, reduce ? 50 : 350 + N * 55 + 500);
+  }
+  const BOURSE_SVG = '<svg viewBox="0 0 120 120" width="110" height="110" aria-hidden="true"><ellipse cx="60" cy="108" rx="34" ry="7" fill="#000" opacity=".25"/><path class="bourse-body" d="M28 104 Q14 74 32 54 Q60 44 88 54 Q106 74 92 104 Q60 114 28 104Z" fill="#C9A46B" stroke="#1B0F14" stroke-width="3.5" stroke-linejoin="round"/><path d="M36 92 Q30 76 38 64" fill="none" stroke="#FFF3C4" stroke-width="3" stroke-linecap="round" opacity=".55"/><path class="bourse-neck" d="M38 54 Q48 40 44 28 Q60 34 76 28 Q72 40 82 54" fill="#B88E52" stroke="#1B0F14" stroke-width="3.5" stroke-linejoin="round"/><path d="M36 56 Q60 66 84 56" fill="none" stroke="#7A2F3F" stroke-width="5" stroke-linecap="round"/><circle cx="60" cy="80" r="11" fill="#FFC84A" stroke="#1B0F14" stroke-width="3"/><circle cx="60" cy="80" r="5" fill="none" stroke="#E39A1B" stroke-width="2.5"/></svg>';
+  async function openCarnet() {
+    if (!carnetOn()) return;
+    const dlg = $('#carnetDialog');
+    dlg.hidden = false;
+    renderCarnet(carnetLast && carnetLast.day === today() ? carnetLast : null);
+    const s = await carnetStatus();
+    if (!dlg.hidden) renderCarnet(s);
+    carnetCheck();
+  }
+  function renderCarnet(s) {
+    const box = $('#carnetBody');
+    const streak = state.profile.carnetLast === today() ? (state.profile.carnetStreak || 1) : carnetStreakBefore();
+    const done = state.profile.carnetLast === today();
+    const next = bourseAmount(done ? streak : streak + 1);
+    const max = Math.max(1, setting('carnetDays'));
+    box.innerHTML = `<p class="carnet-date"></p>
+      <div class="carnet-streak"><span class="carnet-flames">${Array.from({ length: max }, (_, i) => `<i class="${i < Math.min(streak, max) ? 'on' : ''}"></i>`).join('')}</span>
+        <span>${streak ? `Série : <b>${plural(streak, 'jour')}</b> d'affilée` : 'Complète ton carnet pour lancer ta série'}</span></div>
+      <div class="carnet-bourse-zone"></div>
+      <ol class="carnet-list"></ol>
+      <p class="carnet-foot"></p>`;
+    box.querySelector('.carnet-date').textContent = dayShort(today());
+    const zone = box.querySelector('.carnet-bourse-zone');
+    if (state.profile.lastDaily !== today()) {
+      zone.innerHTML = `<button type="button" class="carnet-bourse">${BOURSE_SVG}<span>Touche ta bourse du matin</span><b>${bourseAmount()} ${COIN_SVG(20)}</b></button>`;
+      zone.querySelector('.carnet-bourse').addEventListener('click', (e) => claimBourse(e.currentTarget));
+    } else zone.innerHTML = `<p class="carnet-got">✓ Bourse du matin ouverte</p>`;
+    const steps = [
+      ['conseil', '🗳️', 'Voter au conseil', 'Classe tes 3 idées préférées pour le thème de demain.', () => { closeCarnet(); cv3Step = 0; openContest(); }],
+      ['idee', '💡', 'Proposer une idée', 'Un nouveau thème, ou une pièce avec une couleur ou un objet.', () => { closeCarnet(); cv3Step = 0; openContest().then(() => openThemeVote('propose')); }],
+      ['duels', '⚔️', 'Voter pour le concours d\'hier', 'Fais tes duels dans la galerie, avant 20 h.', () => { closeCarnet(); cv3Step = 2; openContest(); }],
+    ];
+    const ol = box.querySelector('.carnet-list');
+    for (const [k, ico, title, sub, go] of steps) {
+      const ok = s ? s[k] : false;
+      const li = document.createElement('li');
+      li.className = 'carnet-step' + (ok ? ' ok' : '');
+      li.innerHTML = `<span class="carnet-check" aria-hidden="true">${ok ? '✓' : ico}</span><span class="carnet-txt"><strong></strong><span></span></span>`;
+      li.querySelector('strong').textContent = title;
+      li.querySelector('.carnet-txt span').textContent = !s ? 'Vérification…' : (s.notes[k] || (ok ? 'Fait ✓' : sub));
+      if (s && !ok) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-primary';
+        b.textContent = 'J\'y vais';
+        b.addEventListener('click', go);
+        li.appendChild(b);
+      }
+      ol.appendChild(li);
+    }
+    box.querySelector('.carnet-foot').textContent = done
+      ? `Carnet complet ✓ Demain, ta bourse vaudra ${next} 🪙.`
+      : `Complète ton carnet : demain, ta bourse vaudra ${next} 🪙${streak + 1 >= max ? ' (le maximum)' : ''}. Si tu rates un jour, elle revient à ${dailyPoints()} 🪙.`;
+  }
+  function closeCarnet() { $('#carnetDialog').hidden = true; }
+  $('#carnetClose').addEventListener('click', closeCarnet);
+  $('#carnetDialog').addEventListener('click', (e) => { if (e.target.id === 'carnetDialog') closeCarnet(); });
+  $('#homeCarnet').addEventListener('click', openCarnet);
 
   async function init() {
     window.addEventListener('resize', fitStage);
