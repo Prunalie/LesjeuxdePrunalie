@@ -855,8 +855,10 @@
     const flat = !!(geomOpts && geomOpts.flat);
     if (flat) return (defs.length ? `<defs>${defs.join('')}</defs>` : '') + parts.join('') + postsSvg();
     // Épaisseur des murs (tranche du dessus) et du sol
-    if (!garden || g.gwL === 'full') parts.push(`<polygon points="${pts(upL(L), upL(C), off(upL(C), 0, -T / 2), off(upL(L), -T, -T / 2))}" fill="${shade(wallLeft, 0.35)}"/>`);
-    if (!garden || g.gwR === 'full') parts.push(`<polygon points="${pts(upR(C), upR(R), off(upR(R), T, -T / 2), off(upR(C), 0, -T / 2))}" fill="${shade(wallRight, 0.35)}"/>`);
+    // Dessus des murs. Au coin, les deux tranches se rejoignent en biais ; un mur plein seul (jardin) a une tranche droite jusqu'au coin.
+    const meetC = !garden || (g.gwL === 'full' && g.gwR === 'full');
+    if (!garden || g.gwL === 'full') parts.push(`<polygon points="${pts(upL(L), upL(C), off(upL(C), meetC ? 0 : -T, -T / 2), off(upL(L), -T, -T / 2))}" fill="${shade(wallLeft, 0.35)}"/>`);
+    if (!garden || g.gwR === 'full') parts.push(`<polygon points="${pts(upR(C), upR(R), off(upR(R), T, -T / 2), off(upR(C), meetC ? 0 : T, -T / 2))}" fill="${shade(wallRight, 0.35)}"/>`);
     // Bout du mur : pas pour un demi-mur à motif (jardin), il se termine net.
     if (g.wallL && !(garden && decoWL && g.gwL !== 'full')) parts.push(`<polygon points="${pts(L, off(L, -T, -T / 2), off(upL(L), -T, -T / 2), upL(L))}" fill="${shade(wallLeft, -0.25)}"/>`);
     if (g.wallR && !(garden && decoWR && g.gwR !== 'full')) parts.push(`<polygon points="${pts(R, off(R, T, -T / 2), off(upR(R), T, -T / 2), upR(R))}" fill="${shade(wallRight, -0.3)}"/>`);
