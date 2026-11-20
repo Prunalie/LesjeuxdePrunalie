@@ -12822,7 +12822,7 @@
       closeAmbientBar();
     }
     $('#stage').classList.toggle('ms-editing', on && msMode !== 'deco');
-    $('#stage').classList.toggle('ms-hide-items', on && msMode === 'build' && msHideItems);
+    $('#stage').classList.toggle('ms-hide-items', on && msMode !== 'deco' && msHideItems);
     stageArea.classList.toggle('ms-editing-area', on && msMode !== 'deco');
     for (const id of ['#btnShape', '#btnColors']) $(id).hidden = on;
     if (!on) return;
@@ -12868,14 +12868,7 @@
         b.addEventListener('click', () => { msBuildTool = k; renderMaison(); });
         tl.appendChild(b);
       }
-      // Cacher complètement les objets pendant la construction (sinon ils sont seulement estompés).
-      const hb = document.createElement('button');
-      hb.type = 'button';
-      hb.className = 'btn btn-ghost ms-hide-btn';
-      hb.textContent = msHideItems ? '👁️ Voir les objets' : '🙈 Cacher les objets';
-      hb.setAttribute('aria-pressed', msHideItems);
-      hb.addEventListener('click', () => { msHideItems = !msHideItems; renderMaison(); });
-      tl.appendChild(hb);
+      tl.appendChild(msHideButton());
       if (msBuildTool === 'stairs' && m.stairs) {
         const b = document.createElement('button');
         b.type = 'button';
@@ -12906,6 +12899,7 @@
       mk(dB && dB.kind === 'wall' ? dB.name : 'Papier peint', dB && dB.kind === 'wall', () => msOpenDecos('wall'), dB && dB.kind === 'wall' ? `center / cover url("${dB.url}")` : null);
       mk(dB && dB.kind === 'floor' ? dB.name : 'Sol à motif', dB && dB.kind === 'floor', () => msOpenDecos('floor'), dB && dB.kind === 'floor' ? `center / cover url("${dB.url}")` : null);
       mk('⌫ Gomme', msBrush.type === 'erase', () => { msBrush = { type: 'erase', c: msBrush.c }; renderMaison(); });
+      pb.appendChild(msHideButton());
     }
     $('#msHint').textContent = {
       paint: 'Touche un carreau en pointillés pour agrandir l\'étage, un carreau du sol pour le retirer.',
@@ -12941,6 +12935,16 @@
       }
     }
     cl.querySelectorAll('.swatch-btn').forEach((b) => { b.style.background = m.colors[b.dataset.key]; });
+  }
+  // Cacher complètement les objets en Construction et en Peinture (sinon ils sont seulement estompés).
+  function msHideButton() {
+    const hb = document.createElement('button');
+    hb.type = 'button';
+    hb.className = 'btn btn-ghost ms-hide-btn';
+    hb.textContent = msHideItems ? '👁️ Voir les objets' : '🙈 Cacher les objets';
+    hb.setAttribute('aria-pressed', msHideItems);
+    hb.addEventListener('click', () => { msHideItems = !msHideItems; renderMaison(); });
+    return hb;
   }
   function renderMaison() {
     if (!inMaisonRoom()) return;
