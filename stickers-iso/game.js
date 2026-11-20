@@ -12842,7 +12842,8 @@
     if (msMode === 'deco') return;
     const fl = $('#msFloors');
     fl.innerHTML = '';
-    ['RDC', '1er étage'].forEach((t, i) => {
+    // Comme dans la maison : l'étage en haut, le rez-de-chaussée en dessous.
+    [[1, '1er étage'], [0, 'RDC']].forEach(([i, t]) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'ms-floor' + (msFloor === i ? ' on' : '');
