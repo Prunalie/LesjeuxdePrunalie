@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611200830">
+  <link rel="stylesheet" href="style.css?v=202611200900">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -592,6 +592,11 @@
     </header>
     <div id="msView" class="ms-view">
       <svg id="msPlan" class="ms-plan" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ma maison"></svg>
+      <div class="house-zoom" role="group" aria-label="Zoom">
+        <button id="msZoomIn" type="button" title="Zoomer" aria-label="Zoomer">+</button>
+        <button id="msZoomOut" type="button" title="Dézoomer" aria-label="Dézoomer">−</button>
+        <button id="msFit" type="button" title="Tout voir" aria-label="Tout voir">⤢</button>
+      </div>
     </div>
     <div class="ms-bar">
       <div class="ms-row" id="msFloors"></div>
@@ -601,12 +606,7 @@
         <label>Plate-forme <input id="msPlatform" type="range" min="0" max="6" step="1"><output id="msPlatformOut"></output></label>
         <label>Murs <input id="msWallH" type="range" min="4" max="8" step="1"><output id="msWallHOut"></output></label>
       </div>
-      <div class="ms-row ms-colors">
-        <label>Murs <input id="msColWall" type="color"></label>
-        <label>Sol <input id="msColFloor" type="color"></label>
-        <label>Socle <input id="msColBase" type="color"></label>
-        <label>Dehors <input id="msColGround" type="color"></label>
-      </div>
+      <div class="ms-row ms-colors" id="msColors"></div>
     </div>
   </section>
 
@@ -1425,7 +1425,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611200830"></script>
-  <script src="game.js?v=202611200830"></script>
+  <script src="firebase-config.js?v=202611200900"></script>
+  <script src="game.js?v=202611200900"></script>
 </body>
 </html>

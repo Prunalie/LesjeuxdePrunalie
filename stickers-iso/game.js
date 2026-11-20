@@ -12525,7 +12525,8 @@
   const maisonOn = () => trialView();
   const MS_STEP_Z = 0.2; // hauteur d'une marche (en carreaux)
   const MS_GRID = 12; // taille de la grille où l'on peut construire
-  const MS_COLORS = { wall: '#e8a6b8', floor: '#f3d6bf', base: '#9c7468', ground: '#efe6df' };
+  const MS_COLORS = { wallLeft: '#e8a6b8', wallRight: '#d995a8', floor: '#f3d6bf', base: '#9c7468', ground: '#cfe3b8', sky: '#dcecf7' };
+  const MS_COLOR_LABELS = [['wallLeft', 'Mur G'], ['wallRight', 'Mur D'], ['floor', 'Sol'], ['base', 'Socle'], ['ground', 'Dehors'], ['sky', 'Ciel']];
   const msKey = (u, v) => u + ',' + v;
   const msCells = (keys) => keys.map((k) => k.split(',').map(Number));
   function msDefault() {
@@ -12538,7 +12539,10 @@
     const p = state.profile;
     if (!p.maison || !Array.isArray(p.maison.floors) || p.maison.floors.length < 2) p.maison = msDefault();
     const m = p.maison;
-    m.colors = { ...MS_COLORS, ...(m.colors || {}) };
+    const oc = m.colors || {};
+    if (oc.wall && !oc.wallLeft) { oc.wallLeft = oc.wall; oc.wallRight = shade(oc.wall, -0.1); }
+    delete oc.wall;
+    m.colors = { ...MS_COLORS, ...oc };
     m.steps = m.steps || [];
     // Version 1 : l'étage était dessiné à part, au-dessus. Maintenant il est à sa vraie place, à côté du rez-de-chaussée :
     // on repart de la maison d'exemple, en gardant les couleurs et les hauteurs.
@@ -12612,7 +12616,7 @@
           const full = [P(a[0], a[1], zf), P(b[0], b[1], zf), P(b[0], b[1], zf + H), P(a[0], a[1], zf + H)];
           const h = behind1 ? H : hides(full, u, v) ? 0.35 : H;
           hs[side] = behind1 ? 0 : h;
-          add(d, 0, [P(a[0], a[1], zf), P(b[0], b[1], zf), P(b[0], b[1], zf + h), P(a[0], a[1], zf + h)], side === 'L' ? col.wall : shade(col.wall, -0.1));
+          add(d, 0, [P(a[0], a[1], zf), P(b[0], b[1], zf), P(b[0], b[1], zf + h), P(a[0], a[1], zf + h)], side === 'L' ? col.wallLeft : col.wallRight);
           if (behind1) continue; // pas de dessus de mur : le sol de l'étage arrive juste là
           const o = side === 'L' ? [-T, 0] : [0, -T];
           add(d, 0.5, [P(a[0], a[1], zf + h), P(b[0], b[1], zf + h), P(b[0] + o[0], b[1] + o[1], zf + h), P(a[0] + o[0], a[1] + o[1], zf + h)], shade(col.base, 0.15));
@@ -12669,13 +12673,12 @@
         ghosts.push({ poly: [P(u, v, zf), P(u + 1, v, zf), P(u + 1, v + 1, zf), P(u, v + 1, zf)], u, v });
       }
     }
-    // Sol dehors : un grand losange clair sous la maison.
-    const cAll = allCells;
-    let ground = '';
-    if (cAll.length) {
-      const u0 = Math.min(...cAll.map((c) => c[0])) - 1.5, u1 = Math.max(...cAll.map((c) => c[0])) + 2.5, v0 = Math.min(...cAll.map((c) => c[1])) - 1.5, v1 = Math.max(...cAll.map((c) => c[1])) + 2.5;
-      ground = `<polygon points="${pts(P(u0, v0, 0), P(u1, v0, 0), P(u1, v1, 0), P(u0, v1, 0))}" fill="${col.ground}"/>`;
-    }
+    // Dehors : le sol prend tout le devant jusqu'à l'horizon, placé juste derrière la maison ; au-dessus, le ciel.
+    let horizon = 0;
+    if (allCells.length) horizon = P(Math.min(...allCells.map((c) => c[0])) - 1.5, Math.min(...allCells.map((c) => c[1])) - 1.5, 0).y;
+    const BIG = 100000;
+    const ground = `<rect x="${-BIG}" y="${-BIG}" width="${BIG * 2}" height="${(BIG + horizon).toFixed(1)}" fill="${col.sky}"/>`
+      + `<rect x="${-BIG}" y="${horizon.toFixed(1)}" width="${BIG * 2}" height="${BIG}" fill="${col.ground}"/>`;
     const body = [...items].sort((a, b) => a.key - b.key).map((it) => {
       const op = it.dim ? ' opacity=".35" pointer-events="none"' : '';
       return it.line
@@ -12698,7 +12701,8 @@
     const { svg, box } = maisonSvg(m, edit);
     const el = $('#msPlan');
     const pad = 30;
-    el.setAttribute('viewBox', `${(box.x0 - pad).toFixed(0)} ${(box.y0 - pad).toFixed(0)} ${(box.x1 - box.x0 + pad * 2).toFixed(0)} ${(box.y1 - box.y0 + pad * 2).toFixed(0)}`);
+    msFitBox = { x: box.x0 - pad, y: box.y0 - pad, w: box.x1 - box.x0 + pad * 2, h: box.y1 - box.y0 + pad * 2 };
+    msApplyCam();
     el.innerHTML = svg;
     const fl = $('#msFloors');
     fl.innerHTML = '';
@@ -12739,10 +12743,27 @@
     $('#msPlatformOut').textContent = m.platform ? plural(m.platform, 'marche') : 'au sol';
     $('#msWallH').value = m.wallH;
     $('#msWallHOut').textContent = (m.wallH * 0.5).toString().replace('.', ',');
-    $('#msColWall').value = m.colors.wall;
-    $('#msColFloor').value = m.colors.floor;
-    $('#msColBase').value = m.colors.base;
-    $('#msColGround').value = m.colors.ground;
+    const cl = $('#msColors');
+    if (!cl.children.length) {
+      for (const [key, label] of MS_COLOR_LABELS) {
+        const lab = document.createElement('label');
+        lab.className = 'color-pick';
+        lab.textContent = label + ' ';
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'swatch-btn';
+        b.dataset.key = key;
+        b.addEventListener('click', () => openColorPickerFor({
+          label: { wallLeft: 'Mur gauche', wallRight: 'Mur droit', floor: 'Sol', base: 'Socle', ground: 'Sol dehors', sky: 'Ciel' }[key],
+          get: () => getMaison().colors[key],
+          set: (hex) => { getMaison().colors[key] = hex; msSave(); renderMaison(); },
+        }));
+        lab.appendChild(b);
+        cl.appendChild(lab);
+      }
+    }
+    cl.querySelectorAll('.swatch-btn').forEach((b) => { b.style.background = m.colors[b.dataset.key]; });
+    $('#msView').style.background = m.colors.sky;
   }
   function msTap(u, v) {
     const m = getMaison();
@@ -12786,6 +12807,7 @@
     renderMaison();
   }
   $('#msPlan').addEventListener('click', (e) => {
+    if (msMoved) { msMoved = false; return; } // c'était un glissement, pas une touche
     const t = e.target.closest && e.target.closest('[data-u]');
     if (!t) return;
     msTap(Number(t.dataset.u), Number(t.dataset.v));
@@ -12793,12 +12815,69 @@
   for (const [id, key, conv] of [['#msPlatform', 'platform', Number], ['#msWallH', 'wallH', Number]]) {
     $(id).addEventListener('input', (e) => { getMaison()[key] = conv(e.target.value); msSave(); renderMaison(); });
   }
-  for (const [id, key] of [['#msColWall', 'wall'], ['#msColFloor', 'floor'], ['#msColBase', 'base'], ['#msColGround', 'ground']]) {
-    $(id).addEventListener('input', (e) => { getMaison().colors[key] = e.target.value; msSave(); renderMaison(); });
+  // Zoom et déplacement : boutons + − ⤢, molette, un doigt pour glisser, deux doigts pour pincer.
+  let msFitBox = { x: -100, y: -100, w: 200, h: 200 }, msCam = null;
+  function msApplyCam() {
+    const b = msCam || msFitBox;
+    $('#msPlan').setAttribute('viewBox', `${b.x.toFixed(1)} ${b.y.toFixed(1)} ${b.w.toFixed(1)} ${b.h.toFixed(1)}`);
   }
+  // Taille réelle affichée (le dessin garde ses proportions dans le cadre).
+  function msShown() {
+    const el = $('#msPlan'), b = msCam || msFitBox;
+    const sc = Math.max(b.w / el.clientWidth, b.h / el.clientHeight) || 1;
+    const w = el.clientWidth * sc, h = el.clientHeight * sc;
+    return { x: b.x + b.w / 2 - w / 2, y: b.y + b.h / 2 - h / 2, w, h, sc };
+  }
+  function msZoom(f, cx = null, cy = null) {
+    const v = msShown();
+    const px = cx === null ? v.x + v.w / 2 : cx, py = cy === null ? v.y + v.h / 2 : cy;
+    const w = Math.min(Math.max(v.w / f, msFitBox.w / 6), msFitBox.w * 4), h = (w * v.h) / v.w;
+    const k = w / v.w;
+    msCam = { x: px - (px - v.x) * k, y: py - (py - v.y) * k, w, h };
+    msApplyCam();
+  }
+  $('#msZoomIn').addEventListener('click', () => msZoom(1.3));
+  $('#msZoomOut').addEventListener('click', () => msZoom(1 / 1.3));
+  $('#msFit').addEventListener('click', () => { msCam = null; msApplyCam(); });
+  const msPts = new Map();
+  let msDrag = null, msMoved = false;
+  const msView = $('#msView');
+  const msToSvg = (e) => { const v = msShown(), r = $('#msPlan').getBoundingClientRect(); return { x: v.x + (e.clientX - r.left) * v.sc, y: v.y + (e.clientY - r.top) * v.sc }; };
+  msView.addEventListener('wheel', (e) => { e.preventDefault(); const q = msToSvg(e); msZoom(e.deltaY < 0 ? 1.15 : 1 / 1.15, q.x, q.y); }, { passive: false });
+  msView.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.house-zoom')) return;
+    msPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (msPts.size === 1) { msMoved = false; msDrag = { x: e.clientX, y: e.clientY }; }
+    else msDrag = null;
+  });
+  msView.addEventListener('pointermove', (e) => {
+    if (!msPts.has(e.pointerId)) return;
+    const prev = msPts.get(e.pointerId);
+    if (msPts.size === 2) {
+      const [a, b] = [...msPts.values()];
+      const d0 = Math.hypot(a.x - b.x, a.y - b.y);
+      msPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const [c, d] = [...msPts.values()];
+      const d1 = Math.hypot(c.x - d.x, c.y - d.y);
+      if (d0 > 0 && d1 > 0) { const q = msToSvg({ clientX: (c.x + d.x) / 2, clientY: (c.y + d.y) / 2 }); msZoom(d1 / d0, q.x, q.y); }
+      msMoved = true;
+      return;
+    }
+    msPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (!msDrag) return;
+    if (!msMoved && Math.hypot(e.clientX - msDrag.x, e.clientY - msDrag.y) < 8) return;
+    msMoved = true;
+    const v = msShown();
+    msCam = { x: v.x - (e.clientX - prev.x) * v.sc, y: v.y - (e.clientY - prev.y) * v.sc, w: v.w, h: v.h };
+    msApplyCam();
+  });
+  const msUp = (e) => { msPts.delete(e.pointerId); if (!msPts.size) msDrag = null; };
+  msView.addEventListener('pointerup', msUp);
+  msView.addEventListener('pointercancel', msUp);
   function openMaison() {
     if (!maisonOn()) return;
     showScreen('maison');
+    msCam = null;
     renderMaison();
   }
   $('#homeMaison').addEventListener('click', openMaison);

@@ -3429,3 +3429,8 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .ms-sliders input[type=range] { width: 110px; }
 .ms-sliders output { min-width: 4.5em; font-size: .85rem; color: var(--muted, #8a7a74); }
 .ms-colors input[type=color] { width: 34px; height: 28px; padding: 0; border: 1px solid var(--line, #eadfd8); border-radius: 8px; background: none; }
+.ms-view { touch-action: none; overflow: hidden; }
+.ms-colors { gap: 10px; }
+.ms-colors .color-pick { display: flex; align-items: center; gap: 4px; font-size: .9rem; }
+.ms-colors .swatch-btn { width: 38px; height: 28px; }
+.ms-view, .ms-view * { -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
