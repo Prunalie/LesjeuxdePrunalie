@@ -576,6 +576,7 @@
       colors: state.colors,
       shape: state.shape,
       ...(currentRoom() && currentRoom().contestDay ? { contestDay: currentRoom().contestDay } : {}),
+      ...(currentRoom() && currentRoom().maison ? { maison: currentRoom().maison } : {}),
       ...(currentRoom() && currentRoom().publishedAt ? { publishedAt: currentRoom().publishedAt } : {}),
       ...(currentRoom() && currentRoom().lentPlaced ? { lentPlaced: currentRoom().lentPlaced } : {}),
       ...(state.ambient < 100 ? { ambient: state.ambient } : {}),
@@ -672,6 +673,17 @@
 
   function drawRoom() {
     const curR = currentRoom();
+    if (curR && curR.maison) {
+      const m = getMaison(curR);
+      state.colors.background = m.colors.sky;
+      room.innerHTML = msStageSvg();
+      room.style.overflow = 'visible'; // le ciel et le sol dehors remplissent tout l'écran
+      stageArea.style.background = m.colors.sky;
+      $('#houseNb').innerHTML = '';
+      renderMaisonUi();
+      return;
+    }
+    renderMaisonUi();
     const inHouse = !!(houseOn() && curR && !curR.contestDay && houseEntries().some((e) => e.id === curR.id));
     room.innerHTML = roomSvg(state.colors, state.shape, inHouse ? { flat: true } : null);
     drawHouseNeighbors();
@@ -1085,12 +1097,17 @@
   // Exemplaires : chaque sticker obtenu se pose une seule fois, toutes pièces confondues.
   // La pièce du concours est à part : on y a tous ses exemplaires, sans toucher aux vraies pièces.
   const owned = (id) => (state.profile && state.profile.inventory[id]) || 0;
-  const realRooms = () => state.rooms.filter((r) => !r.contestDay);
+  const realRooms = () => state.rooms.filter((r) => !r.contestDay && !r.maison);
   const currentRoom = () => state.rooms.find((r) => r.id === state.roomId);
   const inContestRoom = () => !!(currentRoom() && currentRoom().contestDay);
   function usedCount(id) {
     let n = 0;
     if (inContestRoom()) {
+      for (const st of state.stickers) if (st.imageId === id) n++;
+      return n;
+    }
+    // Essai : chaque pièce (et la grande maison) a tous les objets, sans compter ceux posés ailleurs.
+    if (trialView() || inMaisonRoom()) {
       for (const st of state.stickers) if (st.imageId === id) n++;
       return n;
     }
@@ -2007,7 +2024,7 @@
   let viewGesture = null;
 
   stageArea.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.sticker, .toolbar, .bar-tab, .zoom-ctrl, .stage-tools, .layers-panel, .colors-panel, .pipette-hint, .light-bar')) return;
+    if (e.target.closest('.sticker, .toolbar, .bar-tab, .zoom-ctrl, .stage-tools, .layers-panel, .colors-panel, .pipette-hint, .light-bar, .ms-panel, .ms-modes')) return;
     if (e.button !== undefined && e.button !== 0) return;
     if (joinPinch(e)) return;
     viewPointerDown(e);
@@ -2073,7 +2090,7 @@
     }
     if (!viewGesture.moved && ev.type === 'pointerup') {
       const nb = neighborAt(ev.clientX, ev.clientY);
-      if (nb) goHouseRoom(nb); else select(null);
+      if (msStageTap(ev.clientX, ev.clientY)) { /* grande maison : construction ou peinture */ } else if (nb) goHouseRoom(nb); else select(null);
     }
     viewGesture = null;
     window.removeEventListener('pointermove', onViewMove);
@@ -2976,7 +2993,6 @@
     ctHistory: $('#screenCtHistory'),
     todo: $('#screenTodo'),
     house: $('#screenHouse'),
-    maison: $('#screenMaison'),
     settings: $('#screenSettings'),
     adminContest: $('#screenAdminContest'),
     adminCouncil: $('#screenAdminCouncil'),
@@ -4239,9 +4255,11 @@
   $('#btnBack').addEventListener('click', async () => {
     select(null);
     const contest = inContestRoom();
+    const wasMaison = inMaisonRoom();
     await saveRoom();
     state.roomId = null;
     if (contest) { openContest(); return; }
+    if (wasMaison) { goHome(); return; }
     if (houseOn()) { openHouse(null, 'home'); return; }
     renderRoomList();
     showScreen('rooms');
@@ -11298,7 +11316,7 @@
   // on voit les voisines autour, dans le noir ; la pièce où l'on est reste allumée. Les étages viendront ensuite : les
   // données sont rangées par étage (house.floors[0] = le rez-de-chaussée).
   // ---------------------------------------------------------------------------
-  const houseOn = () => trialView();
+  const houseOn = () => false; // ancienne maison (assemblage des pièces) retirée
   const HOUSE_DIM = '<defs><filter id="houseDim" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0.26 0 0 0 0.02  0 0.26 0 0 0.02  0 0 0.36 0 0.07  0 0 0 1 0"/></filter></defs>';
   let houseFocus = null; // pièce allumée dans le plan de la maison
   const roomById = (id) => state.rooms.find((r) => r.id === id);
@@ -12514,7 +12532,6 @@
     else if (place.screen === 'maintenance') openMaintenance();
     else if (place.screen === 'coffre') openCoffre();
     else if (place.screen === 'players') openPlayers();
-    else if (place.screen === 'maison') openMaison();
   }
 
   // ---------------------------------------------------------------------------
@@ -12535,10 +12552,11 @@
     for (let u = 0; u < 6; u++) for (let v = 3; v < 7; v++) f0.push(msKey(u, v));
     return { v: 2, platform: 3, wallH: 5, colors: { ...MS_COLORS }, floors: [{ cells: f0 }, { cells: f1 }], stairs: { u: 2, v: 5, dir: '-v' }, steps: [{ u: 4, v: 6, side: 'v' }] };
   }
-  function getMaison() {
-    const p = state.profile;
-    if (!p.maison || !Array.isArray(p.maison.floors) || p.maison.floors.length < 2) p.maison = msDefault();
-    const m = p.maison;
+  function getMaison(r = null) {
+    r = r || maisonRoom();
+    if (!r) return msDefault();
+    if (!r.maison || !Array.isArray(r.maison.floors) || r.maison.floors.length < 2) r.maison = msDefault();
+    const m = r.maison;
     const oc = m.colors || {};
     if (oc.wall && !oc.wallLeft) { oc.wallLeft = oc.wall; oc.wallRight = shade(oc.wall, -0.1); }
     delete oc.wall;
@@ -12721,38 +12739,97 @@
     return { svg: (defs.length ? `<defs>${defs.join('')}</defs>` : '') + ground + body + ghostSvg, box: bx };
   }
 
-  // 3 vues : Construction (carreaux, escalier, marches, hauteurs), Décoration (les meubles), Peinture (murs et sols).
-  let msFloor = 0, msTool = 'paint', msSaveT = 0, msMode = 'build', msBuildTool = 'paint';
+  // ---------------------------------------------------------------------------
+  // La grande maison s'ouvre dans l'éditeur des pièces : c'est une pièce spéciale (room.maison = sa forme).
+  // Décoration = l'éditeur habituel (meubles, menu, devant / derrière, lumière…). Construction et Peinture
+  // sont deux vues en plus, avec leur panneau en bas ; les meubles y sont estompés.
+  // Le dessin de la maison est mis à l'échelle de la scène (1000 × 760) : m.view = { S, ox, oy }.
+  // ---------------------------------------------------------------------------
+  let msFloor = 0, msTool = 'look', msSaveT = 0, msMode = 'deco', msBuildTool = 'paint';
   const MS_MODES = [['build', '🧱 Construction'], ['deco', '🛋️ Décoration'], ['paint', '🎨 Peinture']];
   const MS_TOOLS = [['paint', '⬚ Carreaux'], ['stairs', '🪜 Escalier'], ['steps', '👣 Marches']];
-  function msSave() { clearTimeout(msSaveT); msSaveT = setTimeout(() => saveProfile(), 600); }
-  function renderMaison() {
+  const maisonRoom = () => state.rooms.find((r) => r.maison && r.owner === (state.player && state.player.key)) || null;
+  const inMaisonRoom = () => !!(currentRoom() && currentRoom().maison);
+  function msSave() { scheduleSave(); }
+  // Recadre la maison dans la scène après une construction ; les meubles suivent (même déplacement, même échelle).
+  function msRefit(first = false) {
+    const m = getMaison();
+    const { box } = maisonSvg(m, null, false);
+    const cx = (box.x0 + box.x1) / 2, cy = (box.y0 + box.y1) / 2;
+    const S = Math.min(0.9, (STAGE_W - 60) / Math.max(1, box.x1 - box.x0), (STAGE_H - 60) / Math.max(1, box.y1 - box.y0));
+    const nv = { S, ox: STAGE_W / 2 - cx * S, oy: STAGE_H / 2 - cy * S };
+    const ov = m.view;
+    if (!first && ov && inMaisonRoom()) {
+      const k = nv.S / ov.S;
+      if (Math.abs(k - 1) > 1e-6 || Math.abs(nv.ox - ov.ox) > 0.01 || Math.abs(nv.oy - ov.oy) > 0.01) {
+        for (const st of state.stickers) {
+          st.x = nv.ox + (st.x - ov.ox) * k;
+          st.y = nv.oy + (st.y - ov.oy) * k;
+          st.w *= k; st.h *= k;
+        }
+        renderStickers();
+      }
+    }
+    m.view = nv;
+  }
+  function msStageSvg() {
+    const m = getMaison();
+    if (!m.view) msRefit(true);
+    const v = m.view;
+    const edit = msMode === 'deco' ? null : msFloor;
+    const { svg } = maisonSvg(m, edit, msMode === 'paint');
+    return `<g transform="translate(${v.ox.toFixed(2)} ${v.oy.toFixed(2)}) scale(${v.S.toFixed(5)})">${svg}</g>`;
+  }
+  // Ouvre (ou crée) la grande maison. L'ancienne version rangée dans le profil y est reprise, meubles compris.
+  async function openMaison() {
+    if (!maisonOn()) return;
+    let r = maisonRoom();
+    if (!r) {
+      const old = state.profile && state.profile.maison;
+      r = { id: uid(), owner: state.player.key, name: 'Ma grande maison', stickers: [], colors: { ...DEFAULT_COLORS }, thumb: '', updated: Date.now(), maison: old && Array.isArray(old.floors) ? JSON.parse(JSON.stringify(old)) : msDefault() };
+      state.rooms.push(r);
+      const m = getMaison(r);
+      delete m.view;
+      msRefit(true);
+      for (const it of m.items || []) {
+        r.stickers.push({ id: uid(), imageId: it.imageId, x: m.view.ox + it.x * m.view.S, y: m.view.oy + it.y * m.view.S, w: it.w * m.view.S, h: it.h * m.view.S, rot: 0, flip: !!it.flip });
+      }
+      delete m.items;
+      try { await db.putRoom(r); } catch (e) { console.warn('Grande maison non enregistrée', e); toast('La maison n\'a pas pu être enregistrée. Vérifie ta connexion.'); }
+    }
+    msMode = 'deco';
+    msFloor = 0;
+    openRoom(r.id);
+    ensureDecos().then(() => { if (inMaisonRoom()) drawRoom(); });
+  }
+  $('#homeMaison').addEventListener('click', openMaison);
+
+  // Barre des 3 vues et panneau du bas (dans l'écran de la pièce).
+  function renderMaisonUi() {
+    const on = inMaisonRoom();
+    $('#msModes').hidden = !on;
+    $('#msPanel').hidden = !on || msMode === 'deco';
+    $('#stage').classList.toggle('ms-editing', on && msMode !== 'deco');
+    stageArea.classList.toggle('ms-editing-area', on && msMode !== 'deco');
+    for (const id of ['#btnShape', '#btnColors']) $(id).hidden = on;
+    if (!on) return;
     const m = getMaison();
     if (msFloor === 1 && (msBuildTool === 'stairs' || msBuildTool === 'steps')) msBuildTool = 'paint';
     msTool = msMode === 'build' ? msBuildTool : msMode === 'paint' ? 'brush' : 'look';
-    if (msMode !== 'deco') msSel = null;
-    const edit = msTool === 'look' ? null : msFloor;
-    const { svg, box } = maisonSvg(m, edit, msTool === 'brush');
-    const el = $('#msPlan');
-    const pad = 30;
-    msFitBox = { x: box.x0 - pad, y: box.y0 - pad, w: box.x1 - box.x0 + pad * 2, h: box.y1 - box.y0 + pad * 2 };
-    msApplyCam();
-    el.innerHTML = svg + '<g id="msItems"></g>';
-    msRenderItems();
     const mo = $('#msModes');
     mo.innerHTML = '';
     for (const [k, t] of MS_MODES) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'ms-mode' + (msMode === k ? ' on' : '');
-      b.textContent = t;
+      const [ico, ...rest] = t.split(' ');
+      b.innerHTML = `<span class="ms-ico" aria-hidden="true">${ico}</span><span>${rest.join(' ')}</span>`;
       b.setAttribute('aria-pressed', msMode === k);
-      b.addEventListener('click', () => { msMode = k; renderMaison(); });
+      b.addEventListener('click', () => { if (k !== 'deco') select(null); msMode = k; renderMaison(); });
       mo.appendChild(b);
     }
-    $('#msScreenMaison').dataset.mode = msMode;
+    if (msMode === 'deco') return;
     const fl = $('#msFloors');
-    fl.hidden = msMode === 'deco';
     fl.innerHTML = '';
     ['Rez-de-chaussée', '1er étage'].forEach((t, i) => {
       const b = document.createElement('button');
@@ -12765,23 +12842,28 @@
     const tl = $('#msTools');
     tl.hidden = msMode !== 'build';
     tl.innerHTML = '';
-    if (msMode === 'build') for (const [k, t] of MS_TOOLS) {
-      if (msFloor === 1 && (k === 'stairs' || k === 'steps')) continue;
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'btn' + (msBuildTool === k ? ' btn-primary' : '');
-      b.textContent = t;
-      b.addEventListener('click', () => { msBuildTool = k; renderMaison(); });
-      tl.appendChild(b);
+    if (msMode === 'build') {
+      for (const [k, t] of MS_TOOLS) {
+        if (msFloor === 1 && (k === 'stairs' || k === 'steps')) continue;
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn' + (msBuildTool === k ? ' btn-primary' : '');
+        b.textContent = t;
+        b.addEventListener('click', () => { msBuildTool = k; renderMaison(); });
+        tl.appendChild(b);
+      }
+      if (msBuildTool === 'stairs' && m.stairs) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-ghost';
+        b.textContent = '✕ Retirer l\'escalier';
+        b.addEventListener('click', () => { m.stairs = null; msSave(); renderMaison(); });
+        tl.appendChild(b);
+      }
     }
-    $('.ms-sliders').hidden = msMode !== 'build';
-    $('#msColorsWrap').hidden = msMode !== 'paint';
-    $('#msDeco').hidden = msMode !== 'deco';
-    if (msMode === 'deco') msRenderDecoBar();
-    // Pinceau : une couleur, un papier peint (murs) ou un sol à motif (sols), ou la gomme (couleur de base).
     const pb = $('#msBrushBar');
-    pb.hidden = msTool !== 'brush';
-    if (msTool === 'brush') {
+    pb.hidden = msMode !== 'paint';
+    if (msMode === 'paint') {
       pb.innerHTML = '';
       const mk = (label, active, fn, swatch = null) => {
         const b = document.createElement('button');
@@ -12801,27 +12883,20 @@
       mk(dB && dB.kind === 'floor' ? dB.name : 'Sol à motif', dB && dB.kind === 'floor', () => msOpenDecos('floor'), dB && dB.kind === 'floor' ? `center / cover url("${dB.url}")` : null);
       mk('⌫ Gomme', msBrush.type === 'erase', () => { msBrush = { type: 'erase', c: msBrush.c }; renderMaison(); });
     }
-    if (msTool === 'stairs' && m.stairs) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'btn btn-ghost';
-      b.textContent = '✕ Retirer l\'escalier';
-      b.addEventListener('click', () => { m.stairs = null; msSave(); renderMaison(); });
-      tl.appendChild(b);
-    }
     $('#msHint').textContent = {
       paint: 'Touche un carreau en pointillés pour agrandir l\'étage, un carreau du sol pour le retirer.',
       stairs: 'Touche un carreau du sol pour y poser le bas de l\'escalier (3 carreaux). Touche-le encore pour le tourner.',
       steps: m.platform ? 'Touche un carreau au bord du rez-de-chaussée pour y ajouter des marches. Touche encore pour changer de côté ou les retirer.' : 'Monte d\'abord la plate-forme pour pouvoir ajouter des marches.',
-      look: msSel ? 'Glisse l\'objet pour le déplacer. Touche à côté pour le lâcher.' : 'Touche un objet de ta collection pour le poser dans la maison, puis glisse-le à sa place.',
       brush: msBrush.type === 'erase' ? 'Gomme : touche un panneau de mur ou un carreau du sol pour lui rendre la couleur de base.'
         : msBrush.type === 'deco' ? ((state.decos.get(msBrush.id) || {}).kind === 'floor' ? 'Touche les carreaux du sol à recouvrir de ce motif.' : 'Touche les panneaux de mur à tapisser.')
           : 'Touche les panneaux de mur et les carreaux du sol à peindre de cette couleur.',
-    }[msTool];
+    }[msTool] || '';
+    $('#msSliders').hidden = msMode !== 'build';
     $('#msPlatform').value = m.platform;
     $('#msPlatformOut').textContent = m.platform ? plural(m.platform, 'marche') : 'au sol';
     $('#msWallH').value = m.wallH;
     $('#msWallHOut').textContent = (m.wallH * 0.5).toString().replace('.', ',');
+    $('#msColorsWrap').hidden = msMode !== 'paint';
     const cl = $('#msColors');
     if (!cl.children.length) {
       for (const [key, label] of MS_COLOR_LABELS) {
@@ -12842,7 +12917,10 @@
       }
     }
     cl.querySelectorAll('.swatch-btn').forEach((b) => { b.style.background = m.colors[b.dataset.key]; });
-    $('#msView').style.background = m.colors.sky;
+  }
+  function renderMaison() {
+    if (!inMaisonRoom()) return;
+    drawRoom();
   }
   function msTap(u, v) {
     const m = getMaison();
@@ -12882,92 +12960,11 @@
       const next = cur ? sides[sides.indexOf(cur.side) + 1] : sides[0];
       if (next) m.steps.push({ u, v, side: next });
     } else return;
+    msRefit();
     msSave();
     renderMaison();
   }
   let msBrush = { type: 'color', c: null };
-  // Décoration : les objets gagnés, posés dans la maison. m.items = [{ id, imageId, x, y, w, h, flip }] (dans l'ordre, le dernier devant).
-  // La maison a ses propres exemplaires : un objet posé dans une pièce peut aussi l'être ici.
-  let msSel = null;
-  const msItems = () => { const m = getMaison(); m.items = m.items || []; return m.items; };
-  const msLeft = (id) => owned(id) - msItems().filter((it) => it.imageId === id).length;
-  function msRenderItems() {
-    const g = $('#msItems');
-    if (!g) return;
-    g.innerHTML = msItems().map((it) => {
-      const img = state.images.get(it.imageId);
-      if (!img) return '';
-      const x = it.x - it.w / 2, y = it.y - it.h / 2;
-      const flip = it.flip ? ` transform="translate(${(2 * it.x).toFixed(1)} 0) scale(-1 1)"` : '';
-      const sel = it.id === msSel ? `<rect x="${(x - 4).toFixed(1)}" y="${(y - 4).toFixed(1)}" width="${(it.w + 8).toFixed(1)}" height="${(it.h + 8).toFixed(1)}" rx="8" fill="none" stroke="#f0658a" stroke-width="3" stroke-dasharray="8 6" pointer-events="none"/>` : '';
-      return `<g data-item="${escXml(it.id)}"${msMode === 'deco' ? ' class="ms-item"' : ' pointer-events="none"'}><image href="${img.url}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${it.w.toFixed(1)}" height="${it.h.toFixed(1)}" preserveAspectRatio="none"${flip}/>${sel}</g>`;
-    }).join('');
-  }
-  function msRenderDecoBar() {
-    const it = msItems().find((x) => x.id === msSel);
-    const tb = $('#msItemBar');
-    tb.hidden = !it;
-    const grid = $('#msObjGrid');
-    const list = [...state.images.values()].filter((img) => owned(img.id) > 0).sort((a, b) => (b.created || 0) - (a.created || 0));
-    $('#msObjEmpty').hidden = list.length > 0;
-    const sig = list.map((i) => i.id).join(',');
-    if (grid.dataset.sig !== sig) {
-      grid.dataset.sig = sig;
-      grid.innerHTML = '';
-      for (const img of list) {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'ms-obj';
-        b.dataset.id = img.id;
-        b.title = img.name || '';
-        b.innerHTML = '<img loading="lazy" alt=""><span class="ms-obj-n"></span>';
-        b.querySelector('img').src = img.url;
-        b.addEventListener('click', () => msAddItem(img.id));
-        grid.appendChild(b);
-      }
-    }
-    for (const b of grid.children) {
-      const left = msLeft(b.dataset.id);
-      b.classList.toggle('used', left <= 0);
-      b.querySelector('.ms-obj-n').textContent = left > 0 ? '×' + left : '✓';
-    }
-  }
-  function msAddItem(imageId) {
-    const img = state.images.get(imageId);
-    if (!img) return;
-    if (msLeft(imageId) <= 0) { toast('Tous tes exemplaires de cet objet sont déjà dans la maison.'); return; }
-    const v = msShown();
-    const k = (STICKER_DEFAULT_SIZE * 0.6) / Math.max(img.w, img.h);
-    const it = { id: uid(), imageId, x: v.x + v.w / 2, y: v.y + v.h / 2, w: img.w * k, h: img.h * k, flip: false };
-    msItems().push(it);
-    msSel = it.id;
-    msSave();
-    msRenderItems();
-    msRenderDecoBar();
-    renderMaisonHint();
-  }
-  function msItemAct(act) {
-    const items = msItems();
-    const i = items.findIndex((x) => x.id === msSel);
-    if (i < 0) return;
-    const it = items[i];
-    if (act === 'bigger' || act === 'smaller') {
-      const f = act === 'bigger' ? 1.15 : 1 / 1.15;
-      if ((it.w * f < 12 && f < 1) || (it.w * f > 900 && f > 1)) return;
-      it.w *= f; it.h *= f;
-    } else if (act === 'flip') it.flip = !it.flip;
-    else if (act === 'front' && i < items.length - 1) { items.splice(i, 1); items.push(it); }
-    else if (act === 'back' && i > 0) { items.splice(i, 1); items.unshift(it); }
-    else if (act === 'remove') { items.splice(i, 1); msSel = null; }
-    msSave();
-    msRenderItems();
-    msRenderDecoBar();
-    renderMaisonHint();
-  }
-  document.querySelectorAll('#msItemBar [data-act]').forEach((b) => b.addEventListener('click', () => msItemAct(b.dataset.act)));
-  function renderMaisonHint() {
-    if (msMode === 'deco') $('#msHint').textContent = msSel ? 'Glisse l\'objet pour le déplacer. Touche à côté pour le lâcher.' : 'Touche un objet de ta collection pour le poser dans la maison, puis glisse-le à sa place.';
-  }
   function msOpenDecos(kind) {
     $('#decoPickTitle').textContent = kind === 'wall' ? 'Papiers peints' : 'Sols à motif';
     const list = $('#decoPickList');
@@ -13010,105 +13007,19 @@
     msSave();
     renderMaison();
   }
-  $('#msPlan').addEventListener('click', (e) => {
-    if (msMoved) { msMoved = false; return; } // c'était un glissement, pas une touche
-    if (msMode === 'deco') {
-      // Touche à côté d'un objet : on le lâche.
-      if (!(e.target.closest && e.target.closest('[data-item]')) && msSel) { msSel = null; msRenderItems(); msRenderDecoBar(); renderMaisonHint(); }
-      return;
+  // Touche dans la scène (Construction / Peinture) : on cherche le carreau ou le panneau sous le doigt.
+  function msStageTap(x, y) {
+    if (!inMaisonRoom() || msMode === 'deco') return false;
+    for (const el of document.elementsFromPoint(x, y)) {
+      if (!el.closest || !el.closest('#room')) continue;
+      if (msMode === 'paint' && el.dataset && el.dataset.pk) { msPaintPanel(el.dataset.pk); return true; }
+      if (msMode === 'build' && el.dataset && el.dataset.u !== undefined) { msTap(Number(el.dataset.u), Number(el.dataset.v)); return true; }
     }
-    const pkEl = e.target.closest && e.target.closest('[data-pk]');
-    if (pkEl && msTool === 'brush') { msPaintPanel(pkEl.dataset.pk); return; }
-    const t = e.target.closest && e.target.closest('[data-u]');
-    if (!t) return;
-    msTap(Number(t.dataset.u), Number(t.dataset.v));
-  });
-  for (const [id, key, conv] of [['#msPlatform', 'platform', Number], ['#msWallH', 'wallH', Number]]) {
-    $(id).addEventListener('input', (e) => { getMaison()[key] = conv(e.target.value); msSave(); renderMaison(); });
+    return true;
   }
-  // Zoom et déplacement : boutons + − ⤢, molette, un doigt pour glisser, deux doigts pour pincer.
-  let msFitBox = { x: -100, y: -100, w: 200, h: 200 }, msCam = null;
-  function msApplyCam() {
-    const b = msCam || msFitBox;
-    $('#msPlan').setAttribute('viewBox', `${b.x.toFixed(1)} ${b.y.toFixed(1)} ${b.w.toFixed(1)} ${b.h.toFixed(1)}`);
+  for (const [id, key] of [['#msPlatform', 'platform'], ['#msWallH', 'wallH']]) {
+    $(id).addEventListener('input', (e) => { getMaison()[key] = Number(e.target.value); msRefit(); msSave(); renderMaison(); });
   }
-  // Taille réelle affichée (le dessin garde ses proportions dans le cadre).
-  function msShown() {
-    const el = $('#msPlan'), b = msCam || msFitBox;
-    const sc = Math.max(b.w / el.clientWidth, b.h / el.clientHeight) || 1;
-    const w = el.clientWidth * sc, h = el.clientHeight * sc;
-    return { x: b.x + b.w / 2 - w / 2, y: b.y + b.h / 2 - h / 2, w, h, sc };
-  }
-  function msZoom(f, cx = null, cy = null) {
-    const v = msShown();
-    const px = cx === null ? v.x + v.w / 2 : cx, py = cy === null ? v.y + v.h / 2 : cy;
-    const w = Math.min(Math.max(v.w / f, msFitBox.w / 6), msFitBox.w * 4), h = (w * v.h) / v.w;
-    const k = w / v.w;
-    msCam = { x: px - (px - v.x) * k, y: py - (py - v.y) * k, w, h };
-    msApplyCam();
-  }
-  $('#msZoomIn').addEventListener('click', () => msZoom(1.3));
-  $('#msZoomOut').addEventListener('click', () => msZoom(1 / 1.3));
-  $('#msFit').addEventListener('click', () => { msCam = null; msApplyCam(); });
-  const msPts = new Map();
-  let msDrag = null, msMoved = false;
-  const msView = $('#msView');
-  const msToSvg = (e) => { const v = msShown(), r = $('#msPlan').getBoundingClientRect(); return { x: v.x + (e.clientX - r.left) * v.sc, y: v.y + (e.clientY - r.top) * v.sc }; };
-  msView.addEventListener('wheel', (e) => { e.preventDefault(); const q = msToSvg(e); msZoom(e.deltaY < 0 ? 1.15 : 1 / 1.15, q.x, q.y); }, { passive: false });
-  msView.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.house-zoom')) return;
-    msPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    msItemDrag = null;
-    if (msPts.size === 1) {
-      msMoved = false;
-      msDrag = { x: e.clientX, y: e.clientY };
-      // Décoration : on attrape un objet pour le déplacer (au lieu de faire glisser la vue).
-      const g = msMode === 'deco' && e.target.closest && e.target.closest('[data-item]');
-      if (g) {
-        msItemDrag = g.dataset.item;
-        if (msSel !== msItemDrag) { msSel = msItemDrag; msRenderItems(); msRenderDecoBar(); renderMaisonHint(); }
-      }
-    } else msDrag = null;
-  });
-  msView.addEventListener('pointermove', (e) => {
-    if (!msPts.has(e.pointerId)) return;
-    const prev = msPts.get(e.pointerId);
-    if (msPts.size === 2) {
-      const [a, b] = [...msPts.values()];
-      const d0 = Math.hypot(a.x - b.x, a.y - b.y);
-      msPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      const [c, d] = [...msPts.values()];
-      const d1 = Math.hypot(c.x - d.x, c.y - d.y);
-      if (d0 > 0 && d1 > 0) { const q = msToSvg({ clientX: (c.x + d.x) / 2, clientY: (c.y + d.y) / 2 }); msZoom(d1 / d0, q.x, q.y); }
-      msMoved = true;
-      return;
-    }
-    msPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (!msDrag) return;
-    if (!msMoved && Math.hypot(e.clientX - msDrag.x, e.clientY - msDrag.y) < 8) return;
-    msMoved = true;
-    const v = msShown();
-    if (msItemDrag) {
-      const it = msItems().find((x) => x.id === msItemDrag);
-      if (it) { it.x += (e.clientX - prev.x) * v.sc; it.y += (e.clientY - prev.y) * v.sc; msRenderItems(); }
-      return;
-    }
-    msCam = { x: v.x - (e.clientX - prev.x) * v.sc, y: v.y - (e.clientY - prev.y) * v.sc, w: v.w, h: v.h };
-    msApplyCam();
-  });
-  let msItemDrag = null;
-  const msUp = (e) => { msPts.delete(e.pointerId); if (!msPts.size) { msDrag = null; if (msItemDrag && msMoved) msSave(); msItemDrag = null; } };
-  msView.addEventListener('pointerup', msUp);
-  msView.addEventListener('pointercancel', msUp);
-  function openMaison() {
-    if (!maisonOn()) return;
-    showScreen('maison');
-    msCam = null;
-    renderMaison();
-    ensureDecos().then(() => { if (!screens.maison.hidden) renderMaison(); });
-  }
-  $('#homeMaison').addEventListener('click', openMaison);
-  $('#msBack').addEventListener('click', () => { clearTimeout(msSaveT); saveProfile(); goHome(); });
 
   init();
 })();

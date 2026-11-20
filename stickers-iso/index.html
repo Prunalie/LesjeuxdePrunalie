@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611201000">
+  <link rel="stylesheet" href="style.css?v=202611201100">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -248,6 +248,20 @@
           <div id="lightLayer" class="light-layer" aria-hidden="true"></div>
           <div id="lightHandles" class="light-handles"></div>
         </div>
+      </div>
+
+      <!-- Grande maison (essai) : 3 vues en haut, et le panneau de Construction / Peinture en bas -->
+      <nav id="msModes" class="ms-modes" aria-label="Vues de la maison" hidden></nav>
+      <div id="msPanel" class="ms-bar ms-panel" hidden>
+        <div class="ms-row" id="msFloors"></div>
+        <div class="ms-row" id="msTools"></div>
+        <div class="ms-row" id="msBrushBar" hidden></div>
+        <p id="msHint" class="ms-hint muted"></p>
+        <div class="ms-row ms-sliders" id="msSliders">
+          <label>Plate-forme <input id="msPlatform" type="range" min="0" max="6" step="1"><output id="msPlatformOut"></output></label>
+          <label>Murs <input id="msWallH" type="range" min="4" max="8" step="1"><output id="msWallHOut"></output></label>
+        </div>
+        <div id="msColorsWrap"><p class="ms-sub muted">Couleurs de base (tout ce qui n'est pas peint)</p><div class="ms-row ms-colors" id="msColors"></div></div>
       </div>
 
       <!-- Languettes pour cacher / afficher la barre du haut et la bibliothèque -->
@@ -582,50 +596,6 @@
     </div>
   </section>
 
-  <!-- Ma grande maison (essai administratrice) : une seule maison à modeler, sur 2 étages -->
-  <section id="screenMaison" class="screen screen-maison" hidden>
-    <div id="msScreenMaison" class="ms-wrap">
-    <header class="topbar">
-      <div class="room-title">
-        <button id="msBack" class="btn btn-ghost" title="Retour">←<span class="label-long">&nbsp;Retour</span></button>
-        <h1>Ma grande maison</h1>
-      </div>
-    </header>
-    <nav id="msModes" class="ms-modes" aria-label="Vues"></nav>
-    <div id="msView" class="ms-view">
-      <svg id="msPlan" class="ms-plan" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ma maison"></svg>
-      <div class="house-zoom" role="group" aria-label="Zoom">
-        <button id="msZoomIn" type="button" title="Zoomer" aria-label="Zoomer">+</button>
-        <button id="msZoomOut" type="button" title="Dézoomer" aria-label="Dézoomer">−</button>
-        <button id="msFit" type="button" title="Tout voir" aria-label="Tout voir">⤢</button>
-      </div>
-    </div>
-    <div class="ms-bar">
-      <div class="ms-row" id="msFloors"></div>
-      <div class="ms-row" id="msTools"></div>
-      <div class="ms-row" id="msBrushBar" hidden></div>
-      <p id="msHint" class="ms-hint muted"></p>
-      <div class="ms-row ms-sliders">
-        <label>Plate-forme <input id="msPlatform" type="range" min="0" max="6" step="1"><output id="msPlatformOut"></output></label>
-        <label>Murs <input id="msWallH" type="range" min="4" max="8" step="1"><output id="msWallHOut"></output></label>
-      </div>
-      <div id="msColorsWrap"><p class="ms-sub muted">Couleurs de base (tout ce qui n'est pas peint)</p><div class="ms-row ms-colors" id="msColors"></div></div>
-      <div id="msDeco" hidden>
-        <div id="msItemBar" class="ms-row" hidden>
-          <button type="button" class="btn" data-act="smaller" title="Plus petit">➖</button>
-          <button type="button" class="btn" data-act="bigger" title="Plus grand">➕</button>
-          <button type="button" class="btn" data-act="flip" title="Retourner">↔️</button>
-          <button type="button" class="btn" data-act="front" title="Devant les autres">⬆️ Devant</button>
-          <button type="button" class="btn" data-act="back" title="Derrière les autres">⬇️ Derrière</button>
-          <button type="button" class="btn btn-ghost" data-act="remove" title="Ranger">🗑️ Ranger</button>
-        </div>
-        <p class="ms-sub muted">Ma collection</p>
-        <p id="msObjEmpty" class="muted" hidden>Aucun objet pour l'instant : gagne-en en ouvrant des enveloppes !</p>
-        <div id="msObjGrid" class="ms-objgrid"></div>
-      </div>
-    </div>
-    </div>
-  </section>
 
   <!-- Ma maison (test administratrice) -->
   <section id="screenHouse" class="screen screen-house" hidden>
@@ -1442,7 +1412,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611201000"></script>
-  <script src="game.js?v=202611201000"></script>
+  <script src="firebase-config.js?v=202611201100"></script>
+  <script src="game.js?v=202611201100"></script>
 </body>
 </html>
