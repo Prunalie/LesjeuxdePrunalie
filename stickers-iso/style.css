@@ -3490,3 +3490,26 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .stage-area .ms-left .ms-floors { position: static; }
 .ms-hide-toggle { padding: 8px 12px; border-radius: 14px; border: 2px solid var(--chunk, #5a3e3a); box-shadow: 0 3px 0 var(--chunk, #5a3e3a); background: var(--panel); color: var(--ink); font: inherit; font-weight: 600; font-size: .8rem; cursor: pointer; white-space: nowrap; }
 .ms-hide-toggle.on { background: #f0658a; color: #fff; }
+/* Grimoire des sortilèges */
+.cristal-ico { vertical-align: -3px; }
+.grimoire-body { max-width: 640px; margin: 0 auto; }
+.gr-count { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 1.15rem; margin: 6px 0 14px; padding: 10px; border-radius: 14px; background: linear-gradient(135deg, #3a2150, #5b3486); color: #f3e7ff; }
+.gr-count strong { font-size: 1.5rem; }
+.gr-list { display: flex; flex-direction: column; gap: 10px; }
+.gr-spell { display: grid; grid-template-columns: 52px 1fr; gap: 4px 12px; align-items: center; padding: 12px; border-radius: 16px; border: 2px solid #b48cf0; background: var(--panel); box-shadow: 0 3px 0 #7a4fb5; }
+.gr-spell.done { border-color: var(--line); box-shadow: none; opacity: .75; }
+.gr-icon { grid-row: span 2; font-size: 2rem; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: radial-gradient(circle, #f3e7ff, #d9c4ff); }
+.gr-body h3 { margin: 0 0 2px; font-size: 1.02rem; }
+.gr-desc { margin: 0; font-size: .9rem; }
+.gr-extra { margin: 4px 0 0; font-size: .8rem; }
+.gr-act { grid-column: 2; justify-self: start; margin-top: 4px; }
+.gr-cast { display: inline-flex; align-items: center; gap: 6px; }
+.gr-done { font-weight: 700; color: #7a4fb5; }
+.gr-help { margin-top: 18px; padding: 12px 14px; border-radius: 14px; border: 1px dashed var(--line); }
+.gr-help h2 { margin: 0 0 6px; font-size: 1rem; }
+.gr-help ul { margin: 0; padding-left: 1.1em; }
+.gr-spark { position: fixed; z-index: 9999; pointer-events: none; font-size: 1.2rem; transform: translate(-50%, -50%); animation: grSpark 1s ease-out forwards; }
+@keyframes grSpark { to { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(.4); opacity: 0; } }
+.ms-mode.locked, .ms-floor.locked, #msTools .locked { opacity: .55; }
+.ms-sliders label.locked { opacity: .5; }
+.ms-grimoire-btn { display: inline-flex; align-items: center; gap: 6px; }

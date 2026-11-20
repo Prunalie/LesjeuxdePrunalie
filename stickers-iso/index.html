@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611201600">
+  <link rel="stylesheet" href="style.css?v=202611201700">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -130,6 +130,10 @@
           <button id="homeMaison" class="card home-card small" hidden>
             <span class="tile-icon" style="background:#FCE3EA"><svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 12 L16 6 L28 12 L16 18 Z" fill="#F7D9C0" stroke="#5A3E3A" stroke-width="2.2" stroke-linejoin="round"/><path d="M4 12 V22 L16 28 V18 Z" fill="#E8A0B4" stroke="#5A3E3A" stroke-width="2.2" stroke-linejoin="round"/><path d="M28 12 V22 L16 28 V18 Z" fill="#D98AA0" stroke="#5A3E3A" stroke-width="2.2" stroke-linejoin="round"/></svg></span>
             <span class="small-text"><span class="card-title">Ma grande maison</span><span class="card-sub">Essai · 2 étages</span></span>
+          </button>
+          <button id="homeGrimoire" class="card home-card small" hidden>
+            <span class="tile-icon" style="background:#EDE3FB"><svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 6 Q11 4 16 7 Q21 4 27 6 V26 Q21 24 16 27 Q11 24 5 26 Z" fill="#7a4fb5" stroke="#3a2150" stroke-width="2" stroke-linejoin="round"/><path d="M16 7 V27" stroke="#3a2150" stroke-width="2"/><path d="M21 11 L23.5 14 L21 20 L18.5 14 Z" fill="#d9c4ff" stroke="#3a2150" stroke-width="1.3" stroke-linejoin="round"/><circle cx="10" cy="13" r="1.4" fill="#ffe08a"/><circle cx="11.5" cy="18" r="1" fill="#ffe08a"/></svg></span>
+            <span class="small-text"><span class="card-title">Grimoire des sortilèges</span><span id="homeGrimoireSub" class="card-sub"></span></span>
           </button>
           <button id="homeCreations" class="card home-card small">
             <span class="tile-icon" style="background:#F1E7F8"><svg class="mn-only mn-ico" width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M27 4 C17 4 9 10 8 22 L11 24 C22 22 27 14 27 4Z" fill="#FBEFD2" stroke="#1B0F14" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M8 22 L4 28 M12 20 L20 11" fill="none" stroke="#1B0F14" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg><svg class="mn-off" width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 27 L7 19 L21 5 L27 11 L13 25 Z" fill="#FF9B6B" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M5 27 L7 19 L13 25 Z" fill="#FFF8EF" stroke="#5A3E3A" stroke-width="2.4" stroke-linejoin="round"/><path d="M18 8 L24 14" stroke="#5A3E3A" stroke-width="2.2"/></svg></span>
@@ -808,6 +812,29 @@
   </div>
 
   <!-- Nouveautés -->
+  <!-- Grimoire des sortilèges (essai) : les éclats de cristal et les sortilèges du manoir -->
+  <section id="screenGrimoire" class="screen screen-grimoire" hidden>
+    <header class="topbar">
+      <div class="room-title">
+        <button id="grimoireBack" class="btn btn-ghost" title="Retour">←<span class="label-long">&nbsp;Retour</span></button>
+        <h1>Grimoire des sortilèges</h1>
+      </div>
+    </header>
+    <div class="rooms-body grimoire-body">
+      <p id="grimoireCount" class="gr-count"></p>
+      <div id="grimoireList" class="gr-list"></div>
+      <div class="gr-help">
+        <h2>Comment gagner des éclats de cristal ?</h2>
+        <ul>
+          <li>📒 Complète ton Carnet du jour</li>
+          <li>🏆 Participe au concours</li>
+          <li>🥇 Monte sur le podium du concours : des éclats en plus</li>
+          <li>🎉 Tous les 10 concours, un bonus d'éclats</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
   <section id="screenNews" class="screen screen-news" hidden>
     <header class="topbar">
       <div class="room-title">
@@ -1431,7 +1458,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611201600"></script>
-  <script src="game.js?v=202611201600"></script>
+  <script src="firebase-config.js?v=202611201700"></script>
+  <script src="game.js?v=202611201700"></script>
 </body>
 </html>
