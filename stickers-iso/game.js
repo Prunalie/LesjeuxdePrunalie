@@ -12580,7 +12580,35 @@
   // Dessin : renvoie le SVG et sa boîte (pour le cadrage).
   // L'étage est à sa vraie place : son sol au niveau du haut des murs du rez-de-chaussée, sur un grand socle qui
   // descend jusqu'au sol dehors. Les deux étages ne se superposent jamais (chaque carreau est à l'un ou à l'autre).
-  function maisonSvg(m, edit = null) {
+  // Peinture d'un panneau : m.paint['étage,u,v,L|R|F'] = { c: couleur } ou { d: id du papier peint / sol à motif }.
+  const msPanelKey = (fi, u, v, side) => `${fi},${u},${v},${side}`;
+  function maisonSvg(m, edit = null, brush = false) {
+    const paint = m.paint || {};
+    const defs = [];
+    const patDone = new Set();
+    // Motif posé sur un panneau : aligné sur toute la maison, comme dans les pièces.
+    const pattern = (d, side, zTop) => {
+      const id = `msp-${d.id}-${side}-${Math.round(zTop * 100)}`;
+      if (!patDone.has(id)) {
+        patDone.add(id);
+        const TX = TILE_X, TY = TILE_Y, TZ = TILE_Z;
+        const wu = Math.max(0.5, Math.min(12, Number(d.size) || 2)), hu = (wu * d.h) / d.w;
+        const along = side === 'L' ? { x: -TX, y: TY } : { x: TX, y: TY };
+        const down = side === 'F' ? { x: -TX, y: TY } : { x: 0, y: TZ * DECO_VK };
+        const o = { x: 0, y: -zTop * TZ };
+        const mt = [along.x * wu / d.w, along.y * wu / d.w, down.x * hu / d.h, down.y * hu / d.h, o.x, o.y].map((n) => n.toFixed(5)).join(' ');
+        defs.push(`<pattern id="${id}" patternUnits="userSpaceOnUse" x="0" y="0" width="${d.w}" height="${d.h}" patternTransform="matrix(${mt})"><image href="${d.data || d.url}" width="${d.w}" height="${d.h}" preserveAspectRatio="none"/></pattern>`);
+      }
+      return `url(#${id})`;
+    };
+    const fillOf = (fi, u, v, side, base, zTop) => {
+      const pt = paint[msPanelKey(fi, u, v, side)];
+      if (!pt) return base;
+      if (pt.c) return pt.c;
+      const d = pt.d && state.decos.get(pt.d);
+      if (d && d.w && d.h && d.kind === (side === 'F' ? 'floor' : 'wall')) return pattern(d, side, zTop);
+      return base;
+    };
     const TX = TILE_X, TY = TILE_Y, TZ = TILE_Z;
     const H = m.wallH * 0.5, p = m.platform * MS_STEP_Z, col = m.colors;
     const zOf = [p, p + H];
@@ -12607,7 +12635,7 @@
       const hides = (wall, u0, v0) => allCells.some(([cu, cv, cf]) => (cu !== u0 || cv !== v0 || cf !== fi) && [[0.3, 0.3], [0.7, 0.3], [0.3, 0.7], [0.7, 0.7]].some(([a, b]) => inside(P(cu + a, cv + b, zOf[cf]), wall)));
       for (const [u, v] of msCells(m.floors[fi].cells)) {
         const d = u + v;
-        const pick = edit === fi ? ` data-u="${u}" data-v="${v}" class="ms-cell"` : '';
+        const pick = edit !== fi ? '' : brush ? ` data-pk="${msPanelKey(fi, u, v, 'F')}" class="ms-cell"` : ` data-u="${u}" data-v="${v}" class="ms-cell"`;
         const hs = {};
         for (const side of ['L', 'R']) {
           if (side === 'L' ? has(u - 1, v) : has(u, v - 1)) continue;
@@ -12616,7 +12644,8 @@
           const full = [P(a[0], a[1], zf), P(b[0], b[1], zf), P(b[0], b[1], zf + H), P(a[0], a[1], zf + H)];
           const h = behind1 ? H : hides(full, u, v) ? 0.35 : H;
           hs[side] = behind1 ? 0 : h;
-          add(d, 0, [P(a[0], a[1], zf), P(b[0], b[1], zf), P(b[0], b[1], zf + h), P(a[0], a[1], zf + h)], side === 'L' ? col.wallLeft : col.wallRight);
+          add(d, 0, [P(a[0], a[1], zf), P(b[0], b[1], zf), P(b[0], b[1], zf + h), P(a[0], a[1], zf + h)], fillOf(fi, u, v, side, side === 'L' ? col.wallLeft : col.wallRight, zf + H),
+            brush && edit === fi ? ` data-pk="${msPanelKey(fi, u, v, side)}" class="ms-cell"` : '');
           if (behind1) continue; // pas de dessus de mur : le sol de l'étage arrive juste là
           const o = side === 'L' ? [-T, 0] : [0, -T];
           add(d, 0.5, [P(a[0], a[1], zf + h), P(b[0], b[1], zf + h), P(b[0] + o[0], b[1] + o[1], zf + h), P(a[0] + o[0], a[1] + o[1], zf + h)], shade(col.base, 0.15));
@@ -12625,8 +12654,9 @@
           const z = zf + Math.min(hs.L, hs.R);
           add(d, 0.6, [P(u - T, v - T, z), P(u, v - T, z), P(u, v, z), P(u - T, v, z)], shade(col.base, 0.15));
         }
-        add(d, 1, [P(u, v, zf), P(u + 1, v, zf), P(u + 1, v + 1, zf), P(u, v + 1, zf)], col.floor, pick);
-        for (const t of [0.25, 0.5, 0.75]) items.push({ key: d * 10 + 1.1, line: [P(u, v + t, zf), P(u + 1, v + t, zf)], stroke: shade(col.floor, -0.12), dim });
+        const fF = fillOf(fi, u, v, 'F', col.floor, zf);
+        add(d, 1, [P(u, v, zf), P(u + 1, v, zf), P(u + 1, v + 1, zf), P(u, v + 1, zf)], fF, pick);
+        if (fF === col.floor || fF.startsWith('#')) for (const t of [0.25, 0.5, 0.75]) items.push({ key: d * 10 + 1.1, line: [P(u, v + t, zf), P(u + 1, v + t, zf)], stroke: shade(col.floor, -0.12), dim });
         // Tranches du socle, devant : jusqu'au sol dehors (l'étage n'en a pas là où le rez-de-chaussée le touche).
         const other = fi === 1 ? (a, b) => hasF(0, a, b) : () => false;
         if (!has(u + 1, v) && !other(u + 1, v)) add(d, 2, [P(u + 1, v, zf), P(u + 1, v + 1, zf), P(u + 1, v + 1, zb), P(u + 1, v, zb)], shade(col.base, -0.12));
@@ -12663,7 +12693,7 @@
     }
     // Grille de l'étage modifié : les carreaux libres autour (pas ceux de l'autre étage), à toucher pour agrandir.
     const ghosts = [];
-    if (edit !== null) {
+    if (edit !== null && !brush) {
       const zf = zOf[edit];
       const cs = msCells(m.floors[edit].cells.length ? m.floors[edit].cells : m.floors[1 - edit].cells);
       // On peut construire de tous les côtés, aussi vers le fond (carreaux négatifs).
@@ -12688,17 +12718,17 @@
     const ghostSvg = ghosts.map((g) => `<polygon class="ms-ghost" data-u="${g.u}" data-v="${g.v}" points="${pts(...g.poly)}"/>`).join('');
     const all = [...items.flatMap((it) => it.poly || it.line || []), ...ghosts.flatMap((g) => g.poly)];
     const bx = all.length ? { x0: Math.min(...all.map((q) => q.x)), x1: Math.max(...all.map((q) => q.x)), y0: Math.min(...all.map((q) => q.y)), y1: Math.max(...all.map((q) => q.y)) } : { x0: -100, x1: 100, y0: -100, y1: 100 };
-    return { svg: ground + body + ghostSvg, box: bx };
+    return { svg: (defs.length ? `<defs>${defs.join('')}</defs>` : '') + ground + body + ghostSvg, box: bx };
   }
 
   let msFloor = 0, msTool = 'paint', msSaveT = 0;
-  const MS_TOOLS = [['paint', '🧱 Agrandir / réduire'], ['stairs', '🪜 Escalier'], ['steps', '👣 Marches'], ['look', '👀 Regarder']];
+  const MS_TOOLS = [['paint', '🧱 Agrandir / réduire'], ['brush', '🎨 Peindre'], ['stairs', '🪜 Escalier'], ['steps', '👣 Marches'], ['look', '👀 Regarder']];
   function msSave() { clearTimeout(msSaveT); msSaveT = setTimeout(() => saveProfile(), 600); }
   function renderMaison() {
     const m = getMaison();
     if (msFloor === 1 && (msTool === 'stairs' || msTool === 'steps')) msTool = 'paint';
     const edit = msTool === 'look' ? null : msFloor;
-    const { svg, box } = maisonSvg(m, edit);
+    const { svg, box } = maisonSvg(m, edit, msTool === 'brush');
     const el = $('#msPlan');
     const pad = 30;
     msFitBox = { x: box.x0 - pad, y: box.y0 - pad, w: box.x1 - box.x0 + pad * 2, h: box.y1 - box.y0 + pad * 2 };
@@ -12725,6 +12755,29 @@
       b.addEventListener('click', () => { msTool = k; renderMaison(); });
       tl.appendChild(b);
     }
+    // Pinceau : une couleur, un papier peint (murs) ou un sol à motif (sols), ou la gomme (couleur de base).
+    const pb = $('#msBrushBar');
+    pb.hidden = msTool !== 'brush';
+    if (msTool === 'brush') {
+      pb.innerHTML = '';
+      const mk = (label, active, fn, swatch = null) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn ms-brush' + (active ? ' btn-primary' : '');
+        if (swatch) { const sw = document.createElement('span'); sw.className = 'ms-brush-sw'; sw.style.background = swatch; b.appendChild(sw); }
+        b.appendChild(document.createTextNode(label));
+        b.addEventListener('click', fn);
+        pb.appendChild(b);
+      };
+      const dB = msBrush.type === 'deco' ? state.decos.get(msBrush.id) : null;
+      mk('Couleur', msBrush.type === 'color', () => {
+        if (msBrush.type !== 'color') { msBrush = { type: 'color', c: msBrush.c || m.colors.wallLeft }; renderMaison(); }
+        openColorPickerFor({ label: 'Couleur du pinceau', get: () => msBrush.c || m.colors.wallLeft, set: (hex) => { msBrush = { type: 'color', c: hex }; renderMaison(); } });
+      }, msBrush.c || m.colors.wallLeft);
+      mk(dB && dB.kind === 'wall' ? dB.name : 'Papier peint', dB && dB.kind === 'wall', () => msOpenDecos('wall'), dB && dB.kind === 'wall' ? `center / cover url("${dB.url}")` : null);
+      mk(dB && dB.kind === 'floor' ? dB.name : 'Sol à motif', dB && dB.kind === 'floor', () => msOpenDecos('floor'), dB && dB.kind === 'floor' ? `center / cover url("${dB.url}")` : null);
+      mk('⌫ Gomme', msBrush.type === 'erase', () => { msBrush = { type: 'erase', c: msBrush.c }; renderMaison(); });
+    }
     if (msTool === 'stairs' && m.stairs) {
       const b = document.createElement('button');
       b.type = 'button';
@@ -12738,6 +12791,9 @@
       stairs: 'Touche un carreau du sol pour y poser le bas de l\'escalier (3 carreaux). Touche-le encore pour le tourner.',
       steps: m.platform ? 'Touche un carreau au bord du rez-de-chaussée pour y ajouter des marches. Touche encore pour changer de côté ou les retirer.' : 'Monte d\'abord la plate-forme pour pouvoir ajouter des marches.',
       look: 'Toute ta maison, sans les outils.',
+      brush: msBrush.type === 'erase' ? 'Gomme : touche un panneau de mur ou un carreau du sol pour lui rendre la couleur de base.'
+        : msBrush.type === 'deco' ? ((state.decos.get(msBrush.id) || {}).kind === 'floor' ? 'Touche les carreaux du sol à recouvrir de ce motif.' : 'Touche les panneaux de mur à tapisser.')
+          : 'Touche les panneaux de mur et les carreaux du sol à peindre de cette couleur.',
     }[msTool];
     $('#msPlatform').value = m.platform;
     $('#msPlatformOut').textContent = m.platform ? plural(m.platform, 'marche') : 'au sol';
@@ -12806,8 +12862,53 @@
     msSave();
     renderMaison();
   }
+  let msBrush = { type: 'color', c: null };
+  function msOpenDecos(kind) {
+    $('#decoPickTitle').textContent = kind === 'wall' ? 'Papiers peints' : 'Sols à motif';
+    const list = $('#decoPickList');
+    list.innerHTML = '';
+    const owned = decoList(kind).filter((d) => decoOwned(d.id));
+    decoGroups(owned, list, (d) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'deco-item' + (msBrush.type === 'deco' && msBrush.id === d.id ? ' active' : '');
+      b.appendChild(decoThumb(d));
+      const n = document.createElement('span');
+      n.className = 'deco-name';
+      n.textContent = d.name;
+      b.appendChild(n);
+      b.addEventListener('click', () => { msBrush = { type: 'deco', id: d.id, c: msBrush.c }; decoPicker.hidden = true; renderMaison(); });
+      return b;
+    });
+    if (!owned.length) {
+      const p = document.createElement('p');
+      p.className = 'muted deco-empty';
+      p.textContent = kind === 'wall' ? 'Aucun papier peint pour l\'instant : on en trouve dans la boutique.' : 'Aucun sol à motif pour l\'instant : on en trouve dans la boutique.';
+      list.appendChild(p);
+    }
+    decoPicker.hidden = false;
+  }
+  function msPaintPanel(pk) {
+    const m = getMaison();
+    m.paint = m.paint || {};
+    const side = pk.split(',')[3];
+    if (msBrush.type === 'erase') delete m.paint[pk];
+    else if (msBrush.type === 'deco') {
+      const d = state.decos.get(msBrush.id);
+      if (!d) return;
+      if ((side === 'F') !== (d.kind === 'floor')) { toast(d.kind === 'floor' ? 'Ce motif se pose sur le sol.' : 'Ce papier peint se pose sur les murs.'); return; }
+      m.paint[pk] = { d: d.id };
+    } else {
+      if (!msBrush.c) msBrush.c = m.colors.wallLeft;
+      m.paint[pk] = { c: msBrush.c };
+    }
+    msSave();
+    renderMaison();
+  }
   $('#msPlan').addEventListener('click', (e) => {
     if (msMoved) { msMoved = false; return; } // c'était un glissement, pas une touche
+    const pkEl = e.target.closest && e.target.closest('[data-pk]');
+    if (pkEl && msTool === 'brush') { msPaintPanel(pkEl.dataset.pk); return; }
     const t = e.target.closest && e.target.closest('[data-u]');
     if (!t) return;
     msTap(Number(t.dataset.u), Number(t.dataset.v));
@@ -12879,6 +12980,7 @@
     showScreen('maison');
     msCam = null;
     renderMaison();
+    ensureDecos().then(() => { if (!screens.maison.hidden) renderMaison(); });
   }
   $('#homeMaison').addEventListener('click', openMaison);
   $('#msBack').addEventListener('click', () => { clearTimeout(msSaveT); saveProfile(); goHome(); });

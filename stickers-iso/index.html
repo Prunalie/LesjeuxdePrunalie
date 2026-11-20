@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611200900">
+  <link rel="stylesheet" href="style.css?v=202611200930">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -601,6 +601,7 @@
     <div class="ms-bar">
       <div class="ms-row" id="msFloors"></div>
       <div class="ms-row" id="msTools"></div>
+      <div class="ms-row" id="msBrushBar" hidden></div>
       <p id="msHint" class="ms-hint muted"></p>
       <div class="ms-row ms-sliders">
         <label>Plate-forme <input id="msPlatform" type="range" min="0" max="6" step="1"><output id="msPlatformOut"></output></label>
@@ -1425,7 +1426,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611200900"></script>
-  <script src="game.js?v=202611200900"></script>
+  <script src="firebase-config.js?v=202611200930"></script>
+  <script src="game.js?v=202611200930"></script>
 </body>
 </html>
