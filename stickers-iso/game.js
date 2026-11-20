@@ -12811,6 +12811,7 @@
     // Construction / Peinture : la liste des objets laisse sa place aux réglages (même endroit, pas de fenêtre par-dessus).
     const editing = on && msMode !== 'deco';
     $('#msPanel').hidden = !editing;
+    $('#msFloors').hidden = !editing;
     $('#roomLibrary').classList.toggle('ms-lib', editing);
     if (editing) {
       if (!bars.lib) { bars.lib = true; applyBars(); }
@@ -12838,10 +12839,12 @@
     if (msMode === 'deco') return;
     const fl = $('#msFloors');
     fl.innerHTML = '';
-    ['Rez-de-chaussée', '1er étage'].forEach((t, i) => {
+    ['RDC', '1er étage'].forEach((t, i) => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'btn' + (msFloor === i ? ' btn-primary' : '');
+      b.className = 'ms-floor' + (msFloor === i ? ' on' : '');
+      b.title = i ? '1er étage' : 'Rez-de-chaussée';
+      b.setAttribute('aria-pressed', msFloor === i);
       b.textContent = t;
       b.addEventListener('click', () => { msFloor = i; renderMaison(); });
       fl.appendChild(b);
