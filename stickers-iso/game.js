@@ -12543,15 +12543,16 @@
   const maisonOn = () => trialView();
   const MS_STEP_Z = 0.2; // hauteur d'une marche (en carreaux)
   const MS_GRID = 12; // taille de la grille où l'on peut construire
-  const MS_COLORS = { wallLeft: '#e8a6b8', wallRight: '#d995a8', floor: '#f3d6bf', base: '#9c7468', ground: '#cfe3b8', sky: '#dcecf7' };
+  const MS_COLORS = { wallLeft: '#eaa9a0', wallRight: '#eaa9a0', floor: '#c08d5d', base: '#5a3a1b', ground: '#89bd65', sky: '#cfe6ee' };
   const MS_COLOR_LABELS = [['wallLeft', 'Mur G'], ['wallRight', 'Mur D'], ['floor', 'Sol'], ['base', 'Socle'], ['ground', 'Dehors'], ['sky', 'Ciel']];
   const msKey = (u, v) => u + ',' + v;
   const msCells = (keys) => keys.map((k) => k.split(',').map(Number));
-  // Forme de départ : un rez-de-chaussée de 5 × 5, sans étage.
+  // Maison de départ des joueuses (validée par l'administratrice) : un rez-de-chaussée de 5 × 5 au ras du sol, sans étage,
+  // murs roses, parquet, gazon et ciel clair.
   function msDefault() {
     const f0 = [];
     for (let u = 0; u < 5; u++) for (let v = 0; v < 5; v++) f0.push(msKey(u, v));
-    return { v: 2, platform: 3, wallH: 5, colors: { ...MS_COLORS }, floors: [{ cells: f0 }, { cells: [] }], stairs: null, steps: [{ u: 2, v: 4, side: 'v' }] };
+    return { v: 2, platform: 0, wallH: 5, colors: { ...MS_COLORS }, floors: [{ cells: f0 }, { cells: [] }], stairs: null, steps: [] };
   }
   function getMaison(r = null) {
     r = r || maisonRoom();
@@ -12788,7 +12789,7 @@
     let r = maisonRoom();
     if (!r) {
       const old = state.profile && state.profile.maison;
-      r = { id: uid(), owner: state.player.key, name: 'Ma grande maison', stickers: [], colors: { ...DEFAULT_COLORS }, thumb: '', updated: Date.now(), maison: old && Array.isArray(old.floors) ? JSON.parse(JSON.stringify(old)) : msDefault() };
+      r = { id: uid(), owner: state.player.key, name: 'Mon manoir', stickers: [], colors: { ...DEFAULT_COLORS }, thumb: '', updated: Date.now(), maison: old && Array.isArray(old.floors) ? JSON.parse(JSON.stringify(old)) : msDefault() };
       state.rooms.push(r);
       const m = getMaison(r);
       delete m.view;
