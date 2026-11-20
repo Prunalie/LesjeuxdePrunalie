@@ -12721,20 +12721,38 @@
     return { svg: (defs.length ? `<defs>${defs.join('')}</defs>` : '') + ground + body + ghostSvg, box: bx };
   }
 
-  let msFloor = 0, msTool = 'paint', msSaveT = 0;
-  const MS_TOOLS = [['paint', '🧱 Agrandir / réduire'], ['brush', '🎨 Peindre'], ['stairs', '🪜 Escalier'], ['steps', '👣 Marches'], ['look', '👀 Regarder']];
+  // 3 vues : Construction (carreaux, escalier, marches, hauteurs), Décoration (les meubles), Peinture (murs et sols).
+  let msFloor = 0, msTool = 'paint', msSaveT = 0, msMode = 'build', msBuildTool = 'paint';
+  const MS_MODES = [['build', '🧱 Construction'], ['deco', '🛋️ Décoration'], ['paint', '🎨 Peinture']];
+  const MS_TOOLS = [['paint', '⬚ Carreaux'], ['stairs', '🪜 Escalier'], ['steps', '👣 Marches']];
   function msSave() { clearTimeout(msSaveT); msSaveT = setTimeout(() => saveProfile(), 600); }
   function renderMaison() {
     const m = getMaison();
-    if (msFloor === 1 && (msTool === 'stairs' || msTool === 'steps')) msTool = 'paint';
+    if (msFloor === 1 && (msBuildTool === 'stairs' || msBuildTool === 'steps')) msBuildTool = 'paint';
+    msTool = msMode === 'build' ? msBuildTool : msMode === 'paint' ? 'brush' : 'look';
+    if (msMode !== 'deco') msSel = null;
     const edit = msTool === 'look' ? null : msFloor;
     const { svg, box } = maisonSvg(m, edit, msTool === 'brush');
     const el = $('#msPlan');
     const pad = 30;
     msFitBox = { x: box.x0 - pad, y: box.y0 - pad, w: box.x1 - box.x0 + pad * 2, h: box.y1 - box.y0 + pad * 2 };
     msApplyCam();
-    el.innerHTML = svg;
+    el.innerHTML = svg + '<g id="msItems"></g>';
+    msRenderItems();
+    const mo = $('#msModes');
+    mo.innerHTML = '';
+    for (const [k, t] of MS_MODES) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ms-mode' + (msMode === k ? ' on' : '');
+      b.textContent = t;
+      b.setAttribute('aria-pressed', msMode === k);
+      b.addEventListener('click', () => { msMode = k; renderMaison(); });
+      mo.appendChild(b);
+    }
+    $('#msScreenMaison').dataset.mode = msMode;
     const fl = $('#msFloors');
+    fl.hidden = msMode === 'deco';
     fl.innerHTML = '';
     ['Rez-de-chaussée', '1er étage'].forEach((t, i) => {
       const b = document.createElement('button');
@@ -12745,16 +12763,21 @@
       fl.appendChild(b);
     });
     const tl = $('#msTools');
+    tl.hidden = msMode !== 'build';
     tl.innerHTML = '';
-    for (const [k, t] of MS_TOOLS) {
+    if (msMode === 'build') for (const [k, t] of MS_TOOLS) {
       if (msFloor === 1 && (k === 'stairs' || k === 'steps')) continue;
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'btn' + (msTool === k ? ' btn-primary' : '');
+      b.className = 'btn' + (msBuildTool === k ? ' btn-primary' : '');
       b.textContent = t;
-      b.addEventListener('click', () => { msTool = k; renderMaison(); });
+      b.addEventListener('click', () => { msBuildTool = k; renderMaison(); });
       tl.appendChild(b);
     }
+    $('.ms-sliders').hidden = msMode !== 'build';
+    $('#msColorsWrap').hidden = msMode !== 'paint';
+    $('#msDeco').hidden = msMode !== 'deco';
+    if (msMode === 'deco') msRenderDecoBar();
     // Pinceau : une couleur, un papier peint (murs) ou un sol à motif (sols), ou la gomme (couleur de base).
     const pb = $('#msBrushBar');
     pb.hidden = msTool !== 'brush';
@@ -12790,7 +12813,7 @@
       paint: 'Touche un carreau en pointillés pour agrandir l\'étage, un carreau du sol pour le retirer.',
       stairs: 'Touche un carreau du sol pour y poser le bas de l\'escalier (3 carreaux). Touche-le encore pour le tourner.',
       steps: m.platform ? 'Touche un carreau au bord du rez-de-chaussée pour y ajouter des marches. Touche encore pour changer de côté ou les retirer.' : 'Monte d\'abord la plate-forme pour pouvoir ajouter des marches.',
-      look: 'Toute ta maison, sans les outils.',
+      look: msSel ? 'Glisse l\'objet pour le déplacer. Touche à côté pour le lâcher.' : 'Touche un objet de ta collection pour le poser dans la maison, puis glisse-le à sa place.',
       brush: msBrush.type === 'erase' ? 'Gomme : touche un panneau de mur ou un carreau du sol pour lui rendre la couleur de base.'
         : msBrush.type === 'deco' ? ((state.decos.get(msBrush.id) || {}).kind === 'floor' ? 'Touche les carreaux du sol à recouvrir de ce motif.' : 'Touche les panneaux de mur à tapisser.')
           : 'Touche les panneaux de mur et les carreaux du sol à peindre de cette couleur.',
@@ -12863,6 +12886,88 @@
     renderMaison();
   }
   let msBrush = { type: 'color', c: null };
+  // Décoration : les objets gagnés, posés dans la maison. m.items = [{ id, imageId, x, y, w, h, flip }] (dans l'ordre, le dernier devant).
+  // La maison a ses propres exemplaires : un objet posé dans une pièce peut aussi l'être ici.
+  let msSel = null;
+  const msItems = () => { const m = getMaison(); m.items = m.items || []; return m.items; };
+  const msLeft = (id) => owned(id) - msItems().filter((it) => it.imageId === id).length;
+  function msRenderItems() {
+    const g = $('#msItems');
+    if (!g) return;
+    g.innerHTML = msItems().map((it) => {
+      const img = state.images.get(it.imageId);
+      if (!img) return '';
+      const x = it.x - it.w / 2, y = it.y - it.h / 2;
+      const flip = it.flip ? ` transform="translate(${(2 * it.x).toFixed(1)} 0) scale(-1 1)"` : '';
+      const sel = it.id === msSel ? `<rect x="${(x - 4).toFixed(1)}" y="${(y - 4).toFixed(1)}" width="${(it.w + 8).toFixed(1)}" height="${(it.h + 8).toFixed(1)}" rx="8" fill="none" stroke="#f0658a" stroke-width="3" stroke-dasharray="8 6" pointer-events="none"/>` : '';
+      return `<g data-item="${escXml(it.id)}"${msMode === 'deco' ? ' class="ms-item"' : ' pointer-events="none"'}><image href="${img.url}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${it.w.toFixed(1)}" height="${it.h.toFixed(1)}" preserveAspectRatio="none"${flip}/>${sel}</g>`;
+    }).join('');
+  }
+  function msRenderDecoBar() {
+    const it = msItems().find((x) => x.id === msSel);
+    const tb = $('#msItemBar');
+    tb.hidden = !it;
+    const grid = $('#msObjGrid');
+    const list = [...state.images.values()].filter((img) => owned(img.id) > 0).sort((a, b) => (b.created || 0) - (a.created || 0));
+    $('#msObjEmpty').hidden = list.length > 0;
+    const sig = list.map((i) => i.id).join(',');
+    if (grid.dataset.sig !== sig) {
+      grid.dataset.sig = sig;
+      grid.innerHTML = '';
+      for (const img of list) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'ms-obj';
+        b.dataset.id = img.id;
+        b.title = img.name || '';
+        b.innerHTML = '<img loading="lazy" alt=""><span class="ms-obj-n"></span>';
+        b.querySelector('img').src = img.url;
+        b.addEventListener('click', () => msAddItem(img.id));
+        grid.appendChild(b);
+      }
+    }
+    for (const b of grid.children) {
+      const left = msLeft(b.dataset.id);
+      b.classList.toggle('used', left <= 0);
+      b.querySelector('.ms-obj-n').textContent = left > 0 ? '×' + left : '✓';
+    }
+  }
+  function msAddItem(imageId) {
+    const img = state.images.get(imageId);
+    if (!img) return;
+    if (msLeft(imageId) <= 0) { toast('Tous tes exemplaires de cet objet sont déjà dans la maison.'); return; }
+    const v = msShown();
+    const k = (STICKER_DEFAULT_SIZE * 0.6) / Math.max(img.w, img.h);
+    const it = { id: uid(), imageId, x: v.x + v.w / 2, y: v.y + v.h / 2, w: img.w * k, h: img.h * k, flip: false };
+    msItems().push(it);
+    msSel = it.id;
+    msSave();
+    msRenderItems();
+    msRenderDecoBar();
+    renderMaisonHint();
+  }
+  function msItemAct(act) {
+    const items = msItems();
+    const i = items.findIndex((x) => x.id === msSel);
+    if (i < 0) return;
+    const it = items[i];
+    if (act === 'bigger' || act === 'smaller') {
+      const f = act === 'bigger' ? 1.15 : 1 / 1.15;
+      if ((it.w * f < 12 && f < 1) || (it.w * f > 900 && f > 1)) return;
+      it.w *= f; it.h *= f;
+    } else if (act === 'flip') it.flip = !it.flip;
+    else if (act === 'front' && i < items.length - 1) { items.splice(i, 1); items.push(it); }
+    else if (act === 'back' && i > 0) { items.splice(i, 1); items.unshift(it); }
+    else if (act === 'remove') { items.splice(i, 1); msSel = null; }
+    msSave();
+    msRenderItems();
+    msRenderDecoBar();
+    renderMaisonHint();
+  }
+  document.querySelectorAll('#msItemBar [data-act]').forEach((b) => b.addEventListener('click', () => msItemAct(b.dataset.act)));
+  function renderMaisonHint() {
+    if (msMode === 'deco') $('#msHint').textContent = msSel ? 'Glisse l\'objet pour le déplacer. Touche à côté pour le lâcher.' : 'Touche un objet de ta collection pour le poser dans la maison, puis glisse-le à sa place.';
+  }
   function msOpenDecos(kind) {
     $('#decoPickTitle').textContent = kind === 'wall' ? 'Papiers peints' : 'Sols à motif';
     const list = $('#decoPickList');
@@ -12907,6 +13012,11 @@
   }
   $('#msPlan').addEventListener('click', (e) => {
     if (msMoved) { msMoved = false; return; } // c'était un glissement, pas une touche
+    if (msMode === 'deco') {
+      // Touche à côté d'un objet : on le lâche.
+      if (!(e.target.closest && e.target.closest('[data-item]')) && msSel) { msSel = null; msRenderItems(); msRenderDecoBar(); renderMaisonHint(); }
+      return;
+    }
     const pkEl = e.target.closest && e.target.closest('[data-pk]');
     if (pkEl && msTool === 'brush') { msPaintPanel(pkEl.dataset.pk); return; }
     const t = e.target.closest && e.target.closest('[data-u]');
@@ -12948,8 +13058,17 @@
   msView.addEventListener('pointerdown', (e) => {
     if (e.target.closest('.house-zoom')) return;
     msPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (msPts.size === 1) { msMoved = false; msDrag = { x: e.clientX, y: e.clientY }; }
-    else msDrag = null;
+    msItemDrag = null;
+    if (msPts.size === 1) {
+      msMoved = false;
+      msDrag = { x: e.clientX, y: e.clientY };
+      // Décoration : on attrape un objet pour le déplacer (au lieu de faire glisser la vue).
+      const g = msMode === 'deco' && e.target.closest && e.target.closest('[data-item]');
+      if (g) {
+        msItemDrag = g.dataset.item;
+        if (msSel !== msItemDrag) { msSel = msItemDrag; msRenderItems(); msRenderDecoBar(); renderMaisonHint(); }
+      }
+    } else msDrag = null;
   });
   msView.addEventListener('pointermove', (e) => {
     if (!msPts.has(e.pointerId)) return;
@@ -12969,10 +13088,16 @@
     if (!msMoved && Math.hypot(e.clientX - msDrag.x, e.clientY - msDrag.y) < 8) return;
     msMoved = true;
     const v = msShown();
+    if (msItemDrag) {
+      const it = msItems().find((x) => x.id === msItemDrag);
+      if (it) { it.x += (e.clientX - prev.x) * v.sc; it.y += (e.clientY - prev.y) * v.sc; msRenderItems(); }
+      return;
+    }
     msCam = { x: v.x - (e.clientX - prev.x) * v.sc, y: v.y - (e.clientY - prev.y) * v.sc, w: v.w, h: v.h };
     msApplyCam();
   });
-  const msUp = (e) => { msPts.delete(e.pointerId); if (!msPts.size) msDrag = null; };
+  let msItemDrag = null;
+  const msUp = (e) => { msPts.delete(e.pointerId); if (!msPts.size) { msDrag = null; if (msItemDrag && msMoved) msSave(); msItemDrag = null; } };
   msView.addEventListener('pointerup', msUp);
   msView.addEventListener('pointercancel', msUp);
   function openMaison() {
