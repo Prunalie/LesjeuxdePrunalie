@@ -3473,3 +3473,11 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .ms-floors .ms-floor { padding: 9px 12px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); font: inherit; font-weight: 600; font-size: .85rem; cursor: pointer; text-align: left; }
 .ms-floors .ms-floor:last-child { border-bottom: 0; }
 .ms-floors .ms-floor.on { background: #f0658a; color: #fff; }
+/* Les 3 vues dans la barre du haut */
+.topbar .ms-modes { position: static; transform: none; width: auto; max-width: none; min-width: 0; margin: 6px 0 0; border-radius: 12px; border: 2px solid var(--chunk, #5a3e3a); box-shadow: none; display: flex; overflow: hidden; background: var(--panel); }
+.topbar .ms-modes[hidden] { display: none; }
+.topbar .ms-modes .ms-mode { flex: 1 1 0; display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 6px; padding: 6px 4px; font-size: .85rem; line-height: 1.1; border-bottom-width: 3px; }
+.topbar .ms-modes .ms-mode .ms-ico { font-size: 1rem; }
+.stage-area .ms-floors { top: 8px; }
+.screen-room .topbar:has(.ms-modes:not([hidden])) { flex-wrap: wrap !important; row-gap: 4px; flex-shrink: 0; }
+.topbar .ms-modes { flex: 1 1 100%; order: 10; margin: 0; }

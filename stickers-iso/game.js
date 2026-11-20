@@ -12806,6 +12806,9 @@
 
   // Barre des 3 vues et panneau du bas (dans l'écran de la pièce).
   function renderMaisonUi() {
+    // Essai : la barre du haut reste toujours visible (plus de languette « Menu » pour la cacher).
+    if (trialView() && !bars.top) { bars.top = true; applyBars(); }
+    $('#tabTop').hidden = trialView();
     const on = inMaisonRoom();
     $('#msModes').hidden = !on;
     // Construction / Peinture : la liste des objets laisse sa place aux réglages (même endroit, pas de fenêtre par-dessus).

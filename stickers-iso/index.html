@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611201230">
+  <link rel="stylesheet" href="style.css?v=202611201300">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -223,6 +223,8 @@
     </div>
     <!-- Le thème du concours, en fine ligne sous les boutons de la barre du haut -->
     <div id="contestTheme" class="contest-theme" hidden aria-live="polite"></div>
+    <!-- Grande maison (essai) : les 3 vues, sous la barre du haut -->
+    <nav id="msModes" class="ms-modes" aria-label="Vues de la maison" hidden></nav>
   </header>
 
   <main class="layout">
@@ -261,7 +263,6 @@
       </div>
 
       <!-- Grande maison (essai) : 3 vues en haut, et le panneau de Construction / Peinture en bas -->
-      <nav id="msModes" class="ms-modes" aria-label="Vues de la maison" hidden></nav>
       <div id="msFloors" class="ms-floors" role="group" aria-label="Étage" hidden></div>
 
       <!-- Languettes pour cacher / afficher la barre du haut et la bibliothèque -->
@@ -1412,7 +1413,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611201230"></script>
-  <script src="game.js?v=202611201230"></script>
+  <script src="firebase-config.js?v=202611201300"></script>
+  <script src="game.js?v=202611201300"></script>
 </body>
 </html>
