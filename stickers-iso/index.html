@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611201430">
+  <link rel="stylesheet" href="style.css?v=202611201500">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -1013,6 +1013,21 @@
     </div>
   </div>
 
+  <!-- Grande maison : que faut-il réinitialiser ? -->
+  <div id="msResetDialog" class="modal" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="msResetTitle">
+      <h2 id="msResetTitle" class="modal-title">Réinitialiser la maison</h2>
+      <p class="muted">Coche ce que tu veux remettre à zéro :</p>
+      <label class="ms-reset-row"><input type="checkbox" id="msResetItems"> <span><strong>🛋️ Les meubles</strong><br><small class="muted">On retire tous les objets posés.</small></span></label>
+      <label class="ms-reset-row"><input type="checkbox" id="msResetPaint"> <span><strong>🎨 La peinture</strong><br><small class="muted">On retire toutes les couleurs et tous les motifs posés au pinceau.</small></span></label>
+      <label class="ms-reset-row"><input type="checkbox" id="msResetBuild"> <span><strong>🧱 La construction</strong><br><small class="muted">On revient à la forme de départ : un rez-de-chaussée de 5 × 5.</small></span></label>
+      <div class="modal-actions">
+        <button id="msResetCancel" class="btn" type="button">Annuler</button>
+        <button id="msResetOk" class="btn btn-primary" type="button" disabled>Réinitialiser</button>
+      </div>
+    </div>
+  </div>
+
   <div id="confirmDialog" class="modal" hidden>
     <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="confirmText">
       <p id="confirmText"></p>
@@ -1413,7 +1428,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611201430"></script>
-  <script src="game.js?v=202611201430"></script>
+  <script src="firebase-config.js?v=202611201500"></script>
+  <script src="game.js?v=202611201500"></script>
 </body>
 </html>

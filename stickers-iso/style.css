@@ -3482,3 +3482,5 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .screen-room .topbar:has(.ms-modes:not([hidden])) { flex-wrap: wrap !important; row-gap: 4px; flex-shrink: 0; }
 .topbar .ms-modes { flex: 1 1 100%; order: 10; margin: 0; }
 .ms-hide-items .sticker-layer, .ms-hide-items .light-layer, .ms-hide-items .light-handles { visibility: hidden; }
+.ms-reset-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); cursor: pointer; text-align: left; }
+.ms-reset-row input { width: 20px; height: 20px; margin-top: 2px; flex: none; }

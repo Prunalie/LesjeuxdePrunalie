@@ -2702,6 +2702,7 @@
   });
 
   $('#btnClear').addEventListener('click', async () => {
+    if (inMaisonRoom()) { msOpenReset(); return; } // grande maison : on choisit ce qu'on remet à zéro
     if (!state.stickers.length || !(await askConfirm('Retirer tous les stickers de la pièce ?', 'Vider'))) return;
     const before = snapshot();
     state.stickers = [];
@@ -12546,11 +12547,11 @@
   const MS_COLOR_LABELS = [['wallLeft', 'Mur G'], ['wallRight', 'Mur D'], ['floor', 'Sol'], ['base', 'Socle'], ['ground', 'Dehors'], ['sky', 'Ciel']];
   const msKey = (u, v) => u + ',' + v;
   const msCells = (keys) => keys.map((k) => k.split(',').map(Number));
+  // Forme de départ : un rez-de-chaussée de 5 × 5, sans étage.
   function msDefault() {
-    const f0 = [], f1 = [];
-    for (let u = 0; u < 6; u++) for (let v = 0; v < 3; v++) f1.push(msKey(u, v));
-    for (let u = 0; u < 6; u++) for (let v = 3; v < 7; v++) f0.push(msKey(u, v));
-    return { v: 2, platform: 3, wallH: 5, colors: { ...MS_COLORS }, floors: [{ cells: f0 }, { cells: f1 }], stairs: { u: 2, v: 5, dir: '-v' }, steps: [{ u: 4, v: 6, side: 'v' }] };
+    const f0 = [];
+    for (let u = 0; u < 5; u++) for (let v = 0; v < 5; v++) f0.push(msKey(u, v));
+    return { v: 2, platform: 3, wallH: 5, colors: { ...MS_COLORS }, floors: [{ cells: f0 }, { cells: [] }], stairs: null, steps: [{ u: 2, v: 4, side: 'v' }] };
   }
   function getMaison(r = null) {
     r = r || maisonRoom();
@@ -12937,6 +12938,39 @@
     cl.querySelectorAll('.swatch-btn').forEach((b) => { b.style.background = m.colors[b.dataset.key]; });
   }
   // Cacher complètement les objets en Construction et en Peinture (sinon ils sont seulement estompés).
+  function msOpenReset() {
+    for (const id of ['#msResetItems', '#msResetPaint', '#msResetBuild']) $(id).checked = false;
+    $('#msResetOk').disabled = true;
+    $('#msResetDialog').hidden = false;
+  }
+  for (const id of ['#msResetItems', '#msResetPaint', '#msResetBuild']) {
+    $(id).addEventListener('change', () => { $('#msResetOk').disabled = !['#msResetItems', '#msResetPaint', '#msResetBuild'].some((x) => $(x).checked); });
+  }
+  $('#msResetCancel').addEventListener('click', () => { $('#msResetDialog').hidden = true; });
+  $('#msResetDialog').addEventListener('click', (e) => { if (e.target.id === 'msResetDialog') $('#msResetDialog').hidden = true; });
+  $('#msResetOk').addEventListener('click', () => {
+    const m = getMaison();
+    if ($('#msResetItems').checked) {
+      const before = snapshot();
+      state.stickers = [];
+      state.lights = [];
+      commit(before);
+      state.selectedId = null;
+      select(null);
+      renderStickers();
+    }
+    if ($('#msResetPaint').checked) m.paint = {};
+    if ($('#msResetBuild').checked) {
+      const d = msDefault();
+      m.floors = d.floors; m.stairs = d.stairs; m.steps = d.steps; m.platform = d.platform; m.wallH = d.wallH;
+      msFloor = 0;
+      msRefit();
+    }
+    $('#msResetDialog').hidden = true;
+    msSave();
+    renderMaison();
+    toast('Maison réinitialisée ✨');
+  });
   function msHideButton() {
     const hb = document.createElement('button');
     hb.type = 'button';
