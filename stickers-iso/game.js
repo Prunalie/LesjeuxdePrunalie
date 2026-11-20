@@ -12808,7 +12808,14 @@
   function renderMaisonUi() {
     const on = inMaisonRoom();
     $('#msModes').hidden = !on;
-    $('#msPanel').hidden = !on || msMode === 'deco';
+    // Construction / Peinture : la liste des objets laisse sa place aux réglages (même endroit, pas de fenêtre par-dessus).
+    const editing = on && msMode !== 'deco';
+    $('#msPanel').hidden = !editing;
+    $('#roomLibrary').classList.toggle('ms-lib', editing);
+    if (editing) {
+      if (!bars.lib) { bars.lib = true; applyBars(); }
+      closeAmbientBar();
+    }
     $('#stage').classList.toggle('ms-editing', on && msMode !== 'deco');
     stageArea.classList.toggle('ms-editing-area', on && msMode !== 'deco');
     for (const id of ['#btnShape', '#btnColors']) $(id).hidden = on;
