@@ -12551,6 +12551,28 @@
   const MS_DIRS = { '-u': [-1, 0], '-v': [0, -1], '+u': [1, 0], '+v': [0, 1] };
   const msStairCells = (st) => { const [du, dv] = MS_DIRS[st.dir]; return [0, 1, 2].map((i) => [st.u + du * i, st.v + dv * i]); };
 
+  // Règle : rien ne doit être caché. Un carreau d'étage (un grand bloc) ne peut pas se poser devant le rez-de-chaussée
+  // s'il en cacherait une partie, et inversement un carreau du rez-de-chaussée ne se pose pas derrière l'étage.
+  function msBlocked(m, fi, u, v) {
+    const H = m.wallH * 0.5, p = m.platform * MS_STEP_Z, z1 = p + H;
+    const P = (a, b, z) => ({ x: (a - b) * TILE_X, y: (a + b) * TILE_Y - z * TILE_Z });
+    const inside = (pt, poly) => {
+      let c = false;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const a = poly[i], b = poly[j];
+        if ((a.y > pt.y) !== (b.y > pt.y) && pt.x < ((b.x - a.x) * (pt.y - a.y)) / (b.y - a.y) + a.x) c = !c;
+      }
+      return c;
+    };
+    const hull = (a, b) => [P(a, b, z1), P(a + 1, b, z1), P(a + 1, b, 0), P(a + 1, b + 1, 0), P(a, b + 1, 0), P(a, b + 1, z1)];
+    const covered = (hl, a, b) => [[0.3, 0.3], [0.7, 0.3], [0.3, 0.7], [0.7, 0.7]].some(([x, y]) => inside(P(a + x, b + y, p), hl));
+    if (fi === 1) {
+      const hl = hull(u, v);
+      return msCells(m.floors[0].cells).some(([a, b]) => a + b < u + v && covered(hl, a, b));
+    }
+    return msCells(m.floors[1].cells).some(([a, b]) => a + b > u + v && covered(hull(a, b), u, v));
+  }
+
   // Dessin : renvoie le SVG et sa boîte (pour le cadrage).
   // L'étage est à sa vraie place : son sol au niveau du haut des murs du rez-de-chaussée, sur un grand socle qui
   // descend jusqu'au sol dehors. Les deux étages ne se superposent jamais (chaque carreau est à l'un ou à l'autre).
@@ -12643,7 +12665,7 @@
       // On peut construire de tous les côtés, aussi vers le fond (carreaux négatifs).
       const lo = (i) => Math.max(-MS_GRID * 2, Math.min(...cs.map((c) => c[i])) - 2), hi = (i) => Math.min(MS_GRID * 3, Math.max(...cs.map((c) => c[i])) + 2);
       for (let u = lo(0); u <= hi(0); u++) for (let v = lo(1); v <= hi(1); v++) {
-        if (sets[0].has(msKey(u, v)) || sets[1].has(msKey(u, v))) continue;
+        if (sets[0].has(msKey(u, v)) || sets[1].has(msKey(u, v)) || msBlocked(m, edit, u, v)) continue;
         ghosts.push({ poly: [P(u, v, zf), P(u + 1, v, zf), P(u + 1, v + 1, zf), P(u, v + 1, zf)], u, v });
       }
     }
@@ -12736,6 +12758,7 @@
           m.steps = m.steps.filter((s) => !(s.u === u && s.v === v));
         }
       } else {
+        if (msBlocked(m, msFloor, u, v)) { toast(msFloor === 1 ? 'Pas ici : l\'étage cacherait le rez-de-chaussée. Construis-le derrière.' : 'Pas ici : ce carreau serait caché par l\'étage.'); return; }
         f.cells.push(k);
         // Une marche dehors à cet endroit n'a plus de place.
         if (msFloor === 0) m.steps = m.steps.filter((s) => !(s.side === 'u' ? s.u + 1 === u && s.v === v : s.u === u && s.v + 1 === v));
