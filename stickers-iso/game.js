@@ -12746,6 +12746,7 @@
   // Le dessin de la maison est mis à l'échelle de la scène (1000 × 760) : m.view = { S, ox, oy }.
   // ---------------------------------------------------------------------------
   let msFloor = 0, msTool = 'look', msSaveT = 0, msMode = 'deco', msBuildTool = 'paint';
+  let msHideItems = false;
   const MS_MODES = [['build', '🧱 Construction'], ['deco', '🛋️ Décoration'], ['paint', '🎨 Peinture']];
   const MS_TOOLS = [['paint', '⬚ Carreaux'], ['stairs', '🪜 Escalier'], ['steps', '👣 Marches']];
   const maisonRoom = () => state.rooms.find((r) => r.maison && r.owner === (state.player && state.player.key)) || null;
@@ -12821,6 +12822,7 @@
       closeAmbientBar();
     }
     $('#stage').classList.toggle('ms-editing', on && msMode !== 'deco');
+    $('#stage').classList.toggle('ms-hide-items', on && msMode === 'build' && msHideItems);
     stageArea.classList.toggle('ms-editing-area', on && msMode !== 'deco');
     for (const id of ['#btnShape', '#btnColors']) $(id).hidden = on;
     if (!on) return;
@@ -12866,6 +12868,14 @@
         b.addEventListener('click', () => { msBuildTool = k; renderMaison(); });
         tl.appendChild(b);
       }
+      // Cacher complètement les objets pendant la construction (sinon ils sont seulement estompés).
+      const hb = document.createElement('button');
+      hb.type = 'button';
+      hb.className = 'btn btn-ghost ms-hide-btn';
+      hb.textContent = msHideItems ? '👁️ Voir les objets' : '🙈 Cacher les objets';
+      hb.setAttribute('aria-pressed', msHideItems);
+      hb.addEventListener('click', () => { msHideItems = !msHideItems; renderMaison(); });
+      tl.appendChild(hb);
       if (msBuildTool === 'stairs' && m.stairs) {
         const b = document.createElement('button');
         b.type = 'button';
