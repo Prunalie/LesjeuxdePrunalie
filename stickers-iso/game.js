@@ -3840,7 +3840,7 @@
     $('#btnContestPublish2').hidden = !r.contestDay;
     $('#btnContestDraft').hidden = !r.contestDay;
     $('#btnContestDraftTop').hidden = !r.contestDay; // la disquette en haut, à la place de l'appareil photo
-    $('#btnImmersive').hidden = !trialView();
+    $('#btnImmersive').hidden = true; // vue immersive retirée
     const backName = houseOn() ? 'Ma maison' : 'Mes pièces';
     $('#btnBack').title = r.contestDay ? 'Retour au concours' : `Retour à ${backName.toLowerCase()}`;
     $('#btnBack .label-long').innerHTML = r.contestDay ? '&nbsp;Concours' : `&nbsp;${backName}`;
