@@ -2024,7 +2024,7 @@
   let viewGesture = null;
 
   stageArea.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.sticker, .toolbar, .bar-tab, .zoom-ctrl, .stage-tools, .layers-panel, .colors-panel, .pipette-hint, .light-bar, .ms-panel, .ms-modes')) return;
+    if (e.target.closest('.sticker, .toolbar, .bar-tab, .zoom-ctrl, .stage-tools, .layers-panel, .colors-panel, .pipette-hint, .light-bar, .ms-panel, .ms-modes, .ms-left')) return;
     if (e.button !== undefined && e.button !== 0) return;
     if (joinPinch(e)) return;
     viewPointerDown(e);
@@ -12816,7 +12816,11 @@
     // Construction / Peinture : la liste des objets laisse sa place aux réglages (même endroit, pas de fenêtre par-dessus).
     const editing = on && msMode !== 'deco';
     $('#msPanel').hidden = !editing;
-    $('#msFloors').hidden = !editing;
+    $('#msLeft').hidden = !editing;
+    const hb = $('#msHideBtn');
+    hb.textContent = msHideItems ? '👁️ Voir les objets' : '🙈 Cacher les objets';
+    hb.setAttribute('aria-pressed', msHideItems);
+    hb.classList.toggle('on', msHideItems);
     $('#roomLibrary').classList.toggle('ms-lib', editing);
     if (editing) {
       if (!bars.lib) { bars.lib = true; applyBars(); }
@@ -12869,7 +12873,6 @@
         b.addEventListener('click', () => { msBuildTool = k; renderMaison(); });
         tl.appendChild(b);
       }
-      tl.appendChild(msHideButton());
       if (msBuildTool === 'stairs' && m.stairs) {
         const b = document.createElement('button');
         b.type = 'button';
@@ -12900,7 +12903,6 @@
       mk(dB && dB.kind === 'wall' ? dB.name : 'Papier peint', dB && dB.kind === 'wall', () => msOpenDecos('wall'), dB && dB.kind === 'wall' ? `center / cover url("${dB.url}")` : null);
       mk(dB && dB.kind === 'floor' ? dB.name : 'Sol à motif', dB && dB.kind === 'floor', () => msOpenDecos('floor'), dB && dB.kind === 'floor' ? `center / cover url("${dB.url}")` : null);
       mk('⌫ Gomme', msBrush.type === 'erase', () => { msBrush = { type: 'erase', c: msBrush.c }; renderMaison(); });
-      pb.appendChild(msHideButton());
     }
     $('#msHint').textContent = {
       paint: 'Touche un carreau en pointillés pour agrandir l\'étage, un carreau du sol pour le retirer.',
@@ -12938,48 +12940,7 @@
     cl.querySelectorAll('.swatch-btn').forEach((b) => { b.style.background = m.colors[b.dataset.key]; });
   }
   // Cacher complètement les objets en Construction et en Peinture (sinon ils sont seulement estompés).
-  function msOpenReset() {
-    for (const id of ['#msResetItems', '#msResetPaint', '#msResetBuild']) $(id).checked = false;
-    $('#msResetOk').disabled = true;
-    $('#msResetDialog').hidden = false;
-  }
-  for (const id of ['#msResetItems', '#msResetPaint', '#msResetBuild']) {
-    $(id).addEventListener('change', () => { $('#msResetOk').disabled = !['#msResetItems', '#msResetPaint', '#msResetBuild'].some((x) => $(x).checked); });
-  }
-  $('#msResetCancel').addEventListener('click', () => { $('#msResetDialog').hidden = true; });
-  $('#msResetDialog').addEventListener('click', (e) => { if (e.target.id === 'msResetDialog') $('#msResetDialog').hidden = true; });
-  $('#msResetOk').addEventListener('click', () => {
-    const m = getMaison();
-    if ($('#msResetItems').checked) {
-      const before = snapshot();
-      state.stickers = [];
-      state.lights = [];
-      commit(before);
-      state.selectedId = null;
-      select(null);
-      renderStickers();
-    }
-    if ($('#msResetPaint').checked) m.paint = {};
-    if ($('#msResetBuild').checked) {
-      const d = msDefault();
-      m.floors = d.floors; m.stairs = d.stairs; m.steps = d.steps; m.platform = d.platform; m.wallH = d.wallH;
-      msFloor = 0;
-      msRefit();
-    }
-    $('#msResetDialog').hidden = true;
-    msSave();
-    renderMaison();
-    toast('Maison réinitialisée ✨');
-  });
-  function msHideButton() {
-    const hb = document.createElement('button');
-    hb.type = 'button';
-    hb.className = 'btn btn-ghost ms-hide-btn';
-    hb.textContent = msHideItems ? '👁️ Voir les objets' : '🙈 Cacher les objets';
-    hb.setAttribute('aria-pressed', msHideItems);
-    hb.addEventListener('click', () => { msHideItems = !msHideItems; renderMaison(); });
-    return hb;
-  }
+  $('#msHideBtn').addEventListener('click', () => { msHideItems = !msHideItems; renderMaison(); });
   function renderMaison() {
     if (!inMaisonRoom()) return;
     drawRoom();
