@@ -3411,7 +3411,7 @@
     try {
       const fresh = await db.getPlayer(playerDocId(state.player.key));
       if (!fresh) return;
-      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'carnetLast', 'carnetStreak', 'themeVoteDay', 'joinRewardDay', 'contestCount', 'contestMilestones', 'stairsGift', 'decos', 'house', 'maison', 'cristaux', 'sorts', 'cristalMilestones', 'nightPlayer']) {
+      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'carnetLast', 'carnetStreak', 'themeVoteDay', 'joinRewardDay', 'contestCount', 'contestMilestones', 'stairsGift', 'decos', 'decoSeen', 'house', 'maison', 'cristaux', 'sorts', 'cristalMilestones', 'nightPlayer']) {
         if (fresh[k] !== undefined) state.profile[k] = fresh[k];
       }
       state.profile.inventory = state.profile.inventory || {};
@@ -4506,13 +4506,16 @@
     $('#standPrev').hidden = standPage <= 0;
     $('#standNext').hidden = standPage >= pages - 1;
     $('#standAll span').textContent = `Voir toutes les enveloppes (${live.length})`;
-    // Bouton Décor : « Nouveau », ou le prix en étoiles s'il faut encore le débloquer.
+    // Bouton Décor : « Nouveau » seulement s'il y a des papiers peints ou des sols mis en vente depuis la dernière visite
+    // du Décor (et pas encore achetés), ou le prix en étoiles s'il faut encore le débloquer.
     const pill = $('#standDecoPill');
+    const decoNew = decoNewCount();
+    pill.hidden = decorUnlocked() && !decoNew;
     if (decorUnlocked()) pill.innerHTML = `<svg width="12" height="12" viewBox="0 0 32 32" aria-hidden="true"><path d="M13 4 L17 14 L27 18 L17 22 L13 32 L9 22 L-1 18 L9 14 Z" transform="translate(3 -3) scale(.85)" fill="#FFD96B" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/></svg>Nouveau`;
     else pill.innerHTML = `${unlockCost('decor')}<svg width="13" height="13" viewBox="0 0 28 28" aria-hidden="true"><path d="M14 3 L17.5 10.5 L25.5 11.5 L19.5 17 L21.2 25 L14 21 L6.8 25 L8.5 17 L2.5 11.5 L10.5 10.5 Z" fill="#FFD96B" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>`;
     const walls = decoList('wall', true).length;
     const floors = decoList('floor', true).length;
-    $('#standDeco').setAttribute('aria-label', `Décor : ${plural(walls, 'papier peint')} et ${plural(floors, 'sol')} en vente${decorUnlocked() ? ', nouveau' : `, à débloquer pour ${unlockCost('decor')} étoiles`}`);
+    $('#standDeco').setAttribute('aria-label', `Décor : ${plural(walls, 'papier peint')} et ${plural(floors, 'sol')} en vente${decorUnlocked() ? (decoNew ? ', nouveautés' : '') : `, à débloquer pour ${unlockCost('decor')} étoiles`}`);
     $('#decoRelock').hidden = !(state.isAdmin && decoAsPlayer && state.profile.unlocks && state.profile.unlocks.decor);
     // Administratrice : voir aussi le visuel de l'autre type de jour.
     $('#standPreviewRow').hidden = !adminView();
@@ -5440,6 +5443,11 @@
   };
   const DV_CHECK = '<svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5 L8.5 15 L16 5.5" fill="none" stroke="#5A3E3A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   let decoShopKind = 'wall'; // onglet affiché : papiers peints ou sols, séparés
+  // Papiers peints et sols en vente, pas encore achetés, mis en vente après la dernière visite du Décor.
+  function decoNewCount() {
+    const seen = (state.profile && state.profile.decoSeen) || 0;
+    return ['wall', 'floor'].reduce((n, k) => n + decoList(k, true).filter((d) => !decoOwned(d.id) && (d.created || 0) > seen).length, 0);
+  }
   function renderDecoShop() {
     const list = $('#decoShopList');
     list.innerHTML = '';
@@ -5547,6 +5555,9 @@
       if (!decorUnlocked()) return;
     }
     shopView = 'deco';
+    // Le Décor est vu : l'étiquette « Nouveau » disparaît jusqu'aux prochains papiers peints ou sols.
+    state.profile.decoSeen = Date.now();
+    saveProfile();
     renderDecoShop();
     applyShopView();
     window.scrollTo(0, 0);
