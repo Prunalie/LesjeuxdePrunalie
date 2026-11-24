@@ -5055,8 +5055,16 @@
       : st === 'scheduled' ? `📅 Sortira le ${dayLabel(env.publishAt)} : les joueurs ne la voient pas avant.`
         : `✅ En vente${env.publishAt ? ` depuis le ${dayLabel(env.publishAt)}` : ''}.`;
     box.dataset.status = st;
-    if (st === 'live') return;
     const btn = (label, cls, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + cls; b.textContent = label; b.addEventListener('click', fn); actions.appendChild(b); return b; };
+    // Enveloppe déjà en vente : on peut la retirer de la boutique en la repassant en brouillon.
+    if (st === 'live') {
+      btn('📝 Repasser en brouillon', 'btn-ghost', async () => {
+        if (!(await askConfirm(`Retirer « ${env.name || 'Enveloppe'} » de la boutique et la repasser en brouillon ? Les joueurs ne pourront plus l'acheter. Ceux qui ont déjà ses stickers les gardent.`, 'Repasser en brouillon'))) return;
+        await setEnvelopePublication(env, true);
+        toast('Enveloppe repassée en brouillon 📝');
+      });
+      return;
+    }
     const need = () => { if (stickersOf(env.id).length) return true; toast('Cette enveloppe est vide : ajoute-lui des stickers avant de la publier.'); return false; };
     btn('Publier aujourd\'hui', 'btn-primary', async () => {
       if (!need()) return;
