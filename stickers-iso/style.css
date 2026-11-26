@@ -3514,3 +3514,18 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .ms-sliders label.locked { opacity: .5; }
 .ms-grimoire-btn { display: inline-flex; align-items: center; gap: 6px; }
 .stand-pill[hidden] { display: none !important; }
+/* Étiquettes d'enveloppe et liens avec le concours (essai) */
+.env-tags { margin: 8px 0; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 12px; }
+.env-tags-title { margin: 0 0 6px; font-weight: 600; font-size: .9rem; }
+.tag-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag-chip { padding: 4px 10px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--panel); color: var(--ink); font: inherit; font-size: .82rem; cursor: pointer; }
+.tag-chip.on { background: #f0658a; border-color: #f0658a; color: #fff; }
+.tag-chip.tag-add { border-style: dashed; }
+.ac-envlinks { margin-top: 22px; padding-top: 12px; border-top: 2px solid var(--line); }
+.ac-envlinks h2 { font-size: 1.1rem; margin: 0 0 6px; }
+.el-preview { padding: 8px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); margin: 8px 0 12px; }
+.el-preview p { margin: 4px 0; font-size: .9rem; }
+.el-group { margin: 8px 0; border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; }
+.el-group summary { cursor: pointer; padding: 4px 0; }
+.el-row { padding: 8px 0; border-top: 1px dashed var(--line); }
+.el-label { font-weight: 600; margin-bottom: 4px; }

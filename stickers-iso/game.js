@@ -4359,6 +4359,13 @@
     const fresh = shop.filter((e) => envSlotDay(e) === day).map((e) => e.id);
     const room = Math.max(0, n - fresh.length);
     const chosen = dailyPicks(day).filter((id) => !fresh.includes(id) && shop.some((e) => e.id === id)).slice(0, room);
+    // Essai : ensuite les enveloppes qui vont avec le concours du jour (étiquettes reliées, objet imposé), au hasard entre elles.
+    if (trialView()) {
+      const themed = themedEnvelopes(day, shop).filter((e) => !fresh.includes(e.id) && !chosen.includes(e.id))
+        .sort((a, b) => seededRank(day + 't' + a.id) - seededRank(day + 't' + b.id))
+        .slice(0, room - chosen.length).map((e) => e.id);
+      chosen.push(...themed);
+    }
     // S'il en manque (aucun choix, ou moins de n), on complète au hasard.
     const rest = shop.filter((e) => !fresh.includes(e.id) && !chosen.includes(e.id))
       .sort((a, b) => seededRank(day + a.id) - seededRank(day + b.id))
@@ -5172,6 +5179,7 @@
           <button class="btn btn-ghost atelier-del" title="Supprimer l'enveloppe">🗑️</button>
         </div>
         <div class="atelier-publish"></div>
+        <div class="env-tags" hidden></div>
         <p class="atelier-count muted"></p>
         <div class="atelier-grid"></div>
         <div class="atelier-add-row">
@@ -5217,6 +5225,7 @@
       fSeal.addEventListener('click', pickFor('seal', 'Petit rond'));
 
       renderPublishBox(sec.querySelector('.atelier-publish'), env);
+      renderEnvTagBox(sec.querySelector('.env-tags'), env);
       const list = stickersOf(env.id);
       sec.querySelector('.atelier-count').textContent = list.length
         ? `${list.length} sticker${list.length > 1 ? 's' : ''} (conseil : entre 5 et 10). Les « très rares » tombent environ 10 fois moins souvent que les « communs ».`
@@ -10393,6 +10402,7 @@
     showScreen('adminCouncil');
     window.scrollTo(0, 0);
     renderCouncilAdmin();
+    renderEnvLinks();
     const box = $('#acCouncilAdmin');
     box.innerHTML = '';
     try {
@@ -13223,6 +13233,150 @@
     const r = maisonRoom();
     if (grimoireFrom === 'maison' && r) { msMode = 'build'; openRoom(r.id); } else goHome();
   });
+
+  // ---------------------------------------------------------------------------
+  // Étiquettes d'enveloppe (essai administratrice) : des mots-clés précis (Cosy, Salle de bain, Noël…), plusieurs par
+  // enveloppe, en plus du thème qui range la boutique. Chaque pièce, couleur et thème du concours peut être relié à des
+  // étiquettes : ce jour-là, les enveloppes du jour sont d'abord prises parmi les enveloppes de ces étiquettes
+  // (un objet imposé amène aussi son enveloppe). settings.envTags = [{ id, name }] ; env.tags = [id] ;
+  // settings.envTagLinks = { 'g:thème' | 'c:couleur' | 'r:pièce' : [id] }.
+  // ---------------------------------------------------------------------------
+  const envTags = () => (Array.isArray(state.settings && state.settings.envTags) ? state.settings.envTags : []);
+  const envTagLinks = () => (state.settings && state.settings.envTagLinks) || {};
+  const tagLinkKey = (kind, text) => `${kind}:${normalizeText(String(text || ''))}`;
+  // Étiquettes reliées au concours d'un jour, et l'enveloppe de l'objet imposé.
+  function contestTagsOf(day) {
+    if (!v2Day(day)) return { tags: [], envId: null, plan: null };
+    const p = planOf(day);
+    const links = envTagLinks();
+    const keys = [];
+    if (p.kind === 'color') keys.push(tagLinkKey('c', p.colorName));
+    else if (p.kind !== 'object') keys.push(tagLinkKey('g', p.value || p.text));
+    if (p.room) keys.push(tagLinkKey('r', p.room));
+    const tags = [...new Set(keys.flatMap((k) => links[k] || []))];
+    const img = p.kind === 'object' && p.objectId ? state.images.get(p.objectId) : null;
+    return { tags, envId: img ? img.envelope : null, plan: p };
+  }
+  let themedCache = { key: '', val: [] };
+  // Enveloppes en vente qui vont avec le concours du jour (étiquettes reliées, ou enveloppe de l'objet imposé).
+  function themedEnvelopes(day, shop) {
+    const key = `${day}|${JSON.stringify(envTagLinks())}|${shop.map((e) => e.id + (e.tags || []).join('')).join(',')}|${state.images.size}|${(themeWinners[day] || {}).label || ''}|${JSON.stringify((state.settings.contestPlanOverrides || {})[day] || {})}`;
+    if (themedCache.key !== key) {
+      const { tags, envId } = contestTagsOf(day);
+      const set = new Set(tags);
+      themedCache = { key, val: shop.filter((e) => e.id === envId || (e.tags || []).some((t) => set.has(t))) };
+    }
+    return themedCache.val;
+  }
+  async function saveEnvTags(list) {
+    state.settings.envTags = list;
+    await saveSettings();
+  }
+  async function createEnvTag() {
+    const name = await askText('Nom de la nouvelle étiquette (ex. Cosy, Salle de bain, Noël) :', 'Créer', '');
+    if (!name || !name.trim()) return null;
+    const clean = name.trim().slice(0, 30);
+    const found = envTags().find((t) => normalizeText(t.name) === normalizeText(clean));
+    if (found) return found;
+    const t = { id: uid(), name: clean };
+    await saveEnvTags([...envTags(), t].sort((a, b) => a.name.localeCompare(b.name, 'fr')));
+    return t;
+  }
+  // Petites pastilles à cocher : une par étiquette, + « Nouvelle étiquette ».
+  function tagChips(selected, onToggle, onCreate) {
+    const box = document.createElement('div');
+    box.className = 'tag-chips';
+    for (const t of envTags()) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tag-chip' + (selected.includes(t.id) ? ' on' : '');
+      b.textContent = t.name;
+      b.setAttribute('aria-pressed', selected.includes(t.id));
+      b.addEventListener('click', () => onToggle(t.id));
+      box.appendChild(b);
+    }
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'tag-chip tag-add';
+    add.textContent = '＋ Étiquette';
+    add.addEventListener('click', onCreate);
+    box.appendChild(add);
+    return box;
+  }
+  // Fiche d'une enveloppe (Atelier) : ses étiquettes.
+  function renderEnvTagBox(box, env) {
+    if (!trialView()) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = '<p class="env-tags-title">🏷️ Étiquettes <span class="muted">(pour les enveloppes du jour selon le concours)</span></p>';
+    const toggle = async (id) => {
+      const cur = new Set(env.tags || []);
+      if (cur.has(id)) cur.delete(id); else cur.add(id);
+      env.tags = [...cur];
+      if (!env.tags.length) delete env.tags;
+      try { await db.putEnvelope(env); } catch (e) { toast('L\'enveloppe n\'a pas pu être enregistrée.'); }
+      renderEnvTagBox(box, env);
+    };
+    box.appendChild(tagChips(env.tags || [], toggle, async () => { const t = await createEnvTag(); if (t) await toggle(t.id); }));
+  }
+  // Atelier du conseil : relier chaque pièce, couleur et thème à des étiquettes, avec l'aperçu d'aujourd'hui et de demain.
+  function renderEnvLinks() {
+    const box = $('#acEnvLinks');
+    if (!box) return;
+    box.hidden = !trialView();
+    if (!trialView()) return;
+    box.innerHTML = '<h2>🏷️ Enveloppes du jour selon le concours</h2><p class="muted">Relie chaque pièce, couleur et thème à des étiquettes d\'enveloppe. Le jour où ils sortent au concours, les enveloppes du jour sont d\'abord prises parmi les enveloppes de ces étiquettes (après les nouvelles enveloppes et tes choix à la main), puis complétées au hasard. Un objet imposé amène toujours son enveloppe. Les étiquettes se posent sur chaque enveloppe, dans l\'Atelier.</p>';
+    // Aperçu
+    const shop = liveEnvelopes().filter((env) => stickersOf(env.id).length);
+    const prev = document.createElement('div');
+    prev.className = 'el-preview';
+    for (const [label, day] of [['Aujourd\'hui', today()], ['Demain', shiftDay(today(), 1)]]) {
+      const { tags, plan } = contestTagsOf(day);
+      const envs = themedEnvelopes(day, shop);
+      const p = document.createElement('p');
+      const what = plan ? `${plan.room ? plan.room + ' · ' : ''}${plan.kind === 'object' ? plan.text : plan.kind === 'color' ? plan.text : (plan.value || plan.text)}` : '—';
+      const tagNames = tags.map((id) => (envTags().find((t) => t.id === id) || {}).name).filter(Boolean);
+      p.innerHTML = '<strong></strong> <span class="el-what"></span><br><span class="muted el-res"></span>';
+      p.querySelector('strong').textContent = label + ' :';
+      p.querySelector('.el-what').textContent = what;
+      p.querySelector('.el-res').textContent = envs.length
+        ? `${plural(envs.length, 'enveloppe')} du thème${tagNames.length ? ` (${tagNames.join(', ')})` : ''} : ${envs.map((e) => e.name || 'Enveloppe').join(', ')}`
+        : (tagNames.length ? `Étiquettes ${tagNames.join(', ')} : aucune enveloppe en vente avec ces étiquettes.` : 'Aucune étiquette reliée : enveloppes du jour au hasard.');
+      prev.appendChild(p);
+    }
+    box.appendChild(prev);
+    const setLink = async (key, id) => {
+      const all = { ...envTagLinks() };
+      const cur = new Set(all[key] || []);
+      if (cur.has(id)) cur.delete(id); else cur.add(id);
+      if (cur.size) all[key] = [...cur]; else delete all[key];
+      state.settings.envTagLinks = all;
+      await saveSettings();
+      renderEnvLinks();
+    };
+    const group = (title, items) => {
+      const sec = document.createElement('details');
+      sec.className = 'el-group';
+      const n = items.filter(([key]) => (envTagLinks()[key] || []).length).length;
+      sec.innerHTML = `<summary><strong></strong> <span class="muted">${n} / ${items.length} reliés</span></summary>`;
+      sec.querySelector('strong').textContent = title;
+      for (const [key, label] of items) {
+        const row = document.createElement('div');
+        row.className = 'el-row';
+        const l = document.createElement('div');
+        l.className = 'el-label';
+        l.textContent = label;
+        row.appendChild(l);
+        row.appendChild(tagChips(envTagLinks()[key] || [], (id) => setLink(key, id), async () => { const t = await createEnvTag(); if (t) await setLink(key, t.id); }));
+        sec.appendChild(row);
+      }
+      box.appendChild(sec);
+    };
+    group('🏠 Pièces', contestRooms().filter((r) => r !== FREE_ROOM).map((r) => [tagLinkKey('r', r), r]));
+    group('🎨 Couleurs', contestColors().map((c) => [tagLinkKey('c', c.name), c.name]));
+    const themes = [...new Set([...contestThemes(), ...[today(), shiftDay(today(), 1)].map((d) => { const p = v2Day(d) ? planOf(d) : null; return p && p.kind === 'general' ? (p.value || p.text) : ''; }).filter(Boolean)])]
+      .sort((a, b) => a.localeCompare(b, 'fr'));
+    group('✨ Thèmes', themes.map((t) => [tagLinkKey('g', t), t]));
+  }
 
   init();
 })();
