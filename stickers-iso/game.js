@@ -5380,7 +5380,7 @@
       const sh = normShape(state.shape);
       const sideMode = (side) => (sh['gw' + side] === 'none' || sh['gw' + side] === 'full' ? sh['gw' + side] : 'half');
       const dk = b.dataset.deco;
-      const gardenOk = dk === 'floorDeco' || dk === 'postDeco'
+      const gardenOk = dk === 'floorDeco' || dk === 'levelFloorDeco' || dk === 'postDeco'
         || (dk === 'halfLeftDeco' && sideMode('L') === 'half') || (dk === 'halfRightDeco' && sideMode('R') === 'half')
         || (dk === 'wallLeftDeco' && sideMode('L') === 'full') || (dk === 'wallRightDeco' && sideMode('R') === 'full');
       b.hidden = !show || (garden ? !(gardenOk && (!half || trialView())) : half);
