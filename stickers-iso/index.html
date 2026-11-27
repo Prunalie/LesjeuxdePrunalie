@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611271000">
+  <link rel="stylesheet" href="style.css?v=202611271100">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -67,7 +67,7 @@
     </header>
     <div class="rooms-body home-body">
       <nav class="home-main" aria-label="Menu principal">
-        <div class="mn-greet"><p class="home-greeting" aria-hidden="true">Bonjour <span id="playerName2" class="home-name"></span></p><span class="points-pill mn-only mn-greet-pill"></span></div>
+        <div class="mn-greet"><p class="home-greeting" aria-hidden="true">Bonjour <span id="playerName2" class="home-name"></span></p><span class="points-pill mn-only mn-greet-pill"></span><button type="button" id="libGuide" class="lib-guide" hidden aria-label="Visite guidée : la luciole te présente chaque menu"><span id="libGuideFee" class="lib-guide-fee" aria-hidden="true"></span><span class="lib-guide-q" aria-hidden="true">?</span></button></div>
         <!-- Accueil « grande bibliothèque » (essai administratrice) : chaque objet de la scène ouvre un menu -->
         <section id="homeLib" class="home-lib" hidden aria-label="La pièce du manoir">
           <div class="lib-scene">
@@ -1066,6 +1066,20 @@
     </div>
   </div>
 
+  <!-- Visite guidée de la luciole (accueil « bibliothèque ») -->
+  <div id="tourLayer" class="tour-layer" hidden>
+    <div id="tourDim" class="tour-dim"></div>
+    <div id="tourRing" class="tour-ring"></div>
+    <div id="tourBubble" class="tour-bubble" role="dialog" aria-modal="true" aria-labelledby="tourTitle" aria-describedby="tourText">
+      <span id="tourTail" class="tour-tail"></span>
+      <div class="tour-head"><h3 id="tourTitle"></h3><span id="tourCount"></span></div>
+      <p id="tourText"></p>
+      <div class="tour-actions"><button type="button" id="tourSkip" class="tour-skip">Passer la visite</button><button type="button" id="tourNext" class="tour-next">Suivant ›</button></div>
+    </div>
+    <div id="tourFee" class="tour-fee" aria-hidden="true"></div>
+    <p id="tourLive" class="sr-only" aria-live="polite"></p>
+  </div>
+
   <!-- Bourse du matin (accueil « bibliothèque ») : la chouette lève l'aile, les pièces jaillissent -->
   <div id="bourseDialog" class="modal bourse-modal" hidden>
     <div class="bourse-box" role="dialog" aria-modal="true" aria-labelledby="bourseTitle">
@@ -1495,7 +1509,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611271000"></script>
-  <script src="game.js?v=202611271000"></script>
+  <script src="firebase-config.js?v=202611271100"></script>
+  <script src="game.js?v=202611271100"></script>
 </body>
 </html>

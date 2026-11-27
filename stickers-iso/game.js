@@ -3412,7 +3412,7 @@
     try {
       const fresh = await db.getPlayer(playerDocId(state.player.key));
       if (!fresh) return;
-      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'carnetLast', 'carnetStreak', 'themeVoteDay', 'joinRewardDay', 'contestCount', 'contestMilestones', 'stairsGift', 'decos', 'decoSeen', 'house', 'maison', 'cristaux', 'sorts', 'cristalMilestones', 'nightPlayer']) {
+      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'carnetLast', 'carnetStreak', 'themeVoteDay', 'joinRewardDay', 'contestCount', 'contestMilestones', 'stairsGift', 'decos', 'decoSeen', 'tourSeen', 'house', 'maison', 'cristaux', 'sorts', 'cristalMilestones', 'nightPlayer']) {
         if (fresh[k] !== undefined) state.profile[k] = fresh[k];
       }
       state.profile.inventory = state.profile.inventory || {};
@@ -13392,8 +13392,10 @@
   function renderHomeLib() {
     const on = libOn();
     $('#homeLib').hidden = !on;
+    $('#libGuide').hidden = !on;
     $('#screenHome').classList.toggle('home-lib-mode', on);
     if (!on) return;
+    tourMaybeAuto();
     // Bonjour / Bonsoir selon l'heure.
     const h = new Date().getHours();
     const g = document.querySelector('.home-greeting');
@@ -13450,6 +13452,133 @@
     carnetCheck();
   });
   $('#bourseDialog').addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#bourseOk').click(); });
+
+  // ---------------------------------------------------------------------------
+  // Visite guidée de la luciole (accueil « bibliothèque ») : la fée s'envole du bouton, un halo entoure chaque objet
+  // et une bulle explique à quoi il sert. Suivant (ou n'importe où sur le fond), Passer, Échap, flèche droite.
+  // Se lance d'elle-même à la première connexion d'une joueuse (une seule fois) ; l'administratrice la lance au bouton.
+  // ---------------------------------------------------------------------------
+  const TOUR_STEPS = () => [
+    ['#libOwlBtn', 'La bourse du matin', 'Chaque matin, la chouette t’apporte une bourse. Touche-la pour récolter tes pièces du jour.'],
+    ['#libPotions', 'La salle des potions', 'Fais tes actions du jour pour remplir ta potion. Avec 7 potions, le chaudron te donne un objet rare.'],
+    ['#libGrimObj', 'Le grimoire des objets', 'Tous les stickers que tu as collectionnés, rangés par thèmes et par collections.'],
+    ['#libGrimSorts', 'Le grimoire des sortilèges', 'Tes sortilèges et tes éclats de cristal.'],
+    ['#libMaison', 'Ma grande maison', maisonOn() ? 'Ta grande maison sur plusieurs étages, à construire et à décorer.' : 'Bientôt : une grande maison sur plusieurs étages à décorer.'],
+    ['#libRooms', 'Mes pièces', 'Tes pièces à décorer avec tous les objets que tu as obtenus.'],
+    ['#libShop', 'La boutique', 'Dépense tes pièces et tes étoiles : enveloppes du jour et papiers peints.'],
+    ['#libContest', 'Le concours du jour', 'Décore une pièce sur le thème du jour, vote pour tes préférées et choisis le thème de demain.'],
+    ['#libSticker', 'Proposer un sticker', 'Envoie tes propres dessins : ils pourront devenir des stickers du jeu.'],
+  ];
+  const tourReduce = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let tourI = -1, tourBusy = false, tourFeePos = null, tourSteps = [];
+  const tourEl = (id) => document.getElementById(id);
+  function tourRect(el) { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; }
+  function tourFly(to, ms) {
+    const fee = tourEl('tourFee');
+    const from = tourFeePos || to;
+    tourFeePos = to;
+    if (tourReduce() || !ms || !fee.animate) { fee.style.transform = `translate(${to.x}px,${to.y}px)`; return Promise.resolve(); }
+    const mx = (from.x + to.x) / 2 + (to.x > from.x ? -20 : 20), my = Math.min(from.y, to.y) - 60;
+    const a = fee.animate([
+      { transform: `translate(${from.x}px,${from.y}px) rotate(0deg)` },
+      { transform: `translate(${mx}px,${my}px) rotate(${to.x > from.x ? 12 : -12}deg)`, offset: 0.5 },
+      { transform: `translate(${to.x}px,${to.y}px) rotate(0deg)` },
+    ], { duration: ms, easing: 'cubic-bezier(.45,.05,.35,1)' });
+    return a.finished.then(() => { fee.style.transform = `translate(${to.x}px,${to.y}px)`; });
+  }
+  function tourHideBubble() {
+    const b = tourEl('tourBubble');
+    b.style.opacity = 0;
+    b.style.transform = 'translateY(6px) scale(.97)';
+    return new Promise((r) => setTimeout(r, tourReduce() ? 0 : 200));
+  }
+  function tourShowBubble(t) {
+    const [, title, text] = tourSteps[tourI];
+    tourEl('tourTitle').textContent = title;
+    tourEl('tourText').textContent = text;
+    tourEl('tourCount').textContent = `${tourI + 1} / ${tourSteps.length}`;
+    tourEl('tourNext').textContent = tourI === tourSteps.length - 1 ? 'Terminer' : 'Suivant ›';
+    const b = tourEl('tourBubble'), tail = tourEl('tourTail');
+    const H = window.innerHeight;
+    const below = t.y + t.h + 170 < H;
+    b.style.top = below ? `${t.y + t.h + 16}px` : '';
+    b.style.bottom = below ? '' : `${H - t.y + 16}px`;
+    requestAnimationFrame(() => {
+      const br = b.getBoundingClientRect();
+      tail.style.left = `${Math.max(14, Math.min(br.width - 30, t.x + t.w / 2 - br.left - 8))}px`;
+      if (below) { tail.style.top = '-9px'; tail.style.bottom = ''; tail.style.transform = 'rotate(45deg)'; } else { tail.style.top = ''; tail.style.bottom = '-9px'; tail.style.transform = 'rotate(225deg)'; }
+      b.style.opacity = 1;
+      b.style.transform = 'none';
+      tourEl('tourNext').focus({ preventScroll: true });
+    });
+    tourEl('tourLive').textContent = `${title}. ${text}`;
+  }
+  function tourGo(k) {
+    if (tourBusy) return;
+    tourBusy = true;
+    tourI = k;
+    const el = $(tourSteps[k][0]);
+    tourHideBubble().then(() => {
+      // L'objet doit être visible : on fait défiler la page si besoin.
+      const r0 = el.getBoundingClientRect();
+      if (r0.top < 60 || r0.bottom > window.innerHeight - 180) el.scrollIntoView({ block: 'center' });
+      const t = tourRect(el), pad = 6, ring = tourEl('tourRing');
+      ring.style.left = `${t.x - pad}px`; ring.style.top = `${t.y - pad}px`;
+      ring.style.width = `${t.w + pad * 2}px`; ring.style.height = `${t.h + pad * 2}px`;
+      return tourFly({ x: t.x + t.w - 26, y: t.y - 18 }, 900).then(() => t);
+    }).then((t) => { tourShowBubble(t); tourBusy = false; });
+  }
+  function tourStart() {
+    const layer = tourEl('tourLayer');
+    if (!layer.hidden || !libOn()) return;
+    tourSteps = TOUR_STEPS();
+    window.scrollTo(0, 0);
+    layer.hidden = false;
+    const btn = $('#libGuide'), fee = tourEl('tourFee'), ring = tourEl('tourRing');
+    const b = tourRect(btn);
+    tourFeePos = { x: b.x + 1, y: b.y + 1 };
+    fee.style.transform = `translate(${tourFeePos.x}px,${tourFeePos.y}px)`;
+    fee.style.opacity = 1;
+    $('#libGuideFee').style.opacity = 0;
+    ring.style.transition = 'none';
+    ring.style.left = `${b.x}px`; ring.style.top = `${b.y}px`; ring.style.width = `${b.w}px`; ring.style.height = `${b.h}px`;
+    ring.getBoundingClientRect();
+    ring.style.transition = '';
+    // Vue une fois : elle ne se relance plus toute seule.
+    if (state.profile && !state.profile.tourSeen) { state.profile.tourSeen = Date.now(); saveProfile(); }
+    tourGo(0);
+  }
+  function tourEnd() {
+    const layer = tourEl('tourLayer');
+    if (layer.hidden) return;
+    tourBusy = true;
+    tourHideBubble().then(() => { window.scrollTo(0, 0); const b = tourRect($('#libGuide')); return tourFly({ x: b.x + 1, y: b.y + 1 }, 800); }).then(() => {
+      tourEl('tourFee').style.opacity = 0;
+      $('#libGuideFee').style.opacity = 1;
+      layer.hidden = true;
+      tourI = -1;
+      tourBusy = false;
+      $('#libGuide').focus({ preventScroll: true });
+      tourEl('tourLive').textContent = 'Visite terminée.';
+    });
+  }
+  function tourNextStep() { if (tourBusy) return; if (tourI < tourSteps.length - 1) tourGo(tourI + 1); else tourEnd(); }
+  $('#libGuideFee').innerHTML = FEE_SVG;
+  tourEl('tourFee').innerHTML = FEE_SVG;
+  $('#libGuide').addEventListener('click', tourStart);
+  tourEl('tourNext').addEventListener('click', (e) => { e.stopPropagation(); tourNextStep(); });
+  tourEl('tourSkip').addEventListener('click', (e) => { e.stopPropagation(); tourEnd(); });
+  tourEl('tourDim').addEventListener('click', tourNextStep);
+  window.addEventListener('keydown', (e) => {
+    if (tourEl('tourLayer').hidden) return;
+    if (e.key === 'Escape') { e.preventDefault(); tourEnd(); } else if (e.key === 'ArrowRight') { e.preventDefault(); tourNextStep(); }
+  });
+  // Première connexion d'une joueuse : la visite se lance d'elle-même (une seule fois). Pas chez l'administratrice.
+  function tourMaybeAuto() {
+    if (!libOn() || state.isAdmin || !state.profile || state.profile.tourSeen) return;
+    if (document.querySelector('.modal:not([hidden])') || $('#screenHome').hidden) return;
+    setTimeout(() => { if (!$('#screenHome').hidden && !document.querySelector('.modal:not([hidden])')) tourStart(); }, 900);
+  }
 
   init();
 })();

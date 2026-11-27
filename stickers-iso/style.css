@@ -3561,3 +3561,26 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 @keyframes bourseOwl { from { transform: translateY(18px) scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes bourseCoin { from { transform: translate(-50%, 0) scale(.4); opacity: 0; } 20% { opacity: 1; } to { transform: translate(calc(-50% + var(--dx)), var(--dy)) scale(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .bourse-owl, .bourse-coins span { animation: none; } .bourse-coins { display: none; } }
+/* Visite guidée de la luciole */
+.lib-guide { flex: none; position: relative; width: 42px; height: 42px; padding: 0; margin-left: 8px; border-radius: 50%; border: 2px solid #E6B85C; background: radial-gradient(circle at 50% 45%, #4A2C6A, #2A1840); box-shadow: 0 0 14px rgba(244, 213, 138, .27); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; }
+.lib-guide[hidden] { display: none; }
+.lib-guide:hover { filter: brightness(1.15); }
+.lib-guide-fee { display: flex; width: 34px; height: 34px; transition: opacity .2s; }
+.lib-guide-fee svg, .tour-fee svg { width: 100%; height: 100%; overflow: visible; }
+.lib-guide-q { position: absolute; right: -3px; bottom: -3px; width: 17px; height: 17px; border-radius: 50%; background: #E6B85C; border: 1.5px solid #1B0F14; font-family: 'Cinzel', Georgia, serif; font-weight: 700; font-size: 11px; line-height: 15px; text-align: center; color: #2A1230; }
+.mn-greet { align-items: center; }
+.tour-layer { position: fixed; inset: 0; z-index: 9000; }
+.tour-layer[hidden] { display: none !important; }
+.tour-dim { position: absolute; inset: 0; }
+.tour-ring { position: absolute; border-radius: 14px; box-shadow: 0 0 0 4000px rgba(12, 6, 24, .66), 0 0 0 2px #F4D58A, 0 0 24px rgba(244, 213, 138, .55); transition: left .55s ease, top .55s ease, width .55s ease, height .55s ease; pointer-events: none; }
+.tour-bubble { position: absolute; left: 16px; right: 16px; max-width: 420px; margin: 0 auto; padding: 14px 16px 12px; border-radius: 12px; border: 2px solid #E6B85C; background: linear-gradient(160deg, #3A2358, #2A1840); box-shadow: 0 0 0 3px #2A1840, 0 0 0 4.5px #8A6425, 0 10px 30px rgba(0, 0, 0, .5); opacity: 0; transform: translateY(6px) scale(.97); transition: opacity .25s ease, transform .25s ease; color: #F7E9C4; }
+.tour-tail { position: absolute; width: 16px; height: 16px; background: #33204E; border-left: 2px solid #E6B85C; border-top: 2px solid #E6B85C; transform: rotate(45deg); }
+.tour-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tour-head h3 { margin: 0; font-family: 'Cinzel', Georgia, serif; font-weight: 700; font-size: 16px; color: #F4D58A; }
+#tourCount { font-family: 'Cinzel', Georgia, serif; font-weight: 600; font-size: 11px; letter-spacing: .12em; color: #D2BF93; }
+#tourText { margin: 6px 0 10px; font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 700; font-size: 16.5px; line-height: 1.28; color: #F7E9C4; }
+.tour-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tour-skip { min-height: 40px; padding: 0 6px; border: 0; background: none; font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 700; font-size: 15px; color: #D2BF93; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.tour-next { min-height: 42px; padding: 0 18px; border-radius: 6px; border: 2px solid #1B0F14; background: linear-gradient(#F8DC96, #D9A441); box-shadow: 0 3px 0 #6E4A12; font-family: 'Cinzel', Georgia, serif; font-weight: 700; font-size: 14px; color: #2A1230; cursor: pointer; }
+.tour-next:focus-visible, .tour-skip:focus-visible, .lib-guide:focus-visible { outline: 3px solid #F4D58A; outline-offset: 3px; }
+.tour-fee { position: absolute; left: 0; top: 0; width: 40px; height: 40px; z-index: 2; pointer-events: none; opacity: 0; }
