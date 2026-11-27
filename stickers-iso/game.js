@@ -95,6 +95,8 @@
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_decor', label: '🎨 Décor (papiers peints et sols)', unit: '🌟', def: () => 2, max: 100, step: 1 },
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_levels', label: '🏢 Étages', unit: '🌟', def: () => 2, max: 100, step: 1 },
     { group: 'Accueil « grande bibliothèque » (essai)', key: 'libRibbon', label: 'Ruban « À venir » sur la boule à neige, tant que Ma grande maison n\'est pas ouverte (1 = oui, 0 = non)', unit: '', def: () => 1, min: 0, max: 1, step: 1 },
+    { group: 'Salle des potions (essai)', key: 'potionPoisonPrice', label: 'Prix de rachat d\'une potion empoisonnée', unit: '🪙', def: () => 10, max: 100000, step: 5 },
+    { group: 'Salle des potions (essai)', key: 'potionCristaux', label: 'Éclats de cristal en plus quand on verse les 7 potions', unit: '🔮', def: () => 3, max: 1000, step: 1 },
     { group: 'Grimoire des sortilèges (essai)', key: 'cristalCarnet', label: 'Éclats pour un Carnet du jour complet', unit: '🔮', def: () => 1, max: 1000, step: 1 },
     { group: 'Grimoire des sortilèges (essai)', key: 'cristalContest', label: 'Éclats pour une participation au concours', unit: '🔮', def: () => 1, max: 1000, step: 1 },
     { group: 'Grimoire des sortilèges (essai)', key: 'cristalPodium', label: 'Éclats en plus pour un podium (1re, 2e ou 3e place)', unit: '🔮', def: () => 2, max: 1000, step: 1 },
@@ -3007,6 +3009,7 @@
     todo: $('#screenTodo'),
     house: $('#screenHouse'),
     grimoire: $('#screenGrimoire'),
+    potions: $('#screenPotions'),
     settings: $('#screenSettings'),
     adminContest: $('#screenAdminContest'),
     adminCouncil: $('#screenAdminCouncil'),
@@ -3412,7 +3415,7 @@
     try {
       const fresh = await db.getPlayer(playerDocId(state.player.key));
       if (!fresh) return;
-      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'carnetLast', 'carnetStreak', 'themeVoteDay', 'joinRewardDay', 'contestCount', 'contestMilestones', 'stairsGift', 'decos', 'decoSeen', 'tourSeen', 'house', 'maison', 'cristaux', 'sorts', 'cristalMilestones', 'nightPlayer']) {
+      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'carnetLast', 'carnetStreak', 'themeVoteDay', 'joinRewardDay', 'contestCount', 'contestMilestones', 'stairsGift', 'decos', 'decoSeen', 'tourSeen', 'potions', 'house', 'maison', 'cristaux', 'sorts', 'cristalMilestones', 'nightPlayer']) {
         if (fresh[k] !== undefined) state.profile[k] = fresh[k];
       }
       state.profile.inventory = state.profile.inventory || {};
@@ -12425,6 +12428,7 @@
       const streak = state.profile.carnetLast === shiftDay(today(), -1) ? (state.profile.carnetStreak || 0) + 1 : 1;
       state.profile.carnetLast = today();
       state.profile.carnetStreak = streak;
+      potionEarned();
       const gotCristal = grimoireOn() ? addCristaux(setting('cristalCarnet')) : 0;
       saveProfile();
       setTimeout(() => toast(`📖 Carnet complet ! ${streak > 1 ? `${streak} jours d'affilée. ` : ''}Ta bourse de demain : ${bourseAmount(streak)} 🪙${gotCristal ? ` · +${gotCristal} 🔮` : ''}`), 600);
@@ -13395,6 +13399,7 @@
     $('#libGuide').hidden = !on;
     $('#screenHome').classList.toggle('home-lib-mode', on);
     if (!on) return;
+    potionsCheckBreak();
     tourMaybeAuto();
     // Bonjour / Bonsoir selon l'heure.
     const h = new Date().getHours();
@@ -13408,7 +13413,7 @@
     $('#libRuban').hidden = !setting('libRibbon') || maisonOn();
   }
   function libGo(tileId) { const t = $(tileId); if (t) t.click(); }
-  $('#libPotions').addEventListener('click', () => (carnetOn() ? openCarnet() : null));
+  $('#libPotions').addEventListener('click', () => (potionsOn() ? openPotions() : null));
   $('#libGrimObj').addEventListener('click', () => libGo('#homeCollection'));
   $('#libGrimSorts').addEventListener('click', () => openGrimoire('home'));
   $('#libMaison').addEventListener('click', () => { if (maisonOn()) openMaison(); else toast('Ma grande maison arrive bientôt ✨'); });
@@ -13460,7 +13465,7 @@
   // ---------------------------------------------------------------------------
   const TOUR_STEPS = () => [
     ['#libOwlBtn', 'La bourse du matin', 'Chaque matin, la chouette t’apporte une bourse. Touche-la pour récolter tes pièces du jour.'],
-    ['#libPotions', 'La salle des potions', 'Fais tes actions du jour pour remplir ta potion. Avec 7 potions, le chaudron te donne un objet rare.'],
+    ['#libPotions', 'La salle des potions', 'Fais tes actions du jour pour remplir ta potion. Avec 7 potions, le chaudron te donne un objet que tu n’as pas encore.'],
     ['#libGrimObj', 'Le grimoire des objets', 'Tous les stickers que tu as collectionnés, rangés par thèmes et par collections.'],
     ['#libGrimSorts', 'Le grimoire des sortilèges', 'Tes sortilèges et tes éclats de cristal.'],
     ['#libMaison', 'Ma grande maison', maisonOn() ? 'Ta grande maison sur plusieurs étages, à construire et à décorer.' : 'Bientôt : une grande maison sur plusieurs étages à décorer.'],
@@ -13579,6 +13584,252 @@
     if (document.querySelector('.modal:not([hidden])') || $('#screenHome').hidden) return;
     setTimeout(() => { if (!$('#screenHome').hidden && !document.querySelector('.modal:not([hidden])')) tourStart(); }, 900);
   }
+
+  // ---------------------------------------------------------------------------
+  // Salle des potions (essai administratrice). Les 4 actions du jour (bourse, conseil, idée, duels) sont les 4 ingrédients
+  // de la potion du jour : elle n'est gagnée que si les 4 sont faites, et va alors sur l'étagère (7 places).
+  // 7 bonnes potions → le chaudron donne un objet nouveau, au hasard dans les enveloppes en vente, + des éclats de cristal.
+  // Série perdue (un jour sans potion) → les 3 dernières potions de l'étagère tournent en poison : invendables au chaudron,
+  // l'apothicaire les rachète. La bourse et sa série gardent leur règle (celle du carnet du jour).
+  // profile.potions = { shelf: [{ c: 1..7, poison? }], brokeFor: 'jour de la dernière potion avant la cassure' }.
+  // ---------------------------------------------------------------------------
+  const potionsOn = () => carnetOn();
+  const PO_FILES = ['1-rond', '2-haut', '3-fiole', '4-coeur', '5-rond', '6-haut', '7-fiole'];
+  const PO_COLORS = ['#F29BD0', '#7FC8F0', '#9ED88A', '#F7A08A', '#FFE08A', '#C9A8F0', '#8AE0D0'];
+  const PO_MAX = 7;
+  function potionsData() {
+    const p = state.profile;
+    if (!p.potions || !Array.isArray(p.potions.shelf)) p.potions = { shelf: [] };
+    return p.potions;
+  }
+  const goodPotions = () => potionsData().shelf.filter((x) => !x.poison).length;
+  const poisonPotions = () => potionsData().shelf.filter((x) => x.poison).length;
+  // Un jour sans potion depuis la dernière : les 3 dernières potions de l'étagère tournent en poison (une seule fois).
+  function potionsCheckBreak() {
+    if (!potionsOn() || !state.profile) return 0;
+    const last = state.profile.carnetLast;
+    const d = potionsData();
+    if (!last || last >= shiftDay(today(), -1) || d.brokeFor === last) return 0;
+    d.brokeFor = last;
+    let n = 0;
+    for (let i = d.shelf.length - 1; i >= 0 && n < 3; i--) if (!d.shelf[i].poison) { d.shelf[i].poison = true; n++; }
+    if (n) d.poisonNew = true; // la fenêtre « Série perdue » s'ouvrira à la prochaine visite de la salle
+    saveProfile();
+    return n;
+  }
+  // Potion du jour terminée (les 4 ingrédients) : elle rejoint l'étagère.
+  function potionEarned() {
+    if (!potionsOn()) return;
+    const d = potionsData();
+    if (d.shelf.length >= PO_MAX) { setTimeout(() => toast('🧪 Potion terminée, mais ton étagère est pleine : verse tes potions dans le chaudron (ou vends tes poisons).'), 1400); return; }
+    d.shelf.push({ c: (d.shelf.length % PO_MAX) + 1, day: today() });
+    setTimeout(() => toast('🧪 Potion terminée : elle rejoint ton étagère !'), 1400);
+  }
+  // La potion du jour, remplie de 0 à 4 ingrédients (le dessin du paquet, liquide à la bonne hauteur).
+  function potionTodaySvg(level) {
+    const y = level ? 116 - 25 - (level - 1) * 15 : 130;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 11 106 128" role="img" aria-label="Potion du jour : ${level} ingrédient${level > 1 ? 's' : ''} sur 4"><defs><radialGradient id="ptg"><stop offset="0" stop-color="#E58CC8" stop-opacity="0.5"/><stop offset="1" stop-color="#E58CC8" stop-opacity="0"/></radialGradient><clipPath id="ptfl"><path d="M38 34 V44 Q12 54 12 82 Q12 116 50 116 Q88 116 88 82 Q88 54 62 44 V34Z"/></clipPath><linearGradient id="ptliq" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F29BD0"/><stop offset="1" stop-color="#8E4FC4"/></linearGradient></defs>`
+      + `<ellipse cx="50" cy="86" rx="50" ry="42" fill="url(#ptg)" opacity="${level / 4}"/><path d="M38 34 V44 Q12 54 12 82 Q12 116 50 116 Q88 116 88 82 Q88 54 62 44 V34Z" fill="#DDEFF5" fill-opacity=".2"/>`
+      + (level ? `<g clip-path="url(#ptfl)"><rect x="0" y="${y}" width="100" height="40" fill="url(#ptliq)"/><rect x="0" y="${y + 30}" width="100" height="60" fill="#8E4FC4"/><ellipse cx="50" cy="${y}" rx="40" ry="5" fill="#F7B8DD"/><circle cx="42" cy="${y + 14}" r="2.4" fill="#FFFFFF" opacity=".55"/><circle cx="56" cy="${y + 8}" r="1.8" fill="#FFFFFF" opacity=".55"/></g>` : '')
+      + `<path d="M38 34 V44 Q12 54 12 82 Q12 116 50 116 Q88 116 88 82 Q88 54 62 44 V34Z" fill="none" stroke="#1B0F14" stroke-width="2.6" stroke-linejoin="round"/><path d="M22 64 Q16 78 19 94" stroke="#FFFFFF" stroke-opacity=".7" stroke-width="3.4" fill="none" stroke-linecap="round"/><path d="M32 86 H68 Q71 92 68 98 H32 Q29 92 32 86Z" fill="#F6E4BE" stroke="#1B0F14" stroke-width="1.6"/><path d="M36 92 H64" stroke="#C9A86A" stroke-width="1.2" stroke-dasharray="3 2"/>`
+      + [91, 76, 61].map((yy) => `<path d="M83 ${yy} H89" stroke="#E6B85C" stroke-width="1.6" stroke-linecap="round"/>`).join('')
+      + '<path d="M39 14 H61 L60 31 H40Z" fill="#C99A64" stroke="#1B0F14" stroke-width="2" stroke-linejoin="round"/><path d="M43 19 H57 M43 24 H56" stroke="#9C6E3E" stroke-width="1.3" stroke-linecap="round"/><rect x="34" y="29" width="32" height="7" rx="3.5" fill="#EEF7FA" stroke="#1B0F14" stroke-width="2"/></svg>';
+  }
+  let cauldronSvg = '';
+  async function loadCauldron() {
+    if (cauldronSvg) return cauldronSvg;
+    try { cauldronSvg = await (await fetch('manoir/potions/chaudron.svg?v=1')).text(); } catch (e) { cauldronSvg = ''; }
+    return cauldronSvg;
+  }
+  function setBrew(color) {
+    document.querySelectorAll('#poCauldron .brew').forEach((el) => el.setAttribute('fill', color));
+    document.querySelectorAll('#poCauldron .bub circle[fill]').forEach((el) => { if (el.getAttribute('fill') !== '#FFFFFF') el.setAttribute('fill', color); });
+    const g = document.querySelector('#poCauldron .brew-glow');
+    if (g) g.setAttribute('stop-color', color);
+  }
+  let poStatus = null;
+  async function openPotions() {
+    if (!potionsOn()) return;
+    potionsCheckBreak();
+    const broke = potionsData().poisonNew;
+    if (broke) { delete potionsData().poisonNew; saveProfile(); }
+    showScreen('potions');
+    window.scrollTo(0, 0);
+    await loadCauldron();
+    renderPotions(carnetLast && carnetLast.day === today() ? carnetLast : null);
+    if (broke) setTimeout(() => openPoison(), 500);
+    const s = await carnetStatus();
+    if (!screens.potions.hidden) renderPotions(s);
+    carnetCheck();
+  }
+  function renderPotions(s) {
+    poStatus = s;
+    const d = potionsData();
+    const good = goodPotions(), bad = poisonPotions();
+    $('#poCount').textContent = `${good} / ${PO_MAX} potions${bad ? ` · ${plural(bad, 'poison')}` : ''}`;
+    const shelf = $('#poShelf');
+    shelf.innerHTML = '';
+    for (let i = 0; i < PO_MAX; i++) {
+      const it = d.shelf[i];
+      const el = document.createElement(it && it.poison ? 'button' : 'div');
+      el.className = 'po-slot' + (it ? (it.poison ? ' poison' : ' full') : ' empty');
+      if (it && it.poison) { el.type = 'button'; el.setAttribute('aria-label', 'Potion empoisonnée : la vendre'); el.addEventListener('click', openPoison); }
+      const img = document.createElement('img');
+      img.alt = '';
+      img.src = `manoir/potions/${it ? (it.poison ? 'fiole-poison' : `fiole-${PO_FILES[(it.c - 1) % PO_MAX]}`) : 'fiole-vide'}.svg`;
+      el.appendChild(img);
+      shelf.appendChild(el);
+    }
+    const level = s ? ['bourse', 'conseil', 'idee', 'duels'].filter((k) => s[k]).length : (state.profile.lastDaily === today() ? 1 : 0);
+    $('#poToday').innerHTML = potionTodaySvg(level);
+    $('#poDate').textContent = dayShort(today());
+    $('#poLevel').textContent = `${level} / 4 ingrédients`;
+    const done = state.profile.carnetLast === today();
+    const streak = done ? (state.profile.carnetStreak || 1) : carnetStreakBefore();
+    $('#poStreak').textContent = streak ? `Série : ${plural(streak, 'jour')}` : 'Pas encore de série';
+    const full = good >= PO_MAX;
+    const c = $('#poCauldron');
+    if (!c.firstElementChild) c.innerHTML = cauldronSvg;
+    c.classList.toggle('gold', full);
+    setBrew(full ? '#FFD76A' : '#9ED88A');
+    $('#poFull').hidden = !full;
+    const steps = [
+      ['bourse', '🪙', 'Ouvrir la bourse du matin', 'pièce d\'or', () => { goHome(); setTimeout(() => $('#libOwlBtn').click(), 50); }],
+      ['conseil', '🪶', 'Voter au conseil', 'plume · classe tes 3 favoris', () => { cv3Step = 0; openContest(); }],
+      ['idee', '🌸', 'Proposer une idée', 'pétale · thème, couleur, objet', () => { cv3Step = 0; openContest().then(() => openThemeVote('propose')); }],
+      ['duels', '💎', 'Voter au concours d\'hier', 'cristal · tes duels', () => { cv3Step = 2; openContest(); }],
+    ];
+    const ol = $('#poSteps');
+    ol.innerHTML = '';
+    for (const [k, ico, title, sub, go] of steps) {
+      const ok = k === 'bourse' ? state.profile.lastDaily === today() : !!(s && s[k]);
+      const li = document.createElement('li');
+      li.className = 'po-step' + (ok ? ' ok' : '');
+      li.innerHTML = `<span class="po-ing" aria-hidden="true">${ico}</span><span class="po-step-txt"><strong></strong><span></span></span>`;
+      li.querySelector('strong').textContent = title;
+      li.querySelector('.po-step-txt span').textContent = s && s.notes && s.notes[k] ? s.notes[k] : sub;
+      if (ok) li.insertAdjacentHTML('beforeend', '<span class="po-done">✓ Ajouté</span>');
+      else if (s || k === 'bourse') {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'po-go';
+        b.textContent = 'J\'y vais';
+        b.addEventListener('click', go);
+        li.appendChild(b);
+      }
+      ol.appendChild(li);
+    }
+    const next = bourseAmount(done ? streak : streak + 1);
+    const foot = document.createElement('li');
+    foot.className = 'po-foot';
+    foot.textContent = done ? `Potion terminée ✓ Elle a rejoint ton étagère. Demain, ta bourse vaudra ${next} 🪙.`
+      : `Potion terminée : elle rejoint ton étagère et ta bourse passe à ${next} 🪙 demain.`;
+    ol.appendChild(foot);
+    const pour = $('#poPour');
+    pour.disabled = !full;
+    pour.textContent = full ? `Verser les ${PO_MAX} potions` : `Verser dans le chaudron · ${good}/${PO_MAX}`;
+  }
+  // Potions empoisonnées : l'apothicaire les rachète.
+  function openPoison() {
+    const n = poisonPotions();
+    if (!n) return;
+    const price = setting('potionPoisonPrice');
+    $('#poisonTitle').textContent = n > 1 ? `${n} potions empoisonnées` : '1 potion empoisonnée';
+    $('#poisonText').textContent = n > 1 ? `Ta série s'est arrêtée : tes ${n} dernières potions ont tourné en poison.` : 'Ta série s\'est arrêtée : ta dernière potion a tourné en poison.';
+    $('#poisonSell').textContent = `Vendre ${n > 1 ? `les ${n}` : 'la potion'} · +${n * price} 🪙`;
+    $('#poisonDialog').hidden = false;
+  }
+  $('#poisonKeep').addEventListener('click', () => { $('#poisonDialog').hidden = true; });
+  $('#poisonSell').addEventListener('click', () => {
+    const d = potionsData();
+    const n = poisonPotions();
+    const gain = n * setting('potionPoisonPrice');
+    d.shelf = d.shelf.filter((x) => !x.poison).map((x, i) => ({ ...x, c: i + 1 }));
+    state.profile.points = (state.profile.points || 0) + gain;
+    saveProfile();
+    renderPoints();
+    $('#poisonDialog').hidden = true;
+    toast(`L'apothicaire te rachète ${plural(n, 'poison')} : +${gain} 🪙`);
+    renderPotions(poStatus);
+  });
+  // Le chaudron : un objet nouveau, au hasard parmi les enveloppes en vente.
+  function cauldronPick() {
+    const live = new Set(liveEnvelopes().map((e) => e.id));
+    const pool = [...state.images.values()].filter((i) => i.catalog && i.url && live.has(i.envelope) && owned(i.id) === 0);
+    return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+  }
+  $('#poPour').addEventListener('click', async () => {
+    if (goodPotions() < PO_MAX) return;
+    const img = cauldronPick();
+    if (!img) { toast('Tu as déjà tous les objets en vente : le chaudron n\'a rien de nouveau pour toi pour l\'instant !'); return; }
+    const pour = $('#poPour');
+    pour.disabled = true;
+    const shelfItems = [...potionsData().shelf];
+    // On donne l'objet tout de suite (même si l'animation est interrompue).
+    state.profile.inventory[img.id] = (state.profile.inventory[img.id] || 0) + 1;
+    const bonus = grimoireOn() ? addCristaux(setting('potionCristaux')) : 0;
+    potionsData().shelf = [];
+    saveProfile();
+    if (!tourReduce()) await cauldronAnimation(shelfItems);
+    renderPotions(poStatus);
+    showCauldronResult(img, bonus);
+  });
+  async function cauldronAnimation(items) {
+    const anim = $('#poAnim'), cauldron = $('#poCauldron');
+    anim.hidden = false;
+    anim.querySelectorAll('.po-fly').forEach((x) => x.remove());
+    cauldron.scrollIntoView({ block: 'center' });
+    await new Promise((r) => setTimeout(r, 200));
+    const cr = cauldron.getBoundingClientRect();
+    const target = { x: cr.left + cr.width * 0.5 - 20, y: cr.top + cr.height * 0.18 };
+    const slots = [...document.querySelectorAll('#poShelf .po-slot')];
+    const flights = items.map((it, i) => new Promise((resolve) => {
+      setTimeout(() => {
+        const slot = slots[i];
+        const r = slot.getBoundingClientRect();
+        const img = slot.querySelector('img').cloneNode();
+        img.className = 'po-fly';
+        anim.appendChild(img);
+        slot.querySelector('img').style.visibility = 'hidden';
+        const from = { x: r.left + r.width / 2 - 20, y: r.top };
+        const mid = { x: (from.x + target.x) / 2, y: Math.min(from.y, target.y) - 40 };
+        const a = img.animate([
+          { transform: `translate(${from.x}px,${from.y}px) rotate(0deg)` },
+          { transform: `translate(${mid.x}px,${mid.y}px) rotate(-40deg)`, offset: 0.55 },
+          { transform: `translate(${target.x}px,${target.y - 30}px) rotate(-150deg)`, offset: 0.85 },
+          { transform: `translate(${target.x}px,${target.y}px) rotate(-180deg) scale(.4)`, opacity: 0 },
+        ], { duration: 900, easing: 'ease-in-out', fill: 'forwards' });
+        a.finished.then(() => {
+          img.remove();
+          setBrew(PO_COLORS[(it.c - 1) % PO_MAX]);
+          cauldron.classList.remove('squash'); void cauldron.offsetWidth; cauldron.classList.add('squash');
+          resolve();
+        });
+      }, i * 400);
+    }));
+    await Promise.all(flights);
+    await new Promise((r) => setTimeout(r, 300));
+    setBrew('#FFD76A');
+    cauldron.classList.add('gold', 'shake');
+    await new Promise((r) => setTimeout(r, 1000));
+    const flash = anim.querySelector('.po-flash');
+    await flash.animate([{ opacity: 0 }, { opacity: 1, offset: 0.4 }, { opacity: 0 }], { duration: 900, easing: 'ease-out' }).finished;
+    cauldron.classList.remove('shake');
+    anim.hidden = true;
+  }
+  function showCauldronResult(img, bonus) {
+    const env = state.envelopes.find((e) => e.id === img.envelope);
+    $('#poResultImg').src = img.url;
+    $('#poResultName').textContent = objectLabel(img);
+    $('#poResultTags').textContent = `${(RARITIES[img.rarity || 'common'] || RARITIES.common).label}${env ? ` · ${env.name || 'Collection'}` : ''}`;
+    $('#poResultBonus').textContent = bonus ? `+${bonus} éclats de cristal 🔮` : '';
+    $('#poResult').hidden = false;
+    $('#poResultRooms').focus();
+  }
+  $('#poResultClose').addEventListener('click', () => { $('#poResult').hidden = true; });
+  $('#poResultRooms').addEventListener('click', () => { $('#poResult').hidden = true; openRooms(); });
+  $('#poResultBook').addEventListener('click', () => { $('#poResult').hidden = true; goHome(); setTimeout(() => $('#homeCollection').click(), 50); });
+  $('#potionsBack').addEventListener('click', goHome);
 
   init();
 })();

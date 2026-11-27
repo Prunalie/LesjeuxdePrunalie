@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611271200">
+  <link rel="stylesheet" href="style.css?v=202611271400">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -835,6 +835,45 @@
   </div>
 
   <!-- Nouveautés -->
+  <!-- Salle des potions (essai administratrice) : les actions du jour remplissent la potion du jour ; 7 potions = un objet -->
+  <section id="screenPotions" class="screen screen-potions" hidden>
+    <header class="topbar">
+      <div class="room-title">
+        <button id="potionsBack" class="btn btn-ghost" title="Retour">←<span class="label-long">&nbsp;Retour</span></button>
+        <h1>Salle des potions</h1>
+      </div>
+      <div class="topbar-actions"><span class="points-pill"></span></div>
+    </header>
+    <div class="rooms-body potions-body">
+      <div class="po-shelf-head"><h2>Mon étagère</h2><span id="poCount"></span></div>
+      <div id="poShelf" class="po-shelf"></div>
+      <div class="po-work">
+        <div class="po-today">
+          <div id="poToday" class="po-today-img"></div>
+          <div class="po-today-txt"><span id="poDate" class="po-date"></span><strong>Potion du jour</strong><span id="poLevel"></span><span id="poStreak" class="muted"></span></div>
+        </div>
+        <div class="po-cauldron-wrap">
+          <div id="poCauldron" class="po-cauldron"></div>
+          <span class="po-cauldron-cap">7 potions<br>= 1 nouvel objet</span>
+        </div>
+      </div>
+      <p id="poFull" class="po-full" hidden>Ton étagère est pleine ! Le chaudron t'attend ✨</p>
+      <ol id="poSteps" class="po-steps"></ol>
+      <button id="poPour" class="po-pour" type="button" disabled></button>
+    </div>
+    <div id="poAnim" class="po-anim" hidden aria-hidden="true"><div class="po-flash"></div></div>
+    <div id="poResult" class="po-result" hidden role="dialog" aria-modal="true" aria-labelledby="poResultTitle">
+      <p class="po-res-kicker">Le chaudron a parlé</p>
+      <h2 id="poResultTitle">Nouvel objet obtenu !</h2>
+      <div class="po-medal"><div class="po-rays"></div><img id="poResultImg" alt=""></div>
+      <p id="poResultName" class="po-res-name"></p>
+      <p id="poResultTags" class="po-res-tags"></p>
+      <p id="poResultBonus" class="po-res-bonus"></p>
+      <div class="po-res-actions"><button id="poResultRooms" class="btn btn-primary" type="button">Placer dans une pièce</button><button id="poResultBook" class="btn" type="button">Voir dans le grimoire</button></div>
+      <button id="poResultClose" class="btn btn-ghost po-res-close" type="button">Fermer</button>
+    </div>
+  </section>
+
   <!-- Grimoire des sortilèges (essai) : les éclats de cristal et les sortilèges du manoir -->
   <section id="screenGrimoire" class="screen screen-grimoire" hidden>
     <header class="topbar">
@@ -1078,6 +1117,19 @@
     </div>
     <div id="tourFee" class="tour-fee" aria-hidden="true"></div>
     <p id="tourLive" class="sr-only" aria-live="polite"></p>
+  </div>
+
+  <!-- Potions empoisonnées : on peut les revendre -->
+  <div id="poisonDialog" class="modal" hidden>
+    <div class="modal-box poison-box" role="dialog" aria-modal="true" aria-labelledby="poisonTitle">
+      <p class="poison-kicker">Série perdue</p>
+      <h2 id="poisonTitle"></h2>
+      <img src="manoir/potions/fiole-poison.svg" alt="" class="poison-img" width="70" height="86">
+      <p id="poisonText"></p>
+      <ul class="poison-rules"><li>✕ Elles ne peuvent pas aller dans le chaudron</li><li>✓ L'apothicaire te les rachète, et leurs places se libèrent</li></ul>
+      <p class="muted poison-rule">Règle : si un jour ta potion n'est pas terminée, les 3 dernières potions de ton étagère tournent en poison.</p>
+      <div class="modal-actions"><button id="poisonKeep" class="btn" type="button">Les garder pour l'instant</button><button id="poisonSell" class="btn btn-primary" type="button"></button></div>
+    </div>
   </div>
 
   <!-- Bourse du matin (accueil « bibliothèque ») : la chouette lève l'aile, les pièces jaillissent -->
@@ -1509,7 +1561,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611271200"></script>
-  <script src="game.js?v=202611271200"></script>
+  <script src="firebase-config.js?v=202611271400"></script>
+  <script src="game.js?v=202611271400"></script>
 </body>
 </html>
