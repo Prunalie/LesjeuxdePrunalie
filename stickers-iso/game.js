@@ -13409,9 +13409,24 @@
     const taken = state.profile && state.profile.lastDaily === today();
     $('#libOwlImg').src = `manoir/accueil/${taken ? 'chouette-sieste' : 'chouette'}.svg`;
     $('#libOwlBtn').setAttribute('aria-label', taken ? 'La chouette fait la sieste : ta bourse est déjà ouverte' : 'Bourse du matin : la chouette t’attend');
+    fitHomeLib();
+    requestAnimationFrame(fitHomeLib);
     // Ruban « À venir » sur la boule à neige : tant que « Ma grande maison » n'est pas ouverte (et s'il est activé).
     $('#libRuban').hidden = !setting('libRibbon') || maisonOn();
   }
+  // Toute la bibliothèque tient dans l'écran du téléphone (le menu admin reste en dessous) : on règle sa largeur
+  // d'après la hauteur disponible sous la ligne « Bonjour … ».
+  function fitHomeLib() {
+    const lib = $('#homeLib');
+    if (!lib || lib.hidden || $('#screenHome').hidden) return;
+    const top = lib.getBoundingClientRect().top + window.scrollY;
+    const avail = window.innerHeight - top - 10;
+    const parentW = lib.parentElement.clientWidth;
+    // hauteur = (largeur - 4) × 718 / 390 + 6 (bordures)
+    const w = Math.max(240, Math.min(parentW, 480, ((avail - 6) * 390) / 718 + 4));
+    lib.style.width = `${Math.floor(w)}px`;
+  }
+  window.addEventListener('resize', () => fitHomeLib());
   function libGo(tileId) { const t = $(tileId); if (t) t.click(); }
   $('#libPotions').addEventListener('click', () => (potionsOn() ? openPotions() : null));
   $('#libGrimObj').addEventListener('click', () => libGo('#homeCollection'));

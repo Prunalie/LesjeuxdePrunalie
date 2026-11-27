@@ -3652,3 +3652,5 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .poison-rule { font-size: .85rem; }
 @media (prefers-reduced-motion: reduce) { .po-cauldron .bub, .po-rays, .po-medal img, .po-cauldron.shake, .po-cauldron.squash svg { animation: none; } }
 .screen-potions .room-title h1 { white-space: normal; line-height: 1.05; }
+/* Accueil « bibliothèque » : le prénom en entier après Bonjour / Bonsoir (sur 2 lignes si besoin) */
+.home-lib-mode .home-greeting { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; font-size: clamp(17px, 5vw, 22px) !important; line-height: 1.05 !important; overflow-wrap: anywhere; }
