@@ -94,6 +94,7 @@
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_size', label: '📐 Taille sur mesure', unit: '🌟', def: () => 1, max: 100, step: 1 },
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_decor', label: '🎨 Décor (papiers peints et sols)', unit: '🌟', def: () => 2, max: 100, step: 1 },
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_levels', label: '🏢 Étages', unit: '🌟', def: () => 2, max: 100, step: 1 },
+    { group: 'Accueil « grande bibliothèque » (essai)', key: 'libRibbon', label: 'Ruban « À venir » sur la boule à neige, tant que Ma grande maison n\'est pas ouverte (1 = oui, 0 = non)', unit: '', def: () => 1, min: 0, max: 1, step: 1 },
     { group: 'Grimoire des sortilèges (essai)', key: 'cristalCarnet', label: 'Éclats pour un Carnet du jour complet', unit: '🔮', def: () => 1, max: 1000, step: 1 },
     { group: 'Grimoire des sortilèges (essai)', key: 'cristalContest', label: 'Éclats pour une participation au concours', unit: '🔮', def: () => 1, max: 1000, step: 1 },
     { group: 'Grimoire des sortilèges (essai)', key: 'cristalPodium', label: 'Éclats en plus pour un podium (1re, 2e ou 3e place)', unit: '🔮', def: () => 2, max: 1000, step: 1 },
@@ -6312,6 +6313,7 @@
     // L'administratrice a une seule entrée : « Ma maison » (pièces placées + brouillons).
     $('#homeMaison').hidden = !trialView();
     $('#homeGrimoire').hidden = !grimoireOn();
+    renderHomeLib();
     if (grimoireOn()) $('#homeGrimoireSub').textContent = `${state.profile.cristaux || 0} éclat${(state.profile.cristaux || 0) > 1 ? 's' : ''} de cristal 🔮`;
     $('#homeRooms .card-title').textContent = houseOn() ? 'Ma maison' : 'Mes pièces';
     const placed = houseOn() ? houseEntries().length : 0;
@@ -6485,6 +6487,7 @@
   const feeSeen = new Set();
   function showFee(tile, on, label = 'Nouveautés à voir') {
     if (!tile) return;
+    if (LIB_TWINS[tile.id]) showFee($('#' + LIB_TWINS[tile.id]), on, label); // accueil « bibliothèque » : la fée se pose aussi sur l'objet
     let fee = tile.querySelector(':scope > .fee-alerte');
     if (!on) { if (fee) fee.remove(); tile.classList.remove('has-fee'); return; }
     if (!fee) {
@@ -12422,8 +12425,9 @@
       const streak = state.profile.carnetLast === shiftDay(today(), -1) ? (state.profile.carnetStreak || 0) + 1 : 1;
       state.profile.carnetLast = today();
       state.profile.carnetStreak = streak;
+      const gotCristal = grimoireOn() ? addCristaux(setting('cristalCarnet')) : 0;
       saveProfile();
-      setTimeout(() => toast(`📖 Carnet complet ! ${streak > 1 ? `${streak} jours d'affilée. ` : ''}Ta bourse de demain : ${bourseAmount(streak)} 🪙`), 600);
+      setTimeout(() => toast(`📖 Carnet complet ! ${streak > 1 ? `${streak} jours d'affilée. ` : ''}Ta bourse de demain : ${bourseAmount(streak)} 🪙${gotCristal ? ` · +${gotCristal} 🔮` : ''}`), 600);
     }
     renderCarnetTile();
     if (!$('#carnetDialog').hidden) renderCarnet(s);
@@ -12448,7 +12452,6 @@
     const amount = bourseAmount();
     state.profile.points = (state.profile.points || 0) + amount;
     state.profile.lastDaily = today();
-    const gotCristal = grimoireOn() ? addCristaux(setting('cristalCarnet')) : 0;
     saveProfile();
     btn.disabled = true;
     btn.classList.add('open');
@@ -12476,7 +12479,7 @@
     setTimeout(() => {
       renderPoints();
       document.querySelectorAll('.points-pill').forEach((el) => { el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); });
-      toast(`+${amount} 🪙 : ta bourse du matin !${gotCristal ? ` +${gotCristal} 🔮` : ''}`);
+      toast(`+${amount} 🪙 : ta bourse du matin !`);
       carnetCheck();
     }, reduce ? 50 : 350 + N * 55 + 500);
   }
@@ -13377,6 +13380,76 @@
       .sort((a, b) => a.localeCompare(b, 'fr'));
     group('✨ Thèmes', themes.map((t) => [tagLinkKey('g', t), t]));
   }
+
+  // ---------------------------------------------------------------------------
+  // Accueil « grande bibliothèque » (essai administratrice) : une scène illustrée où chaque objet ouvre un menu.
+  // Les objets sont de vrais boutons transparents (avec leur nom pour les lecteurs d'écran) posés sur le dessin ;
+  // ils ouvrent les mêmes écrans que les tuiles de l'accueil habituel (cachées dans ce mode).
+  // ---------------------------------------------------------------------------
+  const libOn = () => trialView();
+  // Objet de la scène ↔ tuile de l'accueil habituel (la fée des alertes passe de l'une à l'autre).
+  const LIB_TWINS = { homeContest: 'libContest', homeCollection: 'libGrimObj', homeCarnet: 'libPotions', homeGrimoire: 'libGrimSorts', homeShop: 'libShop', homeRooms: 'libRooms', homeCreations: 'libSticker', homeMaison: 'libMaison' };
+  function renderHomeLib() {
+    const on = libOn();
+    $('#homeLib').hidden = !on;
+    $('#screenHome').classList.toggle('home-lib-mode', on);
+    if (!on) return;
+    // Bonjour / Bonsoir selon l'heure.
+    const h = new Date().getHours();
+    const g = document.querySelector('.home-greeting');
+    if (g && g.firstChild && g.firstChild.nodeType === 3) g.firstChild.textContent = (h >= 18 || h < 5 ? 'Bonsoir' : 'Bonjour') + ' ';
+    // La chouette : avec sa bourse tant qu'elle n'est pas ouverte, puis la sieste jusqu'au lendemain.
+    const taken = state.profile && state.profile.lastDaily === today();
+    $('#libOwlImg').src = `manoir/accueil/${taken ? 'chouette-sieste' : 'chouette'}.svg`;
+    $('#libOwlBtn').setAttribute('aria-label', taken ? 'La chouette fait la sieste : ta bourse est déjà ouverte' : 'Bourse du matin : la chouette t’attend');
+    // Ruban « À venir » sur la boule à neige : tant que « Ma grande maison » n'est pas ouverte (et s'il est activé).
+    $('#libRuban').hidden = !setting('libRibbon') || maisonOn();
+  }
+  function libGo(tileId) { const t = $(tileId); if (t) t.click(); }
+  $('#libPotions').addEventListener('click', () => (carnetOn() ? openCarnet() : null));
+  $('#libGrimObj').addEventListener('click', () => libGo('#homeCollection'));
+  $('#libGrimSorts').addEventListener('click', () => openGrimoire('home'));
+  $('#libMaison').addEventListener('click', () => { if (maisonOn()) openMaison(); else toast('Ma grande maison arrive bientôt ✨'); });
+  $('#libRooms').addEventListener('click', () => libGo('#homeRooms'));
+  $('#libShop').addEventListener('click', () => libGo('#homeShop'));
+  $('#libContest').addEventListener('click', () => libGo('#homeContest'));
+  $('#libSticker').addEventListener('click', () => libGo('#homeCreations'));
+  // La chouette apporte la bourse du matin.
+  $('#libOwlBtn').addEventListener('click', () => {
+    if (!state.profile) return;
+    if (state.profile.lastDaily === today()) { toast('La chouette fait la sieste 💤 Elle revient demain matin avec ta bourse.'); return; }
+    const amount = bourseAmount();
+    const streak = carnetStreakBefore();
+    const next = bourseAmount(streak + 1);
+    $('#bourseAmount').textContent = `+${amount}`;
+    $('#bourseText').innerHTML = `${streak ? `Série de ${plural(streak, 'jour')}. ` : ''}Complète ta potion du jour : demain, la chouette t’apportera <b>${next}</b> pièces.`;
+    const coins = $('#bourseDialog .bourse-coins');
+    coins.innerHTML = '';
+    for (let i = 0; i < 11; i++) {
+      const c = document.createElement('span');
+      const a = Math.PI * (1.05 + (i / 10) * 0.9);
+      c.style.setProperty('--dx', `${Math.cos(a) * 150}px`);
+      c.style.setProperty('--dy', `${Math.sin(a) * 110 - 10}px`);
+      c.style.animationDelay = `${i * 40}ms`;
+      coins.appendChild(c);
+    }
+    $('#bourseDialog').hidden = false;
+    $('#bourseOk').focus();
+  });
+  $('#bourseOk').addEventListener('click', () => {
+    $('#bourseDialog').hidden = true;
+    if (state.profile.lastDaily === today()) return;
+    const amount = bourseAmount();
+    state.profile.points = (state.profile.points || 0) + amount;
+    state.profile.lastDaily = today();
+    saveProfile();
+    renderPoints();
+    document.querySelectorAll('.points-pill').forEach((el) => { el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); });
+    toast(`+${amount} 🪙 : merci, petite chouette !`);
+    renderHomeLib();
+    carnetCheck();
+  });
+  $('#bourseDialog').addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#bourseOk').click(); });
 
   init();
 })();

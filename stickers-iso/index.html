@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=202611261000">
+  <link rel="stylesheet" href="style.css?v=202611271000">
   <script>try{var t=localStorage.getItem("ma-petite-piece:theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
@@ -68,6 +68,28 @@
     <div class="rooms-body home-body">
       <nav class="home-main" aria-label="Menu principal">
         <div class="mn-greet"><p class="home-greeting" aria-hidden="true">Bonjour <span id="playerName2" class="home-name"></span></p><span class="points-pill mn-only mn-greet-pill"></span></div>
+        <!-- Accueil « grande bibliothèque » (essai administratrice) : chaque objet de la scène ouvre un menu -->
+        <section id="homeLib" class="home-lib" hidden aria-label="La pièce du manoir">
+          <div class="lib-scene">
+            <img class="lib-bg" src="manoir/accueil/scene.svg" alt="" width="390" height="214">
+            <img id="libOwlImg" class="lib-deco" src="manoir/accueil/chouette.svg" alt="" style="left:10.769%;top:50.467%;width:22.564%;height:46.262%">
+            <img id="libFiole" class="lib-deco" src="manoir/accueil/fiole-bleue.svg" alt="" style="left:33.333%;top:72.897%;width:7.692%;height:19.626%">
+            <img id="libPotionImg" class="lib-deco" src="manoir/accueil/potion-jour.svg" alt="" style="left:40.513%;top:66.822%;width:11.795%;height:28.037%">
+            <button id="libOwlBtn" class="lib-hot" type="button" aria-label="Bourse du matin : la chouette t’attend" style="left:6.667%;top:7.477%;width:26.154%;height:84.112%"></button>
+            <button id="libPotions" class="lib-hot" type="button" aria-label="Salle des potions" style="left:32.821%;top:54.206%;width:21.026%;height:39.252%"></button>
+            <button id="libGrimObj" class="lib-hot" type="button" aria-label="Grimoire des objets" style="left:54.872%;top:30.841%;width:16.923%;height:39.252%"></button>
+            <button id="libGrimSorts" class="lib-hot" type="button" aria-label="Grimoire des sortilèges" style="left:76.410%;top:30.841%;width:16.923%;height:39.252%"></button>
+          </div>
+          <div class="lib-shelf">
+            <img class="lib-bg lib-shelf-bg" src="manoir/accueil/etagere.svg" alt="" width="366" height="504">
+            <img id="libRuban" class="lib-bg lib-shelf-bg lib-ruban" src="manoir/accueil/etagere-ruban.svg" alt="" hidden>
+            <button id="libMaison" class="lib-hot" type="button" aria-label="Ma grande maison" style="left:1.026%;top:3.968%;width:31.795%;height:26.984%"></button>
+            <button id="libRooms" class="lib-hot" type="button" aria-label="Mes pièces" style="left:63.077%;top:2.778%;width:28.718%;height:28.175%"></button>
+            <button id="libShop" class="lib-hot" type="button" aria-label="Boutique" style="left:2.051%;top:34.524%;width:24.103%;height:29.762%"></button>
+            <button id="libContest" class="lib-hot" type="button" aria-label="Concours du jour" style="left:45.128%;top:42.063%;width:26.667%;height:22.222%"></button>
+            <button id="libSticker" class="lib-hot" type="button" aria-label="Proposer un sticker" style="left:56.923%;top:71.825%;width:35.897%;height:25.794%"></button>
+          </div>
+        </section>
         <button id="homeCarnet" class="home-carnet" type="button" hidden>
           <span class="carnet-tile-ico" aria-hidden="true">📖</span>
           <span class="carnet-tile-txt"><span class="carnet-tile-title">Mon carnet du jour</span><span class="carnet-tile-sub"></span></span>
@@ -1044,6 +1066,20 @@
     </div>
   </div>
 
+  <!-- Bourse du matin (accueil « bibliothèque ») : la chouette lève l'aile, les pièces jaillissent -->
+  <div id="bourseDialog" class="modal bourse-modal" hidden>
+    <div class="bourse-box" role="dialog" aria-modal="true" aria-labelledby="bourseTitle">
+      <div class="bourse-rays" aria-hidden="true"></div>
+      <img class="bourse-owl" src="manoir/accueil/chouette-aile-levee.svg" alt="" width="176" height="198">
+      <div class="bourse-amount"><span id="bourseAmount">+300</span> <span class="bourse-coin" aria-hidden="true"></span></div>
+      <h2 id="bourseTitle" class="bourse-title">Ta bourse du matin !</h2>
+      <p id="bourseText" class="bourse-text"></p>
+      <button id="bourseOk" class="bourse-btn" type="button">Merci, petite chouette !</button>
+      <p class="bourse-ing">✓ Ingrédient ajouté à ta potion du jour</p>
+      <div class="bourse-coins" aria-hidden="true"></div>
+    </div>
+  </div>
+
   <!-- Grande maison : que faut-il réinitialiser ? -->
   <div id="msResetDialog" class="modal" hidden>
     <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="msResetTitle">
@@ -1459,7 +1495,7 @@
   <!-- Firebase : sauvegarde en ligne des stickers (voir firebase-config.js) -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=202611261000"></script>
-  <script src="game.js?v=202611261000"></script>
+  <script src="firebase-config.js?v=202611271000"></script>
+  <script src="game.js?v=202611271000"></script>
 </body>
 </html>
