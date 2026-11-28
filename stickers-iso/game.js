@@ -3371,8 +3371,14 @@
     if (!carnetOn()) $('#carnetDialog').hidden = true;
     if (carnetOn()) {
       carnetCheck();
-      // Première connexion du jour : le carnet s'ouvre sur la bourse (sauf si une autre fenêtre est déjà ouverte).
-      if (state.profile.lastDaily !== today()) setTimeout(() => { if (!document.querySelector('.modal:not([hidden])')) openCarnet(); }, 1200);
+      // Première connexion du jour : la chouette apporte la bourse (accueil « bibliothèque ») — avant, le carnet s'ouvrait
+      // sur la bourse. Rien ne s'ouvre si une autre fenêtre est déjà là, ou pendant la visite guidée.
+      if (state.profile.lastDaily !== today()) {
+        setTimeout(() => {
+          if (document.querySelector('.modal:not([hidden])') || !$('#tourLayer').hidden) return;
+          if (libOn()) { if (!$('#screenHome').hidden && state.profile.lastDaily !== today()) $('#libOwlBtn').click(); } else openCarnet();
+        }, 1200);
+      }
     }
   }
 
