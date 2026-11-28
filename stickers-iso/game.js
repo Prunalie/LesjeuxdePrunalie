@@ -5251,7 +5251,7 @@
       renderEnvTagBox(sec.querySelector('.env-tags'), env);
       const list = stickersOf(env.id);
       sec.querySelector('.atelier-count').textContent = list.length
-        ? `${list.length} sticker${list.length > 1 ? 's' : ''} (conseil : entre 5 et 10). Les « très rares » tombent environ 10 fois moins souvent que les « communs ».`
+        ? `${list.length} sticker${list.length > 1 ? 's' : ''} (conseil : entre 5 et 10)${(() => { const r = list.filter((i) => i.rarity === 'rare').length, e = list.filter((i) => i.rarity === 'epic').length; return ` · 💎 ${r + e ? [r ? plural(r, 'rare') : '', e ? `${e} très rare${e > 1 ? 's' : ''}` : ''].filter(Boolean).join(', ') : 'aucun rare'}`; })()}. Les « très rares » tombent environ 10 fois moins souvent que les « communs ».`
         : 'Aucun sticker : l\'enveloppe n\'apparaît pas dans la boutique tant qu\'elle est vide.';
       const grid = sec.querySelector('.atelier-grid');
       for (const img of list) {
@@ -6117,13 +6117,17 @@
     const q = normalizeText($('#atelierSearch').value);
     const grid = document.createElement('div');
     grid.className = 'atelier-tiles';
-    const tile = (artEl, title, sub, onClick, extra = '') => {
+    // tag : thème de l'enveloppe, à droite du titre ; badges : [texte, bon ?] (rares, liens concours), d'un coup d'œil.
+    const tile = (artEl, title, sub, onClick, extra = '', tag = '', badges = []) => {
       const b = document.createElement('button');
       b.className = 'atelier-tile ' + extra;
-      b.innerHTML = '<div class="atelier-tile-art"></div><div class="atelier-tile-text"><strong></strong><span class="muted"></span></div><span class="atelier-tile-go">›</span>';
+      b.innerHTML = '<div class="atelier-tile-art"></div><div class="atelier-tile-text"><span class="atelier-tile-head"><strong></strong><span class="atelier-tile-tag"></span></span><span class="muted"></span><span class="atelier-badges"></span></div><span class="atelier-tile-go">›</span>';
       b.querySelector('.atelier-tile-art').appendChild(artEl);
       b.querySelector('strong').textContent = title;
+      b.querySelector('.atelier-tile-tag').textContent = tag ? `🏷️ ${tag}` : '';
       b.querySelector('.muted').textContent = sub;
+      const bx = b.querySelector('.atelier-badges');
+      for (const [txt, ok] of badges) { const s2 = document.createElement('span'); s2.className = 'atelier-badge ' + (ok ? 'ok' : 'ko'); s2.textContent = txt; bx.appendChild(s2); }
       b.addEventListener('click', onClick);
       grid.appendChild(b);
     };
@@ -6141,12 +6145,13 @@
       const st = envStatus(env);
       const sub = (st === 'draft' ? '📝 Brouillon · ' : st === 'scheduled' ? `📅 Sort le ${dayLabel(env.publishAt)} · ` : '')
         + (list.length ? plural(list.length, 'sticker') : 'Vide : pas dans la boutique')
-        + ` · ${env.price ?? DEFAULT_PRICE} 🪙` + (themeOfEnv(env) ? ` · 🏷️ ${themeOfEnv(env).name}` : '') + (list.length && isDailyEnvelope(env) && setting('dailyEnvCount') ? ' · ⭐ du jour' : '')
-        + (hits.length ? ` · contient « ${hits.slice(0, 2).map((h) => h.name).join(' », « ')} »${hits.length > 2 ? '…' : ''}` : '')
-        // Rares (rare et très rare) dans l'enveloppe, et (essai) les liens avec le concours.
-        + (list.length ? (() => { const r = list.filter((i) => i.rarity === 'rare').length, e = list.filter((i) => i.rarity === 'epic').length; return r + e ? ` · 💎 ${[r ? plural(r, 'rare') : '', e ? `${e} très rare${e > 1 ? 's' : ''}` : ''].filter(Boolean).join(', ')}` : ' · ⚠️ aucun rare'; })() : '')
-        + (trialView() ? ((env.contestLinks || []).length ? ` · 🏆 ${plural(env.contestLinks.length, 'lien')} concours ✓` : ' · 🏆 liens concours à faire') : '');
-      tile(envelopeArt(env), env.name || 'Enveloppe', sub, async () => { atelierOpen = env.id; renderAtelier(); await refreshCoffreCount(); if (atelierOpen === env.id) renderAtelier(); }, (list.length ? '' : 'empty') + (st === 'live' ? '' : ' unpublished'));
+        + (list.length && isDailyEnvelope(env) && setting('dailyEnvCount') ? ' · ⭐ du jour' : '')
+        + (hits.length ? ` · contient « ${hits.slice(0, 2).map((h) => h.name).join(' », « ')} »${hits.length > 2 ? '…' : ''}` : '');
+      // D'un coup d'œil : y a-t-il des rares ? les liens avec le concours sont-ils faits ? (le détail est dans la fiche)
+      const badges = [];
+      if (list.length) badges.push([list.some((i) => i.rarity === 'rare' || i.rarity === 'epic') ? '💎 Rares : oui' : '💎 Rares : non', list.some((i) => i.rarity === 'rare' || i.rarity === 'epic')]);
+      if (trialView()) badges.push([(env.contestLinks || []).length ? '🏆 Concours : oui' : '🏆 Concours : non', (env.contestLinks || []).length > 0]);
+      tile(envelopeArt(env), env.name || 'Enveloppe', sub, async () => { atelierOpen = env.id; renderAtelier(); await refreshCoffreCount(); if (atelierOpen === env.id) renderAtelier(); }, (list.length ? '' : 'empty') + (st === 'live' ? '' : ' unpublished'), themeOfEnv(env) ? themeOfEnv(env).name : '', badges);
     }
     const arch = archivedStickers();
     const archHits = q ? arch.filter((img) => normalizeText(img.name).includes(q)) : arch;

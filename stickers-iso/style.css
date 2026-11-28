@@ -3670,3 +3670,14 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .po-tools-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .po-tool { font-size: .85rem; padding: 6px 10px; }
 .env-copy-row { margin: 4px 0 8px; } .env-copy { width: 100%; }
+/* Liste des enveloppes (Atelier) : thème à droite du titre, badges oui / non */
+.atelier-tile-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.atelier-tile-head strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.atelier-tile-tag { flex: none; font-size: .78rem; font-weight: 600; opacity: .85; white-space: nowrap; }
+.atelier-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.atelier-badges:empty { display: none; }
+.atelier-badge { font-size: .72rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; border: 1px solid; }
+.atelier-badge.ok { color: #2f7a4a; border-color: #9ed8b3; background: rgba(158, 216, 179, .2); }
+.atelier-badge.ko { color: #b03a48; border-color: #f0a0aa; background: rgba(240, 160, 170, .15); }
+:root[data-skin="manoir"] .atelier-badge.ok { color: #9ED8B3; }
+:root[data-skin="manoir"] .atelier-badge.ko { color: #F4A0AA; }
