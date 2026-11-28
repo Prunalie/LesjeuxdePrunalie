@@ -94,7 +94,7 @@
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_size', label: '📐 Taille sur mesure', unit: '🌟', def: () => 1, max: 100, step: 1 },
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_decor', label: '🎨 Décor (papiers peints et sols)', unit: '🌟', def: () => 2, max: 100, step: 1 },
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_levels', label: '🏢 Étages', unit: '🌟', def: () => 2, max: 100, step: 1 },
-    { group: 'Accueil « grande bibliothèque » (essai)', key: 'libRibbon', label: 'Ruban « À venir » sur la boule à neige, tant que Ma grande maison n\'est pas ouverte (1 = oui, 0 = non)', unit: '', def: () => 1, min: 0, max: 1, step: 1 },
+    { group: 'Accueil « grande bibliothèque » (essai)', key: 'libRibbon', label: 'Ruban « À venir » sur la boule à neige (1 = affiché, 0 = caché)', unit: '', def: () => 1, min: 0, max: 1, step: 1 },
     { group: 'Salle des potions (essai)', key: 'potionPoisonPrice', label: 'Prix de rachat d\'une potion empoisonnée', unit: '🪙', def: () => 10, max: 100000, step: 5 },
     { group: 'Salle des potions (essai)', key: 'potionCristaux', label: 'Éclats de cristal en plus quand on verse les 7 potions', unit: '🔮', def: () => 3, max: 1000, step: 1 },
     { group: 'Grimoire des sortilèges (essai)', key: 'cristalCarnet', label: 'Éclats pour un Carnet du jour complet', unit: '🔮', def: () => 1, max: 1000, step: 1 },
@@ -13417,8 +13417,8 @@
     $('#libOwlBtn').setAttribute('aria-label', taken ? 'La chouette fait la sieste : ta bourse est déjà ouverte' : 'Bourse du matin : la chouette t’attend');
     fitHomeLib();
     requestAnimationFrame(fitHomeLib);
-    // Ruban « À venir » sur la boule à neige : tant que « Ma grande maison » n'est pas ouverte (et s'il est activé).
-    $('#libRuban').hidden = !setting('libRibbon') || maisonOn();
+    // Ruban « À venir » sur la boule à neige : affiché ou non selon le réglage (à mettre à 0 quand la maison sort).
+    $('#libRuban').hidden = !setting('libRibbon');
   }
   // Toute la bibliothèque tient dans l'écran du téléphone (le menu admin reste en dessous) : on règle sa largeur
   // d'après la hauteur disponible sous la ligne « Bonjour … ».
