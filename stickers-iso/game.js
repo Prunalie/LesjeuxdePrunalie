@@ -90,10 +90,10 @@
     { group: 'Propositions de stickers', key: 'proposalReward', label: 'Pièces proposées quand je valide', unit: '🪙', def: () => PROPOSAL_REWARD, max: 100000, step: 10 },
     { group: 'Propositions de stickers', key: 'proposalGiveSticker', type: 'bool', label: 'Offrir aussi le sticker (1 exemplaire) au joueur qui l\'a proposé', def: () => true },
     { group: 'Propositions de stickers', key: 'maxPending', label: 'Propositions en attente par joueur', unit: 'au plus', def: () => MAX_PENDING, min: 1, max: 1000, step: 1 },
-    { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_garden', label: '🌳 Jardin', unit: '🌟', def: () => 2, max: 100, step: 1 },
-    { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_size', label: '📐 Taille sur mesure', unit: '🌟', def: () => 1, max: 100, step: 1 },
-    { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_decor', label: '🎨 Décor (papiers peints et sols)', unit: '🌟', def: () => 2, max: 100, step: 1 },
-    { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_levels', label: '🏢 Étages', unit: '🌟', def: () => 2, max: 100, step: 1 },
+    { group: 'Options d\'aménagement (en étoiles)', hidden: true, key: 'unlock_garden', label: '🌳 Jardin', unit: '🌟', def: () => 2, max: 100, step: 1 },
+    { group: 'Options d\'aménagement (en étoiles)', hidden: true, key: 'unlock_size', label: '📐 Taille sur mesure', unit: '🌟', def: () => 1, max: 100, step: 1 },
+    { group: 'Options d\'aménagement (en étoiles)', hidden: true, key: 'unlock_decor', label: '🎨 Décor (papiers peints et sols)', unit: '🌟', def: () => 2, max: 100, step: 1 },
+    { group: 'Options d\'aménagement (en étoiles)', hidden: true, key: 'unlock_levels', label: '🏢 Étages', unit: '🌟', def: () => 2, max: 100, step: 1 },
     { group: 'Accueil « grande bibliothèque » (essai)', key: 'libRibbon', label: 'Ma grande maison à venir : 1 = ruban « À venir » sur la boule à neige et sortilèges de la maison bloqués ; 0 = maison ouverte', unit: '', def: () => 1, min: 0, max: 1, step: 1 },
     { group: 'Salle des potions (essai)', key: 'potionPoisonPrice', label: 'Prix de rachat d\'une potion empoisonnée', unit: '🪙', def: () => 10, max: 100000, step: 5 },
     { group: 'Salle des potions (essai)', key: 'potionCristaux', label: 'Éclats de cristal en plus quand on verse les 7 potions', unit: '🔮', def: () => 3, max: 1000, step: 1 },
@@ -3425,7 +3425,7 @@
     try {
       const fresh = await db.getPlayer(playerDocId(state.player.key));
       if (!fresh) return;
-      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'carnetLast', 'carnetStreak', 'themeVoteDay', 'joinRewardDay', 'contestCount', 'contestMilestones', 'stairsGift', 'decos', 'decoSeen', 'tourSeen', 'potions', 'house', 'maison', 'cristaux', 'sorts', 'cristalMilestones', 'nightPlayer']) {
+      for (const k of ['points', 'inventory', 'stars', 'stamps', 'unlocks', 'savedColors', 'contestChecked', 'contestWins', 'newsSeen', 'lastDaily', 'voteRewardDay', 'carnetLast', 'carnetStreak', 'themeVoteDay', 'joinRewardDay', 'contestCount', 'contestMilestones', 'stairsGift', 'decos', 'decoSeen', 'tourSeen', 'potions', 'carnetTest', 'house', 'maison', 'cristaux', 'sorts', 'cristalMilestones', 'nightPlayer']) {
         if (fresh[k] !== undefined) state.profile[k] = fresh[k];
       }
       state.profile.inventory = state.profile.inventory || {};
@@ -9970,6 +9970,7 @@
     form.innerHTML = '';
     let groupEl = null, groupName = null;
     for (const def of SETTINGS) {
+      if (def.hidden) continue; // prix en étoiles des options : remplacés par les sortilèges (réglages cachés)
       if (def.group !== groupName) {
         groupName = def.group;
         groupEl = document.createElement('fieldset');
@@ -12434,6 +12435,8 @@
         s.notes.duels = s.duels ? '' : votingOver() ? 'vote terminé à 20 h' : `${plan.done}/${plan.total} duels`;
       }
     } catch (e) { s.offline = true; }
+    // Test (administratrice) : « Valider les missions du jour » coche le conseil, l'idée et les duels pour aujourd'hui.
+    if (state.isAdmin && state.profile.carnetTest === day) { for (const k of ['conseil', 'idee', 'duels']) if (!s[k]) { s[k] = true; s.notes[k] = 'validé pour le test'; } }
     s.count = ['bourse', 'conseil', 'idee', 'duels'].filter((k) => s[k]).length;
     s.done = s.count === 4;
     carnetLast = s;
@@ -13740,6 +13743,7 @@
   }
   function renderPotions(s) {
     poStatus = s;
+    renderPotionTools();
     const d = potionsData();
     const good = goodPotions(), bad = poisonPotions();
     $('#poCount').textContent = `${good} / ${PO_MAX} potions${bad ? ` · ${plural(bad, 'poison')}` : ''}`;
@@ -13906,6 +13910,26 @@
   $('#poResultRooms').addEventListener('click', () => { $('#poResult').hidden = true; openRooms(); });
   $('#poResultBook').addEventListener('click', () => { $('#poResult').hidden = true; goHome(); setTimeout(() => $('#homeCollection').click(), 50); });
   $('#potionsBack').addEventListener('click', goHome);
+
+  // ---------------------------------------------------------------------------
+  // Outils de test de l'administratrice (salle des potions) : remettre la chouette, valider les missions du jour,
+  // ajouter ou empoisonner des potions, tout recommencer. Ils changent seulement le profil de l'administratrice.
+  // ---------------------------------------------------------------------------
+  function renderPotionTools() {
+    const box = $('#poTools');
+    box.hidden = !state.isAdmin;
+    if (!state.isAdmin) return;
+    box.innerHTML = '<p class="po-tools-title">🧪 Outils de test (admin)</p><div class="po-tools-row"></div>';
+    const row = box.querySelector('.po-tools-row');
+    const btn = (label, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn po-tool'; b.textContent = label; b.addEventListener('click', async () => { await fn(); saveProfile(); renderPoints(); const st = await carnetStatus(); renderPotions(st); await carnetCheck(); renderPotions(carnetLast); }); row.appendChild(b); };
+    const p = state.profile;
+    btn('🦉 Réinitialiser la chouette', () => { p.lastDaily = shiftDay(today(), -1); toast('La chouette est réveillée : sa bourse t\'attend sur l\'accueil 🦉'); });
+    btn('✅ Valider les missions du jour', () => { p.carnetTest = today(); toast('Conseil, idée et duels validés pour aujourd\'hui (test).'); });
+    btn('🧪 Ajouter une potion', () => { const d = potionsData(); if (d.shelf.length >= PO_MAX) { toast('L\'étagère est déjà pleine.'); return; } d.shelf.push({ c: (d.shelf.length % PO_MAX) + 1, day: today() }); });
+    btn('🧪 Remplir l\'étagère', () => { const d = potionsData(); while (d.shelf.length < PO_MAX) d.shelf.push({ c: (d.shelf.length % PO_MAX) + 1, day: today() }); });
+    btn('☠️ Simuler une série perdue', () => { const d = potionsData(); delete d.brokeFor; p.carnetLast = shiftDay(today(), -3); const n = potionsCheckBreak(); delete potionsData().poisonNew; toast(n ? `${n} potion${n > 1 ? 's' : ''} empoisonnée${n > 1 ? 's' : ''} (test).` : 'Aucune bonne potion à empoisonner.'); if (n) setTimeout(openPoison, 400); });
+    btn('↺ Tout recommencer', () => { p.potions = { shelf: [] }; p.lastDaily = shiftDay(today(), -1); p.carnetLast = shiftDay(today(), -1); delete p.carnetTest; toast('Tout est remis à zéro : chouette, potion du jour et étagère (la série d\'hier est gardée).'); });
+  }
 
   init();
 })();

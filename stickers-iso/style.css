@@ -3664,3 +3664,8 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .gr-group-note { margin: 0 2px 4px; }
 .gr-spell.locked { opacity: .6; border-style: dashed; box-shadow: none; }
 .gr-lock { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: #D2BF93; }
+.po-tools { margin: 0 0 24px; padding: 10px 12px; border: 2px dashed rgba(230, 184, 92, .6); border-radius: 12px; }
+.po-tools[hidden] { display: none; }
+.po-tools-title { margin: 0 0 8px; font-family: 'Cinzel', Georgia, serif; font-size: 13px; color: #F4D58A; }
+.po-tools-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.po-tool { font-size: .85rem; padding: 6px 10px; }
