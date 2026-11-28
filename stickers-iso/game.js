@@ -94,7 +94,7 @@
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_size', label: '📐 Taille sur mesure', unit: '🌟', def: () => 1, max: 100, step: 1 },
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_decor', label: '🎨 Décor (papiers peints et sols)', unit: '🌟', def: () => 2, max: 100, step: 1 },
     { group: 'Options d\'aménagement (en étoiles)', key: 'unlock_levels', label: '🏢 Étages', unit: '🌟', def: () => 2, max: 100, step: 1 },
-    { group: 'Accueil « grande bibliothèque » (essai)', key: 'libRibbon', label: 'Ruban « À venir » sur la boule à neige (1 = affiché, 0 = caché)', unit: '', def: () => 1, min: 0, max: 1, step: 1 },
+    { group: 'Accueil « grande bibliothèque » (essai)', key: 'libRibbon', label: 'Ma grande maison à venir : 1 = ruban « À venir » sur la boule à neige et sortilèges de la maison bloqués ; 0 = maison ouverte', unit: '', def: () => 1, min: 0, max: 1, step: 1 },
     { group: 'Salle des potions (essai)', key: 'potionPoisonPrice', label: 'Prix de rachat d\'une potion empoisonnée', unit: '🪙', def: () => 10, max: 100000, step: 5 },
     { group: 'Salle des potions (essai)', key: 'potionCristaux', label: 'Éclats de cristal en plus quand on verse les 7 potions', unit: '🔮', def: () => 3, max: 1000, step: 1 },
     { group: 'Grimoire des sortilèges (essai)', key: 'cristalCarnet', label: 'Éclats pour un Carnet du jour complet', unit: '🔮', def: () => 1, max: 1000, step: 1 },
@@ -105,6 +105,10 @@
     { group: 'Grimoire des sortilèges (essai)', key: 'spellGrowTiles', label: '🌱 Agrandissement : carreaux gagnés', unit: 'carreaux', def: () => 4, min: 1, max: 100, step: 1 },
     { group: 'Grimoire des sortilèges (essai)', key: 'spellGrowBase', label: '🌱 Agrandissement : prix du premier', unit: '🔮', def: () => 4, max: 1000, step: 1 },
     { group: 'Grimoire des sortilèges (essai)', key: 'spellGrowStep', label: '🌱 Agrandissement : le prix monte de … à chaque fois', unit: '🔮', def: () => 1, max: 1000, step: 1 },
+    { group: 'Grimoire des sortilèges (essai)', key: 'spellUnlockSize', label: '📐 Sortilège « Taille sur mesure » (pièces)', unit: '🔮', def: () => 4, max: 1000, step: 1 },
+    { group: 'Grimoire des sortilèges (essai)', key: 'spellUnlockGarden', label: '🌳 Sortilège du jardin (pièces)', unit: '🔮', def: () => 8, max: 1000, step: 1 },
+    { group: 'Grimoire des sortilèges (essai)', key: 'spellUnlockLevels', label: '🏢 Sortilège des étages (pièces)', unit: '🔮', def: () => 8, max: 1000, step: 1 },
+    { group: 'Grimoire des sortilèges (essai)', key: 'spellUnlockDecor', label: '🖼️ Sortilège du décor (papiers peints et sols)', unit: '🔮', def: () => 8, max: 1000, step: 1 },
     { group: 'Grimoire des sortilèges (essai)', key: 'spellPaint', label: '🎨 Sortilège de peinture', unit: '🔮', def: () => 6, max: 1000, step: 1 },
     { group: 'Grimoire des sortilèges (essai)', key: 'spellFound', label: '🪨 Sortilège des fondations (plate-forme et marches)', unit: '🔮', def: () => 10, max: 1000, step: 1 },
     { group: 'Grimoire des sortilèges (essai)', key: 'spellFloor', label: '🏰 Sortilège de l\'étage (1er étage et escalier)', unit: '🔮', def: () => 25, max: 1000, step: 1 },
@@ -3960,6 +3964,14 @@
   }
 
   async function unlock(key) {
+    // Essai : les options se débloquent maintenant avec un sortilège du grimoire (plus avec des étoiles).
+    if (grimoireOn()) {
+      const from = !screens.room.hidden && state.roomId ? `room:${state.roomId}` : !screens.shop.hidden ? 'shop' : 'home';
+      if (from.startsWith('room:')) { shapeDialog.hidden = true; select(null); await saveRoom(); }
+      toast(`📖 « ${UNLOCKS[key].label} » s'ouvre maintenant avec un sortilège du grimoire.`);
+      openGrimoire(from);
+      return;
+    }
     const u = UNLOCKS[key], cost = unlockCost(key);
     const stars = state.profile.stars || 0;
     if (stars < cost) {
@@ -4006,7 +4018,7 @@
         p.textContent = UNLOCKS[key].desc;
         const b = document.createElement('button');
         b.className = 'btn btn-primary';
-        b.textContent = `🔓 Débloquer · ${unlockCost(key)} 🌟`;
+        b.textContent = grimoireOn() ? `📖 Sortilège · ${spellCost(key)} 🔮` : `🔓 Débloquer · ${unlockCost(key)} 🌟`;
         b.addEventListener('click', () => unlock(key));
         inner.append(p, b);
       }
@@ -4529,6 +4541,7 @@
     const decoNew = decoNewCount();
     pill.hidden = decorUnlocked() && !decoNew;
     if (decorUnlocked()) pill.innerHTML = `<svg width="12" height="12" viewBox="0 0 32 32" aria-hidden="true"><path d="M13 4 L17 14 L27 18 L17 22 L13 32 L9 22 L-1 18 L9 14 Z" transform="translate(3 -3) scale(.85)" fill="#FFD96B" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/></svg>Nouveau`;
+    else if (grimoireOn()) pill.innerHTML = `📖 ${spellCost('decor')} 🔮`;
     else pill.innerHTML = `${unlockCost('decor')}<svg width="13" height="13" viewBox="0 0 28 28" aria-hidden="true"><path d="M14 3 L17.5 10.5 L25.5 11.5 L19.5 17 L21.2 25 L14 21 L6.8 25 L8.5 17 L2.5 11.5 L10.5 10.5 Z" fill="#FFD96B" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>`;
     const walls = decoList('wall', true).length;
     const floors = decoList('floor', true).length;
@@ -13172,8 +13185,16 @@
   const hasSpell = (k) => adminView() || !!sorts()[k];
   const msTilesUsed = (m) => m.floors[0].cells.length + m.floors[1].cells.length;
   const msTilesCap = () => (adminView() ? Infinity : 25 + setting('spellGrowTiles') * (sorts().grow || 0));
-  const spellCost = (k) => (k === 'grow' ? setting('spellGrowBase') + setting('spellGrowStep') * (sorts().grow || 0) : setting({ paint: 'spellPaint', found: 'spellFound', floor: 'spellFloor' }[k]));
+  const spellCost = (k) => (k === 'grow' ? setting('spellGrowBase') + setting('spellGrowStep') * (sorts().grow || 0) : setting({ paint: 'spellPaint', found: 'spellFound', floor: 'spellFloor', size: 'spellUnlockSize', garden: 'spellUnlockGarden', levels: 'spellUnlockLevels', decor: 'spellUnlockDecor' }[k]));
+  // Tant que Ma grande maison n'est pas ouverte (réglage « à venir »), ses sortilèges restent sous cadenas.
+  const maisonPending = () => !!setting('libRibbon');
+  // Options des pièces : avant, elles se débloquaient avec des étoiles ; maintenant ce sont des sortilèges.
+  // Une joueuse qui les a déjà débloquées les voit « déjà accomplis » (même drapeau : profile.unlocks).
   const SPELLS = [
+    { k: 'size', unlock: true, group: 'pieces', icon: '📐', name: 'Sortilège de la taille sur mesure', desc: () => 'Choisis la largeur, la profondeur et la hauteur des murs de tes pièces.' },
+    { k: 'decor', unlock: true, group: 'pieces', icon: '🖼️', name: 'Sortilège du décor', desc: () => 'Ouvre la boutique des papiers peints et des sols à motif pour tes pièces.' },
+    { k: 'garden', unlock: true, group: 'pieces', icon: '🌳', name: 'Sortilège du jardin', desc: () => 'Transforme une pièce en jardin : murs au choix, herbe et ciel.' },
+    { k: 'levels', unlock: true, group: 'pieces', icon: '🏢', name: 'Sortilège des étages', desc: () => 'Ajoute jusqu\'à 3 niveaux surélevés au fond de tes pièces. Un escalier 🪜 t\'est offert par message.' },
     { k: 'grow', icon: '🌱', name: 'Sortilège d\'agrandissement', desc: () => `+${setting('spellGrowTiles')} carreaux pour ton manoir, à placer où tu veux. Tu peux le lancer autant de fois que tu veux.`, repeat: true },
     { k: 'paint', icon: '🎨', name: 'Sortilège de peinture', desc: () => 'Ouvre la vue Peinture : une couleur, un papier peint ou un sol à motif pour chaque panneau de mur et chaque carreau.' },
     { k: 'found', icon: '🪨', name: 'Sortilège des fondations', desc: () => 'Surélève ton manoir sur une plate-forme, avec des marches pour y monter.' },
@@ -13192,17 +13213,35 @@
     const box = $('#grimoireList');
     box.innerHTML = '';
     const m = maisonRoom() ? getMaison() : null;
+    const spellDone = (sp) => (sp.unlock ? !!(state.profile.unlocks && state.profile.unlocks[sp.k]) : !sp.repeat && !!sorts()[sp.k]);
+    let lastGroup = null;
     for (const sp of SPELLS) {
-      const done = !sp.repeat && !!sorts()[sp.k];
+      const group = sp.group || 'maison';
+      if (group !== lastGroup) {
+        lastGroup = group;
+        const h = document.createElement('h2');
+        h.className = 'gr-group';
+        h.textContent = group === 'pieces' ? '🏠 Pour tes pièces' : '🏰 Pour Ma grande maison';
+        box.appendChild(h);
+        if (group === 'maison' && maisonPending()) {
+          const p = document.createElement('p');
+          p.className = 'muted gr-group-note';
+          p.textContent = '🔒 Bientôt : ces sortilèges s\'ouvriront avec Ma grande maison.';
+          box.appendChild(p);
+        }
+      }
+      const done = spellDone(sp);
+      const locked = group === 'maison' && maisonPending() && !done;
       const cost = spellCost(sp.k);
       const card = document.createElement('div');
-      card.className = 'gr-spell' + (done ? ' done' : '');
+      card.className = 'gr-spell' + (done ? ' done' : '') + (locked ? ' locked' : '');
       const extra = sp.repeat ? `<p class="gr-extra muted">Ton manoir : ${m ? msTilesUsed(m) : 25} carreaux posés sur ${adminView() ? '∞' : msTilesCap()} possibles${sorts().grow ? ` · lancé ${sorts().grow} fois` : ''}</p>` : '';
       card.innerHTML = `<div class="gr-icon" aria-hidden="true">${sp.icon}</div><div class="gr-body"><h3></h3><p class="gr-desc"></p>${extra}</div><div class="gr-act"></div>`;
       card.querySelector('h3').textContent = sp.name;
       card.querySelector('.gr-desc').textContent = sp.desc();
       const act = card.querySelector('.gr-act');
-      if (done) act.innerHTML = '<span class="gr-done">✨ Accompli</span>';
+      if (done) act.innerHTML = sp.unlock ? '<span class="gr-done">✨ Déjà accompli</span>' : '<span class="gr-done">✨ Accompli</span>';
+      else if (locked) act.innerHTML = `<span class="gr-lock">🔒 Bientôt · ${cost} ${CRISTAL_SVG(14)}</span>`;
       else {
         const b = document.createElement('button');
         b.type = 'button';
@@ -13222,8 +13261,13 @@
     if (!(await askConfirm(`Lancer le ${sp.name.toLowerCase()} pour ${cost} 🔮 ?`, 'Lancer'))) return;
     if ((state.profile.cristaux || 0) < cost) return;
     state.profile.cristaux -= cost;
-    if (sp.repeat) sorts()[sp.k] = (sorts()[sp.k] || 0) + 1; else sorts()[sp.k] = true;
+    let stairs = null;
+    if (sp.unlock) {
+      state.profile.unlocks = { ...(state.profile.unlocks || {}), [sp.k]: true };
+      if (sp.k === 'levels') stairs = await sendStairsGift();
+    } else if (sp.repeat) sorts()[sp.k] = (sorts()[sp.k] || 0) + 1; else sorts()[sp.k] = true;
     saveProfile();
+    if (stairs) setTimeout(() => toast('Un escalier gratuit 🪜 t\'attend dans ta boîte aux lettres 💌'), 2600);
     // Petite pluie d'étincelles autour du bouton.
     const r = btn.getBoundingClientRect();
     for (let i = 0; i < 14; i++) {
@@ -13244,7 +13288,7 @@
   $('#homeGrimoire').addEventListener('click', () => openGrimoire('home'));
   $('#grimoireBack').addEventListener('click', () => {
     const r = maisonRoom();
-    if (grimoireFrom === 'maison' && r) { msMode = 'build'; openRoom(r.id); } else goHome();
+    if (grimoireFrom === 'maison' && r) { msMode = 'build'; openRoom(r.id); } else if (grimoireFrom.startsWith('room:') && state.rooms.some((x) => x.id === grimoireFrom.slice(5))) openRoom(grimoireFrom.slice(5)); else if (grimoireFrom === 'shop') openShop(false); else goHome();
   });
 
   // ---------------------------------------------------------------------------

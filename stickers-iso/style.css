@@ -3659,3 +3659,8 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .lib-shelf { aspect-ratio: 350 / 334; }
 .lib-shelf-bg { left: 0; width: 100%; }
 .home-lib.bleed { max-width: none; border-left: 0; border-right: 0; border-radius: 0; }
+.gr-group { margin: 16px 2px 2px; font-family: 'Cinzel', Georgia, serif; font-size: 1rem; color: #F4D58A; }
+.gr-group:first-child { margin-top: 4px; }
+.gr-group-note { margin: 0 2px 4px; }
+.gr-spell.locked { opacity: .6; border-style: dashed; box-shadow: none; }
+.gr-lock { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: #D2BF93; }
