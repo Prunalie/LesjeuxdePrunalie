@@ -6142,7 +6142,10 @@
       const sub = (st === 'draft' ? '📝 Brouillon · ' : st === 'scheduled' ? `📅 Sort le ${dayLabel(env.publishAt)} · ` : '')
         + (list.length ? plural(list.length, 'sticker') : 'Vide : pas dans la boutique')
         + ` · ${env.price ?? DEFAULT_PRICE} 🪙` + (themeOfEnv(env) ? ` · 🏷️ ${themeOfEnv(env).name}` : '') + (list.length && isDailyEnvelope(env) && setting('dailyEnvCount') ? ' · ⭐ du jour' : '')
-        + (hits.length ? ` · contient « ${hits.slice(0, 2).map((h) => h.name).join(' », « ')} »${hits.length > 2 ? '…' : ''}` : '');
+        + (hits.length ? ` · contient « ${hits.slice(0, 2).map((h) => h.name).join(' », « ')} »${hits.length > 2 ? '…' : ''}` : '')
+        // Rares (rare et très rare) dans l'enveloppe, et (essai) les liens avec le concours.
+        + (list.length ? (() => { const r = list.filter((i) => i.rarity === 'rare').length, e = list.filter((i) => i.rarity === 'epic').length; return r + e ? ` · 💎 ${[r ? plural(r, 'rare') : '', e ? `${e} très rare${e > 1 ? 's' : ''}` : ''].filter(Boolean).join(', ')}` : ' · ⚠️ aucun rare'; })() : '')
+        + (trialView() ? ((env.contestLinks || []).length ? ` · 🏆 ${plural(env.contestLinks.length, 'lien')} concours ✓` : ' · 🏆 liens concours à faire') : '');
       tile(envelopeArt(env), env.name || 'Enveloppe', sub, async () => { atelierOpen = env.id; renderAtelier(); await refreshCoffreCount(); if (atelierOpen === env.id) renderAtelier(); }, (list.length ? '' : 'empty') + (st === 'live' ? '' : ' unpublished'));
     }
     const arch = archivedStickers();
