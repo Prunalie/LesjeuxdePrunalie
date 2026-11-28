@@ -13419,11 +13419,22 @@
   function fitHomeLib() {
     const lib = $('#homeLib');
     if (!lib || lib.hidden || $('#screenHome').hidden) return;
+    const vw = document.documentElement.clientWidth;
+    // Téléphone : la bibliothèque prend toute la largeur de l'écran, bord à bord (on ne voit plus les côtés du cadre).
+    if (vw <= 600) {
+      lib.classList.add('bleed');
+      lib.style.width = `${vw}px`;
+      lib.style.marginLeft = '0px';
+      lib.style.marginLeft = `${-Math.round(lib.getBoundingClientRect().left)}px`;
+      return;
+    }
+    lib.classList.remove('bleed');
+    lib.style.marginLeft = '';
     const top = lib.getBoundingClientRect().top + window.scrollY;
     const avail = window.innerHeight - top - 10;
     const parentW = lib.parentElement.clientWidth;
-    // hauteur = (largeur - 4) × 605 / 390 + 6 (bordures) : scène 214 + étagère 391
-    const w = Math.max(240, Math.min(parentW, 480, ((avail - 6) * 390) / 605 + 4));
+    // hauteur = (largeur - 4) × (214 + 334 × 390 / 350) / 390 + 6 (bordures)
+    const w = Math.max(240, Math.min(parentW, 480, ((avail - 6) * 390) / (214 + (334 * 390) / 350) + 4));
     lib.style.width = `${Math.floor(w)}px`;
   }
   window.addEventListener('resize', () => fitHomeLib());
