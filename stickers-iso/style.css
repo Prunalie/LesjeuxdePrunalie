@@ -3669,3 +3669,4 @@ button.tvx-th { position: relative; padding: 0; font: inherit; cursor: zoom-in; 
 .po-tools-title { margin: 0 0 8px; font-family: 'Cinzel', Georgia, serif; font-size: 13px; color: #F4D58A; }
 .po-tools-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .po-tool { font-size: .85rem; padding: 6px 10px; }
+.env-copy-row { margin: 4px 0 8px; } .env-copy { width: 100%; }

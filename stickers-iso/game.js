@@ -13391,6 +13391,28 @@
       try { await db.putEnvelope(env); } catch (e) { toast('L\'enveloppe n\'a pas pu être enregistrée.'); }
       renderEnvTagBox(box, env);
     };
+    // Copier les liens d'une autre enveloppe (ils remplacent ceux de celle-ci).
+    const others = state.envelopes.filter((e) => e.id !== env.id && (e.contestLinks || []).length)
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+    if (others.length) {
+      const row = document.createElement('div');
+      row.className = 'env-copy-row';
+      const sel = document.createElement('select');
+      sel.className = 'field env-copy';
+      sel.setAttribute('aria-label', 'Copier les liens d\'une autre enveloppe');
+      sel.innerHTML = '<option value="">📋 Copier les liens d\'une autre enveloppe…</option>';
+      for (const e of others) { const o = document.createElement('option'); o.value = e.id; o.textContent = `${e.name || 'Enveloppe'} (${e.contestLinks.length})`; sel.appendChild(o); }
+      sel.addEventListener('change', async () => {
+        const src = state.envelopes.find((e) => e.id === sel.value);
+        if (!src) return;
+        if (cur.size && !(await askConfirm(`Remplacer les liens de « ${env.name || 'Enveloppe'} » par ceux de « ${src.name || 'Enveloppe'} » (${src.contestLinks.length}) ?`, 'Copier'))) { sel.value = ''; return; }
+        env.contestLinks = [...src.contestLinks];
+        try { await db.putEnvelope(env); toast(`Liens copiés depuis « ${src.name || 'Enveloppe'} » ✓`); } catch (e) { toast('L\'enveloppe n\'a pas pu être enregistrée.'); }
+        renderEnvTagBox(box, env);
+      });
+      row.appendChild(sel);
+      box.appendChild(row);
+    }
     for (const [title, items] of contestElements()) {
       const n = items.filter(([k]) => cur.has(k)).length;
       const d = document.createElement('details');
