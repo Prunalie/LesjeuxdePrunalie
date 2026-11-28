@@ -13422,8 +13422,8 @@
     const top = lib.getBoundingClientRect().top + window.scrollY;
     const avail = window.innerHeight - top - 10;
     const parentW = lib.parentElement.clientWidth;
-    // hauteur = (largeur - 4) × 718 / 390 + 6 (bordures)
-    const w = Math.max(240, Math.min(parentW, 480, ((avail - 6) * 390) / 718 + 4));
+    // hauteur = (largeur - 4) × 605 / 390 + 6 (bordures) : scène 214 + étagère 391
+    const w = Math.max(240, Math.min(parentW, 480, ((avail - 6) * 390) / 605 + 4));
     lib.style.width = `${Math.floor(w)}px`;
   }
   window.addEventListener('resize', () => fitHomeLib());
